@@ -1,0 +1,132 @@
+[
+  {
+    "category": "Global Citizenship Award",
+    "type": "Institutional",
+    "criteria": [
+      "global citizenship",
+      "international partnership",
+      "ASEAN collaboration",
+      "intercultural understanding",
+      "regional solidarity",
+      "student mobility",
+      "international exchange",
+      "cross-cultural",
+      "global engagement",
+      "international cooperation"
+    ]
+  },
+  {
+    "category": "Outstanding International Education Program Award",
+    "type": "Institutional",
+    "criteria": [
+      "international education program",
+      "student exchange",
+      "academic collaboration",
+      "international partnership",
+      "global learning",
+      "cross-border education",
+      "international mobility",
+      "educational exchange",
+      "global academic",
+      "international student"
+    ]
+  },
+  {
+    "category": "Sustainability Award",
+    "type": "Institutional",
+    "criteria": [
+      "environmental sustainability",
+      "green campus",
+      "carbon neutral",
+      "renewable energy",
+      "sustainable development goals",
+      "environmental conservation",
+      "climate action",
+      "eco-friendly campus",
+      "environmental protection",
+      "waste reduction",
+      "energy efficiency",
+      "biodiversity conservation"
+    ]
+  },
+  {
+    "category": "Best ASEAN Awareness Initiative Award",
+    "type": "Institutional",
+    "criteria": [
+      "ASEAN partnership",
+      "ASEAN collaboration",
+      "regional awareness",
+      "intercultural understanding",
+      "cross-border initiatives",
+      "regional solidarity",
+      "student mobility",
+      "ASEAN identity",
+      "regional cooperation",
+      "ASEAN engagement"
+    ]
+  },
+  {
+    "category": "Emerging Leadership Award",
+    "type": "Individual",
+    "criteria": [
+      "student leader",
+      "youth leader",
+      "leadership training",
+      "leadership excellence",
+      "emerging leader",
+      "young leader",
+      "student leadership",
+      "youth empowerment",
+      "leadership development program",
+      "student mentor"
+    ]
+  },
+  {
+    "category": "Internationalization Leadership Award",
+    "type": "Individual",
+    "criteria": [
+      "internationalization leadership",
+      "izn leadership",
+      "strategic leadership",
+      "institutional leadership",
+      "executive leadership",
+      "transformational leader",
+      "visionary leadership",
+      "leadership excellence",
+      "senior leadership",
+      "leadership impact"
+    ]
+  },
+  {
+    "category": "Best CHED Regional Office for Internationalization Award",
+    "type": "Special",
+    "criteria": [
+      "CHED regional office",
+      "CHED compliance",
+      "government regulatory office",
+      "CHED policy implementation",
+      "regional governance office",
+      "CHED objectives compliance",
+      "government initiative office",
+      "CHED administration",
+      "regulatory compliance office",
+      "CHED policy enforcement"
+    ]
+  },
+  {
+    "category": "Most Promising Regional IRO Community Award",
+    "type": "Special",
+    "criteria": [
+      "IRO community",
+      "international relations office",
+      "community building",
+      "network development",
+      "professional community",
+      "IRO network",
+      "regional network",
+      "community initiative",
+      "professional development",
+      "community engagement"
+    ]
+  }
+]

@@ -1,0 +1,4965 @@
+<?php
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    header('Location: index.php');
+    exit();
+}
+$user = $_SESSION['user'];
+$token = $_SESSION['token'];
+$userId = $_SESSION['user_id'];
+
+require_once __DIR__ . '/api/config.php';
+
+// Get user role from database to ensure accuracy
+$isAdmin = false;
+try {
+    $pdo = getDatabaseConnection();
+    if (!($pdo instanceof FileBasedDatabase)) {
+        $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $dbUser = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($dbUser) {
+            $isAdmin = ($dbUser['role'] === 'admin');
+            // Update session if role changed
+            if (isset($_SESSION['user']['role']) && $_SESSION['user']['role'] !== $dbUser['role']) {
+                $_SESSION['user']['role'] = $dbUser['role'];
+                $_SESSION['role'] = $dbUser['role'];
+            }
+        }
+    } else {
+        // Fallback to session role for file-based system
+        $isAdmin = isset($user['role']) && $user['role'] === 'admin';
+    }
+} catch (Exception $e) {
+    // Fallback to session role on error
+    $isAdmin = isset($user['role']) && $user['role'] === 'admin';
+}
+
+$mous = [];
+try {
+    $pdo = getDatabaseConnection();
+    if ($pdo instanceof FileBasedDatabase) {
+        $dataDir = __DIR__ . '/data/mou/';
+        if (is_dir($dataDir)) {
+            $files = glob($dataDir . '*.json');
+            foreach ($files as $file) {
+                $data = json_decode(file_get_contents($file), true);
+                if ($data) $mous[] = $data;
+            }
+        }
+    } else {
+        if ($isAdmin) {
+            $stmt = $pdo->query('SELECT m.*, u.username as created_by FROM mou_moa m LEFT JOIN users u ON m.user_id = u.id ORDER BY m.created_at DESC');
+            $mous = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } else {
+            $stmt = $pdo->prepare('SELECT m.*, u.username as created_by FROM mou_moa m LEFT JOIN users u ON m.user_id = u.id WHERE m.user_id = ? ORDER BY m.created_at DESC');
+            $stmt->execute([$user['id']]);
+            $mous = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+    }
+} catch (Exception $e) {
+    error_log('MOUs load error: ' . $e->getMessage());
+}
+?>
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LILAC MOUs & MOAs</title>
+<link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+        // Apply theme immediately to prevent flash
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
+            if (shouldBeDark) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Add these libraries for file to image conversion -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": {
+                            DEFAULT: "#137fec",
+                            "50": "#e8f2fe",
+                            "100": "#d1e6fd",
+                            "200": "#a2cbfb",
+                            "300": "#74b1f9",
+                            "400": "#4596f7",
+                            "500": "#137fec",
+                            "600": "#0f66bc",
+                            "700": "#0c4c8d",
+                            "800": "#08335d",
+                            "900": "#04192e"
+                        },
+                        "background-light": "#f1f5f9",
+                        "background-dark": "#0f172a",
+                        "card-light": "#ffffff",
+                        "card-dark": "#1e293b",
+                        "text-light": "#0f172a",
+                        "text-dark": "#e2e8f0",
+                        "text-muted-light": "#64748b",
+                        "text-muted-dark": "#94a3b8",
+                        "border-light": "#e2e8f0",
+                        "border-dark": "#334155",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "full": "9999px"
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1;
+        }
+        /* Ensure the table never overflows horizontally (removes need for scrollbar) */
+        .table-fixed-layout {
+            table-layout: fixed;
+            width: 100%;
+        }
+        .table-fixed-layout th,
+        .table-fixed-layout td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        /* Don't apply ellipsis to buttons */
+        .table-fixed-layout td button {
+            white-space: normal;
+            overflow: visible;
+        }
+        
+        /* Hide table scrollbar */
+        .overflow-x-hidden {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .overflow-x-hidden::-webkit-scrollbar {
+            display: none;
+        }
+        .dark .chartjs-grid-color {
+            color: theme('colors.border-dark');
+        }
+        .chartjs-grid-color {
+            color: theme('colors.border-light');
+        }
+        .dark .chartjs-tick-color {
+            color: theme('colors.text-muted-dark');
+        }
+        .chartjs-tick-color {
+            color: theme('colors.text-muted-light');
+        }
+        .dark .chartjs-legend-color {
+            color: theme('colors.text-dark');
+        }
+        .chartjs-legend-color {
+            color: theme('colors.text-light');
+        }
+        .sidebar-collapsed .sidebar-text {
+            display: none;
+        }
+        .sidebar-collapsed .sidebar-logo-text {
+            display: none;
+        }
+        .sidebar-collapsed .sidebar {
+            width: 5rem;
+        }
+        .sidebar-expanded .sidebar {
+            width: 16rem;
+        }
+        .sidebar-collapsed .sidebar-profile-info {
+            display: none;
+        }
+        .sidebar-collapsed .sidebar-profile-picture {
+            display: none;
+        }
+        /* Add styles for expanded sidebar */
+        .sidebar-expanded .sidebar-profile-picture {
+            display: block;
+        }
+        .sidebar-expanded .sidebar-profile-info {
+            display: block;
+        }
+        .sidebar-collapsed main {
+            margin-left: 2rem;
+        }
+        .sidebar-expanded main {
+            margin-left: 0 !important;
+        }
+        .sidebar-expanded .main-content {
+            padding-left: 0;
+        }
+        .sidebar-collapsed .main-content {
+            padding-left: 0;
+        }
+        .sidebar-collapsed .sidebar-toggle-icon-open {
+            display: none;
+        }
+        .sidebar-collapsed .sidebar-toggle-icon-closed {
+            display: block;
+        }
+        .sidebar-toggle-icon-closed {
+            display: none;
+        }
+        .sidebar-collapsed .sidebar-nav-link {
+            justify-content: center;
+        }
+        .sidebar-collapsed .sidebar-toggle-container {
+            justify-content: center;
+        }
+        .sidebar-collapsed .profile-container {
+            justify-content: center;
+        }
+        /* Clickable table rows */
+        tbody tr {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background-color: rgba(19, 127, 236, 0.05) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark tbody tr:hover {
+            background-color: rgba(19, 127, 236, 0.1) !important;
+        }
+
+        /* Prevent hover effects on buttons and checkboxes */
+        tbody tr:hover td button,
+        tbody tr:hover td input[type="checkbox"] {
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
+<div class="flex h-screen sidebar-collapsed" id="app-container">
+<aside class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col">
+<div class="flex items-center justify-start px-4 h-20 border-b border-border-light dark:border-border-dark">
+<div class="flex items-center gap-3">
+<img alt="CPU LILAC Logo" class="h-11 w-11" src="../assets/images/cpu-logo.png?v=1" width="32" height="32" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex'; console.error('Logo failed to load:', this.src);"/>
+<div class="h-11 w-11 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm" style="display: none;" id="logo-fallback">CPU</div>
+<h1 class="text-xl font-bold text-text-light dark:text-text-dark sidebar-logo-text hidden">LILAC</h1>
+</div>
+</div>
+<nav class="flex-1 px-4 py-6 space-y-2">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="dashboard.php">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="sidebar-text hidden">Dashboard</span>
+</a>
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards.php">
+<span class="material-symbols-outlined">emoji_events</span>
+<span class="sidebar-text hidden">Awards Progress</span>
+</a>
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="events-activities.php">
+<span class="material-symbols-outlined">event</span>
+<span class="sidebar-text hidden">Events &amp; Activities</span>
+</a>
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="scheduler.php">
+<span class="material-symbols-outlined">calendar_today</span>
+<span class="sidebar-text hidden">Scheduler</span>
+</a>
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-primary-50 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 font-semibold sidebar-nav-link" href="mou-moa.php">
+<span class="material-symbols-outlined filled">handshake</span>
+<span class="sidebar-text hidden">MOUs &amp; MOAs</span>
+</a>
+
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="documents.php">
+<span class="material-symbols-outlined">description</span>
+<span class="sidebar-text hidden">Documents</span>
+</a>
+</nav>
+<div class="px-4 py-4 border-t border-border-light dark:border-border-dark">
+<div class="flex items-center justify-between profile-container">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-cover bg-center sidebar-profile-picture hidden" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p");'></div>
+<div class="sidebar-profile-info hidden">
+<p class="font-semibold text-text-light dark:text-text-dark"><?php echo htmlspecialchars($user['role'] === 'admin' ? 'Admin User' : $user['username']); ?></p>
+<div class="flex gap-3">
+<a class="text-sm text-primary-600 dark:text-primary-400 hover:underline" href="profile.php">Profile</a>
+<span class="text-sm text-gray-400">|</span>
+<a class="text-sm text-red-600 dark:text-red-400 hover:underline" href="logout.php">Logout</a>
+</div>
+</div>
+</div>
+<button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-background-dark transition-colors" id="sidebar-toggle">
+<span class="material-symbols-outlined sidebar-toggle-icon-open hidden">chevron_left</span>
+<span class="material-symbols-outlined sidebar-toggle-icon-closed block">chevron_right</span>
+</button>
+</div>
+</div>
+</aside>
+<main class="flex-1 overflow-hidden">
+<header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-hidden">
+<h1 class="text-2xl font-bold text-text-light dark:text-text-dark">MOUs & MOAs</h1>
+<div class="flex items-center gap-2">
+						<div class="relative">
+    <button id="notificationBtn" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors duration-200 relative">
+<span class="material-symbols-outlined">notifications</span>
+        <!-- Notification Badge -->
+        <span id="notificationBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+</button>
+    
+    <!-- Notification Dropdown -->
+    <div id="notificationDropdown" class="absolute right-0 mt-2 w-96 bg-white dark:bg-background-dark rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 hidden max-h-96 overflow-y-auto">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Notifications</h3>
+                <button id="markAllReadBtn" class="text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">
+                    Mark all read
+                </button>
+            </div>
+        </div>
+        
+        <div id="notificationList" class="max-h-80 overflow-y-auto">
+            <!-- Notifications will be populated here -->
+            <div id="noNotifications" class="p-6 text-center text-gray-500 dark:text-gray-400">
+                <span class="material-symbols-outlined text-4xl mb-2 block">notifications_off</span>
+                <p>No notifications</p>
+            </div>
+        </div>
+        
+        <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+            <button id="viewAllNotifications" class="w-full text-center text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">
+                View all notifications
+            </button>
+        </div>
+    </div>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors duration-200" id="theme-toggle">
+<span class="material-symbols-outlined dark:hidden">light_mode</span>
+<span class="material-symbols-outlined hidden dark:inline">dark_mode</span>
+</button>
+</div>
+</header>
+<div class="pt-1 pr-2 pb-1 lg:pt-2 lg:pr-4 lg:pb-2 main-content overflow-hidden">
+<div class="p-3">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-end gap-4 mb-4">
+                    <div class="flex items-center gap-2">
+                        <div class="relative">
+                            <button id="filterBtn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-light bg-card-light border border-border-light rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-text-muted-dark dark:border-border-dark dark:hover:bg-card-dark">
+                            <span class="material-symbols-outlined text-base">filter_list</span>
+                                <span id="filterText">Filter</span>
+                        </button>
+                            
+                            <!-- Advanced Filter Dropdown Menu -->
+                            <div id="filterDropdown" class="absolute right-0 mt-2 w-80 bg-white dark:bg-background-dark rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 hidden max-h-96 overflow-y-auto">
+                                <div class="py-2">
+                                    <!-- Status Filter -->
+                                    <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filter by Status</div>
+                                    
+                                    <button class="filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="status" data-value="all">
+                                        <span>All Status</span>
+                                        <span class="filter-indicator hidden">✓</span>
+                                    </button>
+                                    
+                                    <button class="filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="status" data-value="Active">
+                                        <span>Active</span>
+                                        <span class="filter-indicator hidden">✓</span>
+                                    </button>
+                                    
+                                    <button class="filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="status" data-value="Expires Soon">
+                                        <span>Expires Soon</span>
+                                        <span class="filter-indicator hidden">✓</span>
+                                    </button>
+                                    
+                                    <button class="filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="status" data-value="Expired">
+                                        <span>Expired</span>
+                                        <span class="filter-indicator hidden">✓</span>
+                                    </button>
+                                    
+                                    <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                                    
+                                    <!-- Institution Filter -->
+                                    <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filter by Institution</div>
+                                    
+                                    <div class="px-4 py-2">
+                                        <input type="text" id="institutionFilter" placeholder="Search institution..." class="w-full px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary">
+                                    </div>
+                                    
+                                    <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                                    
+                                    <!-- Date Range Filters -->
+                                    <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filter by Date Range</div>
+                                    
+                                    <div class="px-4 py-2 space-y-2">
+                                        <div>
+                                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">Sign Date From</label>
+                                            <input type="date" id="signDateFrom" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">Sign Date To</label>
+                                            <input type="date" id="signDateTo" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">End Date From</label>
+                                            <input type="date" id="endDateFrom" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">End Date To</label>
+                                            <input type="date" id="endDateTo" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                                    
+                                    <!-- Term Duration Filter -->
+                                    <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filter by Term Duration</div>
+                                    
+                                    <button class="filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="term" data-value="all">
+                                        <span>All Terms</span>
+                                        <span class="filter-indicator hidden">✓</span>
+                                    </button>
+                                    
+                                    <button class="filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="term" data-value="short">
+                                        <span>Short Term (≤ 1 year)</span>
+                                        <span class="filter-indicator hidden">✓</span>
+                                    </button>
+                                    
+                                    <button class="filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="term" data-value="medium">
+                                        <span>Medium Term (1-3 years)</span>
+                                        <span class="filter-indicator hidden">✓</span>
+                                    </button>
+                                    
+                                    <button class="filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="term" data-value="long">
+                                        <span>Long Term (> 3 years)</span>
+                                        <span class="filter-indicator hidden">✓</span>
+                                    </button>
+                                    
+                                    <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                                    
+                                    <button id="clearFilter" class="w-full text-left px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+                                        Clear All Filters
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="relative">
+    <button id="sortBtn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-light bg-card-light border border-border-light rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-text-muted-dark dark:border-border-dark dark:hover:bg-card-dark">
+        <span class="material-symbols-outlined text-base">swap_vert</span>
+        <span id="sortText">Sort</span>
+    </button>
+    
+    <!-- Sort Dropdown Menu -->
+    <div id="sortDropdown" class="absolute right-0 mt-2 w-56 bg-white dark:bg-background-dark rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 hidden">
+        <div class="py-2">
+            <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sort by</div>
+            
+            <button class="sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="institution" data-direction="asc">
+                <span>Institution (A-Z)</span>
+                <span class="sort-indicator hidden">✓</span>
+            </button>
+            
+            <button class="sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="institution" data-direction="desc">
+                <span>Institution (Z-A)</span>
+                <span class="sort-indicator hidden">✓</span>
+            </button>
+            
+            <button class="sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="location" data-direction="asc">
+                <span>Location (A-Z)</span>
+                <span class="sort-indicator hidden">✓</span>
+            </button>
+            
+            <button class="sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="signDate" data-direction="desc">
+                <span>Sign Date (Newest)</span>
+                <span class="sort-indicator hidden">✓</span>
+            </button>
+            
+            <button class="sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="signDate" data-direction="asc">
+                <span>Sign Date (Oldest)</span>
+                <span class="sort-indicator hidden">✓</span>
+            </button>
+            
+            <button class="sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="endDate" data-direction="asc">
+                <span>End Date (Soonest)</span>
+                <span class="sort-indicator hidden">✓</span>
+            </button>
+            
+            <button class="sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="endDate" data-direction="desc">
+                <span>End Date (Latest)</span>
+                <span class="sort-indicator hidden">✓</span>
+            </button>
+            
+            <button class="sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="status" data-direction="asc">
+                <span>Status (A-Z)</span>
+                <span class="sort-indicator hidden">✓</span>
+            </button>
+            
+            <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+            
+            <button id="clearSort" class="w-full text-left px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+                Clear Sort
+            </button>
+        </div>
+    </div>
+</div>
+                        <?php if ($isAdmin): ?>
+                        <button id="addFileBtn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90">
+                            <span class="material-symbols-outlined text-base">add</span>
+                            Add File
+                        </button>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Bulk Operations Toolbar -->
+                <?php if ($isAdmin): ?>
+                <div id="bulkOperationsToolbar" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4 hidden">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <span class="text-sm font-medium text-blue-700 dark:text-blue-300">
+                                <span id="selectedCount">0</span> item(s) selected
+                            </span>
+                            <div class="flex items-center gap-2">
+                                <button id="selectAllBtn" class="text-xs px-3 py-1 bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-700">
+                                    Select All
+                                </button>
+                                <button id="selectNoneBtn" class="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-700">
+                                    &nbsp;
+                                </button>
+                            </div>
+                        </div>
+                        <button id="bulkDeleteBtn" class="disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            <img src="assets/images/delete.png" alt="Delete" class="w-6 h-6">
+                        </button>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <div class="bg-card-light dark:bg-card-dark rounded-xl shadow-soft overflow-hidden border border-border-light dark:border-border-dark">
+                    <div class="overflow-x-hidden">
+                        <table class="table-fixed-layout divide-y divide-border-light dark:divide-border-dark">
+                            <thead class="bg-gray-50 dark:bg-white/5">
+                                <tr>
+                                    <?php if ($isAdmin): ?>
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">View</th>
+                                    <?php endif; ?>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Institution</th>
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Type</th>
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Sign Date</th>
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">End Date</th>
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Status</th>
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border-light dark:divide-border-dark">
+                                <!-- Table rows will be populated from localStorage data -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="px-4 py-3 flex items-center justify-between border-t border-border-light dark:border-border-dark sm:px-6">
+                        <div class="flex-1 flex justify-between sm:hidden">
+                            <button id="prevBtnMobile" class="relative inline-flex items-center px-4 py-2 border border-border-light text-sm font-medium rounded-md text-text-light bg-card-light hover:bg-gray-50 dark:text-text-muted-dark dark:border-border-dark dark:bg-background-dark/50 dark:hover:bg-card-dark disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
+                            <button id="nextBtnMobile" class="ml-3 relative inline-flex items-center px-4 py-2 border border-border-light text-sm font-medium rounded-md text-text-light bg-card-light hover:bg-gray-50 dark:text-text-muted-dark dark:border-border-dark dark:bg-background-dark/50 dark:hover:bg-card-dark disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
+                        </div>
+                        <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                            <div>
+                                <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Showing <span class="font-medium" id="startEntry">1</span> to <span class="font-medium" id="endEntry">6</span> of <span class="font-medium" id="totalEntries">0</span> results</p>
+                            </div>
+                            <div>
+                                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination" id="paginationNav">
+                                    <!-- Pagination buttons will be generated dynamically -->
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+</div>
+<!-- Modal Overlay and Container -->
+<div id="addFileModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+    <div class="w-full max-w-lg bg-white dark:bg-background-dark rounded-xl shadow-2xl m-4 flex flex-col max-h-[90vh]">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Add MOU/MOA File</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Fill in the details below to add a new memorandum.</p>
+        </div>
+        
+        <!-- Modal Body -->
+        <div class="p-6 space-y-4 overflow-y-auto">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="institution">Institution</label>
+                    <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="institution" placeholder="e.g., Central Philippine University" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"/>
+                </div>
+                <div class="relative">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="location">Location</label>
+                    <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="location" placeholder="e.g., Iloilo City" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"/>
+                    <div id="mouLocationSuggestions" class="hidden absolute top-full left-0 right-0 mt-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg max-h-48 overflow-y-auto z-50">
+                        <div id="mouSuggestionsList" class="p-2 space-y-1">
+                            <!-- Location suggestions will appear here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="contact">Contact Details <span class="text-gray-500 dark:text-gray-400 text-xs">(Optional)</span></label>
+                <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="contact" placeholder="e.g., email@example.com" type="text"/>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="sign-date">Sign Date</label>
+                    <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="sign-date" type="date"/>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="end-date">End Date</label>
+                    <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="end-date" type="date"/>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="term">Term</label>
+                    <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="term" placeholder="e.g., 3 Years" type="text"/>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="auto-status">Status</label>
+                    <div class="w-full bg-gray-100 dark:bg-background-dark/30 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                        <span id="autoStatusText">Auto-determined</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="category">Document Type</label>
+                    <select id="category" name="category" class="w-full bg-card-light dark:bg-background-dark/50 border border-border-light dark:border-border-dark rounded-lg px-3 py-2 text-sm text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary focus:border-primary">
+                        <option value="">Select Type</option>
+                        <option value="MOU (Memorandum of Understanding)">MOU (Memorandum of Understanding)</option>
+                        <option value="MOA (Memorandum of Agreement)">MOA (Memorandum of Agreement)</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        <span id="autoCategoryText">Will auto-detect from filename</span>
+                    </p>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Document</label>
+                <div class="mt-2 flex justify-center rounded-lg border border-dashed border-gray-300 dark:border-gray-700 px-6 py-6">
+                    <div class="text-center">
+                        <span class="material-symbols-outlined text-4xl text-gray-400 dark:text-gray-600">cloud_upload</span>
+                        <div class="mt-2 flex text-sm leading-6 text-gray-600 dark:text-gray-400">
+                            <label class="relative cursor-pointer rounded-md font-semibold text-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 dark:focus-within:ring-offset-background-dark hover:text-primary/80" for="file-upload">
+                                <span>Upload a file</span>
+                                <input class="sr-only" id="file-upload" name="file-upload" type="file" accept=".pdf,.docx"/>
+                            </label>
+                            <p class="pl-1">or drag and drop</p>
+                        </div>
+                        <p class="text-xs leading-5 text-gray-600 dark:text-gray-500">PDF, DOCX up to 10MB</p>
+                    </div>
+                </div>
+                <!-- Selected file display -->
+                <div id="selected-file-display" class="mt-3 hidden">
+                    <div class="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-sm">check_circle</span>
+                            <span class="text-sm text-green-700 dark:text-green-300" id="selected-file-name"></span>
+                        </div>
+                        <button type="button" id="remove-file" class="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200">
+                            <span class="material-symbols-outlined text-sm">close</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Footer -->
+        <div class="p-4 bg-gray-50 dark:bg-background-dark/30 rounded-b-xl flex justify-end gap-3 flex-shrink-0">
+            <button id="cancelBtn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800">Cancel</button>
+            <button id="saveBtn" class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90">Save</button>
+        </div>
+    </div>
+</div>
+<!-- File Viewer Modal -->
+<div id="fileViewerModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+    <div class="w-full max-w-4xl bg-white dark:bg-background-dark rounded-xl shadow-2xl m-4 flex flex-col max-h-[90vh]">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 flex items-center justify-between">
+            <div>
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white" id="fileViewerTitle">View File</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1" id="fileViewerSubtitle">Document preview</p>
+            </div>
+            <button id="closeFileViewer" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        
+        <!-- Modal Body -->
+        <div class="p-6 flex-1 overflow-hidden">
+            <div class="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <div id="fileViewerContent" class="w-full h-full flex items-center justify-center">
+                    <!-- File content will be displayed here -->
+                    <div class="text-center">
+                        <span class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-600 mb-4">description</span>
+                        <p class="text-gray-500 dark:text-gray-400">File preview will be displayed here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Footer -->
+        <div class="p-4 bg-gray-50 dark:bg-background-dark/30 rounded-b-xl flex justify-between items-center flex-shrink-0">
+            <div class="flex items-center gap-2">
+                <button id="downloadFile" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary bg-primary/10 rounded-lg hover:bg-primary/20">
+                    <span class="material-symbols-outlined text-sm">download</span>
+                    Download
+                </button>
+            </div>
+            <button id="closeFileViewerBtn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+    <div class="w-full max-w-md bg-white dark:bg-background-dark rounded-xl shadow-2xl m-4">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-gray-200 dark:border-gray-800">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+                    <span class="material-symbols-outlined text-red-600 dark:text-red-400 text-xl">warning</span>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Delete MOU/MOA</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">This action cannot be undone</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Body -->
+        <div class="p-6">
+            <p class="text-gray-700 dark:text-gray-300">
+                Are you sure you want to delete this MOU/MOA? This will permanently remove the entry and all associated data.
+            </p>
+        </div>
+        
+        <!-- Modal Footer -->
+        <div class="p-6 bg-gray-50 dark:bg-background-dark/30 rounded-b-xl flex justify-end gap-3">
+            <button id="cancelDelete" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800">
+                Cancel
+            </button>
+            <button id="confirmDelete" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Delete Confirmation Modal -->
+<div id="bulkDeleteConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+    <div class="w-full max-w-md bg-white dark:bg-background-dark rounded-xl shadow-2xl m-4">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-gray-200 dark:border-gray-800">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+                    <span class="material-symbols-outlined text-red-600 dark:text-red-400 text-xl">warning</span>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Delete Selected Items</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">This action cannot be undone</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Body -->
+        <div class="p-6">
+            <p class="text-gray-700 dark:text-gray-300">
+                Are you sure you want to delete <span id="bulkDeleteCount" class="font-semibold">0</span> selected MOU/MOA entries? This will permanently remove all selected entries and their associated data.
+            </p>
+        </div>
+        
+        <!-- Modal Footer -->
+        <div class="p-6 bg-gray-50 dark:bg-background-dark/30 rounded-b-xl flex justify-end gap-3">
+            <button id="cancelBulkDelete" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800">
+                Cancel
+            </button>
+            <button id="confirmBulkDelete" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Global Configuration -->
+<script>
+    // Pass PHP variables to JavaScript (use window to make globally accessible)
+    window.IS_ADMIN = <?php echo json_encode($isAdmin); ?>;
+    window.USER_ID = <?php echo json_encode($userId); ?>;
+    window.USER_ROLE = <?php echo json_encode($user['role'] ?? 'NOT SET'); ?>;
+    // Also create const aliases for convenience
+    const IS_ADMIN = window.IS_ADMIN;
+    const USER_ID = window.USER_ID;
+
+    // Debug: Log the values
+    console.log('=== PERMISSION DEBUG ===');
+    console.log('User Role:', window.USER_ROLE);
+    console.log('window.IS_ADMIN:', window.IS_ADMIN);
+    console.log('Type:', typeof window.IS_ADMIN);
+    if (window.IS_ADMIN) {
+        console.log('✅ Admin user - should see edit and delete buttons');
+    } else {
+        console.log('❌ Regular user - edit buttons should be hidden');
+    }
+    console.log('======================');
+</script>
+
+<!-- Bulk Operations JavaScript -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Bulk operations elements with null checks
+        const bulkToolbar = document.getElementById('bulkOperationsToolbar');
+        const selectedCount = document.getElementById('selectedCount');
+        const selectAllBtn = document.getElementById('selectAllBtn');
+        const selectNoneBtn = document.getElementById('selectNoneBtn');
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        const bulkDeleteModal = document.getElementById('bulkDeleteConfirmModal');
+        const bulkDeleteCount = document.getElementById('bulkDeleteCount');
+        const cancelBulkDeleteBtn = document.getElementById('cancelBulkDelete');
+        const confirmBulkDeleteBtn = document.getElementById('confirmBulkDelete');
+
+        // Only proceed if bulk operations elements exist
+        if (!bulkToolbar || !selectedCount || !selectAllBtn || !selectNoneBtn || !bulkDeleteBtn || !selectAllCheckbox) {
+            console.log('Bulk operations elements not found. Bulk functionality disabled.');
+            return;
+        }
+
+        // Track selected items
+        let selectedItems = new Set();
+
+        // Function to update bulk operations UI
+        function updateBulkOperationsUI() {
+            // Count actual checked checkboxes instead of using selectedItems Set
+            const checkedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+            const count = checkedCheckboxes.length;
+            
+            if (selectedCount) selectedCount.textContent = count;
+            
+            if (count > 0) {
+                if (bulkToolbar) bulkToolbar.classList.remove('hidden');
+                if (bulkDeleteBtn) bulkDeleteBtn.disabled = false;
+            } else {
+                if (bulkToolbar) bulkToolbar.classList.add('hidden');
+                if (bulkDeleteBtn) bulkDeleteBtn.disabled = true;
+            }
+
+            // Update select all checkbox state
+            const allCheckboxes = document.querySelectorAll('.row-checkbox');
+            
+            if (selectAllCheckbox) {
+                if (checkedCheckboxes.length === 0) {
+                    selectAllCheckbox.indeterminate = false;
+                    selectAllCheckbox.checked = false;
+                } else if (checkedCheckboxes.length === allCheckboxes.length) {
+                    selectAllCheckbox.indeterminate = false;
+                    selectAllCheckbox.checked = true;
+                } else {
+                    selectAllCheckbox.indeterminate = true;
+                    selectAllCheckbox.checked = false;
+                }
+            }
+        }
+
+        // Function to handle individual checkbox change
+        function handleRowCheckboxChange(checkbox) {
+            // No need to maintain selectedItems Set anymore
+            updateBulkOperationsUI();
+        }
+
+        // Add event listener to new checkboxes
+        function addCheckboxEventListener(checkbox) {
+            checkbox.addEventListener('change', function() {
+                handleRowCheckboxChange(this);
+            });
+        }
+
+        // Select all functionality
+        selectAllBtn.addEventListener('click', function() {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateBulkOperationsUI();
+        });
+
+        // Select all checkbox functionality
+        selectAllCheckbox.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateBulkOperationsUI();
+        });
+
+        // Select none functionality
+        selectNoneBtn.addEventListener('click', function() {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateBulkOperationsUI();
+        });
+
+        // Bulk delete functionality
+        bulkDeleteBtn.addEventListener('click', function() {
+            const checkedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+            if (checkedCheckboxes.length > 0) {
+                bulkDeleteCount.textContent = checkedCheckboxes.length;
+                bulkDeleteModal.classList.remove('hidden');
+            }
+        });
+
+        // Cancel bulk delete
+        cancelBulkDeleteBtn.addEventListener('click', function() {
+            bulkDeleteModal.classList.add('hidden');
+        });
+
+        // Confirm bulk delete
+        confirmBulkDeleteBtn.addEventListener('click', async function() {
+            // Get IDs from actually checked checkboxes
+            const checkedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+            const idsToDelete = Array.from(checkedCheckboxes).map(checkbox => parseInt(checkbox.dataset.id));
+
+            try {
+                // Delete via API
+                const API_BASE_URL = 'api/mou-moa.php';
+                await Promise.allSettled(idsToDelete.map(id =>
+                    fetch(`${API_BASE_URL}?action=delete&id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+                ));
+
+                // Reload data from database
+                await loadFromDatabase();
+
+                // Close modal
+                bulkDeleteModal.classList.add('hidden');
+
+                // Clear selection
+                selectedItems.clear();
+                updateBulkOperationsUI();
+
+            } catch (error) {
+                console.error('Error during bulk delete:', error);
+                
+                // Show error message (self-contained)
+                const errorToast = document.createElement('div');
+                errorToast.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+                errorToast.textContent = 'Failed to delete selected entries: ' + error.message;
+                document.body.appendChild(errorToast);
+                
+                setTimeout(() => {
+                    if (document.body.contains(errorToast)) {
+                        document.body.removeChild(errorToast);
+                    }
+                }, 5000);
+            }
+        });
+
+        // Close modal when clicking outside
+        bulkDeleteModal.addEventListener('click', function(e) {
+            if (e.target === bulkDeleteModal) {
+                bulkDeleteModal.classList.add('hidden');
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && bulkDeleteModal && !bulkDeleteModal.classList.contains('hidden')) {
+                bulkDeleteModal.classList.add('hidden');
+            }
+        });
+
+        // Initialize checkboxes for existing rows
+        document.querySelectorAll('.row-checkbox').forEach(checkbox => {
+            addCheckboxEventListener(checkbox);
+        });
+
+        // Make addCheckboxEventListener globally accessible for new rows
+        window.addCheckboxEventListener = addCheckboxEventListener;
+
+        // Initialize UI
+        updateBulkOperationsUI();
+    });
+</script>
+
+
+</main>
+</div>
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeToggle = document.getElementById('theme-toggle');
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            const appContainer = document.getElementById('app-container');
+            const sidebar = document.querySelector('.sidebar');
+            const mainContent = document.querySelector('main');
+            const sidebarLogoText = document.querySelector('.sidebar-logo-text');
+            const sidebarTexts = document.querySelectorAll('.sidebar-text');
+            const sidebarProfileInfo = document.querySelector('.sidebar-profile-info');
+            const sidebarProfilePicture = document.querySelector('.sidebar-profile-picture');
+            const openIcon = document.querySelector('.sidebar-toggle-icon-open');
+            const closedIcon = document.querySelector('.sidebar-toggle-icon-closed');
+            const navLinks = document.querySelectorAll('.sidebar-nav-link');
+            const profileContainer = document.querySelector('.profile-container');
+            const toggleContainer = document.querySelector('.sidebar-toggle-container');
+            // Prevent navigating when clicking the current page link
+            const currentPath = window.location.pathname.split('/').pop();
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (href === currentPath) {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                    });
+                }
+            });
+            // Function to toggle sidebar
+            const toggleSidebar = () => {
+                const isCollapsed = appContainer.classList.contains('sidebar-collapsed');
+                if (isCollapsed) {
+                    appContainer.classList.remove('sidebar-collapsed');
+                    appContainer.classList.add('sidebar-expanded');
+                    sidebar.style.width = '';
+                    mainContent.style.marginLeft = '';
+                    sidebarLogoText.classList.remove('hidden');
+                    sidebarTexts.forEach(text => text.classList.remove('hidden'));
+                    sidebarProfileInfo.classList.remove('hidden');
+                    sidebarProfilePicture.classList.remove('hidden');
+                    openIcon.style.display = 'block';
+                    closedIcon.style.display = 'none';
+                    navLinks.forEach(link => link.classList.remove('justify-center'));
+                    profileContainer.classList.remove('justify-center');
+                    toggleContainer.classList.remove('justify-center');
+                } else {
+                    appContainer.classList.add('sidebar-collapsed');
+                    appContainer.classList.remove('sidebar-expanded');
+                    sidebar.style.width = '';
+                    mainContent.style.marginLeft = '';
+                    sidebarLogoText.classList.add('hidden');
+                    sidebarTexts.forEach(text => text.classList.add('hidden'));
+                    sidebarProfileInfo.classList.add('hidden');
+                    sidebarProfilePicture.classList.add('hidden');
+                    openIcon.style.display = 'none';
+                    closedIcon.style.display = 'block';
+                    navLinks.forEach(link => link.classList.add('justify-center'));
+                    profileContainer.classList.add('justify-center');
+                    toggleContainer.classList.add('justify-center');
+                }
+                setTimeout(() => {
+                    if (window.awardsProgressChartInstance) {
+                        window.awardsProgressChartInstance.resize();
+                    }
+                }, 350);
+            };
+            sidebarToggle.addEventListener('click', toggleSidebar);
+            // Function to toggle dark mode
+            const toggleDarkMode = (enable) => {
+                if (enable) {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                }
+                // Force a re-render to ensure all elements update
+                document.body.offsetHeight;
+            };
+            // Check for saved theme in localStorage
+            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                toggleDarkMode(true);
+            } else {
+                toggleDarkMode(false);
+            }
+            // Event listener for theme toggle button
+            themeToggle.addEventListener('click', () => {
+                const isCurrentlyDark = document.documentElement.classList.contains('dark');
+                toggleDarkMode(!isCurrentlyDark);
+                // Re-render chart on theme change
+                if (window.awardsProgressChartInstance) {
+                    window.awardsProgressChartInstance.destroy();
+                }
+                renderChart();
+            });
+            // Chart.js rendering
+            const renderChart = () => {
+                const canvas = document.getElementById('awardsProgressChart');
+                if (!canvas) {
+                    console.log('Chart canvas not found, skipping chart rendering');
+                    return;
+                }
+                
+                const ctx = canvas.getContext('2d');
+                const isDarkMode = document.documentElement.classList.contains('dark');
+                const gridColor = isDarkMode ? tailwind.theme.extend.colors.border-dark : tailwind.theme.extend.colors.border-light;
+                const tickColor = isDarkMode ? tailwind.theme.extend.colors['text-muted-dark'] : tailwind.theme.extend.colors['text-muted-light'];
+                const legendColor = isDarkMode ? tailwind.theme.extend.colors['text-dark'] : tailwind.theme.extend.colors['text-light'];
+                const data = {
+                    labels: ['Teaching', 'Research', 'Extension', 'Support', 'Admin'],
+                    datasets: [{
+                        label: 'Award Progress',
+                        data: [75, 60, 90, 45, 82],
+                        backgroundColor: [
+                            'rgba(19, 127, 236, 0.2)', // primary
+                            'rgba(34, 197, 94, 0.2)', // green
+                            'rgba(234, 179, 8, 0.2)', // yellow
+                            'rgba(239, 68, 68, 0.2)', // red
+                            'rgba(99, 102, 241, 0.2)', // indigo
+                        ],
+                        borderColor: [
+                            'rgb(19, 127, 236)', // primary
+                            'rgb(34, 197, 94)', // green
+                            'rgb(234, 179, 8)', // yellow
+                            'rgb(239, 68, 68)', // red
+                            'rgb(99, 102, 241)', // indigo
+                        ],
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        borderSkipped: false,
+                    }]
+                };
+                const options = {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false,
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += context.parsed.y + '%';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: {
+                                color: gridColor,
+                                drawBorder: false,
+                            },
+                            ticks: {
+                                color: tickColor,
+                                padding: 10,
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false,
+                            },
+                            ticks: {
+                                color: tickColor,
+                                padding: 10,
+                            }
+                        }
+                    }
+                };
+                window.awardsProgressChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: data,
+                    options: options
+                });
+            };
+            renderChart();
+        });
+    </script>
+
+    <!-- Modal functionality -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const addFileBtn = document.getElementById('addFileBtn');
+            const modal = document.getElementById('addFileModal');
+            const cancelBtn = document.getElementById('cancelBtn');
+            const saveBtn = document.getElementById('saveBtn');
+            const fileUploadInput = document.getElementById('file-upload');
+            const selectedFileDisplay = document.getElementById('selected-file-display');
+            const selectedFileNameDisplay = document.getElementById('selected-file-name');
+            const removeFileBtn = document.getElementById('remove-file');
+
+            // Pagination variables
+            let currentPage = 1;
+            const itemsPerPage = 6;
+            let allEntries = [];
+
+            // Show modal when Add File button is clicked
+            if (addFileBtn && modal) {
+                addFileBtn.addEventListener('click', function() {
+                    // Reset editing state
+                    window.editingEntryId = undefined;
+                    
+                    // Reset modal title and button text for adding
+                    const modalTitle = document.querySelector('#addFileModal h3');
+                    const saveBtn = document.getElementById('saveBtn');
+                    modalTitle.textContent = 'Add MOU/MOA File';
+                    saveBtn.textContent = 'Save';
+                    
+                    modal.classList.remove('hidden');
+                    // Clear selected file display when opening modal
+                    updateSelectedFileDisplay(null);
+                });
+            }
+
+            // Hide modal when Cancel button is clicked
+            if (cancelBtn && modal) {
+                cancelBtn.addEventListener('click', function() {
+                    modal.classList.add('hidden');
+                    // Clear selected file display when closing modal
+                    updateSelectedFileDisplay(null);
+                });
+            }
+
+            // Hide modal when clicking outside of it
+            if (modal) {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        modal.classList.add('hidden');
+                        // Clear selected file display when closing modal
+                        updateSelectedFileDisplay(null);
+                    }
+                });
+            }
+
+            // Function to update selected file display
+            function updateSelectedFileDisplay(file) {
+                if (file) {
+                    selectedFileNameDisplay.textContent = file.name;
+                    selectedFileDisplay.classList.remove('hidden');
+                } else {
+                    selectedFileNameDisplay.textContent = '';
+                    selectedFileDisplay.classList.add('hidden');
+                }
+            }
+            
+            // Function to analyze document type (MOU vs MOA)
+            async function analyzeDocumentType(file) {
+                const autoCategoryText = document.getElementById('autoCategoryText');
+                autoCategoryText.textContent = 'Analyzing document...';
+                autoCategoryText.className = 'text-primary-600 dark:text-primary-400';
+                
+                try {
+                    let detectedType = 'Unknown';
+                    
+                    // For PDF files, we'll use text extraction
+                    if (file.type === 'application/pdf') {
+                        detectedType = await analyzePDFContent(file);
+                    } 
+                    // For DOCX files, we'll analyze the filename and basic content
+                    else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                        detectedType = await analyzeDOCXContent(file);
+                    }
+                    // For Images, run OCR (Tesseract.js)
+                    else if (file.type.startsWith('image/')) {
+                        detectedType = await analyzeImageContent(file);
+                    }
+                    
+                    // Update the display
+                    updateCategoryDisplay(detectedType);
+                    
+                } catch (error) {
+                    console.error('Error analyzing document:', error);
+                    updateCategoryDisplay('Unknown');
+                }
+            }
+            
+            // Function to analyze PDF content
+            async function analyzePDFContent(file) {
+                // For now, we'll use filename analysis as a fallback
+                // In a real implementation, you would use a PDF text extraction library
+                return analyzeFilename(file.name);
+            }
+            
+            // Function to analyze DOCX content
+            async function analyzeDOCXContent(file) {
+                // For now, we'll use filename analysis
+                // In a real implementation, you would extract text from DOCX
+                return analyzeFilename(file.name);
+            }
+            
+            // Lazy-load Tesseract.js
+            async function loadTesseract() {
+                return new Promise((resolve, reject) => {
+                    if (window.Tesseract) return resolve();
+                    const script = document.createElement('script');
+                    script.src = 'https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js';
+                    script.async = true;
+                    script.onload = () => resolve();
+                    script.onerror = () => reject(new Error('Failed to load Tesseract.js'));
+                    document.head.appendChild(script);
+                });
+            }
+
+            // OCR for images to detect MOU/MOA
+            async function analyzeImageContent(file) {
+                try {
+                    await loadTesseract();
+                    const imageUrl = URL.createObjectURL(file);
+                    const { data } = await window.Tesseract.recognize(imageUrl, 'eng', { logger: () => {} });
+                    URL.revokeObjectURL(imageUrl);
+                    const text = (data && data.text ? data.text : '').toLowerCase();
+                    if (!text) return analyzeFilename(file.name);
+                    const hasMou = text.includes('memorandum of understanding') || /\bmou\b/.test(text);
+                    const hasMoa = text.includes('memorandum of agreement') || /\bmoa\b/.test(text);
+                    if (hasMou && !hasMoa) return 'MOU';
+                    if (hasMoa && !hasMou) return 'MOA';
+                    // Tie-breaker: prefer exact phrases over acronyms
+                    if (text.indexOf('memorandum of understanding') !== -1 && text.indexOf('memorandum of agreement') === -1) return 'MOU';
+                    if (text.indexOf('memorandum of agreement') !== -1 && text.indexOf('memorandum of understanding') === -1) return 'MOA';
+                    return 'Unknown';
+                } catch (e) {
+                    console.warn('OCR failed, falling back to filename heuristic', e);
+                    return analyzeFilename(file.name);
+                }
+            }
+            
+            // Function to analyze filename for MOU/MOA indicators
+            function analyzeFilename(filename) {
+                const lowerFilename = filename.toLowerCase();
+                
+                // Check for MOU indicators
+                const mouKeywords = ['mou', 'memorandum of understanding', 'understanding'];
+                const mouScore = mouKeywords.reduce((score, keyword) => {
+                    return score + (lowerFilename.includes(keyword) ? 1 : 0);
+                }, 0);
+                
+                // Check for MOA indicators
+                const moaKeywords = ['moa', 'memorandum of agreement', 'agreement'];
+                const moaScore = moaKeywords.reduce((score, keyword) => {
+                    return score + (lowerFilename.includes(keyword) ? 1 : 0);
+                }, 0);
+                
+                // Determine type based on scores
+                if (mouScore > moaScore && mouScore > 0) {
+                    return 'MOU';
+                } else if (moaScore > mouScore && moaScore > 0) {
+                    return 'MOA';
+                } else {
+                    // If no clear indicators, use additional heuristics
+                    if (lowerFilename.includes('research') || lowerFilename.includes('collaboration')) {
+                        return 'MOU';
+                    } else if (lowerFilename.includes('service') || lowerFilename.includes('contract')) {
+                        return 'MOA';
+                    } else {
+                        return 'Unknown';
+                    }
+                }
+            }
+            
+            // Function to update category display
+            function updateCategoryDisplay(detectedType) {
+                const categorySelect = document.getElementById('category');
+                const autoCategoryText = document.getElementById('autoCategoryText');
+
+                // Update the select dropdown with full text
+                if (categorySelect && detectedType) {
+                    if (detectedType === 'MOU') {
+                        categorySelect.value = 'MOU (Memorandum of Understanding)';
+                    } else if (detectedType === 'MOA') {
+                        categorySelect.value = 'MOA (Memorandum of Agreement)';
+                    }
+                }
+
+                // Update the hint text
+                switch (detectedType) {
+                    case 'MOU':
+                        autoCategoryText.textContent = 'Auto-detected: MOU';
+                        autoCategoryText.className = 'text-green-600 dark:text-green-400';
+                        break;
+                    case 'MOA':
+                        autoCategoryText.textContent = 'Auto-detected: MOA';
+                        autoCategoryText.className = 'text-primary-600 dark:text-primary-400';
+                        break;
+                    default:
+                        autoCategoryText.textContent = 'Please select document type';
+                        autoCategoryText.className = 'text-gray-500 dark:text-gray-400';
+                        break;
+                }
+
+                // Store the detected type for saving
+                window.detectedDocumentType = detectedType;
+            }
+            
+            // Function to reset category detection
+            function resetCategoryDetection() {
+                const categorySelect = document.getElementById('category');
+                const autoCategoryText = document.getElementById('autoCategoryText');
+
+                if (categorySelect) categorySelect.value = '';
+                autoCategoryText.textContent = 'Please select document type';
+                autoCategoryText.className = 'text-gray-500 dark:text-gray-400';
+                window.detectedDocumentType = null;
+            }
+
+            // Event listener for file input change
+            if (fileUploadInput) {
+                fileUploadInput.addEventListener('change', function(event) {
+                    const file = this.files[0];
+                    if (file) {
+                        // Validate file type (PDF, DOCX, and common image types)
+                        const allowedTypes = [
+                            'application/pdf',
+                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                            'image/png', 'image/jpeg', 'image/jpg', 'image/webp'
+                        ];
+                        if (!allowedTypes.includes(file.type)) {
+                            alert('Please select a PDF, DOCX, or an image (PNG, JPG, WEBP).');
+                            this.value = '';
+                            return;
+                        }
+                        
+                        // Validate file size (10MB = 10 * 1024 * 1024 bytes)
+                        if (file.size > 10 * 1024 * 1024) {
+                            alert('File size must be less than 10MB.');
+                            this.value = '';
+                            return;
+                        }
+                        
+                        updateSelectedFileDisplay(file);
+                        
+                        // Analyze file content to detect MOU vs MOA
+                        analyzeDocumentType(file);
+                    } else {
+                        updateSelectedFileDisplay(null);
+                        resetCategoryDetection();
+                    }
+                });
+            }
+
+            // Event listener for remove file button
+            if (removeFileBtn) {
+                removeFileBtn.addEventListener('click', function() {
+                    fileUploadInput.value = ''; // Clear the file input
+                    updateSelectedFileDisplay(null); // Hide the display
+                    resetCategoryDetection();
+                });
+            }
+
+            // Enhanced status determination with "Expires Soon"
+            function determineStatus(endDate) {
+                if (!endDate) {
+                    return 'Auto-determined';
+                }
+                
+                const today = new Date();
+                const endDateObj = new Date(endDate);
+                
+                // Set time to start of day for accurate comparison
+                today.setHours(0, 0, 0, 0);
+                endDateObj.setHours(0, 0, 0, 0);
+                
+                // Calculate days until expiry
+                const daysUntilExpiry = Math.ceil((endDateObj - today) / (1000 * 60 * 60 * 24));
+                
+                if (endDateObj < today) {
+                    return 'Expired';
+                } else if (daysUntilExpiry <= 30) {
+                    return 'Expires Soon';
+                } else {
+                    return 'Active';
+                }
+            }
+            
+            // Function to get status value for saving
+            function getStatusValue(endDate) {
+                if (!endDate) {
+                    return 'Pending'; // Default if no end date provided
+                }
+                
+                const today = new Date();
+                const endDateObj = new Date(endDate);
+                
+                // Set time to start of day for accurate comparison
+                today.setHours(0, 0, 0, 0);
+                endDateObj.setHours(0, 0, 0, 0);
+                
+                // Calculate days until expiry
+                const daysUntilExpiry = Math.ceil((endDateObj - today) / (1000 * 60 * 60 * 24));
+                
+                if (endDateObj < today) {
+                    return 'Expired';
+                } else if (daysUntilExpiry <= 30) {
+                    return 'Expires Soon';
+                } else {
+                    return 'Active';
+                }
+            }
+            
+            // Update status when end date changes
+            const endDateInput = document.getElementById('end-date');
+            const autoStatusText = document.getElementById('autoStatusText');
+            
+            endDateInput.addEventListener('change', function() {
+                const status = determineStatus(this.value);
+                autoStatusText.textContent = status;
+                
+                // Update text color based on status
+                if (status === 'Active') {
+                    autoStatusText.className = 'text-green-600 dark:text-green-400';
+                } else if (status === 'Expired') {
+                    autoStatusText.className = 'text-red-600 dark:text-red-400';
+                } else if (status === 'Expires Soon') {
+                    autoStatusText.className = 'text-yellow-600 dark:text-yellow-400';
+                } else {
+                    autoStatusText.className = 'text-gray-500 dark:text-gray-400';
+                }
+            });
+            
+            // Function to calculate end date based on sign date and term
+            function calculateEndDate(signDate, term) {
+                if (!signDate || !term) return null;
+                
+                let number, unit;
+                
+                // First try to parse with explicit unit (e.g., "5 years", "3 months")
+                const termMatch = term.match(/(\d+)\s*(year|years|month|months|day|days)/i);
+                
+                if (termMatch) {
+                    number = parseInt(termMatch[1]);
+                    unit = termMatch[2].toLowerCase();
+                } else {
+                    // If no unit specified, try to parse just a number (assume years)
+                    const numberMatch = term.match(/(\d+)/);
+                    if (numberMatch) {
+                        number = parseInt(numberMatch[1]);
+                        unit = 'years'; // Default to years if no unit specified
+                    } else {
+                        return null;
+                    }
+                }
+                
+                const startDate = new Date(signDate);
+                if (isNaN(startDate.getTime())) return null;
+                
+                const endDate = new Date(startDate);
+                
+                switch (unit) {
+                    case 'year':
+                    case 'years':
+                        endDate.setFullYear(startDate.getFullYear() + number);
+                        break;
+                    case 'month':
+                    case 'months':
+                        endDate.setMonth(startDate.getMonth() + number);
+                        break;
+                    case 'day':
+                    case 'days':
+                        endDate.setDate(startDate.getDate() + number);
+                        break;
+                    default:
+                        return null;
+                }
+                
+                // Format as YYYY-MM-DD
+                return endDate.toISOString().split('T')[0];
+            }
+            
+            // Function to auto-calculate end date when sign date or term changes
+            function autoCalculateEndDate() {
+                const signDate = document.getElementById('sign-date').value;
+                const term = document.getElementById('term').value.trim();
+                const endDateInput = document.getElementById('end-date');
+                
+                if (signDate && term) {
+                    const calculatedEndDate = calculateEndDate(signDate, term);
+                    if (calculatedEndDate) {
+                        endDateInput.value = calculatedEndDate;
+                        
+                        // Update status display
+                        const status = determineStatus(calculatedEndDate);
+                        autoStatusText.textContent = status;
+                        
+                        // Update text color based on status
+                        if (status === 'Active') {
+                            autoStatusText.className = 'text-green-600 dark:text-green-400';
+                        } else if (status === 'Expired') {
+                            autoStatusText.className = 'text-red-600 dark:text-red-400';
+                        } else if (status === 'Expires Soon') {
+                            autoStatusText.className = 'text-yellow-600 dark:text-yellow-400';
+                        } else {
+                            autoStatusText.className = 'text-gray-500 dark:text-gray-400';
+                        }
+                        
+                        // Notification removed - no message will be shown when end date is calculated
+                    }
+                }
+            }
+            
+            // Function to show temporary messages
+            function showTemporaryMessage(message, type = 'info') {
+                const messageDiv = document.createElement('div');
+                const bgColor = type === 'success' ? 'bg-green-500' : 'bg-blue-500';
+                messageDiv.className = `fixed top-4 right-4 ${bgColor} text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm`;
+                messageDiv.textContent = message;
+                document.body.appendChild(messageDiv);
+                
+                setTimeout(() => {
+                    if (document.body.contains(messageDiv)) {
+                        document.body.removeChild(messageDiv);
+                    }
+                }, 2000);
+            }
+            
+            // Add event listeners for auto-calculation
+            const signDateInput = document.getElementById('sign-date');
+            const termInput = document.getElementById('term');
+            
+            signDateInput.addEventListener('change', autoCalculateEndDate);
+            signDateInput.addEventListener('input', autoCalculateEndDate);
+            
+            termInput.addEventListener('change', autoCalculateEndDate);
+            termInput.addEventListener('input', autoCalculateEndDate);
+            
+            // Handle Save button
+            if (saveBtn) {
+                saveBtn.addEventListener('click', async function() {
+                    // Get form data
+                    const institution = document.getElementById('institution').value.trim();
+                    const location = document.getElementById('location').value.trim();
+                    const contact = document.getElementById('contact').value.trim();
+                    const term = document.getElementById('term').value.trim();
+                    const category = document.getElementById('category').value || 'Unknown';
+                    const signDate = document.getElementById('sign-date').value;
+                    const endDate = document.getElementById('end-date').value;
+                    const fileUpload = document.getElementById('file-upload').files[0];
+                    
+                    // Validate required fields (contact details is now optional)
+                    if (!institution || !location || !term || !signDate || !endDate) {
+                        alert('Please fill in all required fields (Institution, Location, Term, Sign Date, and End Date).');
+                        return;
+                    }
+                    
+                    // Create new MOU/MOA entry
+                    let calculatedStatus;
+                    try {
+                        // Calculate status directly here instead of calling getStatusValue
+                        if (!endDate) {
+                            calculatedStatus = 'Pending';
+                        } else {
+                            const today = new Date();
+                            const endDateObj = new Date(endDate);
+                            
+                            // Set time to start of day for accurate comparison
+                            today.setHours(0, 0, 0, 0);
+                            endDateObj.setHours(0, 0, 0, 0);
+                            
+                            // Calculate days until expiry
+                            const daysUntilExpiry = Math.ceil((endDateObj - today) / (1000 * 60 * 60 * 24));
+                            
+                            if (endDateObj < today) {
+                                calculatedStatus = 'Expired';
+                            } else if (daysUntilExpiry <= 30) {
+                                calculatedStatus = 'Expires Soon';
+                            } else {
+                                calculatedStatus = 'Active';
+                            }
+                        }
+                        console.log('Status calculated:', calculatedStatus);
+                    } catch (error) {
+                        console.error('Error calculating status:', error);
+                        calculatedStatus = 'Active'; // Fallback
+                    }
+                    
+                    const newEntry = {
+                        institution: institution,
+                        location: location,
+                        contact_email: contact,
+                        term: term,
+                        category: category,
+                        sign_date: signDate,
+                        end_date: endDate,
+                        status: calculatedStatus || 'Active', // Ensure status is never undefined
+                        file_name: fileUpload ? fileUpload.name : null,
+                        file_path: fileUpload ? `/uploads/${fileUpload.name}` : null
+                    };
+                    
+                    console.log('New Entry:', newEntry);
+                    
+                    try {
+                        // Show loading state
+                        saveBtn.disabled = true;
+                        saveBtn.textContent = 'Saving...';
+                        
+                        const fileInput = document.getElementById('file-upload');
+                        let result;
+                        if (window.editingEntryId) {
+                            // Update existing entry
+                            newEntry.id = window.editingEntryId;
+                            result = await updateEntry(newEntry, fileInput);
+
+                            // Reload all data from database
+                            await loadFromDatabase();
+
+                            // Reset editing state
+                            window.editingEntryId = undefined;
+                        } else {
+                            // Save new entry to database
+                            result = await saveToDatabase(newEntry, fileInput);
+
+                            // Reload all data from database
+                            await loadFromDatabase();
+                        }
+                        
+                        // Reset form
+                        resetForm();
+                        
+                        // Close modal
+                        const modal = document.getElementById('addFileModal');
+                        modal.classList.add('hidden');
+                        
+                        // Success message removed - no notification will be shown
+                        
+                    } catch (error) {
+                        showErrorMessage('Failed to save data: ' + error.message);
+                    } finally {
+                        // Reset button state
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = 'Save';
+                    }
+                });
+            }
+
+            // Function to delete entry with custom modal
+            function deleteEntry(id) {
+                // Store the ID for the confirmation
+                window.pendingDeleteId = Number(id);
+                
+                // Show the delete confirmation modal
+                const deleteModal = document.getElementById('deleteConfirmModal');
+                deleteModal.classList.remove('hidden');
+            }
+            
+            // Function to confirm delete
+            async function confirmDelete() {
+                const id = window.pendingDeleteId;
+                if (!id) return;
+
+                try {
+                    // Delete via API
+                    const API_BASE_URL = 'api/mou-moa.php';
+                    const response = await fetch(`${API_BASE_URL}?action=delete&id=${encodeURIComponent(id)}`, {
+                        method: 'DELETE'
+                    });
+
+                    const result = await response.json();
+                    if (!result.success) {
+                        throw new Error(result.error || 'Delete failed');
+                    }
+
+                    // Reload all data from database
+                    await loadFromDatabase();
+
+                    // Remove related notifications
+                    if (typeof removeNotificationsForEntry === 'function') {
+                        removeNotificationsForEntry(id);
+                    }
+
+                    // Close modal
+                    const deleteModal = document.getElementById('deleteConfirmModal');
+                    deleteModal.classList.add('hidden');
+
+                    // Clear pending delete ID
+                    window.pendingDeleteId = null;
+
+                    // Show success message
+                    showSuccessMessage('MOU/MOA deleted successfully!');
+                } catch (error) {
+                    showErrorMessage('Failed to delete entry: ' + error.message);
+                }
+            }
+            
+            // Function to cancel delete
+            function cancelDelete() {
+                // Close modal
+                const deleteModal = document.getElementById('deleteConfirmModal');
+                deleteModal.classList.add('hidden');
+                
+                // Clear pending delete ID
+                window.pendingDeleteId = null;
+            }
+            
+            // Function to update pagination display
+            function updatePaginationDisplay() {
+                const totalEntries = allEntries.length;
+
+                const startEntry = totalEntries > 0 ? 1 : 0;
+                const endEntry = totalEntries;
+                
+                // Update the pagination text - use a more specific selector
+                const paginationContainer = document.querySelector('.hidden.sm\\:flex-1.sm\\:flex.sm\\:items-center.sm\\:justify-between');
+                if (paginationContainer) {
+                    const paginationText = paginationContainer.querySelector('div p');
+                    if (paginationText) {
+                        paginationText.innerHTML = `Showing <span class="font-medium">${startEntry}</span> to <span class="font-medium">${endEntry}</span> of <span class="font-medium">${totalEntries}</span> results`;
+                    }
+                }
+            }
+            
+            // Make functions globally accessible
+            window.confirmDelete = confirmDelete;
+            window.cancelDelete = cancelDelete;
+            
+            // Function to reset form
+            function resetForm() {
+                document.getElementById('institution').value = '';
+                document.getElementById('location').value = '';
+                document.getElementById('contact').value = '';
+                document.getElementById('term').value = '';
+                document.getElementById('sign-date').value = '';
+                document.getElementById('end-date').value = '';
+                document.getElementById('file-upload').value = '';
+                autoStatusText.textContent = 'Auto-determined';
+                autoStatusText.className = 'text-gray-500 dark:text-gray-400';
+                
+                // Reset category detection
+                resetCategoryDetection();
+                
+                // Hide selected file display
+                const selectedFileDisplay = document.getElementById('selected-file-display');
+                if (selectedFileDisplay) {
+                    selectedFileDisplay.classList.add('hidden');
+                }
+            }
+            
+            // Function to show error message - Move this before loadFromDatabase
+            function showErrorMessage(message) {
+                const toast = document.createElement('div');
+                toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 5000);
+            }
+
+            // Function to show success message
+            function showSuccessMessage(message) {
+                const toast = document.createElement('div');
+                toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 3000);
+            }
+
+            // Close modal with Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+                    modal.classList.add('hidden');
+                    // Clear selected file display when closing modal
+                    updateSelectedFileDisplay(null);
+                }
+            });
+
+            // File Viewer Modal Functionality
+            const fileViewerModal = document.getElementById('fileViewerModal');
+            const closeFileViewer = document.getElementById('closeFileViewer');
+            const closeFileViewerBtn = document.getElementById('closeFileViewerBtn');
+            const fileViewerTitle = document.getElementById('fileViewerTitle');
+            const fileViewerSubtitle = document.getElementById('fileViewerSubtitle');
+            const fileViewerContent = document.getElementById('fileViewerContent');
+            const downloadFile = document.getElementById('downloadFile');
+            
+            let currentFileData = null;
+            
+            // Function to show file viewer modal
+            function showFileViewer(filePath, fileName) {
+                currentFileData = { path: filePath, name: fileName };
+                
+                // Update modal title and subtitle
+                fileViewerTitle.textContent = fileName || 'View File';
+                fileViewerSubtitle.textContent = 'Document preview';
+                
+                // Clear previous content
+                fileViewerContent.innerHTML = '';
+                
+                // Show loading state
+                fileViewerContent.innerHTML = `
+                    <div class="text-center">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                        <p class="text-gray-500 dark:text-gray-400">Loading file...</p>
+                    </div>
+                `;
+                
+                // Show modal
+                fileViewerModal.classList.remove('hidden');
+                
+                // Simulate file loading (in a real app, you'd load the actual file)
+                setTimeout(() => {
+                    loadFileContent(filePath, fileName);
+                }, 1000);
+            }
+            
+            // Function to load file content with actual image preview
+            function loadFileContent(filePath, fileName) {
+                const fileExtension = fileName ? fileName.split('.').pop().toLowerCase() : '';
+                
+                // Show loading state first
+                fileViewerContent.innerHTML = `
+                    <div class="text-center">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                        <p class="text-gray-500 dark:text-gray-400">Converting file to image...</p>
+                    </div>
+                `;
+                
+                // Try to load the actual file and convert to image
+                fetch(filePath)
+                    .then(response => response.blob())
+                    .then(blob => {
+                        if (fileExtension === 'pdf') {
+                            convertPdfToImage(blob, fileName);
+                        } else if (fileExtension === 'docx') {
+                            convertDocxToImage(blob, fileName);
+                        } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(fileExtension)) {
+                            showImagePreview(blob, fileName);
+                        } else {
+                            showGenericPreview(fileName);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading file:', error);
+                        showGenericPreview(fileName);
+                    });
+            }
+            
+            // Function to convert PDF to image
+            function convertPdfToImage(blob, fileName) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const typedarray = new Uint8Array(e.target.result);
+                    
+                    // Initialize PDF.js
+                    pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
+                        // Get the first page
+                        pdf.getPage(1).then(function(page) {
+                            const scale = 1.5;
+                            const viewport = page.getViewport({scale: scale});
+                            
+                            // Create canvas
+                            const canvas = document.createElement('canvas');
+                            const context = canvas.getContext('2d');
+                            canvas.height = viewport.height;
+                            canvas.width = viewport.width;
+                            
+                            // Render PDF page to canvas
+                            const renderContext = {
+                                canvasContext: context,
+                                viewport: viewport
+                            };
+                            
+                            page.render(renderContext).promise.then(function() {
+                                // Convert canvas to image
+                                const imageData = canvas.toDataURL('image/png');
+                                showImagePreview(imageData, fileName, 'PDF Preview');
+                            });
+                        });
+                    }).catch(function(error) {
+                        console.error('PDF conversion error:', error);
+                        showGenericPreview(fileName);
+                    });
+                };
+                reader.readAsArrayBuffer(blob);
+            }
+            
+            // Function to convert DOCX to image
+            function convertDocxToImage(blob, fileName) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    mammoth.convertToHtml({arrayBuffer: e.target.result})
+                        .then(function(result) {
+                            // Create a temporary div to render the HTML
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = result.value;
+                            tempDiv.style.cssText = `
+                                position: absolute;
+                                left: -9999px;
+                                top: -9999px;
+                                width: 800px;
+                                padding: 20px;
+                                background: white;
+                                font-family: Arial, sans-serif;
+                                font-size: 14px;
+                                line-height: 1.5;
+                                color: black;
+                            `;
+                            document.body.appendChild(tempDiv);
+                            
+                            // Convert HTML to canvas
+                            html2canvas(tempDiv, {
+                                width: 800,
+                                height: tempDiv.scrollHeight,
+                                backgroundColor: '#ffffff'
+                            }).then(function(canvas) {
+                                const imageData = canvas.toDataURL('image/png');
+                                showImagePreview(imageData, fileName, 'Document Preview');
+                                document.body.removeChild(tempDiv);
+                            }).catch(function(error) {
+                                console.error('HTML to canvas conversion error:', error);
+                                document.body.removeChild(tempDiv);
+                                showGenericPreview(fileName);
+                            });
+                        })
+                        .catch(function(error) {
+                            console.error('DOCX conversion error:', error);
+                            showGenericPreview(fileName);
+                        });
+                };
+                reader.readAsArrayBuffer(blob);
+            }
+            
+            // Function to show image preview
+            function showImagePreview(imageData, fileName, title = 'Image Preview') {
+                fileViewerContent.innerHTML = `
+                    <div class="w-full h-full flex flex-col">
+                        <div class="flex-1 bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-lg flex items-center justify-center p-4">
+                            <img src="${imageData}" alt="${fileName}" class="max-w-full max-h-full object-contain rounded-lg shadow-lg hover:scale-105 transition-transform duration-200">
+                        </div>
+                        <div class="mt-4 flex justify-center gap-2">
+                            <button onclick="downloadCurrentFile()" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary bg-primary/10 rounded-lg hover:bg-primary/20">
+                                <span class="material-symbols-outlined text-sm">download</span>
+                                Download ${fileName.split('.').pop().toUpperCase()}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Function to show generic preview for unsupported files
+            function showGenericPreview(fileName) {
+                fileViewerContent.innerHTML = `
+                    <div class="w-full h-full flex flex-col items-center justify-center">
+                        <div class="text-center max-w-md">
+                            <div class="w-24 h-24 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                                <span class="material-symbols-outlined text-4xl text-gray-400 dark:text-gray-600">description</span>
+                            </div>
+                            <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">${fileName}</h4>
+                            <p class="text-gray-500 dark:text-gray-400 mb-4">Preview not available for this file type. You can download the file using the button below.</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Function to download current file
+            function downloadCurrentFile() {
+                if (currentFileData && currentFileData.path) {
+                    // Create a temporary link to download the file
+                    const link = document.createElement('a');
+                    link.href = currentFileData.path;
+                    link.download = currentFileData.name || 'document';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            }
+            
+            // Close file viewer modal
+            function closeFileViewerModal() {
+                fileViewerModal.classList.add('hidden');
+                currentFileData = null;
+            }
+            
+            // Event listeners for file viewer modal
+            if (closeFileViewer) {
+                closeFileViewer.addEventListener('click', closeFileViewerModal);
+            }
+            
+            if (closeFileViewerBtn) {
+                closeFileViewerBtn.addEventListener('click', closeFileViewerModal);
+            }
+            
+            if (downloadFile) {
+                downloadFile.addEventListener('click', downloadCurrentFile);
+            }
+            
+            // Close modal when clicking outside
+            if (fileViewerModal) {
+                fileViewerModal.addEventListener('click', function(e) {
+                    if (e.target === fileViewerModal) {
+                        closeFileViewerModal();
+                    }
+                });
+            }
+            
+            // Close modal with Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && fileViewerModal && !fileViewerModal.classList.contains('hidden')) {
+                    closeFileViewerModal();
+                }
+            });
+            
+            // Make downloadCurrentFile globally accessible
+            window.downloadCurrentFile = downloadCurrentFile;
+
+            // API-based Database Integration
+            const API_BASE_URL = 'api/mou-moa.php';
+
+            // Function to get all entries from API
+            window.getAllEntries = async function() {
+                try {
+                    const response = await fetch(`${API_BASE_URL}?action=list`);
+                    const result = await response.json();
+                    if (result.success) {
+                        return result.data;
+                    } else {
+                        console.error('Failed to fetch entries:', result.error);
+                        return [];
+                    }
+                } catch (error) {
+                    console.error('Error fetching entries:', error);
+                    return [];
+                }
+            };
+
+            // Function to save entry to API
+            async function saveEntry(entry, fileInput) {
+                try {
+                    const formData = new FormData();
+                    formData.append('institution', entry.institution);
+                    formData.append('location', entry.location);
+                    formData.append('contact_email', entry.contact_email);
+                    formData.append('term', entry.term);
+                    formData.append('sign_date', entry.sign_date);
+                    formData.append('end_date', entry.end_date);
+                    if (entry.title) formData.append('title', entry.title);
+                    if (entry.partner) formData.append('partner', entry.partner);
+                    if (entry.category) formData.append('category', entry.category);
+                    if (entry.description) formData.append('description', entry.description);
+
+                    // Add file if present
+                    if (fileInput && fileInput.files && fileInput.files[0]) {
+                        formData.append('file', fileInput.files[0]);
+                    }
+
+                    const response = await fetch(API_BASE_URL, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    if (!result.success) {
+                        throw new Error(result.error || 'Failed to save entry');
+                    }
+                    return result;
+                } catch (error) {
+                    throw new Error('Failed to save data: ' + error.message);
+                }
+            }
+
+            // Function to save data to database
+            async function saveToDatabase(entry, fileInput) {
+                try {
+                    const result = await saveEntry(entry, fileInput);
+                    return { id: result.id, message: result.message };
+                } catch (error) {
+                    throw new Error('Failed to save data: ' + error.message);
+                }
+            }
+
+            // Function to update existing entry
+            async function updateEntry(entry, fileInput) {
+                try {
+                    const formData = new FormData();
+                    formData.append('institution', entry.institution);
+                    formData.append('location', entry.location);
+                    formData.append('contact_email', entry.contact_email);
+                    formData.append('term', entry.term);
+                    formData.append('sign_date', entry.sign_date);
+                    formData.append('end_date', entry.end_date);
+                    if (entry.title) formData.append('title', entry.title);
+                    if (entry.partner) formData.append('partner', entry.partner);
+                    if (entry.category) formData.append('category', entry.category);
+                    if (entry.description) formData.append('description', entry.description);
+
+                    // Add file if present
+                    if (fileInput && fileInput.files && fileInput.files[0]) {
+                        formData.append('file', fileInput.files[0]);
+                    }
+
+                    // Note: PUT with FormData requires special handling
+                    const response = await fetch(`${API_BASE_URL}?action=update&id=${entry.id}`, {
+                        method: 'PUT',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    if (!result.success) {
+                        throw new Error(result.error || 'Entry not found');
+                    }
+                    return { id: entry.id, message: result.message };
+                } catch (error) {
+                    throw new Error('Failed to update data: ' + error.message);
+                }
+            }
+            
+            // Function to update table row
+            function updateTableRow(entry) {
+                const row = document.querySelector(`tr[data-id="${entry.id}"]`);
+                if (row) {
+                    // Update the row content
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 9) {
+                        cells[1].textContent = entry.institution;
+                        cells[2].textContent = entry.location;
+                        cells[3].textContent = entry.contact_email;
+                        cells[4].textContent = entry.term;
+                        cells[5].textContent = entry.sign_date;
+                        cells[6].textContent = entry.end_date;
+                        
+                        // Update status badge
+                        let statusBadgeClass = '';
+                        if (entry.status === 'Active') {
+                            statusBadgeClass = 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
+                        } else if (entry.status === 'Expired') {
+                            statusBadgeClass = 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300';
+                        } else if (entry.status === 'Expires Soon') {
+                            statusBadgeClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300';
+                        } else {
+                            statusBadgeClass = 'bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300';
+                        }
+                        cells[7].innerHTML = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass}">${entry.status}</span>`;
+                        
+                        // Update category
+                        cells[8].textContent = entry.category || 'N/A';
+                        
+                        // Update file link if needed
+                        if (cells[9]) {
+                            cells[9].innerHTML = entry.file_name ? 
+                                `<button class="view-file-btn text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300 flex items-center gap-1 mx-auto" data-file-path="${entry.file_path}" data-file-name="${entry.file_name}" title="View File">
+                                    <span class="material-symbols-outlined text-sm">visibility</span>
+                                    <span>View</span>
+                                </button>` : 
+                                `<span class="text-gray-400 dark:text-gray-500 text-sm">No file</span>`;
+                        }
+                    }
+                }
+            }
+            
+            // Function to load data from API
+            async function loadFromDatabase() {
+                try {
+                    // Fetch all entries from API
+                    allEntries = await getAllEntries();
+
+                    currentPage = 1; // Reset to first page
+                    displayCurrentPage();
+                    updatePaginationDisplay();
+
+                    // Ensure notifications reflect existing entries
+                    if (typeof reconcileNotificationsWithEntries === 'function') {
+                        try { await reconcileNotificationsWithEntries(); } catch (_) {}
+                    }
+                    
+                    // Add delete event listeners to existing rows
+                    document.querySelectorAll('.delete-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const id = parseInt(this.dataset.id);
+                            deleteEntry(id);
+                        });
+                    });
+
+                    // Add view file event listeners to existing rows
+                    document.querySelectorAll('.view-file-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const filePath = this.dataset.filePath;
+                            const fileName = this.dataset.fileName;
+                            showFileViewer(filePath, fileName);
+                        });
+                    });
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                    showErrorMessage('Failed to load data from storage');
+                }
+            }
+            
+            // Function to display current page entries
+            function displayCurrentPage() {
+                const tableBody = document.querySelector('tbody');
+                tableBody.innerHTML = '';
+                
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+                const currentPageEntries = allEntries.slice(startIndex, endIndex);
+                
+                currentPageEntries.forEach(entry => {
+                    addRowToTable(entry);
+                });
+            }
+            
+            // Function to update pagination display
+            function updatePaginationDisplay() {
+                const totalEntries = allEntries.length;
+                const totalPages = Math.ceil(totalEntries / itemsPerPage);
+                
+                // Update pagination text
+                const startEntry = (currentPage - 1) * itemsPerPage + 1;
+                const endEntry = Math.min(currentPage * itemsPerPage, totalEntries);
+                
+                document.getElementById('startEntry').textContent = startEntry;
+                document.getElementById('endEntry').textContent = endEntry;
+                document.getElementById('totalEntries').textContent = totalEntries;
+                
+                // Generate pagination buttons
+                generatePaginationButtons(totalPages);
+                
+                // Update mobile buttons
+                const prevBtnMobile = document.getElementById('prevBtnMobile');
+                const nextBtnMobile = document.getElementById('nextBtnMobile');
+                
+                if (prevBtnMobile && nextBtnMobile) {
+                    prevBtnMobile.disabled = currentPage === 1;
+                    nextBtnMobile.disabled = currentPage === totalPages;
+                }
+            }
+            
+            // Function to generate pagination buttons
+            function generatePaginationButtons(totalPages) {
+                const paginationNav = document.getElementById('paginationNav');
+                if (!paginationNav) return;
+                
+                let paginationHTML = '';
+                
+                // Previous button
+                paginationHTML += `
+                    <button class="pagination-btn relative inline-flex items-center px-2 py-2 rounded-l-md border border-border-light bg-card-light text-sm font-medium text-text-muted-light hover:bg-gray-50 dark:border-border-dark dark:bg-background-dark/50 dark:text-text-muted-dark dark:hover:bg-card-dark disabled:opacity-50 disabled:cursor-not-allowed" data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''}>
+                        <span class="sr-only">Previous</span>
+                        <span class="material-symbols-outlined text-sm">chevron_left</span>
+                    </button>
+                `;
+                
+                // Page numbers
+                const startPage = Math.max(1, currentPage - 2);
+                const endPage = Math.min(totalPages, currentPage + 2);
+                
+                if (startPage > 1) {
+                    paginationHTML += `
+                        <button class="pagination-btn bg-card-light dark:bg-background-dark/50 border-border-light dark:border-border-dark text-text-muted-light dark:text-text-muted-dark hover:bg-gray-50 dark:hover:bg-card-dark relative inline-flex items-center px-4 py-2 border text-sm font-medium" data-page="1">1</button>
+                    `;
+                    if (startPage > 2) {
+                        paginationHTML += `<span class="relative inline-flex items-center px-4 py-2 border border-border-light dark:border-border-dark bg-card-light dark:bg-background-dark/50 text-sm font-medium text-text-muted-light dark:text-text-muted-dark">...</span>`;
+                    }
+                }
+                
+                for (let i = startPage; i <= endPage; i++) {
+                    const isActive = i === currentPage;
+                    paginationHTML += `
+                        <button class="pagination-btn relative inline-flex items-center px-4 py-2 border text-sm font-medium ${isActive ? 'z-10 bg-primary/10 border-primary text-primary' : 'bg-card-light dark:bg-background-dark/50 border-border-light dark:border-border-dark text-text-muted-light dark:text-text-muted-dark hover:bg-gray-50 dark:hover:bg-card-dark'}" data-page="${i}">${i}</button>
+                    `;
+                }
+                
+                if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) {
+                        paginationHTML += `<span class="relative inline-flex items-center px-4 py-2 border border-border-light dark:border-border-dark bg-card-light dark:bg-background-dark/50 text-sm font-medium text-text-muted-light dark:text-text-muted-dark">...</span>`;
+                    }
+                    paginationHTML += `
+                        <button class="pagination-btn bg-card-light dark:bg-background-dark/50 border-border-light dark:border-border-dark text-text-muted-light dark:text-text-muted-dark hover:bg-gray-50 dark:hover:bg-card-dark relative inline-flex items-center px-4 py-2 border text-sm font-medium" data-page="${totalPages}">${totalPages}</button>
+                    `;
+                }
+                
+                // Next button
+                paginationHTML += `
+                    <button class="pagination-btn relative inline-flex items-center px-2 py-2 rounded-r-md border border-border-light bg-card-light text-sm font-medium text-text-muted-light hover:bg-gray-50 dark:border-border-dark dark:bg-background-dark/50 dark:text-text-muted-dark dark:hover:bg-card-dark disabled:opacity-50 disabled:cursor-not-allowed" data-page="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''}>
+                        <span class="sr-only">Next</span>
+                        <span class="material-symbols-outlined text-sm">chevron_right</span>
+                    </button>
+                `;
+                
+                paginationNav.innerHTML = paginationHTML;
+                
+                // Add event listeners to pagination buttons
+                document.querySelectorAll('.pagination-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const page = parseInt(this.dataset.page);
+                        if (page && page !== currentPage && page >= 1 && page <= totalPages) {
+                            goToPage(page);
+                        }
+                    });
+                });
+            }
+            
+            // Function to go to a specific page
+            function goToPage(page) {
+                currentPage = page;
+                displayCurrentPage();
+                updatePaginationDisplay();
+            }
+            
+            // Update the addRowToTable function to not automatically update pagination
+            function addRowToTable(data) {
+                const tableBody = document.querySelector('tbody');
+                const newRow = document.createElement('tr');
+
+                // Determine status badge class
+                let statusBadgeClass = '';
+                if (data.status === 'Active') {
+                    statusBadgeClass = 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
+                } else if (data.status === 'Expired') {
+                    statusBadgeClass = 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300';
+                } else if (data.status === 'Expires Soon') {
+                    statusBadgeClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300';
+                } else {
+                    statusBadgeClass = 'bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300';
+                }
+
+                newRow.setAttribute('data-id', data.id);
+                newRow.innerHTML = `
+                    ${window.IS_ADMIN ? `
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <input type="checkbox" class="row-checkbox w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary dark:focus:ring-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" data-id="${data.id}">
+                    </td>
+                    ` : ''}
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-light dark:text-text-dark text-left">
+                        <div>
+                            <div class="font-semibold">${data.institution}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">${data.location || ''}</div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${data.category && data.category.includes('MOU (Memorandum of Understanding)') ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' : data.category && data.category.includes('MOA (Memorandum of Agreement)') ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300'}">
+                            ${data.category || 'N/A'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-text-muted-light dark:text-text-muted-dark text-center">${data.sign_date}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-text-muted-light dark:text-text-muted-dark text-center">${data.end_date}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass}">${data.status}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                        <div class="flex items-center justify-center gap-2">
+                            ${data.file_name ?
+                                `<a href="api/mou-moa.php?action=download&id=${data.id}" class="view-btn text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200" title="View/Download File">
+                                    <img src="assets/images/view.png" alt="View" class="w-4 h-4">
+                                </a>` :
+                                `<button class="view-btn text-gray-400 dark:text-gray-500 cursor-not-allowed" disabled title="No file attached">
+                                    <img src="assets/images/view.png" alt="View" class="w-4 h-4 opacity-50">
+                                </button>`
+                            }
+                            ${window.IS_ADMIN ?
+                                `<button class="delete-btn text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200" data-id="${data.id}" title="Delete MOU/MOA">
+                                    <img src="assets/images/trash.png" alt="Delete" class="w-4 h-4">
+                                </button>` :
+                                `<button class="delete-btn-disabled text-gray-400 dark:text-gray-500 cursor-not-allowed" disabled title="Delete (Admin only)">
+                                    <img src="assets/images/trash.png" alt="Delete" class="w-4 h-4 opacity-30">
+                                </button>`
+                            }
+                        </div>
+                    </td>
+                `;
+                
+                tableBody.appendChild(newRow);
+                
+                // Add delete event listener to the new button
+                const deleteBtn = newRow.querySelector('.delete-btn');
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', function() {
+                        deleteEntry(data.id);
+                    });
+                }
+
+                // Add view file event listener to the new button (only if it exists)
+                const viewFileBtn = newRow.querySelector('.view-file-btn');
+                if (viewFileBtn) {
+                    viewFileBtn.addEventListener('click', function() {
+                        const filePath = this.dataset.filePath;
+                        const fileName = this.dataset.fileName;
+                        showFileViewer(filePath, fileName);
+                    });
+                }
+
+                // Add edit event listener to the new button
+                const editBtn = newRow.querySelector('.edit-btn');
+                if (editBtn) {
+                    editBtn.addEventListener('click', function() {
+                        console.log('Edit button clicked for ID:', data.id, 'Type:', typeof data.id);
+                        editEntry(data.id);
+                    });
+                }
+                
+                // Add row click listener for MOU details
+                newRow.addEventListener('click', function(e) {
+                    // Don't trigger if clicking on buttons, checkboxes, or links
+                    if (e.target.tagName === 'BUTTON' || 
+                        e.target.tagName === 'INPUT' || 
+                        e.target.tagName === 'A' ||
+                        e.target.closest('button') ||
+                        e.target.closest('input') ||
+                        e.target.closest('a')) {
+                        return;
+                    }
+                    
+                    // Show MOU details
+                    if (window.showMouDetails) {
+                        window.showMouDetails(data);
+                    }
+                });
+            }
+
+            // Note: confirmDelete function is defined earlier (line ~1769) and uses API properly
+            // Duplicate function removed to prevent override
+
+            // Update the save button handler to refresh pagination
+            if (saveBtn) {
+                saveBtn.addEventListener('click', async function() {
+                    // ... existing save logic ...
+                    
+                    // After successful save, refresh pagination
+                    loadFromDatabase();
+                });
+            }
+            
+            // Add mobile pagination event listeners
+            const prevBtnMobile = document.getElementById('prevBtnMobile');
+            const nextBtnMobile = document.getElementById('nextBtnMobile');
+            
+            if (prevBtnMobile) {
+                prevBtnMobile.addEventListener('click', function() {
+                    if (currentPage > 1) {
+                        goToPage(currentPage - 1);
+                    }
+                });
+            }
+            
+            if (nextBtnMobile) {
+                nextBtnMobile.addEventListener('click', function() {
+                    const totalPages = Math.ceil(allEntries.length / itemsPerPage);
+                    if (currentPage < totalPages) {
+                        goToPage(currentPage + 1);
+                    }
+                });
+            }
+            
+            // Load existing data when page loads
+            loadFromDatabase();
+            
+            // Add a manual refresh function for debugging
+            window.debugRefreshMOUData = function() {
+                console.log('Manually refreshing MOU data...');
+                loadFromDatabase();
+            };
+            
+            // Also refresh data when page becomes visible (user navigates back to this page)
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    loadFromDatabase();
+                }
+            });
+            
+            // Refresh data when window gains focus (user switches back to this tab)
+            window.addEventListener('focus', function() {
+                loadFromDatabase();
+            });
+
+            // Function to edit entry
+            async function editEntry(id) {
+                // Get the entry data from API
+                const entries = await getAllEntries();
+                // Try both string and number comparison for ID matching
+                const entryToEdit = entries.find(entry => entry.id == id || entry.id === id);
+                
+                if (!entryToEdit) {
+                    console.error('Entry not found for ID:', id, 'Available entries:', entries.map(e => ({ id: e.id, type: typeof e.id, institution: e.institution })));
+                    console.log('Full entries array:', entries);
+                    showErrorMessage('Entry not found. Please refresh the page and try again.');
+                    return;
+                }
+                
+                // Store the ID for editing
+                window.editingEntryId = id;
+                
+                // Pre-fill the modal with existing data
+                try {
+                    const institutionField = document.getElementById('institution');
+                    const locationField = document.getElementById('location');
+                    const contactField = document.getElementById('contact');
+                    const termField = document.getElementById('term');
+                    const signDateField = document.getElementById('sign-date');
+                    const endDateField = document.getElementById('end-date');
+                    
+                    if (institutionField) institutionField.value = entryToEdit.institution || '';
+                    if (locationField) locationField.value = entryToEdit.location || '';
+                    if (contactField) contactField.value = entryToEdit.contact_email || '';
+                    if (termField) termField.value = entryToEdit.term || '';
+                    if (signDateField) signDateField.value = entryToEdit.sign_date || '';
+                    if (endDateField) endDateField.value = entryToEdit.end_date || '';
+                    
+                    console.log('Form fields populated successfully');
+                } catch (error) {
+                    console.error('Error populating form fields:', error);
+                }
+                
+                // Set the detected document type for editing
+                try {
+                    if (entryToEdit.category) {
+                        window.detectedDocumentType = entryToEdit.category;
+                        // Directly update category display without function dependency
+                        const autoCategoryText = document.getElementById('autoCategoryText');
+                        if (autoCategoryText) {
+                            autoCategoryText.textContent = `Auto-detected: ${entryToEdit.category}`;
+                            autoCategoryText.className = 'text-primary-600 dark:text-primary-400';
+                        }
+                    } else {
+                        // Reset category display
+                        const autoCategoryText = document.getElementById('autoCategoryText');
+                        if (autoCategoryText) {
+                            autoCategoryText.textContent = 'Auto-detected';
+                            autoCategoryText.className = 'text-gray-500 dark:text-gray-400';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error setting category display:', error);
+                }
+                
+                // Update status display
+                try {
+                    const status = typeof determineStatus === 'function' ? determineStatus(entryToEdit.end_date) : 'Active';
+                    const autoStatusText = document.getElementById('autoStatusText');
+                    if (autoStatusText) {
+                        autoStatusText.textContent = status;
+                        
+                        // Update text color based on status
+                        if (status === 'Active') {
+                            autoStatusText.className = 'text-green-600 dark:text-green-400';
+                        } else if (status === 'Expired') {
+                            autoStatusText.className = 'text-red-600 dark:text-red-400';
+                        } else if (status === 'Expires Soon') {
+                            autoStatusText.className = 'text-yellow-600 dark:text-yellow-400';
+                        } else {
+                            autoStatusText.className = 'text-gray-500 dark:text-gray-400';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error updating status display:', error);
+                }
+                
+                // Update modal title and button text
+                try {
+                    const modalTitle = document.querySelector('#addFileModal h3');
+                    const saveBtn = document.getElementById('saveBtn');
+                    if (modalTitle) modalTitle.textContent = 'Edit MOU/MOA File';
+                    if (saveBtn) saveBtn.textContent = 'Update';
+                    
+                    // Show the modal
+                    const modal = document.getElementById('addFileModal');
+                    if (modal) {
+                        modal.classList.remove('hidden');
+                        console.log('Modal opened successfully');
+                    } else {
+                        console.error('Modal element not found');
+                    }
+                } catch (error) {
+                    console.error('Error opening modal:', error);
+                }
+            }
+        });
+    </script>
+
+    <!-- Sort functionality -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sortBtn = document.getElementById('sortBtn');
+            const sortDropdown = document.getElementById('sortDropdown');
+            const sortText = document.getElementById('sortText');
+            const sortOptions = document.querySelectorAll('.sort-option');
+            const clearSortBtn = document.getElementById('clearSort');
+            const tableBody = document.querySelector('tbody');
+            
+            let currentSort = null;
+            let currentDirection = null;
+            
+            // Toggle dropdown
+            sortBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                sortDropdown.classList.toggle('hidden');
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!sortBtn.contains(e.target) && !sortDropdown.contains(e.target)) {
+                    sortDropdown.classList.add('hidden');
+                }
+            });
+            
+            // Sort function
+            function sortTable(column, direction) {
+                const rows = Array.from(tableBody.querySelectorAll('tr'));
+                
+                rows.sort((a, b) => {
+                    let aValue, bValue;
+                    
+                    switch(column) {
+                        case 'institution':
+                            aValue = a.cells[0].textContent.trim();
+                            bValue = b.cells[0].textContent.trim();
+                            break;
+                        case 'location':
+                            aValue = a.cells[1].textContent.trim();
+                            bValue = b.cells[1].textContent.trim();
+                            break;
+                        case 'signDate':
+                            aValue = new Date(a.cells[4].textContent.trim());
+                            bValue = new Date(b.cells[4].textContent.trim());
+                            break;
+                        case 'endDate':
+                            aValue = new Date(a.cells[5].textContent.trim());
+                            bValue = new Date(b.cells[5].textContent.trim());
+                            break;
+                        case 'status':
+                            aValue = a.cells[6].textContent.trim(); // Status column (moved from position 7 to 6)
+                            bValue = b.cells[6].textContent.trim(); // Status column (moved from position 7 to 6)
+                            break;
+                        default:
+                            return 0;
+                    }
+                    
+                    if (column === 'signDate' || column === 'endDate') {
+                        return direction === 'asc' ? aValue - bValue : bValue - aValue;
+                    } else {
+                        if (direction === 'asc') {
+                            return aValue.localeCompare(bValue);
+                        } else {
+                            return bValue.localeCompare(aValue);
+                        }
+                    }
+                });
+                
+                // Clear table body and re-append sorted rows
+                tableBody.innerHTML = '';
+                rows.forEach(row => tableBody.appendChild(row));
+                
+                // Update current sort
+                currentSort = column;
+                currentDirection = direction;
+                
+                // Update UI
+                updateSortUI();
+            }
+            
+            // Update sort UI indicators
+            function updateSortUI() {
+                // Clear all indicators
+                document.querySelectorAll('.sort-indicator').forEach(indicator => {
+                    indicator.classList.add('hidden');
+                });
+                
+                // Show current sort indicator
+                if (currentSort && currentDirection) {
+                    const activeOption = document.querySelector(`[data-sort="${currentSort}"][data-direction="${currentDirection}"]`);
+                    if (activeOption) {
+                        activeOption.querySelector('.sort-indicator').classList.remove('hidden');
+                    }
+                }
+                
+                // Update sort button text (without arrows)
+                if (currentSort && currentDirection) {
+                    const sortLabels = {
+                        'institution': 'Institution',
+                        'location': 'Location', 
+                        'signDate': 'Sign Date',
+                        'endDate': 'End Date',
+                        'status': 'Status'
+                    };
+                    sortText.textContent = `${sortLabels[currentSort]}`;
+                } else {
+                    sortText.textContent = 'Sort';
+                }
+            }
+            
+            // Handle sort option clicks
+            sortOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    const column = this.dataset.sort;
+                    const direction = this.dataset.direction;
+                    sortTable(column, direction);
+                    sortDropdown.classList.add('hidden');
+                });
+            });
+            
+            // Handle clear sort
+            clearSortBtn.addEventListener('click', function() {
+                // Reset to original order (you might want to store original order)
+                location.reload(); // Simple way to reset, or implement original order storage
+                sortDropdown.classList.add('hidden');
+            });
+        });
+    </script>
+
+    <!-- Filter functionality -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const filterBtn = document.getElementById('filterBtn');
+            const filterDropdown = document.getElementById('filterDropdown');
+            const filterOptions = document.querySelectorAll('.filter-option');
+            const clearFilterBtn = document.getElementById('clearFilter');
+            const institutionFilter = document.getElementById('institutionFilter');
+            const signDateFrom = document.getElementById('signDateFrom');
+            const signDateTo = document.getElementById('signDateTo');
+            const endDateFrom = document.getElementById('endDateFrom');
+            const endDateTo = document.getElementById('endDateTo');
+            const filterText = document.getElementById('filterText');
+            
+            // Toggle dropdown
+            filterBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                filterDropdown.classList.toggle('hidden');
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!filterBtn.contains(e.target) && !filterDropdown.contains(e.target)) {
+                    filterDropdown.classList.add('hidden');
+                }
+            });
+            
+            // Advanced filter functionality
+            let currentFilter = { 
+                status: 'all', 
+                institution: '',
+                signDateFrom: '',
+                signDateTo: '',
+                endDateFrom: '',
+                endDateTo: '',
+                term: 'all'
+            };
+            
+            // Function to parse term duration
+            function parseTermDuration(termText) {
+                if (!termText) return 'unknown';
+                
+                const term = termText.toLowerCase();
+                const yearMatch = term.match(/(\d+)\s*year/i);
+                const monthMatch = term.match(/(\d+)\s*month/i);
+                const dayMatch = term.match(/(\d+)\s*day/i);
+                
+                if (yearMatch) {
+                    const years = parseInt(yearMatch[1]);
+                    if (years <= 1) return 'short';
+                    if (years <= 3) return 'medium';
+                    return 'long';
+                } else if (monthMatch) {
+                    const months = parseInt(monthMatch[1]);
+                    if (months <= 12) return 'short';
+                    return 'medium';
+                } else if (dayMatch) {
+                    return 'short';
+                }
+                
+                return 'unknown';
+            }
+            
+            // Function to compare dates
+            function isDateInRange(dateStr, fromDate, toDate) {
+                if (!dateStr) return false;
+                const date = new Date(dateStr);
+                const from = fromDate ? new Date(fromDate) : null;
+                const to = toDate ? new Date(toDate) : null;
+                
+                if (from && date < from) return false;
+                if (to && date > to) return false;
+                return true;
+            }
+            
+            // Function to apply filters
+            function applyFilters() {
+                const tableBody = document.querySelector('tbody');
+                const rows = Array.from(tableBody.querySelectorAll('tr'));
+
+                // Determine column offset (admin has checkbox column)
+                const offset = window.IS_ADMIN ? 1 : 0;
+
+                rows.forEach(row => {
+                    let showRow = true;
+
+                    // Skip if row doesn't have enough cells
+                    if (!row.cells || row.cells.length === 0) {
+                        return;
+                    }
+
+                    // Filter by status
+                    if (currentFilter.status !== 'all') {
+                        const statusCell = row.cells[5 + offset]; // Status column
+                        if (!statusCell) return;
+                        const statusSpan = statusCell.querySelector('span');
+                        const statusText = statusSpan ? statusSpan.textContent.trim() : statusCell.textContent.trim();
+                        if (statusText !== currentFilter.status) {
+                            showRow = false;
+                        }
+                    }
+
+                    // Filter by institution
+                    if (currentFilter.institution) {
+                        const institutionCell = row.cells[0 + offset]; // Institution column
+                        if (!institutionCell) return;
+                        const institutionText = institutionCell.textContent.trim().toLowerCase();
+                        if (!institutionText.includes(currentFilter.institution.toLowerCase())) {
+                            showRow = false;
+                        }
+                    }
+
+                    // Filter by sign date range
+                    if (currentFilter.signDateFrom || currentFilter.signDateTo) {
+                        const signDateCell = row.cells[3 + offset]; // Sign Date column
+                        if (!signDateCell) return;
+                        const signDateText = signDateCell.textContent.trim();
+                        if (!isDateInRange(signDateText, currentFilter.signDateFrom, currentFilter.signDateTo)) {
+                            showRow = false;
+                        }
+                    }
+
+                    // Filter by end date range
+                    if (currentFilter.endDateFrom || currentFilter.endDateTo) {
+                        const endDateCell = row.cells[4 + offset]; // End Date column
+                        if (!endDateCell) return;
+                        const endDateText = endDateCell.textContent.trim();
+                        if (!isDateInRange(endDateText, currentFilter.endDateFrom, currentFilter.endDateTo)) {
+                            showRow = false;
+                        }
+                    }
+
+                    // Note: Term column was removed from table, so term filter is disabled
+                    // Filter by term duration - DISABLED (column removed)
+                    // if (currentFilter.term !== 'all') {
+                    //     // Term column no longer exists in simplified table
+                    // }
+
+                    // Show/hide row
+                    row.style.display = showRow ? '' : 'none';
+                });
+            }
+            
+            // Function to update filter UI
+            function updateFilterUI() {
+                // Clear all indicators
+                document.querySelectorAll('.filter-indicator').forEach(indicator => {
+                    indicator.classList.add('hidden');
+                });
+                
+                // Show current filter indicators
+                Object.keys(currentFilter).forEach(filterType => {
+                    if (filterType === 'status' || filterType === 'term') {
+                        const value = currentFilter[filterType];
+                        if (value !== 'all') {
+                            const activeOption = document.querySelector(`[data-filter="${filterType}"][data-value="${value}"]`);
+                    if (activeOption) {
+                        activeOption.querySelector('.filter-indicator').classList.remove('hidden');
+                    }
+                } else {
+                            const allOption = document.querySelector(`[data-filter="${filterType}"][data-value="all"]`);
+                    if (allOption) {
+                        allOption.querySelector('.filter-indicator').classList.remove('hidden');
+                    }
+                }
+                    }
+                });
+                
+                // Update filter button text
+                const activeFilters = [];
+                if (currentFilter.status !== 'all') activeFilters.push(currentFilter.status);
+                if (currentFilter.institution) activeFilters.push('Institution');
+                if (currentFilter.signDateFrom || currentFilter.signDateTo) activeFilters.push('Sign Date');
+                if (currentFilter.endDateFrom || currentFilter.endDateTo) activeFilters.push('End Date');
+                if (currentFilter.term !== 'all') activeFilters.push('Term');
+                
+                if (activeFilters.length > 0) {
+                    filterText.textContent = `Filter (${activeFilters.length})`;
+                } else {
+                    filterText.textContent = 'Filter';
+                }
+            }
+            
+            // Handle filter option clicks
+            filterOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    const filter = this.dataset.filter;
+                    const value = this.dataset.value;
+                    
+                    if (filter === 'status') {
+                        currentFilter.status = value;
+                    } else if (filter === 'term') {
+                        currentFilter.term = value;
+                    }
+                    
+                    applyFilters();
+                    updateFilterUI();
+                    filterDropdown.classList.add('hidden');
+                });
+            });
+            
+            // Handle text input filters
+            institutionFilter.addEventListener('input', function() {
+                currentFilter.institution = this.value;
+                applyFilters();
+                updateFilterUI();
+            });
+            
+            // Handle date range filters
+            signDateFrom.addEventListener('change', function() {
+                currentFilter.signDateFrom = this.value;
+                applyFilters();
+                updateFilterUI();
+            });
+            
+            signDateTo.addEventListener('change', function() {
+                currentFilter.signDateTo = this.value;
+                applyFilters();
+                updateFilterUI();
+            });
+            
+            endDateFrom.addEventListener('change', function() {
+                currentFilter.endDateFrom = this.value;
+                applyFilters();
+                updateFilterUI();
+            });
+            
+            endDateTo.addEventListener('change', function() {
+                currentFilter.endDateTo = this.value;
+                applyFilters();
+                updateFilterUI();
+            });
+            
+            // Handle clear filter
+            clearFilterBtn.addEventListener('click', function() {
+                currentFilter = { 
+                    status: 'all', 
+                    institution: '',
+                    signDateFrom: '',
+                    signDateTo: '',
+                    endDateFrom: '',
+                    endDateTo: '',
+                    term: 'all'
+                };
+                
+                // Clear all input fields
+                institutionFilter.value = '';
+                signDateFrom.value = '';
+                signDateTo.value = '';
+                endDateFrom.value = '';
+                endDateTo.value = '';
+                
+                applyFilters();
+                updateFilterUI();
+                filterDropdown.classList.add('hidden');
+            });
+            
+            // Initialize filter UI
+            updateFilterUI();
+        });
+    </script>
+
+    <!-- Delete Confirmation Modal Event Listeners -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const deleteConfirmModal = document.getElementById('deleteConfirmModal');
+            const cancelDeleteBtn = document.getElementById('cancelDelete');
+            const confirmDeleteBtn = document.getElementById('confirmDelete');
+            
+            // Event listeners for delete confirmation modal
+            if (cancelDeleteBtn) {
+                cancelDeleteBtn.addEventListener('click', function() {
+                    if (window.cancelDelete) {
+                        window.cancelDelete();
+                    }
+                });
+            }
+            
+            if (confirmDeleteBtn) {
+                confirmDeleteBtn.addEventListener('click', function() {
+                    if (window.confirmDelete) {
+                        window.confirmDelete();
+                    }
+                });
+            }
+            
+            // Close modal when clicking outside
+            if (deleteConfirmModal) {
+                deleteConfirmModal.addEventListener('click', function(e) {
+                    if (e.target === deleteConfirmModal) {
+                        if (window.cancelDelete) {
+                            window.cancelDelete();
+                        }
+                    }
+                });
+            }
+            
+            // Close modal with Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && deleteConfirmModal && !deleteConfirmModal.classList.contains('hidden')) {
+                    if (window.cancelDelete) {
+                        window.cancelDelete();
+                    }
+                }
+            });
+        });
+    </script>
+
+    <!-- Notification System -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const notificationBtn = document.getElementById('notificationBtn');
+            const notificationDropdown = document.getElementById('notificationDropdown');
+            const notificationBadge = document.getElementById('notificationBadge');
+            const notificationList = document.getElementById('notificationList');
+            const noNotifications = document.getElementById('noNotifications');
+            const markAllReadBtn = document.getElementById('markAllReadBtn');
+            const viewAllNotifications = document.getElementById('viewAllNotifications');
+            
+            // Notification storage key
+            const NOTIFICATIONS_KEY = 'mou_notifications';
+
+            // Initialize notification system asynchronously
+            (async function() {
+                await initNotificationSystem();
+
+                // Reconcile notifications with existing entries on init
+                if (typeof reconcileNotificationsWithEntries === 'function') {
+                    try { await reconcileNotificationsWithEntries(); } catch (_) {}
+                }
+            })();
+            
+            // Toggle notification dropdown
+            notificationBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                notificationDropdown.classList.toggle('hidden');
+                if (!notificationDropdown.classList.contains('hidden')) {
+                    updateNotificationDisplay();
+                }
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!notificationBtn.contains(e.target) && !notificationDropdown.contains(e.target)) {
+                    notificationDropdown.classList.add('hidden');
+                }
+            });
+            
+            // Mark all notifications as read
+            markAllReadBtn.addEventListener('click', function() {
+                markAllNotificationsAsRead();
+            });
+            
+            // View all notifications
+            viewAllNotifications.addEventListener('click', function() {
+                showAllNotificationsModal();
+            });
+            
+            // Initialize notification system
+            async function initNotificationSystem() {
+                // Check for expiry alerts and renewal reminders
+                await checkExpiryAlerts();
+                await checkRenewalReminders();
+
+                // Update notification badge
+                updateNotificationBadge();
+
+                // Set up periodic checks (every hour)
+                setInterval(async function() {
+                    await checkExpiryAlerts();
+                    await checkRenewalReminders();
+                    updateNotificationBadge();
+                }, 60 * 60 * 1000); // 1 hour
+            }
+
+            // Check for expiry alerts
+            async function checkExpiryAlerts() {
+                const entries = await getAllEntries();
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                entries.forEach(entry => {
+                    if (entry.end_date) {
+                        const endDate = new Date(entry.end_date);
+                        endDate.setHours(0, 0, 0, 0);
+                        
+                        // Calculate days until expiry (negative means expired)
+                        const daysUntilExpiry = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+                        
+                        // CRITICAL ALERTS for expired/lapsed agreements
+                        if (daysUntilExpiry < 0) {
+                            // Agreement has expired/lapsed
+                            const daysExpired = Math.abs(daysUntilExpiry);
+                            let title, message;
+                            
+                            if (daysExpired === 1) {
+                                title = 'CRITICAL: MOU/MOA Expired Yesterday';
+                                message = `${entry.institution} agreement expired yesterday - IMMEDIATE ACTION REQUIRED`;
+                            } else if (daysExpired <= 7) {
+                                title = 'CRITICAL: MOU/MOA Expired';
+                                message = `${entry.institution} agreement expired ${daysExpired} days ago - URGENT RENEWAL NEEDED`;
+                            } else {
+                                title = 'CRITICAL: MOU/MOA Lapsed';
+                                message = `${entry.institution} agreement lapsed ${daysExpired} days ago - CRITICAL RENEWAL REQUIRED`;
+                            }
+                            
+                            createNotification({
+                                id: `expired_critical_${entry.id}`,
+                                type: 'expired_critical',
+                                title: title,
+                                message: message,
+                                entryId: entry.id,
+                                priority: 'critical',
+                                timestamp: new Date().toISOString()
+                            });
+                        } else if (daysUntilExpiry === 0) {
+                            // Expires today
+                            createNotification({
+                                id: `expires_today_${entry.id}`,
+                                type: 'expires_today',
+                                title: 'CRITICAL: MOU/MOA Expires Today',
+                                message: `${entry.institution} agreement expires today - IMMEDIATE ACTION REQUIRED`,
+                                entryId: entry.id,
+                                priority: 'critical',
+                                timestamp: new Date().toISOString()
+                            });
+                        } else if (daysUntilExpiry === 1) {
+                            // Critical alert - 1 day before deadline
+                            createNotification({
+                                id: `critical_expires_tomorrow_${entry.id}`,
+                                type: 'critical_expires_soon',
+                                title: 'CRITICAL: MOU/MOA Expires Tomorrow',
+                                message: `${entry.institution} agreement expires tomorrow - URGENT ACTION REQUIRED`,
+                                entryId: entry.id,
+                                priority: 'critical',
+                                timestamp: new Date().toISOString()
+                            });
+                        } else if (daysUntilExpiry === 30) {
+                            // Regular alert - 1 month before expiry
+                            createNotification({
+                                id: `expires_month_${entry.id}`,
+                                type: 'expires_soon',
+                                title: 'MOU/MOA Expires in 1 Month',
+                                message: `${entry.institution} agreement expires in 30 days - consider renewal`,
+                                entryId: entry.id,
+                                priority: 'medium',
+                                timestamp: new Date().toISOString()
+                            });
+                        }
+                    }
+                });
+            }
+            
+            // Check for renewal reminders
+            async function checkRenewalReminders() {
+                const entries = await getAllEntries();
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                entries.forEach(entry => {
+                    if (entry.end_date) {
+                        const endDate = new Date(entry.end_date);
+                        endDate.setHours(0, 0, 0, 0);
+                        
+                        // Calculate days until expiry
+                        const daysUntilExpiry = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+                        
+                        // Create renewal reminders for long-term planning (3 months before)
+                        if (daysUntilExpiry === 90) {
+                            // Check if we haven't already created this reminder
+                            const reminderId = `renewal_reminder_${entry.id}`;
+                            if (!getNotificationById(reminderId)) {
+                                createNotification({
+                                    id: reminderId,
+                                    type: 'renewal_reminder',
+                                    title: 'Consider Renewal Planning',
+                                    message: `${entry.institution} agreement expires in 90 days - start renewal planning`,
+                                    entryId: entry.id,
+                                    priority: 'low',
+                                    timestamp: new Date().toISOString()
+                                });
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Create a new notification
+            function createNotification(notification) {
+                const notifications = getNotifications();
+                
+                // Check if notification already exists
+                const existingIndex = notifications.findIndex(n => n.id === notification.id);
+                if (existingIndex !== -1) {
+                    // Update existing notification
+                    notifications[existingIndex] = notification;
+                } else {
+                    // Add new notification
+                    notifications.unshift(notification);
+                }
+                
+                // Keep only last 50 notifications
+                if (notifications.length > 50) {
+                    notifications.splice(50);
+                }
+                
+                localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+                updateNotificationBadge();
+            }
+            
+            // Get all notifications
+            function getNotifications() {
+                const notifications = localStorage.getItem(NOTIFICATIONS_KEY);
+                return notifications ? JSON.parse(notifications) : [];
+            }
+            
+            // Get notification by ID
+            function getNotificationById(id) {
+                const notifications = getNotifications();
+                return notifications.find(n => n.id === id);
+            }
+            
+            // Mark notification as read
+            function markNotificationAsRead(id) {
+                const notifications = getNotifications();
+                const notification = notifications.find(n => n.id === id);
+                if (notification) {
+                    notification.read = true;
+                    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+                    updateNotificationBadge();
+                    updateNotificationDisplay();
+                }
+            }
+            
+            // Mark all notifications as read
+            function markAllNotificationsAsRead() {
+                const notifications = getNotifications();
+                notifications.forEach(notification => {
+                    notification.read = true;
+                });
+                localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+                updateNotificationBadge();
+                updateNotificationDisplay();
+            }
+            
+            // Update notification badge
+            function updateNotificationBadge() {
+                const notifications = getNotifications();
+                const unreadCount = notifications.filter(n => !n.read).length;
+                
+                if (unreadCount > 0) {
+                    notificationBadge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                    notificationBadge.classList.remove('hidden');
+                } else {
+                    notificationBadge.classList.add('hidden');
+                }
+            }
+            
+            // Update notification display
+            function updateNotificationDisplay() {
+                const notifications = getNotifications();
+                
+                if (notifications.length === 0) {
+                    noNotifications.classList.remove('hidden');
+                    return;
+                }
+                
+                noNotifications.classList.add('hidden');
+                
+                // Sort notifications by priority and timestamp
+                const sortedNotifications = notifications.sort((a, b) => {
+                    const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+                    if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+                        return priorityOrder[b.priority] - priorityOrder[a.priority];
+                    }
+                    return new Date(b.timestamp) - new Date(a.timestamp);
+                });
+                
+                // Display only recent notifications (last 10)
+                const recentNotifications = sortedNotifications.slice(0, 10);
+                
+                notificationList.innerHTML = recentNotifications.map(notification => {
+                    const timeAgo = getTimeAgo(new Date(notification.timestamp));
+                    const priorityColor = getPriorityColor(notification.priority);
+                    const readClass = notification.read ? 'opacity-60' : '';
+                    
+                    return `
+                        <div class="notification-item p-4 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer ${readClass}" data-id="${notification.id}">
+                            <div class="flex items-start gap-3">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 rounded-full flex items-center justify-center ${priorityColor}">
+                                        <span class="material-symbols-outlined text-white text-sm">
+                                            ${getNotificationIcon(notification.type)}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                            ${notification.title}
+                                        </h4>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">${timeAgo}</span>
+                                    </div>
+                                    <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                                        ${notification.message}
+                                    </p>
+                                </div>
+                                ${!notification.read ? '<div class="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2"></div>' : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                // Add click handlers to notification items
+                document.querySelectorAll('.notification-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        const notificationId = this.dataset.id;
+                        markNotificationAsRead(notificationId);
+                        
+                        // Could navigate to the specific MOU/MOA entry
+                        const notification = getNotificationById(notificationId);
+                        if (notification && notification.entryId) {
+                            // Scroll to the entry in the table or highlight it
+                            highlightEntry(notification.entryId);
+                        }
+                    });
+                });
+            }
+            
+            // Get priority color
+            function getPriorityColor(priority) {
+                switch (priority) {
+                    case 'critical': return 'bg-red-600';
+                    case 'high': return 'bg-red-500';
+                    case 'medium': return 'bg-yellow-500';
+                    case 'low': return 'bg-blue-500';
+                    default: return 'bg-gray-500';
+                }
+            }
+            
+            // Get notification icon
+            function getNotificationIcon(type) {
+                switch (type) {
+                    case 'expired_critical': return 'error';
+                    case 'expires_today': return 'warning';
+                    case 'critical_expires_soon': return 'warning';
+                    case 'expires_soon': return 'schedule';
+                    case 'renewal_reminder': return 'refresh';
+                    default: return 'info';
+                }
+            }
+            
+            // Get time ago string
+            function getTimeAgo(date) {
+                const now = new Date();
+                const diffInSeconds = Math.floor((now - date) / 1000);
+                
+                if (diffInSeconds < 60) return 'Just now';
+                if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+                if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+                if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+                return date.toLocaleDateString();
+            }
+            
+            // Highlight entry in table
+            function highlightEntry(entryId) {
+                const checkbox = document.querySelector(`.row-checkbox[data-id="${entryId}"]`);
+                if (checkbox) {
+                    const row = checkbox.closest('tr');
+                    if (row) {
+                        // Scroll to the row
+                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        
+                        // Highlight the row temporarily
+                        row.classList.add('bg-yellow-100', 'dark:bg-yellow-900/20');
+                        setTimeout(() => {
+                            row.classList.remove('bg-yellow-100', 'dark:bg-yellow-900/20');
+                        }, 3000);
+                    }
+                }
+            }
+            
+            // Make functions globally accessible
+            window.checkExpiryAlerts = checkExpiryAlerts;
+            window.checkRenewalReminders = checkRenewalReminders;
+            window.updateNotificationBadge = updateNotificationBadge;
+            
+            // Show all notifications modal
+            function showAllNotificationsModal() {
+                // Create modal if it doesn't exist
+                let allNotificationsModal = document.getElementById('allNotificationsModal');
+                if (!allNotificationsModal) {
+                    createAllNotificationsModal();
+                    allNotificationsModal = document.getElementById('allNotificationsModal');
+                }
+                
+                // Update modal content
+                updateAllNotificationsModal();
+                
+                // Show modal
+                allNotificationsModal.classList.remove('hidden');
+                
+                // Close the dropdown
+                notificationDropdown.classList.add('hidden');
+            }
+            
+            // Create the all notifications modal
+            function createAllNotificationsModal() {
+                const modalHTML = `
+                    <div id="allNotificationsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+                        <div class="w-full max-w-4xl bg-white dark:bg-background-dark rounded-xl shadow-2xl m-4 flex flex-col max-h-[90vh]">
+                            <!-- Modal Header -->
+                            <div class="p-6 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h3 class="text-xl font-semibold text-gray-900 dark:text-white">All Notifications</h3>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your MOU/MOA notifications</p>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <button id="markAllReadModalBtn" class="px-4 py-2 text-sm font-medium text-primary bg-primary/10 rounded-lg hover:bg-primary/20">
+                                            Mark All Read
+                                        </button>
+                                        <button id="closeAllNotificationsModal" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+                                            <span class="material-symbols-outlined">close</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Filter Tabs -->
+                            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
+                                <div class="flex space-x-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                                    <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors" data-filter="all">
+                                        All
+                                    </button>
+                                    <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors" data-filter="critical">
+                                        Critical
+                                    </button>
+                                    <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors" data-filter="high">
+                                        High
+                                    </button>
+                                    <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors" data-filter="medium">
+                                        Medium
+                                    </button>
+                                    <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors" data-filter="low">
+                                        Low
+                                    </button>
+                                    <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors" data-filter="unread">
+                                        Unread
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Notifications List -->
+                            <div id="allNotificationsList" class="flex-1 overflow-y-auto p-6">
+                                <!-- Notifications will be populated here -->
+                            </div>
+                            
+                            <!-- Modal Footer -->
+                            <div class="p-6 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
+                                <div class="flex items-center justify-between">
+                                    <div class="text-sm text-gray-500 dark:text-gray-400">
+                                        <span id="notificationsCount">0</span> notifications
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <button id="clearOldNotifications" class="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
+                                            Clear Old
+                                        </button>
+                                        <button id="closeAllNotificationsModalBtn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800">
+                                            Close
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHTML);
+                
+                // Add event listeners for the modal
+                setupAllNotificationsModalEvents();
+            }
+            
+            // Setup event listeners for the all notifications modal
+            function setupAllNotificationsModalEvents() {
+                const modal = document.getElementById('allNotificationsModal');
+                const closeBtn = document.getElementById('closeAllNotificationsModal');
+                const closeBtn2 = document.getElementById('closeAllNotificationsModalBtn');
+                const markAllReadBtn = document.getElementById('markAllReadModalBtn');
+                const clearOldBtn = document.getElementById('clearOldNotifications');
+                const tabs = document.querySelectorAll('.notification-tab');
+                
+                // Close modal
+                closeBtn.addEventListener('click', closeAllNotificationsModal);
+                closeBtn2.addEventListener('click', closeAllNotificationsModal);
+                
+                // Close modal when clicking outside
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        closeAllNotificationsModal();
+                    }
+                });
+                
+                // Close modal with Escape key
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+                        closeAllNotificationsModal();
+                    }
+                });
+                
+                // Mark all as read
+                markAllReadBtn.addEventListener('click', function() {
+                    markAllNotificationsAsRead();
+                    updateAllNotificationsModal();
+                });
+                
+                // Clear old notifications
+                clearOldBtn.addEventListener('click', function() {
+                    clearOldNotifications();
+                });
+                
+                // Tab filtering
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', function() {
+                        // Update active tab
+                        tabs.forEach(t => t.classList.remove('bg-white', 'dark:bg-gray-700', 'text-gray-900', 'dark:text-white', 'shadow-sm'));
+                        tabs.forEach(t => t.classList.add('text-gray-600', 'dark:text-gray-400'));
+                        
+                        this.classList.remove('text-gray-600', 'dark:text-gray-400');
+                        this.classList.add('bg-white', 'dark:bg-gray-700', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+                        
+                        // Filter notifications
+                        const filter = this.dataset.filter;
+                        filterAllNotifications(filter);
+                    });
+                });
+                
+                // Set default active tab
+                tabs[0].classList.remove('text-gray-600', 'dark:text-gray-400');
+                tabs[0].classList.add('bg-white', 'dark:bg-gray-700', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+            }
+            
+            // Close all notifications modal
+            function closeAllNotificationsModal() {
+                const modal = document.getElementById('allNotificationsModal');
+                if (modal) {
+                    modal.classList.add('hidden');
+                }
+            }
+            
+            // Update all notifications modal content
+            function updateAllNotificationsModal() {
+                const notifications = getNotifications();
+                const notificationsList = document.getElementById('allNotificationsList');
+                const notificationsCount = document.getElementById('notificationsCount');
+                
+                if (!notificationsList || !notificationsCount) return;
+                
+                notificationsCount.textContent = notifications.length;
+                
+                if (notifications.length === 0) {
+                    notificationsList.innerHTML = `
+                        <div class="text-center py-12">
+                            <span class="material-symbols-outlined text-6xl text-gray-300 dark:text-gray-600 mb-4 block">notifications_off</span>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No notifications</h3>
+                            <p class="text-gray-500 dark:text-gray-400">You're all caught up!</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Sort notifications by priority and timestamp
+                const sortedNotifications = notifications.sort((a, b) => {
+                    const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+                    if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+                        return priorityOrder[b.priority] - priorityOrder[a.priority];
+                    }
+                    return new Date(b.timestamp) - new Date(a.timestamp);
+                });
+                
+                // Group notifications by date
+                const groupedNotifications = groupNotificationsByDate(sortedNotifications);
+                
+                notificationsList.innerHTML = Object.keys(groupedNotifications).map(date => {
+                    const dayNotifications = groupedNotifications[date];
+                    return `
+                        <div class="mb-6">
+                            <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">${date}</h4>
+                            <div class="space-y-3">
+                                ${dayNotifications.map(notification => {
+                                    const timeAgo = getTimeAgo(new Date(notification.timestamp));
+                                    const priorityColor = getPriorityColor(notification.priority);
+                                    const readClass = notification.read ? 'opacity-60' : '';
+                                    
+                                    return `
+                                        <div class="notification-item-modal p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors ${readClass}" data-id="${notification.id}">
+                                            <div class="flex items-start gap-4">
+                                                <div class="flex-shrink-0">
+                                                    <div class="w-10 h-10 rounded-full flex items-center justify-center ${priorityColor}">
+                                                        <span class="material-symbols-outlined text-white text-lg">
+                                                            ${getNotificationIcon(notification.type)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="flex items-start justify-between gap-3">
+                                                        <div class="flex-1">
+                                                            <h5 class="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                                                                ${notification.title}
+                                                            </h5>
+                                                            <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                                                                ${notification.message}
+                                                            </p>
+                                                            <div class="flex items-center gap-2">
+                                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${priorityColor} text-white">
+                                                                    ${notification.priority.toUpperCase()}
+                                                                </span>
+                                                                <span class="text-xs text-gray-500 dark:text-gray-400">${timeAgo}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="flex items-center gap-2">
+                                                            ${!notification.read ? '<div class="w-3 h-3 bg-primary rounded-full"></div>' : ''}
+                                                            <button class="delete-notification-btn p-1 text-gray-400 hover:text-red-500 transition-colors" data-id="${notification.id}" title="Delete notification">
+                                                                <span class="material-symbols-outlined text-sm">delete</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                // Add event listeners
+                setupAllNotificationsItemEvents();
+            }
+            
+            // Group notifications by date
+            function groupNotificationsByDate(notifications) {
+                const groups = {};
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                
+                notifications.forEach(notification => {
+                    const date = new Date(notification.timestamp);
+                    let groupKey;
+                    
+                    if (date.toDateString() === today.toDateString()) {
+                        groupKey = 'Today';
+                    } else if (date.toDateString() === yesterday.toDateString()) {
+                        groupKey = 'Yesterday';
+                    } else {
+                        groupKey = date.toLocaleDateString('en-US', { 
+                            weekday: 'long', 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                        });
+                    }
+                    
+                    if (!groups[groupKey]) {
+                        groups[groupKey] = [];
+                    }
+                    groups[groupKey].push(notification);
+                });
+                
+                return groups;
+            }
+            
+            // Setup event listeners for notification items in the modal
+            function setupAllNotificationsItemEvents() {
+                // Click to mark as read and highlight entry
+                document.querySelectorAll('.notification-item-modal').forEach(item => {
+                    item.addEventListener('click', function(e) {
+                        if (e.target.closest('.delete-notification-btn')) return; // Don't trigger on delete button
+                        
+                        const notificationId = this.dataset.id;
+                        markNotificationAsRead(notificationId);
+                        
+                        const notification = getNotificationById(notificationId);
+                        if (notification && notification.entryId) {
+                            highlightEntry(notification.entryId);
+                            closeAllNotificationsModal();
+                        }
+                        
+                        updateAllNotificationsModal();
+                        updateNotificationBadge();
+                    });
+                });
+                
+                // Delete notification
+                document.querySelectorAll('.delete-notification-btn').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const notificationId = this.dataset.id;
+                        deleteNotification(notificationId);
+                        updateAllNotificationsModal();
+                        updateNotificationBadge();
+                    });
+                });
+            }
+            
+            // Filter notifications in the modal
+            function filterAllNotifications(filter) {
+                const notifications = getNotifications();
+                let filteredNotifications = notifications;
+                
+                if (filter !== 'all') {
+                    if (filter === 'unread') {
+                        filteredNotifications = notifications.filter(n => !n.read);
+                    } else {
+                        filteredNotifications = notifications.filter(n => n.priority === filter);
+                    }
+                }
+                
+                // Update the display with filtered notifications
+                updateAllNotificationsModalWithFilter(filteredNotifications);
+            }
+            
+            // Update modal with filtered notifications
+            function updateAllNotificationsModalWithFilter(filteredNotifications) {
+                const notificationsList = document.getElementById('allNotificationsList');
+                const notificationsCount = document.getElementById('notificationsCount');
+                
+                if (!notificationsList || !notificationsCount) return;
+                
+                notificationsCount.textContent = filteredNotifications.length;
+                
+                if (filteredNotifications.length === 0) {
+                    notificationsList.innerHTML = `
+                        <div class="text-center py-12">
+                            <span class="material-symbols-outlined text-6xl text-gray-300 dark:text-gray-600 mb-4 block">notifications_off</span>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No notifications</h3>
+                            <p class="text-gray-500 dark:text-gray-400">No notifications match this filter.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Sort and group filtered notifications
+                const sortedNotifications = filteredNotifications.sort((a, b) => {
+                    const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+                    if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+                        return priorityOrder[b.priority] - priorityOrder[a.priority];
+                    }
+                    return new Date(b.timestamp) - new Date(a.timestamp);
+                });
+                
+                const groupedNotifications = groupNotificationsByDate(sortedNotifications);
+                
+                notificationsList.innerHTML = Object.keys(groupedNotifications).map(date => {
+                    const dayNotifications = groupedNotifications[date];
+                    return `
+                        <div class="mb-6">
+                            <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">${date}</h4>
+                            <div class="space-y-3">
+                                ${dayNotifications.map(notification => {
+                                    const timeAgo = getTimeAgo(new Date(notification.timestamp));
+                                    const priorityColor = getPriorityColor(notification.priority);
+                                    const readClass = notification.read ? 'opacity-60' : '';
+                                    
+                                    return `
+                                        <div class="notification-item-modal p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors ${readClass}" data-id="${notification.id}">
+                                            <div class="flex items-start gap-4">
+                                                <div class="flex-shrink-0">
+                                                    <div class="w-10 h-10 rounded-full flex items-center justify-center ${priorityColor}">
+                                                        <span class="material-symbols-outlined text-white text-lg">
+                                                            ${getNotificationIcon(notification.type)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="flex items-start justify-between gap-3">
+                                                        <div class="flex-1">
+                                                            <h5 class="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                                                                ${notification.title}
+                                                            </h5>
+                                                            <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                                                                ${notification.message}
+                                                            </p>
+                                                            <div class="flex items-center gap-2">
+                                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${priorityColor} text-white">
+                                                                    ${notification.priority.toUpperCase()}
+                                                                </span>
+                                                                <span class="text-xs text-gray-500 dark:text-gray-400">${timeAgo}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="flex items-center gap-2">
+                                                            ${!notification.read ? '<div class="w-3 h-3 bg-primary rounded-full"></div>' : ''}
+                                                            <button class="delete-notification-btn p-1 text-gray-400 hover:text-red-500 transition-colors" data-id="${notification.id}" title="Delete notification">
+                                                                <span class="material-symbols-outlined text-sm">delete</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                // Add event listeners
+                setupAllNotificationsItemEvents();
+            }
+            
+            // Delete a specific notification
+            function deleteNotification(id) {
+                const notifications = getNotifications();
+                const filteredNotifications = notifications.filter(n => n.id !== id);
+                localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(filteredNotifications));
+            }
+
+            // Remove all notifications related to a specific entry
+            function removeNotificationsForEntry(entryId) {
+                try {
+                    const notifications = getNotifications();
+                    const filtered = notifications.filter(n => {
+                        // Remove if it references the entry explicitly
+                        if (n.entryId && Number(n.entryId) === Number(entryId)) return false;
+                        // Or if the notification id pattern ends with _<entryId>
+                        if (typeof n.id === 'string' && n.id.endsWith(`_${entryId}`)) return false;
+                        return true;
+                    });
+                    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(filtered));
+                    // Update UI indicators
+                    if (typeof updateNotificationBadge === 'function') {
+                        updateNotificationBadge();
+                    }
+                    if (typeof updateNotificationDisplay === 'function') {
+                        updateNotificationDisplay();
+                    }
+                } catch (e) {
+                    console.error('Failed to remove notifications for entry', entryId, e);
+                }
+            }
+
+            // Clear old notifications (older than 30 days)
+            function clearOldNotifications() {
+                const notifications = getNotifications();
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                
+                const recentNotifications = notifications.filter(notification => {
+                    return new Date(notification.timestamp) > thirtyDaysAgo;
+                });
+                
+                localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(recentNotifications));
+                updateAllNotificationsModal();
+                updateNotificationBadge();
+            }
+
+            // Reconcile notifications with existing entries
+            async function reconcileNotificationsWithEntries() {
+                try {
+                    const notifications = getNotifications();
+                    const entries = (typeof getAllEntries === 'function') ? await getAllEntries() : [];
+                    const existingIds = new Set(entries.map(e => Number(e.id)));
+                    const filtered = notifications.filter(n => {
+                        const relatedId = n.entryId ? Number(n.entryId) : (typeof n.id === 'string' && n.id.lastIndexOf('_') !== -1 ? Number(n.id.split('_').pop()) : NaN);
+                        if (!isNaN(relatedId)) {
+                            return existingIds.has(relatedId);
+                        }
+                        // Keep non-entry-specific notifications (if any)
+                        return true;
+                    });
+                    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(filtered));
+                    if (typeof updateNotificationBadge === 'function') updateNotificationBadge();
+                    if (typeof updateNotificationDisplay === 'function') updateNotificationDisplay();
+                } catch (e) {
+                    console.error('Failed to reconcile notifications with entries', e);
+                }
+            }
+        });
+    </script>
+
+    <!-- MOU Details Modal -->
+    <div id="mouDetailsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+        <div class="w-full max-w-4xl bg-white dark:bg-background-dark rounded-xl shadow-2xl m-4 flex flex-col max-h-[90vh]">
+            <!-- Modal Header -->
+            <div class="p-6 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 id="mouDetailsTitle" class="text-xl font-semibold text-gray-900 dark:text-white">MOU/MOA Details</h3>
+                        <p id="mouDetailsSubtitle" class="text-sm text-gray-500 dark:text-gray-400 mt-1">Memorandum information</p>
+                    </div>
+                    <button id="closeMouDetails" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="p-6 flex-1 overflow-y-auto">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Left Column -->
+                    <div class="space-y-6">
+                        <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                            <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">business</span>
+                                Institution Information
+                            </h4>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Institution Name</label>
+                                    <p id="detailInstitution" class="text-base text-gray-900 dark:text-white font-medium">-</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Location</label>
+                                    <p id="detailLocation" class="text-base text-gray-900 dark:text-white">-</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Contact Details</label>
+                                    <p id="detailContact" class="text-base text-gray-900 dark:text-white">-</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                            <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">schedule</span>
+                                Agreement Timeline
+                            </h4>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Term Duration</label>
+                                    <p id="detailTerm" class="text-base text-gray-900 dark:text-white">-</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Sign Date</label>
+                                    <p id="detailSignDate" class="text-base text-gray-900 dark:text-white">-</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">End Date</label>
+                                    <p id="detailEndDate" class="text-base text-gray-900 dark:text-white">-</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Column -->
+                    <div class="space-y-6">
+                        <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                            <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">info</span>
+                                Status Information
+                            </h4>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Current Status</label>
+                                    <span id="detailStatus" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium">-</span>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Days Until Expiry</label>
+                                    <p id="detailDaysUntilExpiry" class="text-base text-gray-900 dark:text-white">-</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                            <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">description</span>
+                                Document Information
+                            </h4>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Attached File</label>
+                                    <div id="detailFileInfo" class="text-base text-gray-900 dark:text-white">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="p-6 bg-gray-50 dark:bg-background-dark/30 rounded-b-xl flex-shrink-0">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <button id="editMouFromDetails" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary bg-primary/10 rounded-lg hover:bg-primary/20">
+                            <span class="material-symbols-outlined text-sm">edit</span>
+                            Edit MOU
+                        </button>
+                        <button id="viewFileFromDetails" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 hidden">
+                            <span class="material-symbols-outlined text-sm">visibility</span>
+                            View File
+                        </button>
+                    </div>
+                    <button id="closeMouDetailsBtn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MOU Details Modal Functionality -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const mouDetailsModal = document.getElementById('mouDetailsModal');
+            const closeMouDetails = document.getElementById('closeMouDetails');
+            const closeMouDetailsBtn = document.getElementById('closeMouDetailsBtn');
+            const editMouFromDetails = document.getElementById('editMouFromDetails');
+            const viewFileFromDetails = document.getElementById('viewFileFromDetails');
+            
+            let currentMouData = null;
+            
+            // Function to show MOU details modal
+            function showMouDetails(mouData) {
+                currentMouData = mouData;
+                
+                // Update modal content
+                document.getElementById('mouDetailsTitle').textContent = `${mouData.institution} - MOU/MOA Details`;
+                document.getElementById('mouDetailsSubtitle').textContent = `Agreement with ${mouData.institution}`;
+                
+                // Fill in the details
+                document.getElementById('detailInstitution').textContent = mouData.institution || '-';
+                document.getElementById('detailLocation').textContent = mouData.location || '-';
+                document.getElementById('detailContact').textContent = mouData.contact_email || 'No contact information';
+                
+                // Format term duration to always include proper unit
+                let termText = mouData.term || '-';
+                if (termText !== '-' && termText) {
+                    // If it's just a number, add appropriate unit
+                    if (/^\d+$/.test(termText.trim())) {
+                        const number = parseInt(termText.trim());
+                        termText = number === 1 ? '1 year' : number + ' years';
+                    }
+                    // If it already has a unit, keep it as is
+                }
+                document.getElementById('detailTerm').textContent = termText;
+                
+                document.getElementById('detailSignDate').textContent = mouData.sign_date ? formatDate(mouData.sign_date) : '-';
+                document.getElementById('detailEndDate').textContent = mouData.end_date ? formatDate(mouData.end_date) : '-';
+                
+                // Update status with appropriate styling
+                const statusElement = document.getElementById('detailStatus');
+                statusElement.textContent = mouData.status || '-';
+                
+                // Remove existing status classes
+                statusElement.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium';
+                
+                // Add status-specific classes
+                if (mouData.status === 'Active') {
+                    statusElement.classList.add('bg-green-100', 'text-green-800', 'dark:bg-green-900/50', 'dark:text-green-300');
+                } else if (mouData.status === 'Expired') {
+                    statusElement.classList.add('bg-red-100', 'text-red-800', 'dark:bg-red-900/50', 'dark:text-red-300');
+                } else if (mouData.status === 'Expires Soon') {
+                    statusElement.classList.add('bg-yellow-100', 'text-yellow-800', 'dark:bg-yellow-900/50', 'dark:text-yellow-300');
+                } else {
+                    statusElement.classList.add('bg-gray-100', 'text-gray-800', 'dark:bg-gray-900/50', 'dark:text-gray-300');
+                }
+                
+                // Calculate days until expiry
+                if (mouData.end_date) {
+                    const today = new Date();
+                    const endDate = new Date(mouData.end_date);
+                    const daysUntilExpiry = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+                    
+                    let expiryText;
+                    if (daysUntilExpiry < 0) {
+                        expiryText = `Expired ${Math.abs(daysUntilExpiry)} days ago`;
+                    } else if (daysUntilExpiry === 0) {
+                        expiryText = 'Expires today';
+                    } else if (daysUntilExpiry === 1) {
+                        expiryText = 'Expires tomorrow';
+                    } else {
+                        expiryText = `${daysUntilExpiry} days remaining`;
+                    }
+                    
+                    document.getElementById('detailDaysUntilExpiry').textContent = expiryText;
+                } else {
+                    document.getElementById('detailDaysUntilExpiry').textContent = '-';
+                }
+                
+                // Handle file information
+                const fileInfoElement = document.getElementById('detailFileInfo');
+                const viewFileBtn = document.getElementById('viewFileFromDetails');
+
+                if (mouData.file_name && mouData.file_path) {
+                    fileInfoElement.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">description</span>
+                            <span class="font-medium">${mouData.file_name}</span>
+                        </div>
+                    `;
+                    viewFileBtn.classList.remove('hidden');
+                    viewFileBtn.onclick = () => showFileViewer(mouData.file_path, mouData.file_name);
+                } else {
+                    fileInfoElement.textContent = 'No file attached';
+                    viewFileBtn.classList.add('hidden');
+                }
+
+                // Show/hide edit button based on admin status
+                const editBtn = document.getElementById('editMouFromDetails');
+                if (window.IS_ADMIN) {
+                    editBtn.classList.remove('hidden');
+                } else {
+                    editBtn.classList.add('hidden');
+                }
+                
+                // Local function to determine status
+                function determineStatusLocal(endDate) {
+                    if (!endDate) {
+                        return 'Auto-determined';
+                    }
+                    
+                    const today = new Date();
+                    const endDateObj = new Date(endDate);
+                    
+                    // Set time to start of day for accurate comparison
+                    today.setHours(0, 0, 0, 0);
+                    endDateObj.setHours(0, 0, 0, 0);
+                    
+                    // Calculate days until expiry
+                    const daysUntilExpiry = Math.ceil((endDateObj - today) / (1000 * 60 * 60 * 24));
+                    
+                    if (endDateObj < today) {
+                        return 'Expired';
+                    } else if (daysUntilExpiry <= 30) {
+                        return 'Expires Soon';
+                    } else {
+                        return 'Active';
+                    }
+                }
+                
+                // Set up edit button with better error handling
+                editMouFromDetails.onclick = () => {
+                    console.log('Edit MOU button clicked for ID:', mouData.id);
+
+                    // Check if user is admin
+                    if (!window.IS_ADMIN) {
+                        alert('You do not have permission to edit entries. Admin access required.');
+                        return;
+                    }
+
+                    // Close the details modal first
+                    mouDetailsModal.classList.add('hidden');
+
+                    // Small delay to ensure modal closes before opening edit modal
+                    setTimeout(async () => {
+                        try {
+                            // Get the entry data from API
+                            const entries = await getAllEntries();
+                            const entryToEdit = entries.find(entry => entry.id === mouData.id);
+
+                            if (!entryToEdit) {
+                                console.error('Entry not found for ID:', mouData.id);
+                                alert('Entry not found. Please refresh the page and try again.');
+                                return;
+                            }
+                            
+                            console.log('Found entry to edit:', entryToEdit);
+                            
+                            // Store the ID for editing
+                            window.editingEntryId = mouData.id;
+                            
+                            // Pre-fill the modal with existing data
+                            try {
+                                const institutionField = document.getElementById('institution');
+                                const locationField = document.getElementById('location');
+                                const contactField = document.getElementById('contact');
+                                const termField = document.getElementById('term');
+                                const signDateField = document.getElementById('sign-date');
+                                const endDateField = document.getElementById('end-date');
+                                
+                                if (institutionField) institutionField.value = entryToEdit.institution || '';
+                                if (locationField) locationField.value = entryToEdit.location || '';
+                                if (contactField) contactField.value = entryToEdit.contact_email || '';
+                                if (termField) termField.value = entryToEdit.term || '';
+                                if (signDateField) signDateField.value = entryToEdit.sign_date || '';
+                                if (endDateField) endDateField.value = entryToEdit.end_date || '';
+                                
+                                console.log('Form fields populated successfully from details modal');
+                            } catch (error) {
+                                console.error('Error populating form fields from details modal:', error);
+                            }
+                            
+                            // Set the detected document type for editing
+                            if (entryToEdit.category) {
+                                window.detectedDocumentType = entryToEdit.category;
+                                // Directly update category display without function dependency
+                                const autoCategoryText = document.getElementById('autoCategoryText');
+                                if (autoCategoryText) {
+                                    autoCategoryText.textContent = `Auto-detected: ${entryToEdit.category}`;
+                                    autoCategoryText.className = 'text-primary-600 dark:text-primary-400';
+                                }
+                            } else {
+                                // Reset category display
+                                const autoCategoryText = document.getElementById('autoCategoryText');
+                                if (autoCategoryText) {
+                                    autoCategoryText.textContent = 'Auto-detected';
+                                    autoCategoryText.className = 'text-gray-500 dark:text-gray-400';
+                                }
+                            }
+                            
+                            // Update status display
+                            const status = typeof determineStatusLocal === 'function' ? determineStatusLocal(entryToEdit.end_date) : 'Active';
+                            const autoStatusText = document.getElementById('autoStatusText');
+                            if (autoStatusText) {
+                                autoStatusText.textContent = status;
+                                
+                                // Update text color based on status
+                                if (status === 'Active') {
+                                    autoStatusText.className = 'text-green-600 dark:text-green-400';
+                                } else if (status === 'Expired') {
+                                    autoStatusText.className = 'text-red-600 dark:text-red-400';
+                                } else if (status === 'Expires Soon') {
+                                    autoStatusText.className = 'text-yellow-600 dark:text-yellow-400';
+                                } else {
+                                    autoStatusText.className = 'text-gray-500 dark:text-gray-400';
+                                }
+                            }
+                            
+                            // Update modal title and button text
+                            const modalTitle = document.querySelector('#addFileModal h3');
+                            const saveBtn = document.getElementById('saveBtn');
+                            if (modalTitle) modalTitle.textContent = 'Edit MOU/MOA File';
+                            if (saveBtn) saveBtn.textContent = 'Update';
+                            
+                            // Show the edit modal
+                            const modal = document.getElementById('addFileModal');
+                            if (modal) {
+                                modal.classList.remove('hidden');
+                                console.log('Edit modal opened successfully');
+                            } else {
+                                console.error('Edit modal not found');
+                                alert('Edit modal not found. Please refresh the page.');
+                            }
+                            
+                        } catch (error) {
+                            console.error('Error opening edit modal:', error);
+                            alert('Error opening edit form: ' + error.message);
+                        }
+                    }, 100);
+                };
+                
+                // Show modal
+                mouDetailsModal.classList.remove('hidden');
+            }
+            
+            // Function to format date
+            function formatDate(dateString) {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+            }
+            
+            // Close modal functions
+            function closeMouDetailsModal() {
+                mouDetailsModal.classList.add('hidden');
+                currentMouData = null;
+            }
+            
+            // Event listeners
+            closeMouDetails.addEventListener('click', closeMouDetailsModal);
+            closeMouDetailsBtn.addEventListener('click', closeMouDetailsModal);
+            
+            // Close modal when clicking outside
+            mouDetailsModal.addEventListener('click', function(e) {
+                if (e.target === mouDetailsModal) {
+                    closeMouDetailsModal();
+                }
+            });
+            
+            // Close modal with Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && mouDetailsModal && !mouDetailsModal.classList.contains('hidden')) {
+                    closeMouDetailsModal();
+                }
+            });
+            
+            // Make showMouDetails globally accessible
+            window.showMouDetails = showMouDetails;
+            
+            // Add click event listeners to table rows
+            function addRowClickListener(row, mouData) {
+                row.addEventListener('click', function(e) {
+                    // Don't trigger if clicking on buttons, checkboxes, or links
+                    if (e.target.tagName === 'BUTTON' || 
+                        e.target.tagName === 'INPUT' || 
+                        e.target.tagName === 'A' ||
+                        e.target.closest('button') ||
+                        e.target.closest('input') ||
+                        e.target.closest('a')) {
+                        return;
+                    }
+                    
+                    // Show MOU details
+                    showMouDetails(mouData);
+                });
+            }
+            
+            // Make addRowClickListener globally accessible
+            window.addRowClickListener = addRowClickListener;
+        });
+
+        // MOU Location Autocomplete Functionality
+        let mouAutocompleteService = null;
+        let mouLocationInput = null;
+        let mouLocationSuggestions = null;
+        let mouSuggestionsList = null;
+        // Track whether a location was explicitly selected to avoid re-showing suggestions
+        let mouLocationSelected = false;
+        let mouLastConfirmedLocation = '';
+
+        // Initialize MOU location autocomplete when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            mouLocationInput = document.getElementById('location');
+            mouLocationSuggestions = document.getElementById('mouLocationSuggestions');
+            mouSuggestionsList = document.getElementById('mouSuggestionsList');
+
+            if (mouLocationInput && mouLocationSuggestions && mouSuggestionsList) {
+                // Add input event listener with debouncing
+                let inputTimeout;
+                mouLocationInput.addEventListener('input', function(e) {
+                    const value = e.target.value || '';
+                    // If user hasn't changed the confirmed selection, keep suggestions hidden
+                    if (mouLocationSelected && value.trim() === (mouLastConfirmedLocation || '').trim()) {
+                        mouLocationSuggestions.classList.add('hidden');
+                        return;
+                    }
+                    // If user edits the value, allow suggestions again
+                    mouLocationSelected = false;
+                    clearTimeout(inputTimeout);
+                    inputTimeout = setTimeout(() => {
+                        if (value.trim().length < 2) {
+                            mouLocationSuggestions.classList.add('hidden');
+                            return;
+                        }
+                        showMouLocationSuggestions(value);
+                    }, 300);
+                });
+
+                // Hide suggestions on blur
+                mouLocationInput.addEventListener('blur', function() {
+                    setTimeout(() => mouLocationSuggestions.classList.add('hidden'), 100);
+                });
+
+                // Hide suggestions when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!mouLocationInput.contains(e.target) && !mouLocationSuggestions.contains(e.target)) {
+                        mouLocationSuggestions.classList.add('hidden');
+                    }
+                });
+
+                // Handle keyboard navigation
+                mouLocationInput.addEventListener('keydown', function(e) {
+                    const suggestions = mouSuggestionsList.querySelectorAll('[data-active="true"]');
+                    const activeSuggestion = mouSuggestionsList.querySelector('[data-active="true"]');
+                    
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        if (activeSuggestion) {
+                            activeSuggestion.removeAttribute('data-active');
+                            const next = activeSuggestion.nextElementSibling;
+                            if (next) {
+                                next.setAttribute('data-active', 'true');
+                                next.scrollIntoView({ block: 'nearest' });
+                            }
+                        } else if (suggestions.length > 0) {
+                            suggestions[0].setAttribute('data-active', 'true');
+                        }
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        if (activeSuggestion) {
+                            activeSuggestion.removeAttribute('data-active');
+                            const prev = activeSuggestion.previousElementSibling;
+                            if (prev) {
+                                prev.setAttribute('data-active', 'true');
+                                prev.scrollIntoView({ block: 'nearest' });
+                            }
+                        }
+                    } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (activeSuggestion) {
+                            activeSuggestion.click();
+                        } else {
+                            // Treat current input as confirmed selection
+                            mouLastConfirmedLocation = mouLocationInput.value;
+                            mouLocationSelected = true;
+                            mouLocationSuggestions.classList.add('hidden');
+                        }
+                    } else if (e.key === 'Escape') {
+                        mouLocationSuggestions.classList.add('hidden');
+                    }
+                });
+            }
+        });
+
+        // Load Google Maps API for MOU
+        function loadMouGoogleMaps() {
+            return new Promise((resolve, reject) => {
+                if (window.google && window.google.maps && window.google.maps.places) {
+                    resolve();
+                    return;
+                }
+
+                if (document.querySelector('script[src*="maps.googleapis.com"]')) {
+                    // Script already exists, wait for it to load
+                    const checkGoogle = setInterval(() => {
+                        if (window.google && window.google.maps && window.google.maps.places) {
+                            clearInterval(checkGoogle);
+                            resolve();
+                        }
+                    }, 100);
+                    return;
+                }
+
+                const script = document.createElement('script');
+                script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyD1p_x_nw6wT7_zUnILTuG17fHNOf0zFC4&libraries=places&loading=async&callback=initMouMapsCallback';
+                script.async = true;
+                script.defer = true;
+                
+                window.initMouMapsCallback = () => {
+                    resolve();
+                };
+                
+                script.onerror = () => {
+                    reject(new Error('Failed to load Google Maps API'));
+                };
+                
+                document.head.appendChild(script);
+            });
+        }
+
+        // Show MOU location suggestions
+        const showMouLocationSuggestions = async (query) => {
+            if (!query.trim() || query.length < 2) {
+                mouLocationSuggestions.classList.add('hidden');
+                return;
+            }
+
+            // Always show fallback suggestions first for immediate response
+            showMouFallbackSuggestions(query);
+
+            // Try to load Google Places API in the background (non-blocking)
+            try {
+                await loadMouGoogleMaps();
+                
+                if (!mouAutocompleteService && window.google && window.google.maps && window.google.maps.places) {
+                    mouAutocompleteService = new google.maps.places.AutocompleteService();
+                }
+
+                if (mouAutocompleteService) {
+                    // Use the legacy API which is still working - restricted to Iloilo only
+                    mouAutocompleteService.getPlacePredictions({
+                        input: query,
+                        types: ['geocode', 'establishment'],
+                        componentRestrictions: { country: 'ph' },
+                        location: new google.maps.LatLng(10.7202, 122.5621), // Iloilo City coordinates
+                        radius: 50000 // 50km radius around Iloilo
+                    }, (predictions, status) => {
+                        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+                            // Filter predictions to only show Iloilo locations (strict filtering)
+                            const iloiloPredictions = predictions.filter(prediction => {
+                                const desc = prediction.description.toLowerCase();
+                                return desc.includes('iloilo') && 
+                                       !desc.includes('manila') &&
+                                       !desc.includes('cebu') &&
+                                       !desc.includes('davao') &&
+                                       !desc.includes('baguio') &&
+                                       !desc.includes('bacolod') &&
+                                       !desc.includes('tacloban') &&
+                                       !desc.includes('antique') &&
+                                       !desc.includes('capiz') &&
+                                       !desc.includes('aklan') &&
+                                       !desc.includes('negros') &&
+                                       !desc.includes('guimaras');
+                            });
+                            if (iloiloPredictions.length > 0) {
+                                displayMouSuggestions(iloiloPredictions);
+                            }
+                            // If no Iloilo predictions, keep fallback suggestions
+                        } else {
+                            console.log('MOU Places API status:', status);
+                            // Keep fallback suggestions if API fails
+                        }
+                    });
+                }
+
+            } catch (error) {
+                // Silently fail - fallback suggestions are already shown
+                console.log('MOU Places API unavailable, using fallback suggestions');
+            }
+        };
+
+        // Display MOU suggestions from Google Places API
+        const displayMouSuggestions = (predictions) => {
+            mouSuggestionsList.innerHTML = '';
+            
+            predictions.slice(0, 8).forEach((prediction, index) => {
+                const suggestionItem = document.createElement('div');
+                suggestionItem.className = 'flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors select-none';
+                suggestionItem.style.pointerEvents = 'auto';
+                suggestionItem.setAttribute('data-active', index === 0 ? 'true' : 'false');
+                
+                // Add location icon
+                const icon = document.createElement('span');
+                icon.className = 'material-symbols-outlined text-gray-500 dark:text-gray-400 text-sm';
+                icon.textContent = 'place';
+                
+                // Add location text
+                const text = document.createElement('span');
+                text.className = 'text-sm text-gray-700 dark:text-gray-300';
+                text.textContent = prediction.description;
+                
+                suggestionItem.appendChild(icon);
+                suggestionItem.appendChild(text);
+                
+                // Add click event
+                suggestionItem.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    mouLocationInput.value = prediction.description;
+                    mouLastConfirmedLocation = prediction.description;
+                    mouLocationSelected = true;
+                    mouLocationSuggestions.classList.add('hidden');
+                    // Trigger input event to update any other listeners
+                    mouLocationInput.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+                
+                // Add mousedown event as backup
+                suggestionItem.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+                
+                mouSuggestionsList.appendChild(suggestionItem);
+            });
+            
+            mouLocationSuggestions.classList.remove('hidden');
+        };
+
+        // Show MOU fallback suggestions (Iloilo-only)
+        const showMouFallbackSuggestions = (query) => {
+            console.log('Showing ILOILO-ONLY MOU fallback suggestions for:', query); // Debug log
+            
+            // STRICT ILOILO-ONLY LOCATIONS - No other provinces or cities
+            const commonLocations = [
+                // Iloilo City and Province - Main Areas
+                'Iloilo City, Philippines', 'Central Philippine University, Iloilo City, Philippines', 'University of the Philippines Visayas, Iloilo City, Philippines',
+                'West Visayas State University, Iloilo City, Philippines', 'University of San Agustin, Iloilo City, Philippines',
+                'St. Paul University Iloilo, Iloilo City, Philippines', 'Iloilo Science and Technology University, Iloilo City, Philippines',
+                
+                // Iloilo City Districts and Barangays
+                'Mandurriao, Iloilo City, Philippines', 'Molo, Iloilo City, Philippines', 'Jaro, Iloilo City, Philippines',
+                'La Paz, Iloilo City, Philippines', 'Lapuz, Iloilo City, Philippines', 'Arevalo, Iloilo City, Philippines',
+                'City Proper, Iloilo City, Philippines', 'Villa Arevalo, Iloilo City, Philippines',
+                
+                // Iloilo Province Municipalities
+                'Miagao, Iloilo, Philippines', 'San Joaquin, Iloilo, Philippines', 'Guimbal, Iloilo, Philippines',
+                'Tigbauan, Iloilo, Philippines', 'Oton, Iloilo, Philippines', 'Pavia, Iloilo, Philippines',
+                'Santa Barbara, Iloilo, Philippines', 'New Lucena, Iloilo, Philippines', 'Zarraga, Iloilo, Philippines',
+                'Leganes, Iloilo, Philippines', 'Dumangas, Iloilo, Philippines', 'Barotac Nuevo, Iloilo, Philippines',
+                'Barotac Viejo, Iloilo, Philippines', 'Anilao, Iloilo, Philippines', 'Banate, Iloilo, Philippines',
+                'Bingawan, Iloilo, Philippines', 'Cabatuan, Iloilo, Philippines', 'Calinog, Iloilo, Philippines',
+                'Carles, Iloilo, Philippines', 'Concepcion, Iloilo, Philippines', 'Dingle, Iloilo, Philippines',
+                'Dueñas, Iloilo, Philippines', 'Estancia, Iloilo, Philippines',
+                'Igbaras, Iloilo, Philippines', 'Janiuay, Iloilo, Philippines', 'Lambunao, Iloilo, Philippines',
+                'Maasin, Iloilo, Philippines', 'Passi City, Iloilo, Philippines', 'Pototan, Iloilo, Philippines',
+                'San Dionisio, Iloilo, Philippines', 'San Enrique, Iloilo, Philippines', 'San Miguel, Iloilo, Philippines',
+                'San Rafael, Iloilo, Philippines', 'Sara, Iloilo, Philippines', 'Tubungan, Iloilo, Philippines',
+                
+                // Popular Iloilo Landmarks and Places
+                'Iloilo Business Park, Mandurriao, Iloilo City, Philippines', 'SM City Iloilo, Mandurriao, Iloilo City, Philippines',
+                'Robinsons Place Iloilo, La Paz, Iloilo City, Philippines', 'Festive Walk Iloilo, Mandurriao, Iloilo City, Philippines',
+                'Iloilo Convention Center, Mandurriao, Iloilo City, Philippines', 'Iloilo International Airport, Cabatuan, Iloilo, Philippines',
+                'Miagao Church, Miagao, Iloilo, Philippines', 'Jaro Cathedral, Jaro, Iloilo City, Philippines',
+                'Molo Church, Molo, Iloilo City, Philippines', 'Casa Mariquit, Jaro, Iloilo City, Philippines',
+                'Iloilo Museum of Contemporary Art, Mandurriao, Iloilo City, Philippines', 'Plaza Libertad, City Proper, Iloilo City, Philippines',
+                'Esplanade, Iloilo City, Philippines', 'Iloilo River, Iloilo City, Philippines',
+                
+                // Iloilo Universities and Schools
+                'Central Philippine University, Jaro, Iloilo City, Philippines', 'University of the Philippines Visayas, Miagao, Iloilo, Philippines',
+                'West Visayas State University, La Paz, Iloilo City, Philippines', 'University of San Agustin, Jaro, Iloilo City, Philippines',
+                'St. Paul University Iloilo, Jaro, Iloilo City, Philippines', 'Iloilo Science and Technology University, La Paz, Iloilo City, Philippines',
+                'John B. Lacson Foundation Maritime University, Molo, Iloilo City, Philippines', 'Iloilo Doctors College, Mandurriao, Iloilo City, Philippines',
+                'Assumption Iloilo, Jaro, Iloilo City, Philippines', 'Ateneo de Iloilo, Mandurriao, Iloilo City, Philippines',
+                'Colegio de San Jose, Jaro, Iloilo City, Philippines', 'St. Therese MTC Colleges, La Paz, Iloilo City, Philippines',
+                
+                // Iloilo Hospitals and Medical Centers
+                'Iloilo Doctors Hospital, Mandurriao, Iloilo City, Philippines', 'West Visayas State University Medical Center, La Paz, Iloilo City, Philippines',
+                'St. Paul Hospital Iloilo, Jaro, Iloilo City, Philippines', 'Iloilo Mission Hospital, Jaro, Iloilo City, Philippines',
+                'The Medical City Iloilo, Mandurriao, Iloilo City, Philippines', 'QualiMed Hospital Iloilo, Mandurriao, Iloilo City, Philippines',
+                
+                // Iloilo Government Offices
+                'Iloilo Provincial Capitol, Iloilo City, Philippines', 'Iloilo City Hall, City Proper, Iloilo City, Philippines',
+                'Iloilo City Government Center, Mandurriao, Iloilo City, Philippines', 'Department of Trade and Industry Iloilo, Iloilo City, Philippines',
+                'Bureau of Internal Revenue Iloilo, Iloilo City, Philippines', 'Social Security System Iloilo, Iloilo City, Philippines',
+                
+                // Iloilo Shopping and Commercial Areas
+                'Gaisano City Iloilo, La Paz, Iloilo City, Philippines', 'Atrium Mall, Mandurriao, Iloilo City, Philippines',
+                'Plaza Libertad Commercial Complex, City Proper, Iloilo City, Philippines', 'Iloilo Central Market, City Proper, Iloilo City, Philippines',
+                'Iloilo Terminal Market, City Proper, Iloilo City, Philippines', 'Megaworld Iloilo Business Park, Mandurriao, Iloilo City, Philippines'
+            ];
+
+            const filtered = commonLocations.filter(location => 
+                location.toLowerCase().includes(query.toLowerCase())
+            );
+
+            console.log('Filtered MOU results:', filtered.length, 'for query:', query); // Debug log
+
+            if (filtered.length > 0) {
+                mouSuggestionsList.innerHTML = '';
+                filtered.slice(0, 8).forEach((location, index) => {
+                    const suggestionItem = document.createElement('div');
+                    suggestionItem.className = 'flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors select-none';
+                    suggestionItem.style.pointerEvents = 'auto';
+                    suggestionItem.setAttribute('data-active', index === 0 ? 'true' : 'false');
+                    
+                    // Add location icon
+                    const icon = document.createElement('span');
+                    icon.className = 'material-symbols-outlined text-gray-500 dark:text-gray-400 text-sm';
+                    icon.textContent = 'place';
+                    
+                    // Add location text
+                    const text = document.createElement('span');
+                    text.className = 'text-sm text-gray-700 dark:text-gray-300';
+                    text.textContent = location;
+                    
+                    suggestionItem.appendChild(icon);
+                    suggestionItem.appendChild(text);
+                    
+                    // Add click event
+                    suggestionItem.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        mouLocationInput.value = location;
+                        mouLastConfirmedLocation = location;
+                        mouLocationSelected = true;
+                        mouLocationSuggestions.classList.add('hidden');
+                        // Trigger input event to update any other listeners
+                        mouLocationInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    });
+                    
+                    // Add mousedown event as backup
+                    suggestionItem.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
+                    
+                    mouSuggestionsList.appendChild(suggestionItem);
+                });
+                
+                mouLocationSuggestions.classList.remove('hidden');
+            } else {
+                mouLocationSuggestions.classList.add('hidden');
+            }
+        };
+
+        // Load profile picture from localStorage if available
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                const profile = JSON.parse(localStorage.getItem('lilac_profile'));
+                if (profile && profile.avatar) {
+                    const sidebarProfilePicture = document.querySelector('.sidebar-profile-picture');
+                    if (sidebarProfilePicture) {
+                        sidebarProfilePicture.style.backgroundImage = `url('${profile.avatar}')`;
+                    }
+                    
+                    // Also update the profile name if available
+                    const profileName = document.querySelector('.sidebar-profile-info p');
+                    if (profileName && profile.name) {
+                        profileName.textContent = profile.name;
+                    }
+                }
+            } catch (error) {
+                console.log('No profile data found in localStorage');
+            }
+        });
+    </script>
+
+<script>
+const API_BASE = 'api/mou.php';
+const AUTH_TOKEN = '<?php echo $token; ?>';
+
+window.uploadMOU = async function(formElement) {
+    const formData = new FormData();
+    const fileInput = formElement.querySelector('input[type="file"]');
+    const titleInput = formElement.querySelector('input[name="title"]');
+    const partnerInput = formElement.querySelector('input[name="partner"]');
+    const typeInput = formElement.querySelector('select[name="type"]');
+    const dateInput = formElement.querySelector('input[name="date"]');
+    const descInput = formElement.querySelector('textarea[name="description"]');
+
+    if (!fileInput.files[0]) {
+        alert('Please select a file');
+        return false;
+    }
+
+    formData.append('file', fileInput.files[0]);
+    formData.append('title', titleInput.value);
+    formData.append('partner', partnerInput.value);
+    formData.append('type', typeInput.value);
+    formData.append('date', dateInput.value);
+    formData.append('description', descInput.value);
+
+    try {
+        const response = await fetch(API_BASE + '?action=upload', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + AUTH_TOKEN
+            },
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('✓ MOU/MOA uploaded successfully!');
+            formElement.reset();
+            if (typeof loadMOUs === 'function') loadMOUs();
+            return true;
+        } else {
+            alert('✗ Error: ' + (result.error || 'Upload failed'));
+            return false;
+        }
+    } catch (error) {
+        alert('✗ Error: ' + error.message);
+        return false;
+    }
+};
+
+window.loadMOUs = async function() {
+    try {
+        const response = await fetch(API_BASE + '?action=list', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + AUTH_TOKEN
+            }
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.mous) {
+            renderMOUs(result.mous);
+        }
+    } catch (error) {
+        console.error('Load MOUs error:', error);
+    }
+};
+
+window.deleteMOU = async function(mouId) {
+    if (!confirm('Are you sure you want to delete this MOU/MOA?')) return;
+
+    try {
+        const response = await fetch(API_BASE + '?action=delete&id=' + mouId, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': 'Bearer ' + AUTH_TOKEN
+            }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('✓ MOU/MOA deleted successfully');
+            if (typeof loadMOUs === 'function') loadMOUs();
+        } else {
+            alert('✗ Error: ' + (result.error || 'Delete failed'));
+        }
+    } catch (error) {
+        alert('✗ Error: ' + error.message);
+    }
+};
+
+window.viewMOUDetails = async function(mouId) {
+    try {
+        const response = await fetch(API_BASE + '?action=view&id=' + mouId, {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + AUTH_TOKEN
+            }
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.mou) {
+            showMOUModal(result.mou);
+        } else {
+            alert('✗ Error: Unable to load MOU/MOA details');
+        }
+    } catch (error) {
+        alert('✗ Error: ' + error.message);
+    }
+};
+
+function renderMOUs(mous) {
+    const container = document.getElementById('mousContainer');
+    if (!container) return;
+
+    if (mous.length === 0) {
+        container.innerHTML = '<p class="text-center text-text-muted-light dark:text-text-muted-dark">No MOUs/MOAs found</p>';
+        return;
+    }
+
+    container.innerHTML = mous.map(mou => `
+        <div class="mou-card p-4 border border-border-light dark:border-border-dark rounded-lg">
+            <h3 class="font-semibold">${escapeHtml(mou.title)}</h3>
+            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">${escapeHtml(mou.partner || '')}</p>
+            <p class="text-xs text-text-muted-light dark:text-text-muted-dark mt-1">${mou.type || ''} - ${mou.date || ''}</p>
+            <div class="mt-2 flex gap-2">
+                <button onclick="viewMOUDetails(${mou.id})" class="text-sm text-primary hover:underline">View</button>
+                <button onclick="deleteMOU(${mou.id})" class="text-sm text-red-500 hover:underline">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function showMOUModal(mou) {
+    console.log('MOU details:', mou);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+document.getElementById('addMOUForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    uploadMOU(this);
+});
+</script>
+</body></html>
+
+
+

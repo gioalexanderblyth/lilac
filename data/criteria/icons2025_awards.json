@@ -1,0 +1,57 @@
+[
+  {
+    "category": "Institutional Awards",
+    "awards": [
+      {
+        "title": "Global Citizenship Award",
+        "description": "Honors HEIs that foster global awareness, intercultural understanding, and responsible leadership.",
+        "keywords": ["global citizenship", "intercultural understanding", "student mobility", "global collaboration", "community engagement", "leadership", "cross-border partnerships"]
+      },
+      {
+        "title": "Outstanding International Education Program Award",
+        "description": "Recognizes programs that advance international learning, academic exchange, and inclusive global education.",
+        "keywords": ["international education", "exchange", "cross-border collaboration", "inclusive", "academic partnership", "mobility", "internationalization"]
+      },
+      {
+        "title": "Sustainability Award",
+        "description": "Rewards initiatives promoting sustainable development and environmental responsibility in international education.",
+        "keywords": ["sustainability", "environmental awareness", "green campus", "eco-friendly", "sustainable policy", "climate action", "community sustainability"]
+      },
+      {
+        "title": "Best ASEAN Awareness Initiative Award",
+        "description": "Recognizes initiatives that strengthen ASEAN identity, awareness, and collaboration.",
+        "keywords": ["ASEAN", "regional cooperation", "Southeast Asia", "ASEAN integration", "regional solidarity", "cultural understanding", "ASEAN community"]
+      }
+    ]
+  },
+  {
+    "category": "Individual Awards",
+    "awards": [
+      {
+        "title": "Emerging Leadership Award",
+        "description": "Recognizes promising leaders who demonstrate potential and early impact in internationalization and collaboration.",
+        "keywords": ["emerging leader", "young leader", "mentorship", "innovation", "collaboration", "initiative", "leadership growth"]
+      },
+      {
+        "title": "Internationalization Leadership Award",
+        "description": "Honors executives and officials who have shown strategic, ethical, and sustained leadership in advancing internationalization.",
+        "keywords": ["strategic vision", "governance", "institutional leadership", "ethical leadership", "resilience", "mentorship", "global excellence"]
+      }
+    ]
+  },
+  {
+    "category": "Special Awards",
+    "awards": [
+      {
+        "title": "Best CHED Regional Office for Internationalization Award",
+        "description": "Honors CHED Regional Offices that promote internationalization policies and coordination within their region.",
+        "keywords": ["CHED", "regional office", "policy", "coordination", "regional program", "IZN promotion", "administrative leadership"]
+      },
+      {
+        "title": "Most Promising Regional IRO Community Award",
+        "description": "Recognizes IRO communities that demonstrate outstanding collaboration and initiative in internationalization.",
+        "keywords": ["IRO network", "collaboration", "regional partnership", "international relations office", "shared initiative", "community", "regional cooperation"]
+      }
+    ]
+  }
+]
