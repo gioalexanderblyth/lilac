@@ -496,7 +496,7 @@ try {
 
 <header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20">
 
-<h1 class="text-xl font-bold text-text-light dark:text-text-dark">Documents</h1>
+<h1 class="text-2xl font-bold text-text-light dark:text-text-dark">Documents</h1>
 <div class="flex items-center gap-2">
 
 <div class="relative">
@@ -537,76 +537,49 @@ No notifications yet
 <div class="flex-1">
  
 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-<div class="bg-card-light dark:bg-card-dark p-3 rounded-lg shadow-sm border border-border-light dark:border-border-dark doc-counter-card">
-<div class="flex justify-between items-center">
+<div class="bg-card-light dark:bg-card-dark p-3 rounded-lg shadow-sm border border-border-light dark:border-border-dark doc-counter-card transition-all duration-200 hover:shadow-md hover:scale-[1.02]">
+<div class="flex justify-between items-center h-full">
 <div class="flex items-center gap-4">
 <div class="bg-blue-100 dark:bg-blue-900/50 p-2 rounded-lg">
 <span class="material-icons text-blue-500 dark:text-blue-400">folder</span>
 </div>
-<h2 class="text-sm font-semibold text-text-light dark:text-text-dark">Total Documents</h2>
+<h2 class="text-sm font-semibold text-text-light dark:text-text-dark flex items-center">Total Documents</h2>
 </div>
- 
-</div>
-<div class="mt-2">
 <span id="counter-total" class="text-xl font-bold text-text-light dark:text-text-dark">0</span>
- 
 </div>
- 
- 
 </div>
-<div class="bg-card-light dark:bg-card-dark p-3 rounded-lg shadow-sm border border-border-light dark:border-border-dark doc-counter-card">
-<div class="flex justify-between items-center">
+<div class="bg-card-light dark:bg-card-dark p-3 rounded-lg shadow-sm border border-border-light dark:border-border-dark doc-counter-card transition-all duration-200 hover:shadow-md hover:scale-[1.02]">
+<div class="flex justify-between items-center h-full">
 <div class="flex items-center gap-4">
 <div class="bg-green-100 dark:bg-green-900/50 p-2 rounded-lg">
 <span class="material-icons text-green-500 dark:text-green-400">handshake</span>
 </div>
-<h2 class="text-sm font-semibold text-text-light dark:text-text-dark">MOU</h2>
+<h2 class="text-sm font-semibold text-text-light dark:text-text-dark flex items-center">MOU</h2>
 </div>
- 
-</div>
-<div class="mt-2">
 <span id="counter-mou" class="text-xl font-bold text-text-light dark:text-text-dark">0</span>
- 
 </div>
- 
- 
 </div>
-<div class="bg-card-light dark:bg-card-dark p-3 rounded-lg shadow-sm border border-border-light dark:border-border-dark doc-counter-card">
-<div class="flex justify-between items-center">
+<div class="bg-card-light dark:bg-card-dark p-3 rounded-lg shadow-sm border border-border-light dark:border-border-dark doc-counter-card transition-all duration-200 hover:shadow-md hover:scale-[1.02]">
+<div class="flex justify-between items-center h-full">
 <div class="flex items-center gap-4">
 <div class="bg-red-100 dark:bg-red-900/50 p-2 rounded-lg">
 <span class="material-icons text-red-500 dark:text-red-400">description</span>
 </div>
-<h2 class="text-sm font-semibold text-text-light dark:text-text-dark">Other Documents</h2>
+<h2 class="text-sm font-semibold text-text-light dark:text-text-dark flex items-center">Other Documents</h2>
 </div>
- 
-
-</div>
-<div class="mt-2">
 <span id="counter-templates" class="text-xl font-bold text-text-light dark:text-text-dark">0</span>
- 
 </div>
- 
- 
 </div>
-<div class="bg-card-light dark:bg-card-dark p-3 rounded-lg shadow-sm border border-border-light dark:border-border-dark">
-<div class="flex justify-between items-center">
+<div class="bg-card-light dark:bg-card-dark p-3 rounded-lg shadow-sm border border-border-light dark:border-border-dark doc-counter-card transition-all duration-200 hover:shadow-md hover:scale-[1.02]">
+<div class="flex justify-between items-center h-full">
 <div class="flex items-center gap-4">
 <div class="bg-indigo-100 dark:bg-indigo-900/50 p-2 rounded-lg">
 <span class="material-icons text-indigo-500 dark:text-indigo-400">assignment_turned_in</span>
 </div>
-<h2 class="text-sm font-semibold text-text-light dark:text-text-dark">MOA</h2>
+<h2 class="text-sm font-semibold text-text-light dark:text-text-dark flex items-center">MOA</h2>
 </div>
- 
-
-</div>
-
-<div class="mt-2">
 <span id="counter-moa" class="text-xl font-bold text-text-light dark:text-text-dark">0</span>
- 
 </div>
- 
- 
 </div>
 </div>
 </div>
@@ -616,10 +589,8 @@ No notifications yet
 <div class="flex justify-between items-center">
 <h2 class="text-sm font-semibold">Documents Report</h2>
 <div class="relative">
-<select class="pl-4 pr-8 py-2 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md text-sm">
-<option>May 2025</option>
-<option>April 2025</option>
-<option>March 2025</option>
+<select id="monthFilter" class="pl-4 pr-8 py-2 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-md text-sm">
+<option value="all">All Time</option>
 </select>
 
 </div>
@@ -740,6 +711,11 @@ Add Document
         let currentPage = 1;
         let totalPages = 1;
         const itemsPerPage = 10;
+        
+        // Filter state
+        let currentFilter = null; // null = all, 'MOU', 'MOA', 'Other Documents'
+        let allDocuments = []; // Store all documents for filtering
+        let currentMonthFilter = 'all'; // 'all' or 'YYYY-MM' format
 
         document.addEventListener('DOMContentLoaded', () => {
 
@@ -780,11 +756,27 @@ Add Document
             const nextBtn = document.getElementById('pagination-next');
             const pagesEl = document.getElementById('pagination-pages');
 
-            function renderDocuments(documents) {
+            function renderDocuments(documents, filterCategory = null) {
                 if (!documentsTableBody) return;
 
+                // Filter documents by category if filter is applied
+                let filteredDocuments = documents;
+                if (filterCategory) {
+                    filteredDocuments = documents.filter(doc => {
+                        const cat = doc && doc.category ? String(doc.category).trim() : '';
+                        if (filterCategory === 'MOU') {
+                            return cat.includes('MOU') || cat === 'MOU';
+                        } else if (filterCategory === 'MOA') {
+                            return cat.includes('MOA') || cat === 'MOA';
+                        } else if (filterCategory === 'Other Documents') {
+                            return cat === 'Other Documents' || cat === 'Other';
+                        }
+                        return false;
+                    });
+                }
+
                 // If no documents, show placeholder row
-                if (!Array.isArray(documents) || documents.length === 0) {
+                if (!Array.isArray(filteredDocuments) || filteredDocuments.length === 0) {
                     noDocumentsRow.style.display = '';
                     // Remove any existing document rows
                     const existingRows = documentsTableBody.querySelectorAll('tr:not(#no-documents-row)');
@@ -799,8 +791,11 @@ Add Document
                 const existingRows = documentsTableBody.querySelectorAll('tr:not(#no-documents-row)');
                 existingRows.forEach(row => row.remove());
 
+                // Reset to page 1 when filtering
+                currentPage = 1;
+                
                 // Add new document rows
-                documents.forEach((doc, idx) => {
+                filteredDocuments.forEach((doc, idx) => {
                     const name = (doc && doc.title) ? doc.title : (doc && doc.name) ? doc.name : 'Untitled Document';
                     const category = (doc && doc.category) ? doc.category : 'Other';
                     const uploaded = (doc && doc.created_at) ?
@@ -834,12 +829,21 @@ Add Document
                     `;
                     documentsTableBody.appendChild(row);
                 });
+                
+                // Apply pagination after rendering
+                applyPagination();
 
-                // Update counters by category
-                updateDocumentCounters(documents);
+                // Update top counters by category (always use all documents, not filtered)
+                updateTopCounters(allDocuments);
+                
+                // Update Documents Report section (use filtered documents for month filter)
+                updateDocumentsReport(filteredDocuments);
+                
+                // Update pagination based on filtered documents
+                updatePagination(filteredDocuments.length);
             }
 
-            function updateDocumentCounters(documents) {
+            function updateTopCounters(documents) {
                 try {
                     const counts = { total: 0, MOU: 0, MOA: 0, 'Other Documents': 0 };
                     counts.total = Array.isArray(documents) ? documents.length : 0;
@@ -865,43 +869,31 @@ Add Document
                     setText('counter-mou', counts.MOU);
                     setText('counter-templates', counts['Other Documents']);
                     setText('counter-moa', counts.MOA);
-
-                    // Update Documents Report section
-                    updateDocumentsReport(documents, counts);
-                    
-                    // Update pagination based on actual document count
-                    updatePagination(counts.total);
                 } catch (error) {
                     console.error('Error updating counters:', error);
                 }
             }
-
-            function updatePagination(totalDocuments) {
+            
+            function updateDocumentsReport(documents) {
                 try {
-                    // Calculate total pages based on document count and items per page
-                    totalPages = Math.max(1, Math.ceil(totalDocuments / itemsPerPage));
-                    
-                    // Reset to page 1 if current page is beyond total pages
-                    if (currentPage > totalPages) {
-                        currentPage = 1;
-                    }
-                    
-                    // Render pagination with updated values
-                    renderPagination();
-                } catch (error) {
-                    console.error('Error updating pagination:', error);
-                }
-            }
-
-            function updateDocumentsReport(documents, counts) {
-                try {
-                    // Update total count in chart center
-                    const totalCountEl = document.getElementById('totalDocumentsCount');
-                    if (totalCountEl) {
-                        totalCountEl.textContent = counts.total;
+                    // Calculate counts from filtered documents
+                    const counts = { total: 0, MOU: 0, MOA: 0, 'Other Documents': 0 };
+                    counts.total = Array.isArray(documents) ? documents.length : 0;
+                    if (Array.isArray(documents)) {
+                        documents.forEach(d => {
+                            const cat = d && d.category ? String(d.category).trim() : '';
+                            // Handle both short forms and full text
+                            if (cat.includes('MOU') || cat === 'MOU') {
+                                counts.MOU++;
+                            } else if (cat.includes('MOA') || cat === 'MOA') {
+                                counts.MOA++;
+                            } else if (cat === 'Other Documents' || cat === 'Other') {
+                                counts['Other Documents']++;
+                            }
+                        });
                     }
 
-                    // Update individual counts
+                    // Update individual counts in Documents Report
                     const setText = (id, value) => {
                         const el = document.getElementById(id);
                         if (el) el.textContent = String(value);
@@ -938,6 +930,42 @@ Add Document
                     console.error('Error updating documents report:', error);
                 }
             }
+
+            function updatePagination(totalDocuments) {
+                try {
+                    // Calculate total pages based on document count and items per page
+                    totalPages = Math.max(1, Math.ceil(totalDocuments / itemsPerPage));
+                    
+                    // Reset to page 1 if current page is beyond total pages
+                    if (currentPage > totalPages) {
+                        currentPage = 1;
+                    }
+                    
+                    // Render pagination with updated values
+                    renderPagination();
+                    
+                    // Apply pagination to displayed documents
+                    applyPagination();
+                } catch (error) {
+                    console.error('Error updating pagination:', error);
+                }
+            }
+            
+            // Apply pagination to the document table
+            function applyPagination() {
+                const rows = documentsTableBody.querySelectorAll('tr:not(#no-documents-row)');
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+                
+                rows.forEach((row, index) => {
+                    if (index >= startIndex && index < endIndex) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            }
+
 
             function updateDonutChart(counts) {
                 try {
@@ -1027,12 +1055,81 @@ Add Document
                 }
             }
 
+            // Extract unique months from documents
+            function getUniqueMonths(documents) {
+                const monthMap = new Map();
+                documents.forEach(doc => {
+                    if (doc && doc.created_at) {
+                        const date = new Date(doc.created_at);
+                        if (!isNaN(date.getTime())) {
+                            const monthKey = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                            const sortKey = date.getFullYear() * 12 + date.getMonth(); // Year * 12 + month for sorting
+                            if (!monthMap.has(monthKey) || monthMap.get(monthKey) < sortKey) {
+                                monthMap.set(monthKey, sortKey);
+                            }
+                        }
+                    }
+                });
+                // Sort months in descending order (newest first)
+                return Array.from(monthMap.keys()).sort((a, b) => {
+                    return monthMap.get(b) - monthMap.get(a);
+                });
+            }
+            
+            // Populate month filter dropdown
+            function populateMonthFilter(documents) {
+                const monthFilter = document.getElementById('monthFilter');
+                if (!monthFilter) return;
+                
+                const months = getUniqueMonths(documents);
+                const currentValue = monthFilter.value;
+                
+                // Clear existing options except "All Time"
+                monthFilter.innerHTML = '<option value="all">All Time</option>';
+                
+                // Add month options
+                months.forEach(month => {
+                    const option = document.createElement('option');
+                    option.value = month;
+                    option.textContent = month;
+                    monthFilter.appendChild(option);
+                });
+                
+                // Restore previous selection if it still exists
+                if (currentValue && currentValue !== 'all') {
+                    const optionExists = Array.from(monthFilter.options).some(opt => opt.value === currentValue);
+                    if (optionExists) {
+                        monthFilter.value = currentValue;
+                    }
+                }
+            }
+            
+            // Filter documents by month
+            function filterByMonth(documents, monthFilter) {
+                if (monthFilter === 'all') {
+                    return documents;
+                }
+                
+                return documents.filter(doc => {
+                    if (!doc || !doc.created_at) return false;
+                    const docDate = new Date(doc.created_at);
+                    if (isNaN(docDate.getTime())) return false;
+                    const docMonth = docDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                    return docMonth === monthFilter;
+                });
+            }
+
             // Load documents from localStorage on page load
             function loadDocuments() {
                 try {
                     // Load documents from PHP (includes MOU, MOA, and Other Documents)
-                    const documents = <?php echo json_encode($documents); ?>;
-                    renderDocuments(documents);
+                    allDocuments = <?php echo json_encode($documents); ?>;
+                    
+                    // Populate month filter
+                    populateMonthFilter(allDocuments);
+                    
+                    // Apply filters and render
+                    applyFiltersAndRender();
 
                     // Add uppercase conversion for title input
                     const titleInput = document.getElementById('documentTitle');
@@ -1048,12 +1145,83 @@ Add Document
                     renderDocuments([]);
                 }
             }
+            
+            // Apply all filters (category and month) and render
+            function applyFiltersAndRender() {
+                let filtered = allDocuments;
+                
+                // Apply month filter
+                filtered = filterByMonth(filtered, currentMonthFilter);
+                
+                // Apply category filter
+                renderDocuments(filtered, currentFilter);
+            }
 
             // Load documents when page loads
             loadDocuments();
 
             // Expose for future integration (e.g., API fetch -> renderDocuments(data))
             window.renderDocuments = renderDocuments;
+            
+            // Filter documents by category when counter is clicked
+            function filterByCategory(category) {
+                // Toggle filter: if same category is clicked again, show all
+                if (currentFilter === category) {
+                    currentFilter = null;
+                } else {
+                    currentFilter = category;
+                }
+                
+                // Apply all filters and render
+                applyFiltersAndRender();
+            }
+            
+            // Handle month filter change
+            const monthFilter = document.getElementById('monthFilter');
+            if (monthFilter) {
+                monthFilter.addEventListener('change', function(e) {
+                    currentMonthFilter = e.target.value;
+                    applyFiltersAndRender();
+                });
+            }
+            
+            // Add click handlers to counter cards
+            const totalCounter = document.getElementById('counter-total');
+            const mouCounter = document.getElementById('counter-mou');
+            const moaCounter = document.getElementById('counter-moa');
+            const templatesCounter = document.getElementById('counter-templates');
+            
+            if (totalCounter) {
+                const totalCard = totalCounter.closest('.doc-counter-card');
+                if (totalCard) {
+                    totalCard.style.cursor = 'pointer';
+                    totalCard.addEventListener('click', () => filterByCategory(null));
+                }
+            }
+            
+            if (mouCounter) {
+                const mouCard = mouCounter.closest('.doc-counter-card');
+                if (mouCard) {
+                    mouCard.style.cursor = 'pointer';
+                    mouCard.addEventListener('click', () => filterByCategory('MOU'));
+                }
+            }
+            
+            if (moaCounter) {
+                const moaCard = moaCounter.closest('.doc-counter-card');
+                if (moaCard) {
+                    moaCard.style.cursor = 'pointer';
+                    moaCard.addEventListener('click', () => filterByCategory('MOA'));
+                }
+            }
+            
+            if (templatesCounter) {
+                const templatesCard = templatesCounter.closest('.doc-counter-card');
+                if (templatesCard) {
+                    templatesCard.style.cursor = 'pointer';
+                    templatesCard.addEventListener('click', () => filterByCategory('Other Documents'));
+                }
+            }
 
             // Delegated click handling for Actions (View/Edit/Delete)
             if (documentsTableBody) {
@@ -1183,7 +1351,10 @@ Add Document
                 if (newPage === currentPage) return;
                 currentPage = newPage;
                 renderPagination();
-                // Hook: load data for currentPage here, then call renderDocuments(data)
+                // Apply pagination to currently displayed documents
+                applyPagination();
+                // Scroll to top of table
+                documentsTableBody.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
             // Wire events

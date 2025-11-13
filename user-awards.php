@@ -754,8 +754,7 @@ try {
                                                 Analyzed</p>
                                         </div>
 
-                                        <div class="kpi-box analytics-card cursor-pointer hover:shadow-md transition-shadow border-t-4 border-gray-200 dark:border-gray-600"
-                                            onclick="showSuccessRate()">
+                                        <div class="kpi-box analytics-card border-t-4 border-gray-200 dark:border-gray-600">
                                             <p id="kpi-success-rate" class="text-3xl font-extrabold text-gray-900 dark:text-gray-100">
                                                 <svg class="animate-spin h-8 w-8 mx-auto text-primary" fill="none" viewBox="0 0 24 24">
                                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -781,18 +780,6 @@ try {
                                                 Award Fulfillment Trends</h3>
                                             <div class="h-48">
                                                 <canvas id="trendsChart"></canvas>
-                                            </div>
-                                            <div class="flex justify-center gap-4 mt-4 text-xs font-medium">
-                                                <div class="flex items-center gap-1">
-                                                    <div class="w-2 h-2 rounded-full bg-blue-500"></div>
-                                                    <span class="text-gray-700 dark:text-gray-300">Eligible
-                                                        Submissions</span>
-                                                </div>
-                                                <div class="flex items-center gap-1">
-                                                    <div class="w-2 h-2 rounded-full bg-gray-500"></div>
-                                                    <span class="text-gray-700 dark:text-gray-300">Total
-                                                        Submissions</span>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -5887,60 +5874,6 @@ try {
             showModal('🚩 Pending Reviews - Action Items', content);
         }
 
-        function showSuccessRate() {
-            const content = `
-            <div class="space-y-4">
-                <div class="bg-pink-50 border border-pink-200 rounded-lg p-4">
-                    <h3 class="font-semibold text-pink-800 mb-3">Success Rate Analytics (DYNAMIC)</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <h4 class="font-semibold text-gray-800 mb-3">Performance Trends</h4>
-                            <div class="space-y-3">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Current Cycle</span>
-                                    <span class="font-bold text-pink-600">92%</span>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Previous Cycle</span>
-                                    <span class="font-bold text-gray-600">87%</span>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Improvement</span>
-                                    <span class="font-bold text-green-600">+5%</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <h4 class="font-semibold text-gray-800 mb-3">Department Breakdown</h4>
-                            <div class="space-y-2 text-sm">
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">College of Education</span>
-                                    <span class="font-medium">100%</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">College of Business</span>
-                                    <span class="font-medium">95%</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">College of Engineering</span>
-                                    <span class="font-medium">88%</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-4 p-3 bg-white rounded border">
-                        <h4 class="font-semibold text-gray-800 mb-2">Key Insights</h4>
-                        <ul class="text-sm text-gray-600 space-y-1">
-                            <li>• Strong performance in leadership-based awards</li>
-                            <li>• Innovation awards need more supporting documentation</li>
-                            <li>• Community engagement shows room for improvement</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        `;
-            showModal('📈 Success Rate - Performance Analytics', content);
-        }
 
         // Chart update functions
         function updateStatusChart(statusData, hasUploads = null) {
@@ -6433,9 +6366,29 @@ try {
                 `;
             }
 
-            // Show recommendations from API
+            // Show recommendations from API (filter out duplicates)
             if (insights.recommendations && insights.recommendations.length > 0) {
                 insights.recommendations.forEach((rec, index) => {
+                    if (!rec.message) return;
+                    
+                    const messageLower = rec.message.toLowerCase();
+                    
+                    // Skip if message is about qualifying/achieved (duplicate of insights.achieved)
+                    if (messageLower.includes('qualified') || 
+                        messageLower.includes('qualified for') || 
+                        messageLower.includes('congratulations') || 
+                        messageLower.includes('great job') ||
+                        (messageLower.includes('achieved') && messageLower.includes('award'))) {
+                        return;
+                    }
+                    
+                    // Skip if message is about being X% away (duplicate of insights.close_to_achieving)
+                    if (messageLower.includes('away from') || 
+                        messageLower.includes('away from qualifying') || 
+                        messageLower.includes('away from achieving')) {
+                        return;
+                    }
+                    
                     const iconMap = {
                         'success': 'check_circle',
                         'opportunity': 'trending_up',
@@ -6724,6 +6677,9 @@ try {
                             <p class="text-sm text-gray-600 dark:text-gray-400">${escapeHtml(criteria.description)}</p>
                         </div>
                         <div class="flex items-center gap-2 ml-4">
+                            <button onclick="toggleCriteriaDetails(${criteria.id})" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors" title="Toggle details">
+                                <span class="material-symbols-outlined text-lg criteria-toggle-icon-${criteria.id}">expand_more</span>
+                            </button>
                             <button onclick="editCriteria(${criteria.id})" class="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
                                 <span class="material-symbols-outlined text-lg">edit</span>
                             </button>
@@ -6733,51 +6689,53 @@ try {
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
-                                <span class="material-symbols-outlined text-sm">checklist</span>
-                                Requirements (${requirements.length})
-                            </h4>
-                            <ul class="space-y-1">
-                                ${requirements.slice(0, 3).map(req => `
-                                    <li class="text-sm text-gray-600 dark:text-gray-400 flex items-start gap-2">
-                                        <span class="material-symbols-outlined text-xs text-green-600 dark:text-green-400 mt-0.5">check_circle</span>
-                                        <span>${escapeHtml(req)}</span>
-                                    </li>
-                                `).join('')}
-                                ${requirements.length > 3 ? `<li class="text-sm text-gray-500 dark:text-gray-500 pl-6">+${requirements.length - 3} more</li>` : ''}
-                            </ul>
-                        </div>
+                    <div class="criteria-details-${criteria.id} transition-all duration-300 overflow-hidden" style="max-height: none; opacity: 1;">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-sm">checklist</span>
+                                    Requirements (${requirements.length})
+                                </h4>
+                                <ul class="space-y-1">
+                                    ${requirements.slice(0, 3).map(req => `
+                                        <li class="text-sm text-gray-600 dark:text-gray-400 flex items-start gap-2">
+                                            <span class="material-symbols-outlined text-xs text-green-600 dark:text-green-400 mt-0.5">check_circle</span>
+                                            <span>${escapeHtml(req)}</span>
+                                        </li>
+                                    `).join('')}
+                                    ${requirements.length > 3 ? `<li class="text-sm text-gray-500 dark:text-gray-500 pl-6">+${requirements.length - 3} more</li>` : ''}
+                                </ul>
+                            </div>
 
-                        <div>
-                            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
-                                <span class="material-symbols-outlined text-sm">label</span>
-                                Keywords (${keywords.length})
-                            </h4>
-                            <div class="flex flex-wrap gap-1">
-                                ${keywords.slice(0, 6).map(kw => `
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                                        ${escapeHtml(kw.trim())}
-                                    </span>
-                                `).join('')}
-                                ${keywords.length > 6 ? `<span class="text-xs text-gray-500">+${keywords.length - 6}</span>` : ''}
+                            <div>
+                                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-sm">label</span>
+                                    Keywords (${keywords.length})
+                                </h4>
+                                <div class="flex flex-wrap gap-1">
+                                    ${keywords.slice(0, 6).map(kw => `
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                                            ${escapeHtml(kw.trim())}
+                                        </span>
+                                    `).join('')}
+                                    ${keywords.length > 6 ? `<span class="text-xs text-gray-500">+${keywords.length - 6}</span>` : ''}
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400 pt-3 border-t border-gray-200 dark:border-gray-700">
-                        <div class="flex items-center gap-1">
-                            <span class="material-symbols-outlined text-sm">percent</span>
-                            Min Match: <span class="font-semibold">${criteria.min_match_percentage}%</span>
-                        </div>
-                        <div class="flex items-center gap-1">
-                            <span class="material-symbols-outlined text-sm">weight</span>
-                            Weight: <span class="font-semibold">${criteria.weight}/10</span>
-                        </div>
-                        <div class="flex items-center gap-1 ml-auto">
-                            <span class="material-symbols-outlined text-sm">schedule</span>
-                            Updated: ${new Date(criteria.updated_at).toLocaleDateString()}
+                        <div class="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400 pt-3 border-t border-gray-200 dark:border-gray-700">
+                            <div class="flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">percent</span>
+                                Min Match: <span class="font-semibold">${criteria.min_match_percentage}%</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">weight</span>
+                                Weight: <span class="font-semibold">${criteria.weight}/10</span>
+                            </div>
+                            <div class="flex items-center gap-1 ml-auto">
+                                <span class="material-symbols-outlined text-sm">schedule</span>
+                                Updated: ${new Date(criteria.updated_at).toLocaleDateString()}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -6854,6 +6812,41 @@ try {
                 }
             } catch (error) {
                 showNotification('Error: ' + error.message, 'error');
+            }
+        };
+
+        window.toggleCriteriaDetails = function (criteriaId) {
+            const detailsContainer = document.querySelector(`.criteria-details-${criteriaId}`);
+            const toggleIcon = document.querySelector(`.criteria-toggle-icon-${criteriaId}`);
+            
+            if (!detailsContainer || !toggleIcon) return;
+            
+            // Check if currently collapsed
+            const isCollapsed = detailsContainer.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                // Expand
+                detailsContainer.classList.remove('collapsed');
+                const naturalHeight = detailsContainer.scrollHeight;
+                detailsContainer.style.maxHeight = naturalHeight + 'px';
+                detailsContainer.style.opacity = '1';
+                toggleIcon.textContent = 'expand_less';
+                
+                // After transition, set to auto for dynamic content
+                setTimeout(() => {
+                    if (!detailsContainer.classList.contains('collapsed')) {
+                        detailsContainer.style.maxHeight = 'none';
+                    }
+                }, 300);
+            } else {
+                // Collapse
+                const currentHeight = detailsContainer.scrollHeight;
+                detailsContainer.style.maxHeight = currentHeight + 'px';
+                detailsContainer.offsetHeight; // Force reflow
+                detailsContainer.classList.add('collapsed');
+                detailsContainer.style.maxHeight = '0px';
+                detailsContainer.style.opacity = '0';
+                toggleIcon.textContent = 'expand_more';
             }
         };
 
