@@ -394,7 +394,6 @@ try {
         }
     </style>
 </head>
-
 <body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
     <div class="flex h-screen sidebar-collapsed" id="app-container">
         <aside
@@ -818,7 +817,6 @@ try {
                             </div>
                         </div>
                     </div>
-
                     <!-- Award List Tab Content -->
                     <div id="award-list-content" class="tab-content hidden">
                         <div class="pt-0 pb-6 px-6 max-w-7xl mx-auto">
@@ -1273,7 +1271,6 @@ try {
             </div>
         </div>
     </div>
-
     <!-- Admin Panel Tab Content -->
     <?php if ($isAdmin): ?>
         <div id="admin-panel-content" class="tab-content hidden">
@@ -1765,7 +1762,6 @@ try {
                 document.getElementById('viewError').classList.remove('hidden');
             }
         }
-
         function populateViewModal(data) {
             const modalBody = document.getElementById('viewModalBody');
             const award = data.award || {};
@@ -2256,7 +2252,6 @@ try {
                     existingFeedback.remove();
                 }
             }
-
             // Eligible Awards Modal Functions
             function showEligibleAwards(awardId) {
                 console.log('showEligibleAwards called with awardId:', awardId);
@@ -2689,8 +2684,6 @@ try {
                     `;
                 }).join('');
             }
-
-
             // Render award list in the table
             function renderAwardList(awards) {
                 const tbody = document.querySelector('#award-list-content tbody');
@@ -3168,7 +3161,6 @@ try {
                     showModal('Error', `<p class="text-red-600">Failed to load applicants: ${error.message}</p>`);
                 }
             }
-
             // Update individual applicant status
             async function updateApplicantStatus(awardId, newStatus) {
                 try {
@@ -3654,7 +3646,6 @@ try {
             // Note: Click to upload is handled by the label element with for="file-upload"
             // No need for additional click handler on drop zone
         }
-
         function handleFormSubmission(e) {
             e.preventDefault();
 
@@ -4101,7 +4092,6 @@ try {
             // Scroll to results
             results.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-
         function createAwardAnalysisCard(award) {
             const card = document.createElement('div');
             card.className = 'bg-card-light dark:bg-card-dark/50 rounded-xl p-6 border border-border-light dark:border-border-dark';
@@ -4552,7 +4542,6 @@ try {
                 showModal('Error', `<p class="text-red-600">Failed to load award details: ${error.message}</p>`);
             }
         }
-
         // Fallback for older static award details
         function showOldAwardDetails(awardName) {
             // Award details mapping
@@ -5036,7 +5025,6 @@ try {
         `;
             showModal('👩‍🏫 Faculty Involved - Participation Details', content);
         }
-
         function showNewPartnerships() {
             const content = `
             <div class="space-y-4">
@@ -5402,7 +5390,6 @@ try {
                 if (successRateEl) successRateEl.textContent = '0%';
             }
         }
-
         // Load dynamic analytics data for the awards table
         async function loadAnalyticsData() {
             try {
@@ -5900,7 +5887,6 @@ try {
                 document.getElementById('addCriteriaForm').reset();
             }, 300);
         };
-
         function escapeHtml(text) {
             if (!text) return '';
             const div = document.createElement('div');
