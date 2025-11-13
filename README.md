@@ -320,7 +320,7 @@ Display Results
 ### Admin Account
 - **Username:** `admin`
 - **Email:** `admin@cpu.edu.ph`
-- **Password:** `password`
+- **Password:** `admin123`
 
 ### Test User Account (if created)
 - **Username:** `user`
