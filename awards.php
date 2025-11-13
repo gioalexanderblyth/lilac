@@ -14,9 +14,6 @@ $user = $_SESSION['user'];
 $isAdmin = $user['role'] === 'admin';
 
 // Redirect based on role
-if ($isAdmin) {
-    header('Location: admin-awards.php');
-} else {
-    header('Location: user-awards.php');
-}
+// Both admins and users use user-awards.php
+header('Location: user-awards.php');
 exit();

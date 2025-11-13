@@ -1,6 +1,6 @@
 <?php
 /**
- * LILAC Awards Progress Tracker - With Upload & Analysis
+ * LILAC Awards Management - With Upload & Analysis
  */
 session_start();
 
@@ -49,7 +49,7 @@ try {
 <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>LILAC Awards Progress Tracker</title>
+    <title>LILAC Awards Management</title>
     <link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"
         rel="stylesheet" />
@@ -350,8 +350,8 @@ try {
             content: '';
             position: absolute;
             bottom: -1px;
-            left: 0;
-            right: 0;
+            left: 0.25rem;
+            right: 0.25rem;
             height: 2px;
             background-color: rgb(19, 127, 236);
             transform: scaleX(0);
@@ -421,7 +421,7 @@ try {
             class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col">
             <div class="flex items-center justify-start px-4 h-20 border-b border-border-light dark:border-border-dark">
                 <div class="flex items-center gap-3">
-                    <img alt="CPU LILAC Logo" class="h-11 w-11" src="../assets/images/cpu-logo.png?v=1" width="32"
+                    <img alt="CPU LILAC Logo" class="h-11 w-11" src="./api/get-logo.php?v=1" width="32"
                         height="32"
                         onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex'; console.error('Logo failed to load:', this.src);" />
                     <div class="h-11 w-11 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm"
@@ -439,7 +439,7 @@ try {
                 <a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-primary-50 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 font-semibold sidebar-nav-link"
                     href="user-awards.php">
                     <span class="material-symbols-outlined filled">emoji_events</span>
-                    <span class="sidebar-text hidden">Awards Progress</span>
+                    <span class="sidebar-text hidden">Awards Management</span>
                 </a>
                 <a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link"
                     href="events-activities.php">
@@ -489,7 +489,7 @@ try {
         <main class="flex-1 overflow-y-auto">
             <header
                 class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20">
-                <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">Awards Progress</h1>
+                <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">Awards Management</h1>
                 <div class="flex items-center gap-2">
                     <button
                         class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors duration-200">
@@ -507,21 +507,14 @@ try {
                 <div class="max-w-7xl mx-auto">
                     <div class="flex flex-col gap-8">
                         <div class="border-b border-border-light dark:border-border-dark">
-                            <div class="flex items-center justify-between">
-                                <nav aria-label="Tabs" class="-mb-px flex space-x-8">
-                                    <a class="active tab-underline text-primary whitespace-nowrap py-4 px-1 font-bold text-sm relative"
-                                        href="#" id="process-tab">Process Award</a>
-                                    <a class="tab-underline border-transparent text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:border-border-light dark:hover:border-border-dark whitespace-nowrap py-4 px-1 font-medium text-sm transition-colors duration-300"
-                                        href="#" id="analytics-tab">Analytics Dashboard</a>
-                                    <a class="tab-underline border-transparent text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:border-border-light dark:hover:border-border-dark whitespace-nowrap py-4 px-1 font-medium text-sm transition-colors duration-300"
-                                        href="#" id="award-list-tab">Award List<?php echo $isAdmin ? ' & Criteria' : ''; ?></a>
-                                </nav>
-                                <a href="admin-awards.php"
-                                   class="inline-flex items-center gap-2 text-primary hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 text-sm font-medium transition-colors duration-200 cursor-pointer mr-8">
-                                    <span class="material-symbols-outlined text-lg">arrow_back</span>
-                                    <span>Go Back</span>
-                                </a>
-                            </div>
+                            <nav aria-label="Tabs" class="-mb-px flex space-x-8">
+                                <a class="active tab-underline text-primary whitespace-nowrap py-4 px-1 font-bold text-sm relative"
+                                    href="#" id="process-tab">Process Award</a>
+                                <a class="tab-underline border-transparent text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:border-border-light dark:hover:border-border-dark whitespace-nowrap py-4 px-1 font-medium text-sm transition-colors duration-300"
+                                    href="#" id="analytics-tab">Analytics Dashboard</a>
+                                <a class="tab-underline border-transparent text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:border-border-light dark:hover:border-border-dark whitespace-nowrap py-4 px-1 font-medium text-sm transition-colors duration-300"
+                                    href="#" id="award-list-tab">Award List<?php echo $isAdmin ? ' & Criteria' : ''; ?></a>
+                            </nav>
                         </div>
 
                         <!-- Process Award Tab Content -->
@@ -778,7 +771,7 @@ try {
                                         <div class="analytics-card p-6">
                                             <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                                                 Status Analysis</h3>
-                                            <div style="width: 100%; max-width: 300px; margin: 0 auto;">
+                                            <div class="px-4 py-2" style="width: 100%; max-width: 300px; margin: 0 auto;">
                                                 <canvas id="statusChart"></canvas>
                                             </div>
                                         </div>
@@ -888,21 +881,26 @@ try {
                                         </div>
                                     </div>
 
+                                    <!-- Eligible Requirements per Award -->
                                     <div class="analytics-card p-6">
-                                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Eligible
-                                            Requirements per Award</h3>
+                                        <div class="flex items-center justify-between mb-6">
+                                            <div>
+                                                <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100">Eligible Requirements per Award</h3>
+                                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Track progress and eligibility across all awards</p>
+                                            </div>
+                                        </div>
                                         <div class="overflow-x-auto">
-                                            <table class="w-full text-sm">
-                                                <thead>
-                                                    <tr
-                                                        class="border-b border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400">
-                                                        <th class="text-left py-2 font-medium">Award Name</th>
-                                                        <th class="text-left py-2 font-medium">Criteria Met / Total</th>
-                                                        <th class="text-left py-2 font-medium w-1/5">Progress</th>
-                                                        <th class="text-left py-2 font-medium">Remarks</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="analyticsTableBody">
+                                            <div class="bg-white/80 dark:bg-gray-900/60 border border-gray-200/70 dark:border-gray-700/60 rounded-2xl shadow-lg backdrop-blur-sm overflow-hidden">
+                                                <table class="w-full text-sm">
+                                                    <thead>
+                                                        <tr class="bg-white/70 dark:bg-gray-900/60 border-b border-gray-200/70 dark:border-gray-700/60">
+                                                            <th class="text-left py-4 px-6 font-semibold text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">Award Name</th>
+                                                            <th class="text-center py-4 px-6 font-semibold text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">Criteria Met / Total</th>
+                                                            <th class="text-center py-4 px-6 font-semibold text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400 w-1/5">Progress</th>
+                                                            <th class="text-center py-4 px-6 font-semibold text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">Remarks</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="analyticsTableBody">
                                                     <!-- Dynamic content will be loaded here -->
                                                     <tr id="loadingRow">
                                                         <td colspan="4"
@@ -920,8 +918,9 @@ try {
                                                             </div>
                                                         </td>
                                                     </tr>
-                                                </tbody>
-                                            </table>
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -2199,6 +2198,59 @@ try {
             themeToggle.addEventListener('click', () => {
                 const isCurrentlyDark = document.documentElement.classList.contains('dark');
                 toggleDarkMode(!isCurrentlyDark);
+                // Re-render charts on theme change with existing data
+                if (window.analyticsData) {
+                    // Update Status Chart with current data
+                    if (typeof updateStatusChart === 'function') {
+                        if (window.analyticsData.statusDistribution && window.analyticsData.statusDistribution.length > 0) {
+                            const statusLabels = window.analyticsData.statusDistribution.map(s => s.eligibility_status);
+                            const statusCounts = window.analyticsData.statusDistribution.map(s => parseInt(s.count));
+                            
+                            const statusChartData = {
+                                fully_met: statusCounts[statusLabels.indexOf('Eligible')] || 0,
+                                partially_met: statusCounts[statusLabels.indexOf('Almost Eligible')] || 0,
+                                under_review: 0,
+                                unqualified: statusCounts[statusLabels.indexOf('Not Eligible')] || 0
+                            };
+                            
+                            const hasUploads = statusCounts.reduce((a, b) => a + b, 0) > 0;
+                            updateStatusChart(statusChartData, hasUploads);
+                        } else {
+                            // No data - show empty state
+                            updateStatusChart({ fully_met: 0, partially_met: 0, under_review: 0, unqualified: 0 }, false);
+                        }
+                    }
+                    
+                    // Update Trends Chart with current data
+                    if (typeof updateTrendsChart === 'function' && window.analyticsData.trends) {
+                        if (window.analyticsData.trends.length > 0) {
+                            const months = window.analyticsData.trends.map(t => {
+                                const date = new Date(t.month + '-01');
+                                return date.toLocaleDateString('en-US', { month: 'short' });
+                            });
+                            const eligibleData = window.analyticsData.trends.map(t => parseInt(t.eligible_submissions) || 0);
+                            const totalData = window.analyticsData.trends.map(t => parseInt(t.total_submissions) || 0);
+                            
+                            updateTrendsChart({
+                                labels: months,
+                                eligible: eligibleData,
+                                total: totalData
+                            });
+                        } else {
+                            // Empty state
+                            updateTrendsChart({
+                                labels: [],
+                                eligible: [],
+                                total: []
+                            });
+                        }
+                    }
+                } else if (window.statusChartInstance || window.trendsChartInstance) {
+                    // If charts exist but no analytics data, just re-initialize with placeholder data
+                    if (typeof initializeAnalyticsCharts === 'function') {
+                        initializeAnalyticsCharts();
+                    }
+                }
             });
             // Awards cards are now responsive grid - no carousel controls needed
 
@@ -4721,6 +4773,9 @@ try {
                     window.statusChartInstance.destroy();
                 }
 
+                const isDarkMode = document.documentElement.classList.contains('dark');
+                const textColor = isDarkMode ? '#ffffff' : '#0f172a';
+
                 window.statusChartInstance = new Chart(statusCtx.getContext('2d'), {
                     type: 'doughnut',
                     data: {
@@ -4737,6 +4792,14 @@ try {
                         aspectRatio: 1.2,
                         animation: false,
                         cutout: '75%',
+                        layout: {
+                            padding: {
+                                top: 10,
+                                bottom: 10,
+                                left: 10,
+                                right: 10
+                            }
+                        },
                         plugins: {
                             legend: {
                                 display: true,
@@ -4745,9 +4808,11 @@ try {
                                     usePointStyle: true,
                                     pointStyle: 'circle',
                                     padding: 20,
+                                    color: textColor,
                                     font: {
                                         size: 12,
-                                        family: 'Inter'
+                                        family: 'Inter',
+                                        color: textColor
                                     }
                                 }
                             },
@@ -4777,6 +4842,11 @@ try {
                 if (window.trendsChartInstance) {
                     window.trendsChartInstance.destroy();
                 }
+
+                const isDarkMode = document.documentElement.classList.contains('dark');
+                const textColor = isDarkMode ? '#ffffff' : '#0f172a';
+                const gridColor = isDarkMode ? '#334155' : '#e2e8f0';
+                const tickColor = isDarkMode ? '#94a3b8' : '#64748b';
 
                 window.trendsChartInstance = new Chart(trendsCtx.getContext('2d'), {
                     type: 'bar',
@@ -4812,11 +4882,11 @@ try {
                                 beginAtZero: true,
                                 max: 25,
                                 grid: {
-                                    color: 'rgba(148, 163, 184, 0.1)',
+                                    color: gridColor,
                                     drawBorder: false,
                                 },
                                 ticks: {
-                                    color: '#64748b',
+                                    color: tickColor,
                                     stepSize: 5,
                                 }
                             },
@@ -4825,13 +4895,25 @@ try {
                                     display: false,
                                 },
                                 ticks: {
-                                    color: '#64748b',
+                                    color: tickColor,
                                 }
                             }
                         },
                         plugins: {
                             legend: {
-                                display: false,
+                                display: true,
+                                position: 'bottom',
+                                labels: {
+                                    usePointStyle: true,
+                                    pointStyle: 'circle',
+                                    padding: 20,
+                                    color: textColor,
+                                    font: {
+                                        size: 12,
+                                        family: 'Inter',
+                                        color: textColor
+                                    }
+                                }
                             },
                             tooltip: {
                                 mode: 'index',
@@ -4945,7 +5027,7 @@ try {
             document.getElementById('modalContent').innerHTML = content;
             document.getElementById('kpiModal').classList.remove('hidden');
 
-            // Hide X button for "Eligible Requirements per Award" modal (identified by "Details & Requirements" in title)
+            // Hide X button for "Details & Requirements" modal
             const closeButton = document.getElementById('modalCloseButton');
             if (title.includes('Details & Requirements')) {
                 closeButton.style.display = 'none';
@@ -5341,11 +5423,11 @@ try {
 
                     tableRows += `
                         <tr class="border-b border-green-100 dark:border-green-800/50 hover:bg-green-50 dark:hover:bg-green-900/20">
-                            <td class="py-3 text-gray-800 dark:text-gray-100 font-medium">${awardName}</td>
-                            <td class="py-3 text-gray-600 dark:text-gray-300 text-sm">${submissionTitle}</td>
-                            <td class="py-3 text-gray-600 dark:text-gray-300 text-sm">${dateAchieved}</td>
-                            <td class="py-3 text-gray-700 dark:text-gray-200 font-medium">${criteriaMet}/${criteriaTotal}</td>
-                            <td class="py-3">${statusBadge}</td>
+                            <td class="py-3 text-left text-gray-800 dark:text-gray-100 font-medium">${awardName}</td>
+                            <td class="py-3 text-center text-gray-600 dark:text-gray-300 text-sm">${submissionTitle}</td>
+                            <td class="py-3 text-center text-gray-600 dark:text-gray-300 text-sm">${dateAchieved}</td>
+                            <td class="py-3 text-center text-gray-700 dark:text-gray-200 font-medium">${criteriaMet}/${criteriaTotal}</td>
+                            <td class="py-3 text-center">${statusBadge}</td>
                         </tr>
                     `;
                 });
@@ -5363,10 +5445,10 @@ try {
                                 <thead>
                                     <tr class="border-b-2 border-green-300 dark:border-green-700">
                                         <th class="text-left py-2 px-2 font-medium text-green-800 dark:text-green-300">Award Name</th>
-                                        <th class="text-left py-2 px-2 font-medium text-green-800 dark:text-green-300">Submission Title</th>
-                                        <th class="text-left py-2 px-2 font-medium text-green-800 dark:text-green-300">Date Submitted</th>
-                                        <th class="text-left py-2 px-2 font-medium text-green-800 dark:text-green-300">Criteria Met</th>
-                                        <th class="text-left py-2 px-2 font-medium text-green-800 dark:text-green-300">Status</th>
+                                        <th class="text-center py-2 px-2 font-medium text-green-800 dark:text-green-300">Submission Title</th>
+                                        <th class="text-center py-2 px-2 font-medium text-green-800 dark:text-green-300">Date Submitted</th>
+                                        <th class="text-center py-2 px-2 font-medium text-green-800 dark:text-green-300">Criteria Met</th>
+                                        <th class="text-center py-2 px-2 font-medium text-green-800 dark:text-green-300">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -5924,10 +6006,13 @@ try {
                                 usePointStyle: true,
                                 pointStyle: 'circle',
                                 padding: 20,
-                                color: textColor,
+                                color: function(context) {
+                                    return textColor;
+                                },
                                 font: {
                                     size: 12,
-                                    family: 'Inter'
+                                    family: 'Inter',
+                                    color: textColor
                                 }
                             }
                         },
@@ -5964,6 +6049,7 @@ try {
             const isDarkMode = document.documentElement.classList.contains('dark');
             const textColor = isDarkMode ? '#e2e8f0' : '#0f172a';
             const gridColor = isDarkMode ? '#334155' : '#e2e8f0';
+            const tickColor = isDarkMode ? '#94a3b8' : '#64748b';
 
             window.trendsChartInstance = new Chart(trendsCtx.getContext('2d'), {
                 type: 'bar',
@@ -5995,7 +6081,21 @@ try {
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                padding: 20,
+                                color: function(context) {
+                                    return textColor;
+                                },
+                                font: {
+                                    size: 12,
+                                    family: 'Inter',
+                                    color: textColor
+                                }
+                            }
                         }
                     },
                     scales: {
@@ -6004,7 +6104,7 @@ try {
                                 display: false
                             },
                             ticks: {
-                                color: textColor,
+                                color: tickColor,
                                 font: {
                                     size: 11
                                 }
@@ -6016,7 +6116,7 @@ try {
                                 color: gridColor
                             },
                             ticks: {
-                                color: textColor,
+                                color: tickColor,
                                 font: {
                                     size: 11
                                 }
@@ -6176,76 +6276,119 @@ try {
 
                 // Update Requirements Table
                 const tableBody = document.getElementById('analyticsTableBody');
-                if (!tableBody) {
-                    console.error('Analytics table body not found');
-                    return;
-                }
+                if (tableBody) {
+                    // Clear loading row
+                    const loadingRow = document.getElementById('loadingRow');
+                    if (loadingRow) {
+                        loadingRow.remove();
+                    }
 
-                // Clear loading row
-                const loadingRow = document.getElementById('loadingRow');
-                if (loadingRow) {
-                    loadingRow.remove();
-                }
+                    if (data.requirements && data.requirements.length > 0) {
+                        tableBody.innerHTML = data.requirements.map((req, index) => {
+                            const isLast = index === data.requirements.length - 1;
+                            const borderClass = isLast ? '' : 'border-b border-gray-100 dark:border-gray-700';
 
-                if (data.requirements && data.requirements.length > 0) {
-                    tableBody.innerHTML = data.requirements.map((req, index) => {
-                        const isLast = index === data.requirements.length - 1;
-                        const borderClass = isLast ? '' : 'border-b border-gray-100 dark:border-gray-700';
+                            const criteriaMet = parseInt(req.criteria_met) || 0;
+                            const totalCriteria = parseInt(req.total_criteria) || 0;
+                            const matchPct = parseFloat(req.match_percentage) || 0;
 
-                        const criteriaMet = parseInt(req.criteria_met) || 0;
-                        const totalCriteria = parseInt(req.total_criteria) || 0;
-                        const matchPct = parseFloat(req.match_percentage) || 0;
+                            // Calculate progress percentage
+                            const progressPercentage = matchPct;
 
-                        // Calculate progress percentage
-                        const progressPercentage = matchPct;
+                            // Determine progress color and remark
+                            let progressColor, remark;
+                            if (matchPct >= 90) {
+                                progressColor = 'bg-green-500';
+                                remark = 'Excellent performance';
+                            } else if (matchPct >= 70) {
+                                progressColor = 'bg-blue-500';
+                                remark = 'Good progress';
+                            } else if (matchPct >= 50) {
+                                progressColor = 'bg-yellow-500';
+                                remark = 'Needs improvement';
+                            } else {
+                                progressColor = 'bg-red-500';
+                                remark = 'Requires attention';
+                            }
 
-                        // Determine progress color and remark
-                        let progressColor, remark;
-                        if (matchPct >= 90) {
-                            progressColor = 'bg-green-500';
-                            remark = 'Excellent! You qualify';
-                        } else if (matchPct >= 70) {
-                            progressColor = 'bg-blue-500';
-                            remark = 'Almost there!';
-                        } else if (matchPct >= 50) {
-                            progressColor = 'bg-yellow-500';
-                            remark = 'Keep working on it';
-                        } else {
-                            progressColor = 'bg-red-500';
-                            remark = 'Needs more work';
-                        }
+                            // Determine remark badge color
+                            let remarkBadgeClass;
+                            if (matchPct >= 90) {
+                                remarkBadgeClass = 'bg-green-100/80 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-200 dark:border-green-800';
+                            } else if (matchPct >= 70) {
+                                remarkBadgeClass = 'bg-blue-100/80 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200 dark:border-blue-800';
+                            } else if (matchPct >= 50) {
+                                remarkBadgeClass = 'bg-yellow-100/80 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800';
+                            } else {
+                                remarkBadgeClass = 'bg-red-100/80 text-red-700 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800';
+                            }
 
-                        return `
-                        <tr class="${borderClass} hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                            <td class="py-3">
-                                <div class="text-gray-900 dark:text-gray-100 font-medium">
-                                    ${req.award_name || 'Unknown Award'}
-                                </div>
-                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    ${req.submission_title || 'No title'} • ${req.status_label}
-                                </div>
-                            </td>
-                            <td class="py-3 text-gray-900 dark:text-gray-100">
-                                <span class="font-semibold">${matchPct.toFixed(0)}%</span>
-                                <div class="text-xs text-gray-500 dark:text-gray-400">${criteriaMet}/${totalCriteria} criteria</div>
-                            </td>
-                            <td class="py-3">
-                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                    <div class="h-2 rounded-full transition-all duration-300 ${progressColor}" style="width: ${Math.min(progressPercentage, 100)}%"></div>
-                                </div>
-                            </td>
-                            <td class="py-3 text-gray-600 dark:text-gray-400 text-xs">${remark}</td>
-                        </tr>
+                            // Progress bar gradient
+                            let progressGradient = '';
+                            if (matchPct >= 90) {
+                                progressGradient = 'bg-gradient-to-r from-green-500 to-green-600';
+                            } else if (matchPct >= 70) {
+                                progressGradient = 'bg-gradient-to-r from-blue-500 to-blue-600';
+                            } else if (matchPct >= 50) {
+                                progressGradient = 'bg-gradient-to-r from-yellow-500 to-yellow-600';
+                            } else {
+                                progressGradient = 'bg-gradient-to-r from-red-500 to-red-600';
+                            }
+
+                            return `
+                            <tr class="group bg-white/60 dark:bg-gray-900/40 ${borderClass} hover:bg-white/90 dark:hover:bg-gray-800/70 transition-all duration-200 hover:shadow-md">
+                                <td class="py-4 px-6">
+                                    <div class="text-left">
+                                        <div class="flex items-center gap-2 mb-1.5">
+                                            <span class="material-symbols-outlined text-lg text-primary">emoji_events</span>
+                                            <span class="text-base font-bold text-gray-900 dark:text-white">${req.award_name || 'Unknown Award'}</span>
+                                        </div>
+                                        <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 ml-7">
+                                            <span class="material-symbols-outlined text-sm">description</span>
+                                            <span>${req.submission_title || 'No title'} • ${req.status_label || 'Unknown'}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-6 text-center">
+                                    <div class="flex flex-col items-center">
+                                        <div class="flex items-baseline gap-2 mb-1">
+                                            <span class="text-2xl font-bold text-gray-900 dark:text-white">${matchPct.toFixed(0)}</span>
+                                            <span class="text-sm font-medium text-gray-500 dark:text-gray-400">%</span>
+                                        </div>
+                                        <div class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                                            <span class="material-symbols-outlined text-sm">checklist</span>
+                                            <span>${criteriaMet}/${totalCriteria} criteria</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-6 text-center">
+                                    <div class="space-y-2 flex flex-col items-center">
+                                        <div class="w-full max-w-[200px] bg-gray-200/70 dark:bg-gray-700/70 rounded-full h-3 overflow-hidden backdrop-blur-sm">
+                                            <div class="h-3 rounded-full transition-all duration-500 ${progressGradient} shadow-sm" style="width: ${Math.min(progressPercentage, 100)}%"></div>
+                                        </div>
+                                        <div class="text-xs font-medium text-gray-600 dark:text-gray-400">${Math.min(progressPercentage, 100).toFixed(1)}% complete</div>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-6 text-center">
+                                    <div class="flex justify-center">
+                                        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold border ${remarkBadgeClass} backdrop-blur-sm">
+                                            <span class="material-symbols-outlined text-sm mr-1">${matchPct >= 90 ? 'check_circle' : matchPct >= 70 ? 'trending_up' : matchPct >= 50 ? 'warning' : 'error'}</span>
+                                            ${remark}
+                                        </span>
+                                    </div>
+                                </td>
+                            </tr>
+                            `;
+                        }).join('');
+                    } else {
+                        tableBody.innerHTML = `
+                            <tr>
+                                <td colspan="4" class="py-8 text-center text-gray-500 dark:text-gray-400">
+                                    No award data available yet. Upload awards to see analytics.
+                                </td>
+                            </tr>
                         `;
-                    }).join('');
-                } else {
-                    tableBody.innerHTML = `
-                        <tr>
-                            <td colspan="4" class="py-8 text-center text-gray-500 dark:text-gray-400">
-                                No awards submitted yet. Upload your first award to see your analytics!
-                            </td>
-                        </tr>
-                    `;
+                    }
                 }
 
                 // Update recommendations based on insights
@@ -6255,25 +6398,6 @@ try {
 
             } catch (error) {
                 console.error('Error loading analytics data:', error);
-
-                // Show error state
-                const tableBody = document.getElementById('analyticsTableBody');
-                if (tableBody) {
-                    const loadingRow = document.getElementById('loadingRow');
-                    if (loadingRow) {
-                        loadingRow.innerHTML = `
-                        <td colspan="4" class="py-8 text-center text-red-500 dark:text-red-400">
-                            <div class="flex flex-col items-center justify-center">
-                                <span class="material-symbols-outlined text-4xl mb-2">error</span>
-                                <p>Failed to load analytics data</p>
-                                <button onclick="loadAnalyticsData()" class="mt-2 px-4 py-2 text-sm bg-primary text-white rounded hover:bg-primary/90 transition-colors">
-                                    Retry
-                                </button>
-                            </div>
-                        </td>
-                    `;
-                    }
-                }
             }
         }
 

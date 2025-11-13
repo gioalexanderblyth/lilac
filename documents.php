@@ -404,7 +404,7 @@ try {
 
 <div class="flex items-center gap-3">
 
-<img alt="CPU LILAC Logo" class="h-11 w-11" src="../assets/images/cpu-logo.png?v=1" width="32" height="32" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex'; console.error('Logo failed to load:', this.src);"/>
+<img alt="CPU LILAC Logo" class="h-11 w-11" src="./api/get-logo.php?v=1" width="32" height="32" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex'; console.error('Logo failed to load:', this.src);"/>
 
 <div class="h-11 w-11 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm" style="display: none;" id="logo-fallback">CPU</div>
 
@@ -630,9 +630,9 @@ No notifications yet
 <div class="relative w-32 h-32">
 <svg id="documentsChart" class="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
 <circle class="stroke-gray-200 dark:stroke-gray-700" cx="60" cy="60" fill="none" r="54" stroke-width="12"></circle>
-<circle id="mouSegment" class="stroke-current text-purple-500" cx="60" cy="60" fill="none" r="54" stroke-dasharray="0 339.292" stroke-linecap="round" stroke-width="12"></circle>
-<circle id="moaSegment" class="stroke-current text-blue-500" cx="60" cy="60" fill="none" r="54" stroke-dasharray="0 339.292" stroke-dashoffset="0" stroke-linecap="round" stroke-width="12"></circle>
-<circle id="templatesSegment" class="stroke-current text-green-500" cx="60" cy="60" fill="none" r="54" stroke-dasharray="0 339.292" stroke-dashoffset="0" stroke-linecap="round" stroke-width="12"></circle>
+<circle id="mouSegment" class="stroke-current text-purple-500" cx="60" cy="60" fill="none" r="54" stroke-dasharray="0 339.292" stroke-linecap="round" stroke-width="12" style="opacity:0"></circle>
+<circle id="moaSegment" class="stroke-current text-blue-500" cx="60" cy="60" fill="none" r="54" stroke-dasharray="0 339.292" stroke-dashoffset="0" stroke-linecap="round" stroke-width="12" style="opacity:0"></circle>
+<circle id="templatesSegment" class="stroke-current text-green-500" cx="60" cy="60" fill="none" r="54" stroke-dasharray="0 339.292" stroke-dashoffset="0" stroke-linecap="round" stroke-width="12" style="opacity:0"></circle>
 </svg>
 <div class="absolute inset-0 flex flex-col items-center justify-center">
 </div>
@@ -774,6 +774,11 @@ Add Document
             // Helper: Render documents table rows with the exact structure we expect
             const documentsTableBody = document.getElementById('documents-table-body');
             const noDocumentsRow = document.getElementById('no-documents-row');
+            
+            // Pagination elements - declare early so they're available for updatePagination
+            const prevBtn = document.getElementById('pagination-prev');
+            const nextBtn = document.getElementById('pagination-next');
+            const pagesEl = document.getElementById('pagination-pages');
 
             function renderDocuments(documents) {
                 if (!documentsTableBody) return;
@@ -939,34 +944,83 @@ Add Document
                     const total = counts.MOU + counts.MOA + counts['Other Documents'];
                     if (total === 0) {
                         // Hide all segments if no documents
-                        document.getElementById('mouSegment').style.strokeDasharray = '0 339.292';
-                        document.getElementById('moaSegment').style.strokeDasharray = '0 339.292';
-                        document.getElementById('templatesSegment').style.strokeDasharray = '0 339.292';
+                        const mouSegment = document.getElementById('mouSegment');
+                        const moaSegment = document.getElementById('moaSegment');
+                        const templatesSegment = document.getElementById('templatesSegment');
+
+                        if (mouSegment) {
+                            mouSegment.style.strokeDasharray = '0 339.292';
+                            mouSegment.style.opacity = '0';
+                        }
+                        if (moaSegment) {
+                            moaSegment.style.strokeDasharray = '0 339.292';
+                            moaSegment.style.opacity = '0';
+                        }
+                        if (templatesSegment) {
+                            templatesSegment.style.strokeDasharray = '0 339.292';
+                            templatesSegment.style.opacity = '0';
+                        }
                         return;
                     }
+                    
+                    // Reset opacity when there is data, but only show segments with count > 0
+                    const mouSegment = document.getElementById('mouSegment');
+                    const moaSegment = document.getElementById('moaSegment');
+                    const templatesSegment = document.getElementById('templatesSegment');
 
                     const circumference = 339.292;
                     let currentOffset = 0;
 
                     // MOU segment (purple)
-                    const mouPercentage = (counts.MOU / total) * 100;
-                    const mouLength = (mouPercentage / 100) * circumference;
-                    document.getElementById('mouSegment').style.strokeDasharray = `${mouLength} ${circumference}`;
-                    document.getElementById('mouSegment').style.strokeDashoffset = `-${currentOffset}`;
-                    currentOffset += mouLength;
+                    if (counts.MOU > 0) {
+                        const mouPercentage = (counts.MOU / total) * 100;
+                        const mouLength = (mouPercentage / 100) * circumference;
+                        if (mouSegment) {
+                            mouSegment.style.opacity = '1';
+                            mouSegment.style.strokeDasharray = `${mouLength} ${circumference}`;
+                            mouSegment.style.strokeDashoffset = `-${currentOffset}`;
+                        }
+                        currentOffset += mouLength;
+                    } else {
+                        if (mouSegment) {
+                            mouSegment.style.opacity = '0';
+                            mouSegment.style.strokeDasharray = '0 339.292';
+                        }
+                    }
 
                     // MOA segment (blue)
-                    const moaPercentage = (counts.MOA / total) * 100;
-                    const moaLength = (moaPercentage / 100) * circumference;
-                    document.getElementById('moaSegment').style.strokeDasharray = `${moaLength} ${circumference}`;
-                    document.getElementById('moaSegment').style.strokeDashoffset = `-${currentOffset}`;
-                    currentOffset += moaLength;
+                    if (counts.MOA > 0) {
+                        const moaPercentage = (counts.MOA / total) * 100;
+                        const moaLength = (moaPercentage / 100) * circumference;
+                        if (moaSegment) {
+                            moaSegment.style.opacity = '1';
+                            moaSegment.style.strokeDasharray = `${moaLength} ${circumference}`;
+                            moaSegment.style.strokeDashoffset = `-${currentOffset}`;
+                        }
+                        currentOffset += moaLength;
+                    } else {
+                        if (moaSegment) {
+                            moaSegment.style.opacity = '0';
+                            moaSegment.style.strokeDasharray = '0 339.292';
+                        }
+                    }
 
                     // Other Documents segment (green)
-                    const otherDocsPercentage = (counts['Other Documents'] / total) * 100;
-                    const otherDocsLength = (otherDocsPercentage / 100) * circumference;
-                    document.getElementById('templatesSegment').style.strokeDasharray = `${otherDocsLength} ${circumference}`;
-                    document.getElementById('templatesSegment').style.strokeDashoffset = `-${currentOffset}`;
+                    if (counts['Other Documents'] > 0) {
+                        const otherDocsPercentage = (counts['Other Documents'] / total) * 100;
+                        const otherDocsLength = (otherDocsPercentage / 100) * circumference;
+                        if (templatesSegment) {
+                            templatesSegment.style.opacity = '1';
+                            templatesSegment.style.strokeDasharray = `${otherDocsLength} ${circumference}`;
+                            templatesSegment.style.strokeDashoffset = `-${currentOffset}`;
+                        }
+                        currentOffset += otherDocsLength;
+                    } else {
+                        if (templatesSegment) {
+                            templatesSegment.style.opacity = '0';
+                            templatesSegment.style.strokeDasharray = '0 339.292';
+                        }
+                    }
 
                 } catch (error) {
                     console.error('Error updating donut chart:', error);
@@ -1083,9 +1137,7 @@ Add Document
             // Prevent navigating when clicking the current page link
 
             // Pagination logic (client-side demo)
-            const prevBtn = document.getElementById('pagination-prev');
-            const nextBtn = document.getElementById('pagination-next');
-            const pagesEl = document.getElementById('pagination-pages');
+            // Note: prevBtn, nextBtn, and pagesEl are declared earlier
 
             function renderPagination() {
                 if (!pagesEl) return;
@@ -1835,7 +1887,8 @@ Add Document
                     
                 } catch (error) {
                     console.error('Upload error:', error);
-                    alert('Error uploading document. Please try again.');
+                    const errorMessage = error.message || 'Error uploading document. Please try again.';
+                    alert('✗ ' + errorMessage);
                 } finally {
                     submitBtn.disabled = false;
                     submitBtn.textContent = originalText;
@@ -1843,17 +1896,40 @@ Add Document
             });
 
             async function storeDocument(documentData) {
-                // Call API to store document in database
+                // Determine which API to use based on classification
+                const category = documentData.category || 'Other Documents';
+                const isMOU = category === 'MOU' || category.includes('MOU');
+                const isMOA = category === 'MOA' || category.includes('MOA');
+                
+                // If it's MOU or MOA, we need to route to mou-moa.php API
+                // But since mou-moa requires additional fields (institution, location, etc.),
+                // we'll store it in other_documents but with the correct category
                 const formData = new FormData();
                 formData.append('file', documentData.file);
                 formData.append('title', documentData.title);
                 formData.append('description', documentData.description || '');
-                formData.append('category', 'Other Documents');
+                // Use the detected classification instead of hardcoding
+                formData.append('category', category === 'Other' ? 'Other Documents' : category);
 
                 const response = await fetch('api/other-documents.php', {
                     method: 'POST',
                     body: formData
                 });
+
+                // Check response status first
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.error('HTTP Error:', response.status, text);
+                    throw new Error(`Upload failed (${response.status}). Please check the console for details.`);
+                }
+
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text.substring(0, 500)); // Limit output
+                    throw new Error('Server returned an unexpected response. Please check the console for details.');
+                }
 
                 const result = await response.json();
 
@@ -1983,158 +2059,5 @@ Add Document
     </div>
 </div>
 
-<script>
-const API_BASE = 'api/documents.php';
-const AUTH_TOKEN = '<?php echo $token; ?>';
-
-window.uploadDocument = async function(formElement) {
-    const formData = new FormData();
-    const fileInput = formElement.querySelector('input[type="file"]');
-    const titleInput = formElement.querySelector('input[name="title"]');
-    const descInput = formElement.querySelector('textarea[name="description"]');
-
-    if (!fileInput.files[0]) {
-        alert('Please select a file');
-        return false;
-    }
-
-    formData.append('file', fileInput.files[0]);
-    formData.append('title', titleInput.value);
-    formData.append('description', descInput.value);
-
-    try {
-        const response = await fetch(API_BASE + '?action=upload', {
-            method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + AUTH_TOKEN
-            },
-            body: formData
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            alert('✓ Document uploaded successfully!');
-            formElement.reset();
-            if (typeof loadDocuments === 'function') loadDocuments();
-            return true;
-        } else {
-            alert('✗ Error: ' + (result.error || 'Upload failed'));
-            return false;
-        }
-    } catch (error) {
-        alert('✗ Error: ' + error.message);
-        return false;
-    }
-};
-
-window.loadDocuments = async function() {
-    try {
-        const response = await fetch(API_BASE + '?action=list', {
-            method: 'GET',
-            headers: {
-                'Authorization': 'Bearer ' + AUTH_TOKEN
-            }
-        });
-
-        const result = await response.json();
-
-        if (result.success && result.documents) {
-            renderDocuments(result.documents);
-        }
-    } catch (error) {
-        console.error('Load documents error:', error);
-    }
-};
-
-window.deleteDocument = async function(docId) {
-    if (!confirm('Are you sure you want to delete this document?')) return;
-
-    try {
-        const response = await fetch(API_BASE + '?action=delete&id=' + docId, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': 'Bearer ' + AUTH_TOKEN
-            }
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            alert('✓ Document deleted successfully');
-            if (typeof loadDocuments === 'function') loadDocuments();
-        } else {
-            alert('✗ Error: ' + (result.error || 'Delete failed'));
-        }
-    } catch (error) {
-        alert('✗ Error: ' + error.message);
-    }
-};
-
-window.viewDocumentDetails = async function(docId) {
-    try {
-        const response = await fetch(API_BASE + '?action=view&id=' + docId, {
-            method: 'GET',
-            headers: {
-                'Authorization': 'Bearer ' + AUTH_TOKEN
-            }
-        });
-
-        const result = await response.json();
-
-        if (result.success && result.document) {
-            showDocumentModal(result.document);
-        } else {
-            alert('✗ Error: Unable to load document details');
-        }
-    } catch (error) {
-        alert('✗ Error: ' + error.message);
-    }
-};
-
-function renderDocuments(documents) {
-    const container = document.getElementById('documentsContainer');
-    if (!container) return;
-
-    if (documents.length === 0) {
-        container.innerHTML = '<p class="text-center text-text-muted-light dark:text-text-muted-dark">No documents found</p>';
-        return;
-    }
-
-    container.innerHTML = documents.map(doc => `
-        <div class="document-card p-4 border border-border-light dark:border-border-dark rounded-lg">
-            <h3 class="font-semibold">${escapeHtml(doc.title)}</h3>
-            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">${escapeHtml(doc.description || '')}</p>
-            <div class="mt-2 flex gap-2">
-                <button onclick="viewDocumentDetails(${doc.id})" class="text-sm text-primary hover:underline">View</button>
-                <button onclick="deleteDocument(${doc.id})" class="text-sm text-red-500 hover:underline">Delete</button>
-            </div>
-        </div>
-    `).join('');
-}
-
-function showDocumentModal(doc) {
-    console.log('Document details:', doc);
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-document.getElementById('addDocumentForm')?.addEventListener('submit', function(e) {
-    e.preventDefault();
-    uploadDocument(this);
-});
-</script>
 </body></html>
-
-
-
-
-
-
-
-
 

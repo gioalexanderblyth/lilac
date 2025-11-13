@@ -207,7 +207,7 @@ try {
 <aside class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col">
 <div class="flex items-center justify-start px-4 h-20 border-b border-border-light dark:border-border-dark">
 <div class="flex items-center gap-3">
-<img alt="CPU LILAC Logo" class="h-11 w-11" src="../assets/images/cpu-logo.png?v=1" width="32" height="32" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex'; console.error('Logo failed to load:', this.src);"/>
+<img alt="CPU LILAC Logo" class="h-11 w-11" src="./api/get-logo.php?v=1" width="32" height="32" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex'; console.error('Logo failed to load:', this.src);"/>
 <div class="h-11 w-11 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm" style="display: none;" id="logo-fallback">CPU</div>
 <h1 class="text-xl font-bold text-text-light dark:text-text-dark sidebar-logo-text hidden">LILAC</h1>
 </div>
@@ -293,10 +293,6 @@ No notifications yet
 <div class="p-2">
   <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
     <div class="xl:col-span-2 space-y-6">
-      <div id="eligibleCards" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Dynamic award-eligible cards will be injected here -->
-      </div>
-
       <div id="upcomingEventsSection" class="bg-card-light dark:bg-card-dark p-6 rounded-xl shadow-soft hidden">
         <div class="flex justify-between items-center mb-4">
           <div>
@@ -2068,98 +2064,7 @@ Current mode: localStorage only (events will persist in browser)
             });
 
             // Fetch and render award-eligible cards
-            const eligibleContainer = document.getElementById('eligibleCards');
-            const renderEligibleState = (state) => {
-                if (!eligibleContainer) return;
-                eligibleContainer.innerHTML = '';
-                const base = 'bg-card-light dark:bg-card-dark rounded-xl shadow-soft p-4 flex items-center';
-                if (state === 'loading') {
-                    for (let i = 0; i < 2; i++) {
-                        const sk = document.createElement('div');
-                        sk.className = base + ' animate-pulse';
-                        sk.innerHTML = `
-                          <div class="w-24 h-24 bg-gray-200 dark:bg-white/10 rounded-lg"></div>
-                          <div class="flex-1 pl-4 space-y-3">
-                            <div class="h-4 w-24 bg-gray-200 dark:bg-white/10 rounded"></div>
-                            <div class="h-5 w-48 bg-gray-200 dark:bg-white/10 rounded"></div>
-                            <div class="h-4 w-40 bg-gray-200 dark:bg-white/10 rounded"></div>
-                          </div>`;
-                        eligibleContainer.appendChild(sk);
-                    }
-                    return;
-                }
-                if (state === 'empty') {
-                    // Show empty state - no placeholder cards
-                    eligibleContainer.innerHTML = '<div class="text-center py-8 text-text-muted-light dark:text-text-muted-dark">No eligible events found.</div>';
-                }
-            };
-
-            const buildEligibleCard = (item) => {
-                const wrap = document.createElement('div');
-                wrap.className = 'bg-card-light dark:bg-card-dark rounded-xl shadow-soft p-4 flex items-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors';
-                wrap.style.cursor = 'pointer';
-                wrap.tabIndex = 0;
-                wrap.innerHTML = `
-                  <img alt="${item.title} thumbnail" class="w-24 h-full object-cover rounded-lg" src="${item.image_url || item.thumbnail_url || 'https://via.placeholder.com/96x96?text=img'}"/>
-                  <div class="flex-1 pl-4">
-                    <h3 class="font-bold text-lg text-text-light dark:text-text-dark mt-1">${item.title.toUpperCase()}</h3>
-                    <div class="flex justify-between text-sm mt-3">
-                      <div>
-                        <p class="text-text-muted-light dark:text-text-muted-dark">Start</p>
-                        <p class="font-semibold text-text-light dark:text-text-dark">${item.start_time}</p>
-                      </div>
-                      <div>
-                        <p class="text-text-muted-light dark:text-text-muted-dark">End</p>
-                        <p class="font-semibold text-text-light dark:text-text-dark">${item.end_time}</p>
-                      </div>
-                    </div>
-                    <div class="flex justify-between text-sm mt-2">
-                      <div>
-                        <p class="text-text-muted-light dark:text-text-muted-dark">${new Date(item.date).toLocaleDateString()}</p>
-                        <p class="text-xs text-text-muted-light dark:text-text-muted-dark"><span class="material-symbols-outlined text-xs align-middle">location_on</span> ${item.location}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="border-l border-dashed border-border-light dark:border-border-dark pl-4 ml-4 flex flex-col items-center justify-center">
-                    <p class="text-xs -rotate-90 whitespace-nowrap text-text-muted-light dark:text-text-muted-dark">Eligible for awards</p>
-                    <button class="mt-6 px-3 py-1.5 text-xs rounded-lg bg-primary/10 text-primary hover:bg-primary/20 view-details">View Details</button>
-                  </div>`;
-                // click handlers
-                wrap.querySelector('.view-details').addEventListener('click', (e) => { e.stopPropagation(); openDetailsModalSmart(item); });
-                wrap.addEventListener('click', (e) => {
-                    if (e.target && e.target.closest && e.target.closest('.view-details')) return;
-                    openDetailsModalSmart(item);
-                });
-                wrap.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetailsModal(item.id); }
-                });
-                return wrap;
-            };
-
-
-            const loadEligible = async () => {
-                if (!eligibleContainer) return;
-                renderEligibleState('loading');
-                try {
-                    const serverEnabled = (localStorage.getItem('enableServerAPI') === '1');
-                    if (!serverEnabled) { renderEligibleState('empty'); return; }
-                    const res = await fetch('api/events.php?action=eligible', { cache: 'no-store' });
-                    if (!res.ok) throw new Error('Network');
-                    const ct = res.headers.get('content-type') || '';
-                    if (!ct.includes('application/json')) throw new Error('Non-JSON');
-                    const data = await res.json();
-                    eligibleContainer.innerHTML = '';
-                    let items = Array.isArray(data) ? data.slice(0,2) : [];
-                    if (items.length === 0) {
-                        renderEligibleState('empty');
-                        return;
-                    }
-                    items.forEach(item => eligibleContainer.appendChild(buildEligibleCard(item)));
-                } catch (e) {
-                    // On error, show empty state
-                    eligibleContainer.innerHTML = '';
-                }
-            };
+            const renderEligibleState = () => {};
 
             // Details modal (simple)
             const ensureDetailsModal = () => {
@@ -2200,7 +2105,6 @@ Current mode: localStorage only (events will persist in browser)
                     if (typeof loadUpcomingEvents === 'function') loadUpcomingEvents();
                     if (typeof loadTodayEvents === 'function') loadTodayEvents();
                     if (typeof loadCompletedEvents === 'function') loadCompletedEvents();
-                    if (typeof loadEligible === 'function') loadEligible();
                 } catch {}
             };
             const openDetailsModal = async (id) => {
@@ -2240,7 +2144,6 @@ Current mode: localStorage only (events will persist in browser)
                                 if (!resp.ok || j.error) throw new Error(j.error||'Delete failed');
                                 closeDetailsModal();
                                 // Refresh sections fed by events
-                                typeof loadEligible === 'function' && loadEligible();
                                 if (typeof loadEventsFromDatabase === 'function') {
                                     loadEventsFromDatabase();
                                 } else if (typeof loadTodayEvents === 'function') {
@@ -2309,12 +2212,11 @@ Current mode: localStorage only (events will persist in browser)
                 if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
             };
 
-            // initial load and daily refresh at midnight local
-            loadEligible();
+            // Daily refresh at midnight local
             const scheduleRefresh = () => {
                 const now = new Date();
                 const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0,0,1);
-                setTimeout(()=>{ loadEligible(); scheduleRefresh(); }, midnight - now);
+                setTimeout(()=>{ scheduleRefresh(); }, midnight - now);
             };
             scheduleRefresh();
 

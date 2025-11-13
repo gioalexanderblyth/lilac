@@ -182,7 +182,7 @@ try {
 <aside class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col">
 <div class="flex items-center justify-start px-4 h-20 border-b border-border-light dark:border-border-dark">
 <div class="flex items-center gap-3">
-<img alt="CPU LILAC Logo" class="h-11 w-11" src="../assets/images/cpu-logo.png?v=1" width="32" height="32" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex'; console.error('Logo failed to load:', this.src);"/>
+<img alt="CPU LILAC Logo" class="h-11 w-11" src="./api/get-logo.php?v=1" width="32" height="32" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex'; console.error('Logo failed to load:', this.src);"/>
 <div class="h-11 w-11 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm" style="display: none;" id="logo-fallback">CPU</div>
 <h1 class="text-xl font-bold text-text-light dark:text-text-dark sidebar-logo-text hidden">LILAC</h1>
 </div>
@@ -1434,6 +1434,29 @@ window.saveEvent = function() {
          const dayNumber = dateNumber ? dateNumber[0] : '1';
          console.log('Day number:', dayNumber); // Debug log
          
+        // Parse date string to get proper date format (e.g., "Wednesday, 1 October 2025" -> "2025-10-01")
+        let scheduledDate = null;
+        try {
+            // Try to parse the date string
+            const dateMatch = date.match(/(\d{1,2})\s+(\w+)(?:\s+(\d{4}))?/);
+            if (dateMatch) {
+                const day = parseInt(dateMatch[1]);
+                const monthName = dateMatch[2];
+                const year = dateMatch[3] ? parseInt(dateMatch[3]) : currentCalendarDate.getFullYear();
+                
+                const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
+                                  'july', 'august', 'september', 'october', 'november', 'december'];
+                const monthIndex = monthNames.findIndex(m => m.toLowerCase().startsWith(monthName.toLowerCase()));
+                
+                if (monthIndex !== -1) {
+                    const dateObj = new Date(year, monthIndex, day);
+                    scheduledDate = dateObj.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+                }
+            }
+        } catch (e) {
+            console.error('Date parsing error:', e);
+        }
+         
         // Create or update event object
         let eventData;
         if (isEditingExisting && currentOpenedEventId) {
@@ -1478,6 +1501,29 @@ window.saveEvent = function() {
         // Save to local storage so events persist after refresh
          localStorage.setItem('calendarEvents', JSON.stringify(events));
          console.log('Events saved to local storage'); // Debug log
+         
+         // Also save to database via API
+         if (typeof createSchedule === 'function' && scheduledDate) {
+             const scheduleData = {
+                 title: title.trim(),
+                 description: description !== 'Add description or a Google Drive attachment' ? description : '',
+                 scheduled_date: scheduledDate,
+                 start_time: startTime,
+                 status: 'scheduled'
+             };
+             
+             createSchedule(scheduleData).then(success => {
+                 if (success) {
+                     console.log('Schedule saved to database');
+                     // Reload schedules from database
+                     if (typeof loadSchedules === 'function') {
+                         loadSchedules();
+                     }
+                 }
+             }).catch(error => {
+                 console.error('Error saving schedule to database:', error);
+             });
+         }
          
          // Update calendar display
          renderEventsOnCalendar();

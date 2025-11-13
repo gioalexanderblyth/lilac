@@ -5,6 +5,9 @@
  * Admin-only access
  */
 
+// Start output buffering to catch any unexpected output
+ob_start();
+
 session_start();
 
 header('Content-Type: application/json');
@@ -286,9 +289,30 @@ try {
             break;
     }
 } catch (Exception $e) {
+    // Clear any unexpected output that might have been generated before the error
+    if (ob_get_level() > 0) {
+        ob_clean();
+    }
     http_response_code(500);
+    header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
         'error' => $e->getMessage()
     ]);
+} catch (Error $e) {
+    // Catch fatal errors (PHP 7+)
+    if (ob_get_level() > 0) {
+        ob_clean();
+    }
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Server error: ' . $e->getMessage()
+    ]);
+}
+
+// End output buffering and send output
+if (ob_get_level() > 0) {
+    ob_end_flush();
 }

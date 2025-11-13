@@ -163,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center">
-                    <img src="assets/images/cpu-logo.png" alt="CPU Logo" class="h-12 w-auto mr-3"
+                    <img src="api/get-logo.php" alt="CPU Logo" class="h-12 w-auto mr-3"
                         onerror="this.style.display='none'">
                     <div>
                         <h1 class="text-2xl font-bold text-gray-900">LILAC</h1>
