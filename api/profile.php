@@ -62,10 +62,16 @@ try {
             }
             break;
 
+        case 'PUT':
         case 'POST':
             // Get JSON input
             $input = json_decode(file_get_contents('php://input'), true);
             $action = $input['action'] ?? '';
+
+            // For PUT method, default action is 'update'
+            if ($method === 'PUT' && empty($action)) {
+                $action = 'update';
+            }
 
             if ($action === 'update') {
                 // Update profile

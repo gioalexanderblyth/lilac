@@ -201,7 +201,12 @@ try {
 
         case 'PUT':
             // Update document
-            parse_str(file_get_contents("php://input"), $_PUT);
+            $input = json_decode(file_get_contents("php://input"), true);
+            if (!$input) {
+                // Try form data if JSON parsing fails
+                parse_str(file_get_contents("php://input"), $_PUT);
+                $input = $_PUT;
+            }
 
             if (!isset($_GET['id'])) {
                 throw new Exception('Document ID required');
@@ -220,9 +225,9 @@ try {
             }
 
             // Update fields
-            $title = $_PUT['title'] ?? $existing['title'];
-            $description = $_PUT['description'] ?? $existing['description'];
-            $category = $_PUT['category'] ?? $existing['category'];
+            $title = $input['title'] ?? $existing['title'];
+            $description = $input['description'] ?? $existing['description'];
+            $category = $input['category'] ?? $existing['category'];
 
             $stmt = $pdo->prepare("
                 UPDATE other_documents

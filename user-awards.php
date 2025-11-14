@@ -299,6 +299,67 @@ try {
             scrollbar-color: #475569 #1e293b;
         }
 
+        /* Page Animation Effects */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .page-animate {
+            animation: fadeInUp 0.6s ease-out forwards;
+            opacity: 0;
+        }
+
+        .page-animate-delay-1 {
+            animation: fadeInUp 0.6s ease-out 0.1s forwards;
+            opacity: 0;
+        }
+
+        .page-animate-delay-2 {
+            animation: fadeInUp 0.6s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+
+        .page-animate-delay-3 {
+            animation: fadeInUp 0.6s ease-out 0.3s forwards;
+            opacity: 0;
+        }
+
+        .header-animate {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        .content-animate {
+            animation: fadeInUp 0.7s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+
         /* WebKit scrollbar styling (Chrome, Safari, Edge) */
         ::-webkit-scrollbar {
             width: 8px;
@@ -488,7 +549,7 @@ try {
         </aside>
         <main class="flex-1 overflow-y-auto">
             <header
-                class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20">
+                class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 header-animate">
                 <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">Awards Management</h1>
                 <div class="flex items-center gap-2">
                     <button
@@ -503,10 +564,10 @@ try {
                     </button>
                 </div>
             </header>
-            <div class="p-2 lg:p-1 main-content">
+            <div class="p-2 lg:p-1 main-content content-animate">
                 <div class="max-w-7xl mx-auto">
                     <div class="flex flex-col gap-8">
-                        <div class="border-b border-border-light dark:border-border-dark">
+                        <div class="border-b border-border-light dark:border-border-dark page-animate-delay-1">
                             <nav aria-label="Tabs" class="-mb-px flex space-x-8">
                                 <a class="active tab-underline text-primary whitespace-nowrap py-4 px-1 font-bold text-sm relative"
                                     href="#" id="process-tab">Process Award</a>
@@ -518,7 +579,7 @@ try {
                         </div>
 
                         <!-- Process Award Tab Content -->
-                        <div id="process-content" class="tab-content">
+                        <div id="process-content" class="tab-content page-animate-delay-2">
                             <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
                                 <div class="space-y-6">
                                     <h3 class="text-xl font-bold text-text-light dark:text-text-dark">Input &amp; Upload
@@ -710,7 +771,7 @@ try {
                     </div>
 
                     <!-- Analytics Dashboard Tab Content -->
-                    <div id="analytics-content" class="tab-content hidden">
+                    <div id="analytics-content" class="tab-content hidden page-animate-delay-2">
                         <div class="p-6 max-w-7xl mx-auto">
 
                             <div class="grid grid-cols-12 gap-6">
@@ -1046,7 +1107,7 @@ try {
                     </div>
 
                     <!-- Award List Tab Content -->
-                    <div id="award-list-content" class="tab-content hidden">
+                    <div id="award-list-content" class="tab-content hidden page-animate-delay-2">
 
                         <!-- Admin Criteria Management Section -->
                         <?php if ($isAdmin): ?>
@@ -1157,12 +1218,12 @@ try {
                                         <tr>
                                             <?php if ($isAdmin): ?>
                                             <th class="px-6 py-3 font-medium">Award Name</th>
-                                            <th class="px-6 py-3 font-medium">Type</th>
-                                            <th class="px-6 py-3 font-medium">Requirements</th>
-                                            <th class="px-6 py-3 font-medium">Total Applicants</th>
-                                            <th class="px-6 py-3 font-medium">Pending</th>
-                                            <th class="px-6 py-3 font-medium">Recognized</th>
-                                            <th class="px-6 py-3 font-medium">Processed</th>
+                                            <th class="px-6 py-3 font-medium text-center">Type</th>
+                                            <th class="px-6 py-3 font-medium text-center">Requirements</th>
+                                            <th class="px-6 py-3 font-medium text-center">Total Applicants</th>
+                                            <th class="px-6 py-3 font-medium text-center">Pending</th>
+                                            <th class="px-6 py-3 font-medium text-center">Recognized</th>
+                                            <th class="px-6 py-3 font-medium text-center">Processed</th>
                                             <?php else: ?>
                                             <th class="px-6 py-3 font-medium">Award Name</th>
                                             <th class="px-6 py-3 font-medium">Submission Title</th>
@@ -2911,7 +2972,7 @@ try {
                                     ${escapeHtml(c.description || '').substring(0, 80)}${c.description && c.description.length > 80 ? '...' : ''}
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
                                 <span class="px-2 py-1 text-xs font-medium rounded-full ${
                                     c.award_type === 'Individual' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
                                     c.award_type === 'Institutional' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' :
@@ -2920,7 +2981,7 @@ try {
                                     ${escapeHtml(c.award_type)}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                            <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-600 dark:text-gray-400">
                                 ${c.requirements_count} criteria
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
@@ -3962,6 +4023,15 @@ try {
 
                 processContent.classList.remove('hidden');
                 processContent.style.display = 'block';
+                // Trigger animation
+                processContent.style.opacity = '0';
+                processContent.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    processContent.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+                    processContent.style.opacity = '1';
+                    processContent.style.transform = 'translateY(0)';
+                }, 10);
+                
                 analyticsContent.classList.add('hidden');
                 analyticsContent.style.display = 'none';
                 awardListContent.classList.add('hidden');
@@ -3982,6 +4052,15 @@ try {
 
                 analyticsContent.classList.remove('hidden');
                 analyticsContent.style.display = 'block';
+                // Trigger animation
+                analyticsContent.style.opacity = '0';
+                analyticsContent.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    analyticsContent.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+                    analyticsContent.style.opacity = '1';
+                    analyticsContent.style.transform = 'translateY(0)';
+                }, 10);
+                
                 if (processContent) {
                     processContent.classList.add('hidden');
                     processContent.style.display = 'none';
@@ -4008,6 +4087,15 @@ try {
 
                 awardListContent.classList.remove('hidden');
                 awardListContent.style.display = 'block';
+                // Trigger animation
+                awardListContent.style.opacity = '0';
+                awardListContent.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    awardListContent.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+                    awardListContent.style.opacity = '1';
+                    awardListContent.style.transform = 'translateY(0)';
+                }, 10);
+                
                 if (processContent) {
                     processContent.classList.add('hidden');
                     processContent.style.display = 'none';
@@ -6689,7 +6777,7 @@ try {
                         </div>
                     </div>
 
-                    <div class="criteria-details-${criteria.id} transition-all duration-300 overflow-hidden" style="max-height: none; opacity: 1;">
+                    <div class="criteria-details-${criteria.id} collapsed transition-all duration-300 overflow-hidden" style="max-height: 0; opacity: 0;">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">

@@ -391,6 +391,51 @@ try {
             color: rgb(69, 151, 247) !important; /* blue-400 */
         }
 
+        /* Page Animation Effects */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .page-animate {
+            animation: fadeInUp 0.6s ease-out forwards;
+            opacity: 0;
+        }
+
+        .page-animate-delay-1 {
+            animation: fadeInUp 0.6s ease-out 0.1s forwards;
+            opacity: 0;
+        }
+
+        .page-animate-delay-2 {
+            animation: fadeInUp 0.6s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+
+        .header-animate {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        .content-animate {
+            animation: fadeInUp 0.7s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+
     </style>
 
 </head>
@@ -494,7 +539,7 @@ try {
 
 <main class="flex-1 overflow-y-auto">
 
-<header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20">
+<header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 header-animate">
 
 <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">Documents</h1>
 <div class="flex items-center gap-2">
@@ -532,7 +577,7 @@ No notifications yet
 
 </header>
 
-<div class="p-4">
+<div class="p-4 content-animate">
 <div class="flex flex-col xl:flex-row gap-4">
 <div class="flex-1">
  

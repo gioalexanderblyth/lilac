@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit(); }
@@ -424,6 +424,126 @@ function linkEvent($pdo, $data) {
     echo json_encode(['success'=>true]);
 }
 
+function updateAward($pdo, $id, $data) {
+    requireAuth(true);
+    $id = (int)$id;
+    if (!$id) { 
+        http_response_code(400); 
+        echo json_encode(['error'=>'Award ID is required']); 
+        return; 
+    }
+
+    // Check if award exists
+    $stmt = $pdo->prepare('SELECT * FROM awards WHERE id = ?');
+    $stmt->execute([$id]);
+    $award = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$award) {
+        http_response_code(404);
+        echo json_encode(['error'=>'Award not found']);
+        return;
+    }
+
+    // Check if we're using file-based fallback
+    if ($pdo instanceof FileBasedDatabase) {
+        http_response_code(503);
+        echo json_encode(['error'=>'Update not supported in file-based mode']);
+        return;
+    }
+
+    // Build dynamic UPDATE query
+    $updates = [];
+    $params = [];
+
+    if (isset($data['title'])) {
+        $updates[] = "title = ?";
+        $params[] = $data['title'];
+    }
+
+    if (isset($data['description'])) {
+        $updates[] = "description = ?";
+        $params[] = $data['description'];
+    }
+
+    if (isset($data['date'])) {
+        $updates[] = "date = ?";
+        $params[] = $data['date'];
+    }
+
+    if (isset($data['status'])) {
+        $updates[] = "status = ?";
+        $params[] = $data['status'];
+    }
+
+    if (isset($data['ocr_text'])) {
+        $updates[] = "ocr_text = ?";
+        $params[] = $data['ocr_text'];
+    }
+
+    if (empty($updates)) {
+        http_response_code(400);
+        echo json_encode(['error'=>'No fields to update']);
+        return;
+    }
+
+    $updates[] = "updated_at = NOW()";
+    $params[] = $id;
+
+    $sql = "UPDATE awards SET " . implode(', ', $updates) . " WHERE id = ?";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+
+    // Get updated award
+    $stmt = $pdo->prepare('SELECT * FROM awards WHERE id = ?');
+    $stmt->execute([$id]);
+    $updatedAward = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    echo json_encode(['success'=>true, 'award'=>$updatedAward]);
+}
+
+function deleteAward($pdo, $id) {
+    requireAuth(true);
+    $id = (int)$id;
+    if (!$id) { 
+        http_response_code(400); 
+        echo json_encode(['error'=>'Award ID is required']); 
+        return; 
+    }
+
+    // Check if we're using file-based fallback
+    if ($pdo instanceof FileBasedDatabase) {
+        http_response_code(503);
+        echo json_encode(['error'=>'Delete not supported in file-based mode. Use delete-award.php']);
+        return;
+    }
+
+    // Get award details for file cleanup
+    $stmt = $pdo->prepare('SELECT file_path FROM awards WHERE id = ?');
+    $stmt->execute([$id]);
+    $award = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$award) {
+        http_response_code(404);
+        echo json_encode(['error'=>'Award not found']);
+        return;
+    }
+
+    // Delete associated analysis records first (foreign key constraint)
+    $stmt = $pdo->prepare('DELETE FROM award_analysis WHERE award_id = ?');
+    $stmt->execute([$id]);
+
+    // Delete the award
+    $stmt = $pdo->prepare('DELETE FROM awards WHERE id = ?');
+    $stmt->execute([$id]);
+
+    // Delete file if exists
+    if ($award['file_path'] && file_exists(__DIR__ . '/../' . $award['file_path'])) {
+        @unlink(__DIR__ . '/../' . $award['file_path']);
+    }
+
+    echo json_encode(['success'=>true, 'message'=>'Award deleted successfully']);
+}
+
 function stats($pdo) {
     // Count each matched category once per award, using latest analysis per award
     $sql = "SELECT aa.* FROM award_analysis aa 
@@ -450,15 +570,55 @@ try {
     $pdo = db();
     $method = $_SERVER['REQUEST_METHOD'];
     $action = $_GET['action'] ?? 'list';
-    if ($method === 'POST' && $action === 'upload') { uploadAward($pdo); return; }
-    if ($method === 'GET' && $action === 'list') { listAwards($pdo); return; }
-    if ($method === 'GET' && $action === 'detail' && isset($_GET['id'])) { detail($pdo, (int)$_GET['id']); return; }
-    if ($method === 'POST' && $action === 'override') { overrideAnalysis($pdo, jsonInput()); return; }
-    if ($method === 'POST' && $action === 'link-event') { linkEvent($pdo, jsonInput()); return; }
-    if ($method === 'GET' && $action === 'stats') { stats($pdo); return; }
-    http_response_code(405); echo json_encode(['error'=>'Method/Action not allowed']);
+    $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+    // CREATE: POST with action=upload
+    if ($method === 'POST' && $action === 'upload') { 
+        uploadAward($pdo); 
+        return; 
+    }
+
+    // READ: GET operations
+    if ($method === 'GET' && $action === 'list') { 
+        listAwards($pdo); 
+        return; 
+    }
+    if ($method === 'GET' && $action === 'detail' && isset($_GET['id'])) { 
+        detail($pdo, (int)$_GET['id']); 
+        return; 
+    }
+    if ($method === 'GET' && $action === 'stats') { 
+        stats($pdo); 
+        return; 
+    }
+
+    // UPDATE: PUT with action=update
+    if ($method === 'PUT' && $action === 'update' && $id > 0) {
+        updateAward($pdo, $id, jsonInput());
+        return;
+    }
+
+    // DELETE: DELETE with id parameter
+    if ($method === 'DELETE' && $id > 0) {
+        deleteAward($pdo, $id);
+        return;
+    }
+
+    // Other POST actions
+    if ($method === 'POST' && $action === 'override') { 
+        overrideAnalysis($pdo, jsonInput()); 
+        return; 
+    }
+    if ($method === 'POST' && $action === 'link-event') { 
+        linkEvent($pdo, jsonInput()); 
+        return; 
+    }
+
+    http_response_code(405); 
+    echo json_encode(['error'=>'Method/Action not allowed']);
 } catch (Exception $e) {
-    http_response_code(500); echo json_encode(['error'=>$e->getMessage()]);
+    http_response_code(500); 
+    echo json_encode(['error'=>$e->getMessage()]);
 }
 ?>
 

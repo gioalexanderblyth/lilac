@@ -170,7 +170,52 @@ try {
         }
         .sidebar-collapsed .profile-container {
             justify-content: center;
-    }
+        }
+
+        /* Page Animation Effects */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .page-animate {
+            animation: fadeInUp 0.6s ease-out forwards;
+            opacity: 0;
+        }
+
+        .page-animate-delay-1 {
+            animation: fadeInUp 0.6s ease-out 0.1s forwards;
+            opacity: 0;
+        }
+
+        .page-animate-delay-2 {
+            animation: fadeInUp 0.6s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+
+        .header-animate {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        .content-animate {
+            animation: fadeInUp 0.7s ease-out 0.2s forwards;
+            opacity: 0;
+        }
         /* Draggable modal helpers */
         #createModal.dragging { align-items: flex-start; justify-content: flex-start; }
         #createModalHeader { cursor: move; }
@@ -235,7 +280,7 @@ try {
 </div>
 </aside>
 <main class="flex-1 overflow-y-auto">
-<header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20">
+<header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 header-animate">
 <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">Calendar</h1>
 <div class="flex items-center gap-2">
 					<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors duration-200">
@@ -247,7 +292,7 @@ try {
 </button>
 </div>
 </header>
-<div class="pl-2 lg:pl-1 pr-1 pb-6 lg:pb-8 main-content">
+<div class="pl-2 lg:pl-1 pr-1 pb-6 lg:pb-8 main-content content-animate">
 <div class="max-w-none">
 <!-- Preserve existing schedulerTest main content below -->
 <div class="flex-1 flex p-3 space-x-2">

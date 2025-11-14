@@ -258,6 +258,51 @@ try {
         tbody tr:hover td input[type="checkbox"] {
             pointer-events: auto;
         }
+
+        /* Page Animation Effects */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .page-animate {
+            animation: fadeInUp 0.6s ease-out forwards;
+            opacity: 0;
+        }
+
+        .page-animate-delay-1 {
+            animation: fadeInUp 0.6s ease-out 0.1s forwards;
+            opacity: 0;
+        }
+
+        .page-animate-delay-2 {
+            animation: fadeInUp 0.6s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+
+        .header-animate {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        .content-animate {
+            animation: fadeInUp 0.7s ease-out 0.2s forwards;
+            opacity: 0;
+        }
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
@@ -318,7 +363,7 @@ try {
 </div>
 </aside>
 <main class="flex-1 overflow-hidden">
-<header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-hidden">
+<header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-hidden header-animate">
 <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">MOUs & MOAs</h1>
 <div class="flex items-center gap-2">
 						<div class="relative">
@@ -360,7 +405,7 @@ try {
 </button>
 </div>
 </header>
-<div class="pt-1 pr-2 pb-1 lg:pt-2 lg:pr-4 lg:pb-2 main-content overflow-hidden">
+<div class="pt-1 pr-2 pb-1 lg:pt-2 lg:pr-4 lg:pb-2 main-content overflow-hidden content-animate">
 <div class="p-3">
                 <div class="flex flex-col md:flex-row md:items-center md:justify-end gap-4 mb-4">
                     <div class="flex items-center gap-2">
