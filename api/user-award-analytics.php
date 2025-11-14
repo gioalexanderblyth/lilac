@@ -25,6 +25,35 @@ require_once __DIR__ . '/config.php';
 
 try {
     $pdo = getDatabaseConnection();
+    
+    // Check if we're using file-based fallback (no real database)
+    if ($pdo instanceof FileBasedDatabase) {
+        // Return empty data structure instead of error
+        $response = [
+            'success' => true,
+            'data' => [
+                'statusDistribution' => [],
+                'awardStatusDistribution' => [],
+                'trends' => [],
+                'requirements' => [],
+                'kpis' => [
+                    'total_awards' => 0,
+                    'awards_eligible' => 0,
+                    'awards_recognized' => 0,
+                    'success_rate' => 0,
+                    'orc_data_analyzed' => 0
+                ],
+                'insights' => [
+                    'close_to_achieving' => [],
+                    'achieved' => [],
+                    'needs_work' => [],
+                    'recommendations' => []
+                ]
+            ]
+        ];
+        echo json_encode($response);
+        exit();
+    }
 
     // Initialize response data
     $responseData = [
@@ -239,7 +268,18 @@ try {
 
     echo json_encode($response);
 
+} catch (PDOException $e) {
+    // Database-specific errors
+    error_log('Database error in user-award-analytics.php: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Database connection error',
+        'message' => 'Unable to connect to database. Please ensure MySQL is running and the database exists.'
+    ]);
 } catch (Exception $e) {
+    // General errors
+    error_log('Error in user-award-analytics.php: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,

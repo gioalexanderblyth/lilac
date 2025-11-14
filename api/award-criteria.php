@@ -56,14 +56,21 @@ try {
     $pdo = getDatabaseConnection();
 
     if ($pdo instanceof FileBasedDatabase) {
+        http_response_code(503);
         echo json_encode(['success' => false, 'error' => 'Database connection required for this feature']);
         exit();
     }
 
     switch ($action) {
         case 'list':
-            $stmt = $pdo->query('SELECT * FROM award_criteria ORDER BY created_at DESC');
-            $criteria = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            try {
+                $stmt = $pdo->query('SELECT * FROM award_criteria ORDER BY created_at DESC');
+                $criteria = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {
+                // Table might not exist, return empty array
+                error_log('Error querying award_criteria: ' . $e->getMessage());
+                $criteria = [];
+            }
 
             echo json_encode([
                 'success' => true,
@@ -191,7 +198,18 @@ try {
             throw new Exception('Invalid action');
     }
 
+} catch (PDOException $e) {
+    // Database-specific errors
+    error_log('Database error in award-criteria.php: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Database error',
+        'message' => 'Unable to connect to database. Please ensure MySQL is running and the database exists.'
+    ]);
 } catch (Exception $e) {
+    // General errors
+    error_log('Error in award-criteria.php: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,

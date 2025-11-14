@@ -2792,8 +2792,8 @@ try {
             // Global variable to store user submissions
             let allUserSubmissions = [];
 
-            // Load award list data (conditional for admin vs user)
-            async function loadAwardListData() {
+            // Load award list data (conditional for admin vs user) - make it globally accessible
+            window.loadAwardListData = async function() {
                 const isAdmin = <?php echo $isAdmin ? 'true' : 'false'; ?>;
                 console.log('loadAwardListData called, isAdmin:', isAdmin);
 
@@ -2852,11 +2852,11 @@ try {
                         `;
                     }
                 }
-            }
+            };
 
             // Legacy function name for backward compatibility
             async function loadAwardCriteria() {
-                await loadAwardListData();
+                await window.loadAwardListData();
             }
 
             // Render award criteria in the table

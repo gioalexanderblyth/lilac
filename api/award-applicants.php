@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -214,6 +214,58 @@ try {
             'success' => true,
             'message' => 'Status updated successfully',
             'new_status' => $newStatus
+        ]);
+
+    } elseif ($method === 'DELETE') {
+        // Bulk delete awards
+        $data = json_decode(file_get_contents('php://input'), true);
+        $awardIds = $data['award_ids'] ?? [];
+
+        if (empty($awardIds) || !is_array($awardIds)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'No award IDs provided']);
+            exit();
+        }
+
+        // Check if user is admin
+        $user = $_SESSION['user'];
+        $isAdmin = $user['role'] === 'admin';
+        
+        if (!$isAdmin) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Admin access required']);
+            exit();
+        }
+
+        // Prepare placeholders for IN clause
+        $placeholders = str_repeat('?,', count($awardIds) - 1) . '?';
+        
+        // Get file paths before deleting (to clean up files)
+        $stmt = $pdo->prepare("SELECT file_path FROM awards WHERE id IN ($placeholders)");
+        $stmt->execute($awardIds);
+        $filesToDelete = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        // Delete award analysis records first (foreign key constraint)
+        $stmt = $pdo->prepare("DELETE FROM award_analysis WHERE award_id IN ($placeholders)");
+        $stmt->execute($awardIds);
+
+        // Delete awards
+        $stmt = $pdo->prepare("DELETE FROM awards WHERE id IN ($placeholders)");
+        $stmt->execute($awardIds);
+        
+        $deletedCount = $stmt->rowCount();
+
+        // Clean up files
+        foreach ($filesToDelete as $filePath) {
+            if ($filePath && file_exists($filePath)) {
+                @unlink($filePath);
+            }
+        }
+
+        echo json_encode([
+            'success' => true,
+            'message' => "Successfully deleted $deletedCount award(s)",
+            'deleted_count' => $deletedCount
         ]);
 
     } else {

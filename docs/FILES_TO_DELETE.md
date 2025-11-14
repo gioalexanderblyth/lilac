@@ -35,7 +35,7 @@ These are diagnostic/verification scripts, not used in production:
 
 ### Duplicate/Alternative Database Schema
 15. **database/schema-mysql.sql** - Alternative schema file
-   - The main schema is in `database/lilac_awards.sql`
+   - The main schema is in `database/lilac.sql`
    - This appears to be an older/alternative version
 
 ## ⚠️ POTENTIALLY SAFE (But Check First)

@@ -165,6 +165,27 @@ if (!$awardCategory) {
 
         <!-- Filter and Search -->
         <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2.5 mb-4">
+            <!-- Bulk Actions Bar -->
+            <div id="bulk-actions-bar" class="hidden mb-3 pb-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <span id="selected-count">0</span> selected
+                    </span>
+                </div>
+                <button id="bulk-delete-btn" class="px-4 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-base">delete</span>
+                    Delete Selected
+                </button>
+            </div>
+            
+            <!-- Select All Option (Always Visible) -->
+            <div class="mb-2 flex items-center justify-end">
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors">
+                    <input type="checkbox" id="select-all-visible-checkbox" class="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary">
+                    <span>Select All Visible</span>
+                </label>
+            </div>
+            
             <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
                 <div class="relative">
                     <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm">search</span>
@@ -275,6 +296,7 @@ if (!$awardCategory) {
 
         let allApplicants = [];
         let filteredApplicants = [];
+        let selectedApplicantIds = new Set(); // Track selected applicant IDs
 
         // Load applicants data
         async function loadApplicants() {
@@ -292,6 +314,9 @@ if (!$awardCategory) {
 
                 allApplicants = result.applicants;
                 filteredApplicants = [...allApplicants];
+                
+                // Clear selections when reloading (optional: could preserve selections)
+                selectedApplicantIds.clear();
 
                 // Update page title
                 document.getElementById('page-title').textContent = AWARD_CATEGORY;
@@ -301,6 +326,9 @@ if (!$awardCategory) {
 
                 // Render applicants
                 renderApplicants();
+                
+                // Update bulk actions bar after rendering
+                updateBulkActionsBar();
 
             } catch (error) {
                 console.error('Error loading applicants:', error);
@@ -382,6 +410,10 @@ if (!$awardCategory) {
                         <!-- Collapsed Summary View -->
                         <div class="collapsed-view">
                             <div class="flex items-center gap-3">
+                                <!-- Checkbox -->
+                                <div class="flex-shrink-0">
+                                    <input type="checkbox" class="applicant-checkbox w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary" data-award-id="${app.award_id}" value="${app.award_id}" ${selectedApplicantIds.has(app.award_id) ? 'checked' : ''}>
+                                </div>
                                 <!-- Avatar Section -->
                                 <div class="flex-shrink-0">
                                     <div class="w-10 h-10 rounded-full bg-gradient-to-br ${similarity >= 90 ? 'from-green-400 to-green-600' : similarity >= 70 ? 'from-yellow-400 to-yellow-600' : 'from-red-400 to-red-600'} flex items-center justify-center shadow-md">
@@ -884,6 +916,7 @@ if (!$awardCategory) {
             });
 
             renderApplicants();
+            updateBulkActionsBar();
         }
 
         // Show toast notification
@@ -918,11 +951,129 @@ if (!$awardCategory) {
             return div.innerHTML;
         }
 
+        // Bulk selection functions
+        function updateBulkActionsBar() {
+            const bulkActionsBar = document.getElementById('bulk-actions-bar');
+            const selectedCount = document.getElementById('selected-count');
+            const totalSelected = selectedApplicantIds.size;
+            
+            if (totalSelected > 0) {
+                bulkActionsBar.classList.remove('hidden');
+                selectedCount.textContent = totalSelected;
+            } else {
+                bulkActionsBar.classList.add('hidden');
+            }
+            
+            // Update select all visible checkbox state (based on visible applicants)
+            const selectAllVisibleCheckbox = document.getElementById('select-all-visible-checkbox');
+            const visibleCheckboxes = document.querySelectorAll('.applicant-checkbox');
+            const visibleChecked = Array.from(visibleCheckboxes).filter(cb => cb.checked).length;
+            
+            if (selectAllVisibleCheckbox && visibleCheckboxes.length > 0) {
+                selectAllVisibleCheckbox.checked = visibleChecked === visibleCheckboxes.length;
+                selectAllVisibleCheckbox.indeterminate = visibleChecked > 0 && visibleChecked < visibleCheckboxes.length;
+            }
+        }
+
+        // Handle individual checkbox changes
+        function setupCheckboxListeners() {
+            document.addEventListener('change', function(e) {
+                if (e.target.classList.contains('applicant-checkbox')) {
+                    const awardId = e.target.value;
+                    if (e.target.checked) {
+                        selectedApplicantIds.add(awardId);
+                    } else {
+                        selectedApplicantIds.delete(awardId);
+                    }
+                    updateBulkActionsBar();
+                }
+            });
+        }
+
+        // Handle select all visible checkbox
+        function setupSelectAllVisibleListener() {
+            const selectAllVisibleCheckbox = document.getElementById('select-all-visible-checkbox');
+            if (selectAllVisibleCheckbox) {
+                selectAllVisibleCheckbox.addEventListener('change', function() {
+                    // Select only currently visible/filtered applicants
+                    const visibleCheckboxes = document.querySelectorAll('.applicant-checkbox');
+                    visibleCheckboxes.forEach(checkbox => {
+                        checkbox.checked = selectAllVisibleCheckbox.checked;
+                        if (selectAllVisibleCheckbox.checked) {
+                            selectedApplicantIds.add(checkbox.value);
+                        } else {
+                            selectedApplicantIds.delete(checkbox.value);
+                        }
+                    });
+                    updateBulkActionsBar();
+                });
+            }
+        }
+
+        // Bulk delete function
+        async function bulkDeleteApplicants() {
+            if (selectedApplicantIds.size === 0) {
+                showToast('Please select at least one applicant to delete', 'error');
+                return;
+            }
+
+            const awardIds = Array.from(selectedApplicantIds);
+            const count = awardIds.length;
+
+            if (!confirm(`Are you sure you want to delete ${count} applicant${count > 1 ? 's' : ''}? This action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('api/award-applicants.php', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + AUTH_TOKEN
+                    },
+                    body: JSON.stringify({
+                        award_ids: awardIds
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast(`Successfully deleted ${count} applicant${count > 1 ? 's' : ''}`, 'success');
+                    // Clear selections after successful delete
+                    selectedApplicantIds.clear();
+                    // Reload applicants
+                    await loadApplicants();
+                    // Reset bulk actions
+                    document.getElementById('bulk-actions-bar').classList.add('hidden');
+                    document.getElementById('select-all-visible-checkbox').checked = false;
+                } else {
+                    showToast('Error: ' + (result.error || 'Failed to delete applicants'), 'error');
+                }
+            } catch (error) {
+                console.error('Bulk delete error:', error);
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        // Setup bulk delete button
+        function setupBulkDeleteButton() {
+            const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
+            if (bulkDeleteBtn) {
+                bulkDeleteBtn.addEventListener('click', bulkDeleteApplicants);
+            }
+        }
+
         // Event listeners
         document.getElementById('search-input').addEventListener('input', applyFilters);
         document.getElementById('status-filter').addEventListener('change', applyFilters);
         document.getElementById('eligibility-filter').addEventListener('change', applyFilters);
         document.getElementById('sort-select').addEventListener('change', applyFilters);
+
+        // Setup bulk delete functionality
+        setupCheckboxListeners();
+        setupSelectAllVisibleListener();
+        setupBulkDeleteButton();
 
         // Load data on page load
         loadApplicants();

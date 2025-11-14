@@ -101,7 +101,7 @@ C:\xampp\htdocs\lilac\
 1. Open your web browser
 2. Navigate to [http://localhost/phpmyadmin](http://localhost/phpmyadmin)
 3. Click **"New"** in the left sidebar
-4. Database name: `lilac_awards`
+4. Database name: `lilac`
 5. Collation: `utf8mb4_general_ci`
 6. Click **"Create"**
 
@@ -109,10 +109,10 @@ C:\xampp\htdocs\lilac\
 
 ### Import Database Tables
 
-1. In phpMyAdmin, select `lilac_awards` database
+1. In phpMyAdmin, select `lilac` database
 2. Click **"Import"** tab
 3. Click **"Choose File"**
-4. Select `lilac_awards.sql` from the project folder (if provided in the database folder)
+4. Select `lilac.sql` from the project folder (if provided in the database folder)
 5. Click **"Go"**
 
 
@@ -430,7 +430,7 @@ chmod 777 /path/to/lilac/uploads/other_documents
 ### Database Backup
 Regular backups recommended:
 ```bash
-mysqldump -u root lilac_awards > backup_$(date +%Y%m%d).sql
+mysqldump -u root lilac > backup_$(date +%Y%m%d).sql
 ```
 
 ### Security Recommendations
@@ -460,7 +460,7 @@ This project is developed for Central Philippine University's International Affa
 ## 🎯 Quick Start Checklist
 
 - [ ] XAMPP installed and running
-- [ ] Database `lilac_awards` created
+- [ ] Database `lilac` created
 - [ ] Tables imported/created
 - [ ] Admin account created
 - [ ] Upload directories created
