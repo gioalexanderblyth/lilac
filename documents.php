@@ -35,11 +35,8 @@ try {
     $isAdmin = isset($user['role']) && $user['role'] === 'admin';
 }
 
-// Restrict this page to admin only
-if (!$isAdmin) {
-    header('Location: dashboard.php');
-    exit();
-}
+// Allow all authenticated users to access the documents page
+// Removed admin-only restriction - all authenticated users have full access
 
 $documents = [];
 try {

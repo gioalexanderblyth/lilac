@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             $fullName,
                             !empty($department) ? $department : null,
                             !empty($phone) ? $phone : null,
-                            'user',
+                            'admin',
                             'active'
                         ]);
 
@@ -126,6 +126,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
         .input-group {
             position: relative;
+            display: flex;
+            align-items: center;
         }
 
         .input-icon {
@@ -135,10 +137,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             transform: translateY(-50%);
             color: #9ca3af;
             pointer-events: none;
+            z-index: 10;
+            line-height: 1;
+            font-size: 20px;
         }
 
         .input-with-icon {
-            padding-left: 40px;
+            padding-left: 40px !important;
+            width: 100%;
+            position: relative;
+            z-index: 1;
         }
 
         .password-toggle {
@@ -149,6 +157,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             cursor: pointer;
             color: #9ca3af;
             transition: color 0.2s;
+            z-index: 2;
+            line-height: 1;
         }
 
         .password-toggle:hover {
@@ -237,12 +247,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                 <div class="input-group">
                                     <span class="material-symbols-outlined input-icon">badge</span>
                                     <input type="text" id="username" name="username" required
-                                        value="<?= htmlspecialchars($_POST['username'] ?? '') ?>"
+                                        value="<?= htmlspecialchars($_POST['username'] ?? '') ?>" 
                                         pattern="[a-zA-Z0-9_-]{3,50}"
                                         class="input-with-icon block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
                                         placeholder="juan_delacruz">
-                                    <small class="text-xs text-gray-500 mt-1 block">3-50 characters, letters, numbers, _ and - only</small>
                                 </div>
+                                <small class="text-xs text-gray-500 mt-1 block">3-50 characters, letters, numbers, _ and - only</small>
                             </div>
 
                             <!-- Email -->
@@ -319,8 +329,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                         class="input-with-icon block w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
                                         placeholder="Enter password">
                                     <span class="material-symbols-outlined password-toggle" onclick="togglePassword('password')">visibility</span>
-                                    <small class="text-xs text-gray-500 mt-1 block">Minimum 8 characters</small>
                                 </div>
+                                <small class="text-xs text-gray-500 mt-1 block">Minimum 8 characters</small>
                             </div>
 
                             <!-- Confirm Password -->

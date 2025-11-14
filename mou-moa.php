@@ -48,14 +48,9 @@ try {
             }
         }
     } else {
-        if ($isAdmin) {
-            $stmt = $pdo->query('SELECT m.*, u.username as created_by FROM mou_moa m LEFT JOIN users u ON m.user_id = u.id ORDER BY m.created_at DESC');
-            $mous = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } else {
-            $stmt = $pdo->prepare('SELECT m.*, u.username as created_by FROM mou_moa m LEFT JOIN users u ON m.user_id = u.id WHERE m.user_id = ? ORDER BY m.created_at DESC');
-            $stmt->execute([$user['id']]);
-            $mous = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        }
+        // All authenticated users can see all entries (same as admin)
+        $stmt = $pdo->query('SELECT m.*, u.username as created_by FROM mou_moa m LEFT JOIN users u ON m.user_id = u.id ORDER BY m.created_at DESC');
+        $mous = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 } catch (Exception $e) {
     error_log('MOUs load error: ' . $e->getMessage());
@@ -566,17 +561,15 @@ try {
         </div>
     </div>
 </div>
-                        <?php if ($isAdmin): ?>
+                        <!-- Add File button - available to all authenticated users -->
                         <button id="addFileBtn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90">
                             <span class="material-symbols-outlined text-base">add</span>
                             Add File
                         </button>
-                        <?php endif; ?>
                     </div>
                 </div>
 
-                <!-- Bulk Operations Toolbar -->
-                <?php if ($isAdmin): ?>
+                <!-- Bulk Operations Toolbar - available to all authenticated users -->
                 <div id="bulkOperationsToolbar" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4 hidden">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-4">
@@ -597,21 +590,27 @@ try {
                         </button>
                     </div>
                 </div>
-                <?php endif; ?>
 
                 <div class="bg-card-light dark:bg-card-dark rounded-xl shadow-soft overflow-hidden border border-border-light dark:border-border-dark">
                     <div class="overflow-x-hidden">
                         <table class="table-fixed-layout divide-y divide-border-light dark:divide-border-dark">
                             <thead class="bg-gray-50 dark:bg-white/5">
                                 <tr>
-                                    <?php if ($isAdmin): ?>
-                                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">View</th>
-                                    <?php endif; ?>
+                                    <!-- Checkbox column for bulk operations -->
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">
+                                        <input type="checkbox" id="selectAllCheckbox" class="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary dark:focus:ring-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" title="Select All">
+                                    </th>
+                                    <!-- Institution column -->
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Institution</th>
+                                    <!-- Type column -->
                                     <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Type</th>
+                                    <!-- Sign Date column -->
                                     <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Sign Date</th>
+                                    <!-- End Date column -->
                                     <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">End Date</th>
+                                    <!-- Status column -->
                                     <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Status</th>
+                                    <!-- Action column (contains View and Delete) -->
                                     <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Action</th>
                                 </tr>
                             </thead>
@@ -859,9 +858,10 @@ try {
 <!-- Global Configuration -->
 <script>
     // Pass PHP variables to JavaScript (use window to make globally accessible)
-    window.IS_ADMIN = <?php echo json_encode($isAdmin); ?>;
+    // All authenticated users have admin access (same privileges)
+    window.IS_ADMIN = true;  // Set to true for all authenticated users
     window.USER_ID = <?php echo json_encode($userId); ?>;
-    window.USER_ROLE = <?php echo json_encode($user['role'] ?? 'NOT SET'); ?>;
+    window.USER_ROLE = <?php echo json_encode($user['role'] ?? 'user'); ?>;
     // Also create const aliases for convenience
     const IS_ADMIN = window.IS_ADMIN;
     const USER_ID = window.USER_ID;
@@ -997,14 +997,40 @@ try {
             const idsToDelete = Array.from(checkedCheckboxes).map(checkbox => parseInt(checkbox.dataset.id));
 
             try {
-                // Delete via API
+                // Delete via API - remove action parameter, API only needs id for DELETE method
                 const API_BASE_URL = 'api/mou-moa.php';
-                await Promise.allSettled(idsToDelete.map(id =>
-                    fetch(`${API_BASE_URL}?action=delete&id=${encodeURIComponent(id)}`, { method: 'DELETE' })
-                ));
+                const deletePromises = idsToDelete.map(id =>
+                    fetch(`${API_BASE_URL}?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+                        .then(async response => {
+                            if (!response.ok) {
+                                const errorText = await response.text();
+                                throw new Error(`HTTP ${response.status}: ${errorText || 'Delete failed'}`);
+                            }
+                            return response.json();
+                        })
+                        .then(result => {
+                            if (!result.success) {
+                                throw new Error(result.error || 'Delete failed');
+                            }
+                            return result;
+                        })
+                        .catch(error => {
+                            console.error(`Error deleting entry ${id}:`, error);
+                            throw error;
+                        })
+                );
+                
+                await Promise.allSettled(deletePromises);
 
                 // Reload data from database
-                await loadFromDatabase();
+                if (typeof window.loadFromDatabase === 'function') {
+                    await window.loadFromDatabase();
+                } else if (typeof loadFromDatabase === 'function') {
+                    await loadFromDatabase();
+                } else {
+                    // Fallback: reload the page if function not available
+                    window.location.reload();
+                }
 
                 // Close modal
                 bulkDeleteModal.classList.add('hidden');
@@ -1818,9 +1844,9 @@ try {
                 if (!id) return;
 
                 try {
-                    // Delete via API
+                    // Delete via API - API only needs id for DELETE method
                     const API_BASE_URL = 'api/mou-moa.php';
-                    const response = await fetch(`${API_BASE_URL}?action=delete&id=${encodeURIComponent(id)}`, {
+                    const response = await fetch(`${API_BASE_URL}?id=${encodeURIComponent(id)}`, {
                         method: 'DELETE'
                     });
 
@@ -2357,6 +2383,9 @@ try {
                 }
             }
             
+            // Make loadFromDatabase globally accessible for bulk operations
+            window.loadFromDatabase = loadFromDatabase;
+            
             // Function to display current page entries
             function displayCurrentPage() {
                 const tableBody = document.querySelector('tbody');
@@ -2488,27 +2517,32 @@ try {
 
                 newRow.setAttribute('data-id', data.id);
                 newRow.innerHTML = `
-                    ${window.IS_ADMIN ? `
+                    <!-- Checkbox column -->
                     <td class="px-6 py-4 whitespace-nowrap text-center">
                         <input type="checkbox" class="row-checkbox w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary dark:focus:ring-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" data-id="${data.id}">
                     </td>
-                    ` : ''}
+                    <!-- Institution column -->
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-light dark:text-text-dark text-left">
                         <div>
-                            <div class="font-semibold">${data.institution}</div>
+                            <div class="font-semibold">${data.institution || 'N/A'}</div>
                             <div class="text-xs text-gray-500 dark:text-gray-400">${data.location || ''}</div>
                         </div>
                     </td>
+                    <!-- Type column -->
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${data.category && data.category.includes('MOU (Memorandum of Understanding)') ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' : data.category && data.category.includes('MOA (Memorandum of Agreement)') ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300'}">
-                            ${data.category || 'N/A'}
+                            ${data.category || data.type || 'N/A'}
                         </span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-text-muted-light dark:text-text-muted-dark text-center">${data.sign_date}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-text-muted-light dark:text-text-muted-dark text-center">${data.end_date}</td>
+                    <!-- Sign Date column -->
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-text-muted-light dark:text-text-muted-dark text-center">${data.sign_date || 'N/A'}</td>
+                    <!-- End Date column -->
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-text-muted-light dark:text-text-muted-dark text-center">${data.end_date || 'N/A'}</td>
+                    <!-- Status column -->
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass}">${data.status}</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass}">${data.status || 'N/A'}</span>
                     </td>
+                    <!-- Action column (contains View and Delete buttons) -->
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
                         <div class="flex items-center justify-center gap-2">
                             ${data.file_name ?
@@ -2519,19 +2553,20 @@ try {
                                     <img src="assets/images/view.png" alt="View" class="w-4 h-4 opacity-50">
                                 </button>`
                             }
-                            ${window.IS_ADMIN ?
-                                `<button class="delete-btn text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200" data-id="${data.id}" title="Delete MOU/MOA">
-                                    <img src="assets/images/trash.png" alt="Delete" class="w-4 h-4">
-                                </button>` :
-                                `<button class="delete-btn-disabled text-gray-400 dark:text-gray-500 cursor-not-allowed" disabled title="Delete (Admin only)">
-                                    <img src="assets/images/trash.png" alt="Delete" class="w-4 h-4 opacity-30">
-                                </button>`
-                            }
+                            <button class="delete-btn text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200" data-id="${data.id}" title="Delete MOU/MOA">
+                                <img src="assets/images/trash.png" alt="Delete" class="w-4 h-4">
+                            </button>
                         </div>
                     </td>
                 `;
                 
                 tableBody.appendChild(newRow);
+                
+                // Add checkbox event listener to the new checkbox
+                const checkbox = newRow.querySelector('.row-checkbox');
+                if (checkbox && typeof window.addCheckboxEventListener === 'function') {
+                    window.addCheckboxEventListener(checkbox);
+                }
                 
                 // Add delete event listener to the new button
                 const deleteBtn = newRow.querySelector('.delete-btn');

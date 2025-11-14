@@ -28,7 +28,6 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $userId = $_SESSION['user_id'];
-$isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
 
 // Get database connection
 try {
@@ -43,6 +42,25 @@ try {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Database connection failed: ' . $e->getMessage()]);
     exit();
+}
+
+// Verify admin role from database to ensure accuracy
+$isAdmin = false;
+try {
+    $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+    $stmt->execute([$userId]);
+    $dbUser = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($dbUser) {
+        $isAdmin = ($dbUser['role'] === 'admin');
+        // Update session if role changed
+        if (isset($_SESSION['role']) && $_SESSION['role'] !== $dbUser['role']) {
+            $_SESSION['role'] = $dbUser['role'];
+            $_SESSION['user']['role'] = $dbUser['role'];
+        }
+    }
+} catch (Exception $e) {
+    // Fallback to session role on error
+    $isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
 }
 
 // Calculate status based on end date
@@ -132,10 +150,11 @@ function getAllEntries($pdo, $userId, $isAdmin) {
         $entries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Update status based on current date and map type to category
+        // Allow all authenticated users to edit and delete (same as admin)
         foreach ($entries as &$entry) {
             $entry['status'] = calculateStatus($entry['end_date']);
-            $entry['can_edit'] = $isAdmin;
-            $entry['can_delete'] = $isAdmin;
+            $entry['can_edit'] = true;  // All authenticated users can edit
+            $entry['can_delete'] = true; // All authenticated users can delete
             // Map 'type' from database to 'category' for frontend
             if (isset($entry['type'])) {
                 $entry['category'] = $entry['type'];
@@ -323,8 +342,8 @@ try {
     switch ($method) {
         case 'GET':
             if ($action === 'list' || $action === '') {
-                // Get all entries
-                $entries = getAllEntries($pdo, $userId, $isAdmin);
+                // Get all entries - all authenticated users have full access
+                $entries = getAllEntries($pdo, $userId, true);
                 echo json_encode(['success' => true, 'data' => $entries]);
             } elseif ($action === 'get') {
                 // Get single entry
@@ -363,10 +382,8 @@ try {
             break;
 
         case 'POST':
-            // Admin only
-            if (!$isAdmin) {
-                throw new Exception('Admin access required');
-            }
+            // Allow all authenticated users to create (same as admin)
+            // No admin check needed - all authenticated users have full access
 
             // Handle file upload if present
             $data = $_POST;
@@ -391,10 +408,8 @@ try {
             break;
 
         case 'PUT':
-            // Admin only
-            if (!$isAdmin) {
-                throw new Exception('Admin access required');
-            }
+            // Allow all authenticated users to update (same as admin)
+            // No admin check needed - all authenticated users have full access
 
             $id = $_GET['id'] ?? null;
             if (!$id) {
@@ -449,10 +464,8 @@ try {
             break;
 
         case 'DELETE':
-            // Admin only
-            if (!$isAdmin) {
-                throw new Exception('Admin access required');
-            }
+            // Allow all authenticated users to delete (same as admin)
+            // No admin check needed - all authenticated users have full access
 
             $id = $_GET['id'] ?? null;
             if (!$id) {

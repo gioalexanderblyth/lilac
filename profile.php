@@ -16,6 +16,16 @@ try {
     if ($pdo instanceof FileBasedDatabase) {
         $profileData = $user;
     } else {
+        // Ensure profile_picture column exists
+        try {
+            $stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'profile_picture'");
+            if ($stmt->rowCount() === 0) {
+                $pdo->exec("ALTER TABLE users ADD COLUMN profile_picture VARCHAR(255) NULL DEFAULT NULL AFTER full_name");
+            }
+        } catch (Exception $e) {
+            // Column might already exist, continue
+        }
+        
         $stmt = $pdo->prepare('SELECT * FROM users WHERE id = ?');
         $stmt->execute([$user['id']]);
         $profileData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -257,7 +267,7 @@ try {
 <div class="px-4 py-4 border-t border-border-light dark:border-border-dark">
 <div class="flex items-center justify-between profile-container">
 <div class="flex items-center gap-3">
-<div class="w-10 h-10 rounded-full bg-cover bg-center sidebar-profile-picture hidden" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p");'></div>
+<div class="w-10 h-10 rounded-full bg-cover bg-center sidebar-profile-picture hidden" style='background-image: url("<?php echo !empty($profileData['profile_picture']) ? htmlspecialchars($profileData['profile_picture']) : 'https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p'; ?>");'></div>
 <div class="sidebar-profile-info hidden">
 <p class="font-semibold text-text-light dark:text-text-dark"><?php echo htmlspecialchars($user['role'] === 'admin' ? 'Admin User' : $user['username']); ?></p>
 <div class="flex gap-3">
@@ -319,7 +329,7 @@ try {
 <div class="bg-card-light dark:bg-card-dark p-6 sm:p-8 rounded-xl shadow-soft border border-border-light dark:border-border-dark">
 <div class="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
 <div class="relative">
-<img id="profileAvatar" alt="User Profile Picture" class="w-32 h-32 rounded-full object-cover border-4 border-primary-500/50" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p"/>
+<img id="profileAvatar" alt="User Profile Picture" class="w-32 h-32 rounded-full object-cover border-4 border-primary-500/50" src="<?php echo !empty($profileData['profile_picture']) ? htmlspecialchars($profileData['profile_picture']) : 'https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p'; ?>"/>
 <button id="btnChangeAvatar" class="absolute bottom-1 right-1 bg-primary text-white p-1.5 rounded-full hover:bg-primary-600 transition-colors">
 <span class="material-symbols-outlined text-base">photo_camera</span>
 </button>
@@ -656,11 +666,74 @@ try {
                 }
             });
 
-            // Avatar change (future enhancement)
+            // Avatar change functionality
             const avatarBtn = document.getElementById('btnChangeAvatar');
-            if (avatarBtn) {
+            const avatarInput = document.getElementById('avatarInput');
+            const profileAvatar = document.getElementById('profileAvatar');
+            
+            if (avatarBtn && avatarInput) {
                 avatarBtn.addEventListener('click', () => {
-                    alert('Avatar upload feature coming soon!');
+                    avatarInput.click();
+                });
+                
+                avatarInput.addEventListener('change', async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    // Validate file type
+                    if (!file.type.match('image.*')) {
+                        alert('Please select an image file');
+                        return;
+                    }
+                    
+                    // Validate file size (max 5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert('File size must be less than 5MB');
+                        return;
+                    }
+                    
+                    // Show loading state
+                    avatarBtn.disabled = true;
+                    avatarBtn.querySelector('span').textContent = 'hourglass_empty';
+                    
+                    // Create FormData
+                    const formData = new FormData();
+                    formData.append('profile_picture', file);
+                    
+                    try {
+                        const response = await fetch('api/upload-profile-picture.php', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            // Update profile avatar image
+                            if (result.profile_picture_url) {
+                                profileAvatar.src = result.profile_picture_url;
+                                
+                                // Update sidebar profile picture if it exists
+                                const sidebarProfilePicture = document.querySelector('.sidebar-profile-picture');
+                                if (sidebarProfilePicture) {
+                                    sidebarProfilePicture.style.backgroundImage = `url('${result.profile_picture_url}')`;
+                                }
+                                
+                                // Update profile data
+                                profileData.profile_picture = result.profile_picture_url;
+                            }
+                            
+                            alert('✓ Profile picture updated successfully!');
+                        } else {
+                            alert('✗ Error: ' + (result.error || 'Failed to upload profile picture'));
+                        }
+                    } catch (error) {
+                        alert('✗ Error: ' + error.message);
+                    } finally {
+                        avatarBtn.disabled = false;
+                        avatarBtn.querySelector('span').textContent = 'photo_camera';
+                        avatarInput.value = ''; // Reset input
+                    }
                 });
             }
 

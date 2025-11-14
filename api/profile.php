@@ -50,11 +50,25 @@ try {
     switch ($method) {
         case 'GET':
             // Get user profile
-            $stmt = $pdo->prepare('SELECT id, username, email, role, department, phone, created_at FROM users WHERE id = ?');
+            // Ensure profile_picture column exists
+            try {
+                $stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'profile_picture'");
+                if ($stmt->rowCount() === 0) {
+                    $pdo->exec("ALTER TABLE users ADD COLUMN profile_picture VARCHAR(255) NULL DEFAULT NULL AFTER full_name");
+                }
+            } catch (Exception $e) {
+                // Column might already exist, continue
+            }
+            
+            $stmt = $pdo->prepare('SELECT id, username, email, role, department, phone, profile_picture, created_at FROM users WHERE id = ?');
             $stmt->execute([$userId]);
             $profile = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($profile) {
+                // Add full URL for profile picture if it exists
+                if (!empty($profile['profile_picture'])) {
+                    $profile['profile_picture_url'] = $profile['profile_picture'];
+                }
                 echo json_encode(['success' => true, 'profile' => $profile]);
             } else {
                 http_response_code(404);
