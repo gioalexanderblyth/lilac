@@ -539,12 +539,12 @@ try {
 
 <main class="flex-1 overflow-y-auto">
 
-<header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 header-animate">
+<header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible header-animate">
 
 <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">Documents</h1>
 <div class="flex items-center gap-2">
 
-<div class="relative">
+<div class="relative z-[9999]">
 <button id="notificationBell" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors duration-200">
 <span class="material-symbols-outlined">notifications</span>
 <!-- Notification badge -->
@@ -552,7 +552,7 @@ try {
 </button>
 
 <!-- Notification dropdown -->
-<div id="notificationDropdown" class="hidden absolute right-0 top-12 w-80 bg-white dark:bg-card-dark rounded-lg shadow-xl border border-border-light dark:border-border-dark z-50 max-h-96 overflow-y-auto">
+<div id="notificationDropdown" class="hidden absolute right-0 top-full mt-2 w-80 bg-white dark:bg-card-dark rounded-lg shadow-xl border border-border-light dark:border-border-dark z-[9999] max-h-96 overflow-y-auto">
 <div class="p-4 border-b border-border-light dark:border-border-dark flex items-center justify-between">
 <h3 class="font-semibold text-text-light dark:text-text-dark">Notifications</h3>
 <button id="clearAllNotifications" class="text-sm text-primary hover:text-primary/80 transition-colors">Clear All</button>
@@ -2274,6 +2274,224 @@ Add Document
         </form>
     </div>
 </div>
+
+<!-- Notification System -->
+<script>
+    // Notification System - Reusable for all pages
+    (function() {
+        const notificationBtn = document.getElementById('notificationBell') || document.getElementById('notificationBtn');
+        const notificationDropdown = document.getElementById('notificationDropdown');
+        const notificationBadge = document.getElementById('notificationBadge');
+        const notificationList = document.getElementById('notificationList');
+        const noNotifications = document.getElementById('noNotifications');
+        const markAllReadBtn = document.getElementById('markAllReadBtn') || document.getElementById('clearAllNotifications');
+        
+        if (!notificationBtn || !notificationDropdown) return; // Exit if elements don't exist
+        
+        let notifications = [];
+        
+        // Toggle dropdown
+        notificationBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            notificationDropdown.classList.toggle('hidden');
+            if (!notificationDropdown.classList.contains('hidden')) {
+                loadNotifications();
+            }
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!notificationBtn.contains(e.target) && !notificationDropdown.contains(e.target)) {
+                notificationDropdown.classList.add('hidden');
+            }
+        });
+        
+        // Check for new notifications and create them
+        async function checkNotifications() {
+            try {
+                const response = await fetch('api/notifications.php?action=check');
+                const data = await response.json();
+                if (data.success) {
+                    console.log('Notifications checked:', data);
+                }
+            } catch (error) {
+                console.error('Error checking notifications:', error);
+            }
+        }
+        
+        // Load notifications from API
+        async function loadNotifications() {
+            try {
+                const response = await fetch('api/notifications.php');
+                const data = await response.json();
+                if (data.notifications) {
+                    notifications = data.notifications;
+                    updateNotificationDisplay();
+                    updateNotificationBadge();
+                }
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+            }
+        }
+        
+        // Get unread count
+        async function updateNotificationBadge() {
+            try {
+                const response = await fetch('api/notifications.php?action=count');
+                const data = await response.json();
+                const count = data.count || 0;
+                
+                if (notificationBadge) {
+                    if (count > 0) {
+                        notificationBadge.textContent = count > 99 ? '99+' : count;
+                        notificationBadge.classList.remove('hidden');
+                    } else {
+                        notificationBadge.classList.add('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating notification badge:', error);
+            }
+        }
+        
+        // Update notification display
+        function updateNotificationDisplay() {
+            if (!notificationList) return;
+            
+            if (notifications.length === 0) {
+                if (noNotifications) {
+                    noNotifications.classList.remove('hidden');
+                }
+                notificationList.innerHTML = '';
+                return;
+            }
+            
+            if (noNotifications) {
+                noNotifications.classList.add('hidden');
+            }
+            
+            notificationList.innerHTML = notifications.map(notif => {
+                const timeAgo = getTimeAgo(notif.created_at);
+                const icon = getNotificationIcon(notif.type);
+                const bgColor = getNotificationBgColor(notif.type);
+                
+                return `
+                    <div class="p-4 border-b border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${notif.is_read ? 'opacity-60' : ''}" 
+                         data-id="${notif.id}" 
+                         onclick="markNotificationAsRead(${notif.id})">
+                        <div class="flex items-start gap-3">
+                            <div class="flex-shrink-0 w-10 h-10 rounded-full ${bgColor} flex items-center justify-center">
+                                <span class="material-symbols-outlined text-white text-lg">${icon}</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-text-light dark:text-text-dark">${escapeHtml(notif.title)}</p>
+                                <p class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1">${escapeHtml(notif.message)}</p>
+                                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${timeAgo}</p>
+                            </div>
+                            ${!notif.is_read ? '<div class="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>' : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Mark notification as read
+        window.markNotificationAsRead = async function(id) {
+            try {
+                const response = await fetch(`api/notifications.php?id=${id}`, {
+                    method: 'PUT'
+                });
+                const data = await response.json();
+                if (data.success) {
+                    const notif = notifications.find(n => n.id === id);
+                    if (notif) {
+                        notif.is_read = true;
+                        updateNotificationDisplay();
+                        updateNotificationBadge();
+                    }
+                }
+            } catch (error) {
+                console.error('Error marking notification as read:', error);
+            }
+        };
+        
+        // Mark all as read / Clear all
+        if (markAllReadBtn) {
+            markAllReadBtn.addEventListener('click', async () => {
+                try {
+                    const response = await fetch('api/notifications.php', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ action: 'mark_all_read' })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        notifications.forEach(n => n.is_read = true);
+                        updateNotificationDisplay();
+                        updateNotificationBadge();
+                    }
+                } catch (error) {
+                    console.error('Error marking all as read:', error);
+                }
+            });
+        }
+        
+        // Helper functions
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function getTimeAgo(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffInSeconds = Math.floor((now - date) / 1000);
+            
+            if (diffInSeconds < 60) return 'Just now';
+            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+            if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+            return date.toLocaleDateString();
+        }
+        
+        function getNotificationIcon(type) {
+            const icons = {
+                'mou_expiring': 'schedule',
+                'mou_expired': 'warning',
+                'event_upcoming': 'event',
+                'event_today': 'today',
+                'system': 'info'
+            };
+            return icons[type] || 'notifications';
+        }
+        
+        function getNotificationBgColor(type) {
+            const colors = {
+                'mou_expiring': 'bg-yellow-500',
+                'mou_expired': 'bg-red-500',
+                'event_upcoming': 'bg-blue-500',
+                'event_today': 'bg-green-500',
+                'system': 'bg-gray-500'
+            };
+            return colors[type] || 'bg-gray-500';
+        }
+        
+        // Initialize: Check for notifications and load them
+        document.addEventListener('DOMContentLoaded', () => {
+            checkNotifications();
+            updateNotificationBadge();
+            
+            // Refresh notifications every 5 minutes
+            setInterval(() => {
+                checkNotifications();
+                updateNotificationBadge();
+            }, 5 * 60 * 1000);
+        });
+    })();
+</script>
 
 </body></html>
 

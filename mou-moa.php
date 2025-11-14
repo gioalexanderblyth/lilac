@@ -363,10 +363,10 @@ try {
 </div>
 </aside>
 <main class="flex-1 overflow-hidden">
-<header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-hidden header-animate">
+<header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible header-animate">
 <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">MOUs & MOAs</h1>
 <div class="flex items-center gap-2">
-						<div class="relative">
+						<div class="relative z-[9999]">
     <button id="notificationBtn" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors duration-200 relative">
 <span class="material-symbols-outlined">notifications</span>
         <!-- Notification Badge -->
@@ -374,7 +374,7 @@ try {
 </button>
     
     <!-- Notification Dropdown -->
-    <div id="notificationDropdown" class="absolute right-0 mt-2 w-96 bg-white dark:bg-background-dark rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 hidden max-h-96 overflow-y-auto">
+    <div id="notificationDropdown" class="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-background-dark rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[9999] hidden max-h-96 overflow-y-auto">
         <div class="p-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Notifications</h3>
@@ -3187,25 +3187,14 @@ try {
             const markAllReadBtn = document.getElementById('markAllReadBtn');
             const viewAllNotifications = document.getElementById('viewAllNotifications');
             
-            // Notification storage key
-            const NOTIFICATIONS_KEY = 'mou_notifications';
+            if (!notificationBtn || !notificationDropdown) return; // Exit if elements don't exist
 
-            // Initialize notification system asynchronously
-            (async function() {
-                await initNotificationSystem();
-
-                // Reconcile notifications with existing entries on init
-                if (typeof reconcileNotificationsWithEntries === 'function') {
-                    try { await reconcileNotificationsWithEntries(); } catch (_) {}
-                }
-            })();
-            
             // Toggle notification dropdown
             notificationBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 notificationDropdown.classList.toggle('hidden');
                 if (!notificationDropdown.classList.contains('hidden')) {
-                    updateNotificationDisplay();
+                    loadNotifications();
                 }
             });
             
@@ -3226,310 +3215,183 @@ try {
                 showAllNotificationsModal();
             });
             
-            // Initialize notification system
-            async function initNotificationSystem() {
-                // Check for expiry alerts and renewal reminders
-                await checkExpiryAlerts();
-                await checkRenewalReminders();
-
-                // Update notification badge
+            // Use API-based notification system instead of localStorage
+            let notifications = [];
+            
+            // Check for new notifications and create them
+            async function checkNotifications() {
+                try {
+                    const response = await fetch('api/notifications.php?action=check');
+                    const data = await response.json();
+                    if (data.success) {
+                        console.log('Notifications checked:', data);
+                        // Reload notifications after check
+                        await loadNotifications();
                 updateNotificationBadge();
-
-                // Set up periodic checks (every hour)
-                setInterval(async function() {
-                    await checkExpiryAlerts();
-                    await checkRenewalReminders();
-                    updateNotificationBadge();
-                }, 60 * 60 * 1000); // 1 hour
-            }
-
-            // Check for expiry alerts
-            async function checkExpiryAlerts() {
-                const entries = await getAllEntries();
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                
-                entries.forEach(entry => {
-                    if (entry.end_date) {
-                        const endDate = new Date(entry.end_date);
-                        endDate.setHours(0, 0, 0, 0);
-                        
-                        // Calculate days until expiry (negative means expired)
-                        const daysUntilExpiry = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
-                        
-                        // CRITICAL ALERTS for expired/lapsed agreements
-                        if (daysUntilExpiry < 0) {
-                            // Agreement has expired/lapsed
-                            const daysExpired = Math.abs(daysUntilExpiry);
-                            let title, message;
-                            
-                            if (daysExpired === 1) {
-                                title = 'CRITICAL: MOU/MOA Expired Yesterday';
-                                message = `${entry.institution} agreement expired yesterday - IMMEDIATE ACTION REQUIRED`;
-                            } else if (daysExpired <= 7) {
-                                title = 'CRITICAL: MOU/MOA Expired';
-                                message = `${entry.institution} agreement expired ${daysExpired} days ago - URGENT RENEWAL NEEDED`;
-                            } else {
-                                title = 'CRITICAL: MOU/MOA Lapsed';
-                                message = `${entry.institution} agreement lapsed ${daysExpired} days ago - CRITICAL RENEWAL REQUIRED`;
-                            }
-                            
-                            createNotification({
-                                id: `expired_critical_${entry.id}`,
-                                type: 'expired_critical',
-                                title: title,
-                                message: message,
-                                entryId: entry.id,
-                                priority: 'critical',
-                                timestamp: new Date().toISOString()
-                            });
-                        } else if (daysUntilExpiry === 0) {
-                            // Expires today
-                            createNotification({
-                                id: `expires_today_${entry.id}`,
-                                type: 'expires_today',
-                                title: 'CRITICAL: MOU/MOA Expires Today',
-                                message: `${entry.institution} agreement expires today - IMMEDIATE ACTION REQUIRED`,
-                                entryId: entry.id,
-                                priority: 'critical',
-                                timestamp: new Date().toISOString()
-                            });
-                        } else if (daysUntilExpiry === 1) {
-                            // Critical alert - 1 day before deadline
-                            createNotification({
-                                id: `critical_expires_tomorrow_${entry.id}`,
-                                type: 'critical_expires_soon',
-                                title: 'CRITICAL: MOU/MOA Expires Tomorrow',
-                                message: `${entry.institution} agreement expires tomorrow - URGENT ACTION REQUIRED`,
-                                entryId: entry.id,
-                                priority: 'critical',
-                                timestamp: new Date().toISOString()
-                            });
-                        } else if (daysUntilExpiry === 30) {
-                            // Regular alert - 1 month before expiry
-                            createNotification({
-                                id: `expires_month_${entry.id}`,
-                                type: 'expires_soon',
-                                title: 'MOU/MOA Expires in 1 Month',
-                                message: `${entry.institution} agreement expires in 30 days - consider renewal`,
-                                entryId: entry.id,
-                                priority: 'medium',
-                                timestamp: new Date().toISOString()
-                            });
-                        }
                     }
-                });
+                } catch (error) {
+                    console.error('Error checking notifications:', error);
+                }
             }
             
-            // Check for renewal reminders
-            async function checkRenewalReminders() {
-                const entries = await getAllEntries();
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                
-                entries.forEach(entry => {
-                    if (entry.end_date) {
-                        const endDate = new Date(entry.end_date);
-                        endDate.setHours(0, 0, 0, 0);
-                        
-                        // Calculate days until expiry
-                        const daysUntilExpiry = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
-                        
-                        // Create renewal reminders for long-term planning (3 months before)
-                        if (daysUntilExpiry === 90) {
-                            // Check if we haven't already created this reminder
-                            const reminderId = `renewal_reminder_${entry.id}`;
-                            if (!getNotificationById(reminderId)) {
-                                createNotification({
-                                    id: reminderId,
-                                    type: 'renewal_reminder',
-                                    title: 'Consider Renewal Planning',
-                                    message: `${entry.institution} agreement expires in 90 days - start renewal planning`,
-                                    entryId: entry.id,
-                                    priority: 'low',
-                                    timestamp: new Date().toISOString()
-                                });
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // Create a new notification
-            function createNotification(notification) {
-                const notifications = getNotifications();
-                
-                // Check if notification already exists
-                const existingIndex = notifications.findIndex(n => n.id === notification.id);
-                if (existingIndex !== -1) {
-                    // Update existing notification
-                    notifications[existingIndex] = notification;
-                } else {
-                    // Add new notification
-                    notifications.unshift(notification);
-                }
-                
-                // Keep only last 50 notifications
-                if (notifications.length > 50) {
-                    notifications.splice(50);
-                }
-                
-                localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+            // Load notifications from API
+            async function loadNotifications() {
+                try {
+                    const response = await fetch('api/notifications.php');
+                    const data = await response.json();
+                    if (data.notifications) {
+                        notifications = data.notifications;
+                        updateNotificationDisplay();
                 updateNotificationBadge();
             }
-            
-            // Get all notifications
-            function getNotifications() {
-                const notifications = localStorage.getItem(NOTIFICATIONS_KEY);
-                return notifications ? JSON.parse(notifications) : [];
-            }
-            
-            // Get notification by ID
-            function getNotificationById(id) {
-                const notifications = getNotifications();
-                return notifications.find(n => n.id === id);
-            }
-            
-            // Mark notification as read
-            function markNotificationAsRead(id) {
-                const notifications = getNotifications();
-                const notification = notifications.find(n => n.id === id);
-                if (notification) {
-                    notification.read = true;
-                    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
-                    updateNotificationBadge();
-                    updateNotificationDisplay();
+                } catch (error) {
+                    console.error('Error loading notifications:', error);
                 }
             }
             
-            // Mark all notifications as read
-            function markAllNotificationsAsRead() {
-                const notifications = getNotifications();
-                notifications.forEach(notification => {
-                    notification.read = true;
-                });
-                localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
-                updateNotificationBadge();
-                updateNotificationDisplay();
-            }
-            
-            // Update notification badge
-            function updateNotificationBadge() {
-                const notifications = getNotifications();
-                const unreadCount = notifications.filter(n => !n.read).length;
-                
-                if (unreadCount > 0) {
-                    notificationBadge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+            // Get unread count
+            async function updateNotificationBadge() {
+                try {
+                    const response = await fetch('api/notifications.php?action=count');
+                    const data = await response.json();
+                    const count = data.count || 0;
+                    
+                    if (notificationBadge) {
+                        if (count > 0) {
+                            notificationBadge.textContent = count > 99 ? '99+' : count;
                     notificationBadge.classList.remove('hidden');
                 } else {
                     notificationBadge.classList.add('hidden');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error updating notification badge:', error);
                 }
             }
             
             // Update notification display
             function updateNotificationDisplay() {
-                const notifications = getNotifications();
+                if (!notificationList) return;
                 
                 if (notifications.length === 0) {
+                    if (noNotifications) {
                     noNotifications.classList.remove('hidden');
+                    }
+                    notificationList.innerHTML = '';
                     return;
                 }
                 
+                if (noNotifications) {
                 noNotifications.classList.add('hidden');
+                }
                 
-                // Sort notifications by priority and timestamp
-                const sortedNotifications = notifications.sort((a, b) => {
-                    const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-                    if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-                        return priorityOrder[b.priority] - priorityOrder[a.priority];
-                    }
-                    return new Date(b.timestamp) - new Date(a.timestamp);
-                });
-                
-                // Display only recent notifications (last 10)
-                const recentNotifications = sortedNotifications.slice(0, 10);
-                
-                notificationList.innerHTML = recentNotifications.map(notification => {
-                    const timeAgo = getTimeAgo(new Date(notification.timestamp));
-                    const priorityColor = getPriorityColor(notification.priority);
-                    const readClass = notification.read ? 'opacity-60' : '';
+                notificationList.innerHTML = notifications.map(notif => {
+                    const timeAgo = getTimeAgo(notif.created_at);
+                    const icon = getNotificationIcon(notif.type);
+                    const bgColor = getNotificationBgColor(notif.type);
                     
                     return `
-                        <div class="notification-item p-4 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer ${readClass}" data-id="${notification.id}">
+                        <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${notif.is_read ? 'opacity-60' : ''}" 
+                             data-id="${notif.id}" 
+                             onclick="markNotificationAsRead(${notif.id})">
                             <div class="flex items-start gap-3">
-                                <div class="flex-shrink-0">
-                                    <div class="w-8 h-8 rounded-full flex items-center justify-center ${priorityColor}">
-                                        <span class="material-symbols-outlined text-white text-sm">
-                                            ${getNotificationIcon(notification.type)}
-                                        </span>
-                                    </div>
+                                <div class="flex-shrink-0 w-10 h-10 rounded-full ${bgColor} flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-white text-lg">${icon}</span>
                                 </div>
                                 <div class="flex-1 min-w-0">
-                                    <div class="flex items-center justify-between">
-                                        <h4 class="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                            ${notification.title}
-                                        </h4>
-                                        <span class="text-xs text-gray-500 dark:text-gray-400">${timeAgo}</span>
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white">${escapeHtml(notif.title)}</p>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${escapeHtml(notif.message)}</p>
+                                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${timeAgo}</p>
                                     </div>
-                                    <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                                        ${notification.message}
-                                    </p>
-                                </div>
-                                ${!notification.read ? '<div class="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2"></div>' : ''}
+                                ${!notif.is_read ? '<div class="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>' : ''}
                             </div>
                         </div>
                     `;
                 }).join('');
-                
-                // Add click handlers to notification items
-                document.querySelectorAll('.notification-item').forEach(item => {
-                    item.addEventListener('click', function() {
-                        const notificationId = this.dataset.id;
-                        markNotificationAsRead(notificationId);
-                        
-                        // Could navigate to the specific MOU/MOA entry
-                        const notification = getNotificationById(notificationId);
-                        if (notification && notification.entryId) {
-                            // Scroll to the entry in the table or highlight it
-                            highlightEntry(notification.entryId);
-                        }
+            }
+            
+            // Mark notification as read
+            window.markNotificationAsRead = async function(id) {
+                try {
+                    const response = await fetch(`api/notifications.php?id=${id}`, {
+                        method: 'PUT'
                     });
-                });
-            }
-            
-            // Get priority color
-            function getPriorityColor(priority) {
-                switch (priority) {
-                    case 'critical': return 'bg-red-600';
-                    case 'high': return 'bg-red-500';
-                    case 'medium': return 'bg-yellow-500';
-                    case 'low': return 'bg-blue-500';
-                    default: return 'bg-gray-500';
+                    const data = await response.json();
+                    if (data.success) {
+                        const notif = notifications.find(n => n.id === id);
+                        if (notif) {
+                            notif.is_read = true;
+                            updateNotificationDisplay();
+                            updateNotificationBadge();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error marking notification as read:', error);
                 }
+            };
+            
+            // Mark all notifications as read
+            function markAllNotificationsAsRead() {
+                (async () => {
+                    try {
+                        const response = await fetch('api/notifications.php', {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ action: 'mark_all_read' })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            notifications.forEach(n => n.is_read = true);
+                            updateNotificationDisplay();
+                            updateNotificationBadge();
+                        }
+                    } catch (error) {
+                        console.error('Error marking all as read:', error);
+                    }
+                })();
             }
             
-            // Get notification icon
-            function getNotificationIcon(type) {
-                switch (type) {
-                    case 'expired_critical': return 'error';
-                    case 'expires_today': return 'warning';
-                    case 'critical_expires_soon': return 'warning';
-                    case 'expires_soon': return 'schedule';
-                    case 'renewal_reminder': return 'refresh';
-                    default: return 'info';
-                }
+            // Helper functions
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
             }
             
-            // Get time ago string
-            function getTimeAgo(date) {
+            function getTimeAgo(dateString) {
+                const date = new Date(dateString);
                 const now = new Date();
                 const diffInSeconds = Math.floor((now - date) / 1000);
                 
                 if (diffInSeconds < 60) return 'Just now';
                 if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
                 if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-                if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+                if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
                 return date.toLocaleDateString();
+            }
+            
+            function getNotificationIcon(type) {
+                const icons = {
+                    'mou_expiring': 'schedule',
+                    'mou_expired': 'warning',
+                    'event_upcoming': 'event',
+                    'event_today': 'today',
+                    'system': 'info'
+                };
+                return icons[type] || 'notifications';
+            }
+            
+            function getNotificationBgColor(type) {
+                const colors = {
+                    'mou_expiring': 'bg-yellow-500',
+                    'mou_expired': 'bg-red-500',
+                    'event_upcoming': 'bg-blue-500',
+                    'event_today': 'bg-green-500',
+                    'system': 'bg-gray-500'
+                };
+                return colors[type] || 'bg-gray-500';
             }
             
             // Highlight entry in table
@@ -3550,28 +3412,28 @@ try {
                 }
             }
             
-            // Make functions globally accessible
-            window.checkExpiryAlerts = checkExpiryAlerts;
-            window.checkRenewalReminders = checkRenewalReminders;
-            window.updateNotificationBadge = updateNotificationBadge;
+            // Initialize: Check for notifications and load them
+            (async function() {
+                await checkNotifications();
+                await updateNotificationBadge();
+                
+                // Refresh notifications every 5 minutes
+                setInterval(() => {
+                    checkNotifications();
+                    updateNotificationBadge();
+                }, 5 * 60 * 1000);
+            })();
             
-            // Show all notifications modal
+            // Show all notifications modal - simplified version
             function showAllNotificationsModal() {
-                // Create modal if it doesn't exist
-                let allNotificationsModal = document.getElementById('allNotificationsModal');
-                if (!allNotificationsModal) {
-                    createAllNotificationsModal();
-                    allNotificationsModal = document.getElementById('allNotificationsModal');
+                // For now, just open the dropdown to show all notifications
+                // The API-based system already shows all notifications in the dropdown
+                if (!notificationDropdown.classList.contains('hidden')) {
+                    notificationDropdown.classList.add('hidden');
+                } else {
+                    loadNotifications();
+                    notificationDropdown.classList.remove('hidden');
                 }
-                
-                // Update modal content
-                updateAllNotificationsModal();
-                
-                // Show modal
-                allNotificationsModal.classList.remove('hidden');
-                
-                // Close the dropdown
-                notificationDropdown.classList.add('hidden');
             }
             
             // Create the all notifications modal
