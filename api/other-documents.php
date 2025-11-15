@@ -2,7 +2,7 @@
 /**
  * Other Documents Management API
  * Handles CRUD operations for other documents with file uploads
- * Admin-only access
+ * All authenticated users have full access
  */
 
 // Start output buffering to catch any unexpected output
@@ -32,7 +32,7 @@ if (!isset($_SESSION['user_id'])) {
 
 $userId = $_SESSION['user_id'];
 
-// Verify admin role from database
+// Get database connection
 try {
     $pdo = getDatabaseConnection();
 
@@ -41,23 +41,14 @@ try {
         echo json_encode(['success' => false, 'error' => 'MySQL database required for documents management']);
         exit();
     }
-
-    $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
-    $stmt->execute([$userId]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    $isAdmin = ($user && $user['role'] === 'admin');
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Database connection failed: ' . $e->getMessage()]);
     exit();
 }
 
-// Admin-only access
-if (!$isAdmin) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'error' => 'Admin access required']);
-    exit();
-}
+// Allow all authenticated users to access documents API
+// Removed admin-only restriction - all authenticated users have full CRUD access
 
 // Handle file upload
 function handleFileUpload($file) {

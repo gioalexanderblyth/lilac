@@ -205,33 +205,53 @@ try {
         exit();
     }
 
-    // DELETE: Delete schedule
-    if ($method === 'DELETE' && $action === 'delete' && $id > 0) {
-        // Check if schedule exists and user has permission
-        $stmt = $pdo->prepare("SELECT user_id FROM schedules WHERE id = ?");
+    // DELETE: Delete schedule (all authenticated users can delete any schedule)
+    // Accept DELETE with either ?action=delete&id=X or just ?id=X
+    if ($method === 'DELETE' && $id > 0) {
+        error_log("DELETE schedule request: method=$method, id=$id, action=$action, userId=$userId");
+        
+        // Check if schedule exists
+        $stmt = $pdo->prepare("SELECT id, user_id FROM schedules WHERE id = ?");
         $stmt->execute([$id]);
         $schedule = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$schedule) {
+            error_log("DELETE schedule failed: Schedule not found with id=$id");
             http_response_code(404);
             echo json_encode(['success' => false, 'error' => 'Schedule not found']);
             exit();
         }
 
-        // User can only delete their own schedules (unless admin)
-        if (!$isAdmin && $schedule['user_id'] != $userId) {
-            http_response_code(403);
-            echo json_encode(['success' => false, 'error' => 'Permission denied']);
-            exit();
-        }
+        // Allow all authenticated users to delete schedules (removed permission check)
+        error_log("DELETE schedule proceeding: Deleting schedule id=$id");
 
         $stmt = $pdo->prepare("DELETE FROM schedules WHERE id = ?");
         $stmt->execute([$id]);
+        
+        $rowsAffected = $stmt->rowCount();
+        error_log("DELETE schedule result: rows_affected=$rowsAffected for schedule id=$id");
 
-        echo json_encode([
-            'success' => true,
-            'message' => 'Schedule deleted successfully'
-        ]);
+        if ($rowsAffected > 0) {
+            echo json_encode([
+                'success' => true,
+                'message' => 'Schedule deleted successfully',
+                'rows_affected' => $rowsAffected
+            ]);
+        } else {
+            echo json_encode([
+                'success' => true,
+                'message' => 'Schedule deleted successfully (or already deleted)',
+                'rows_affected' => $rowsAffected
+            ]);
+        }
+        exit();
+    }
+    
+    // If DELETE method but no id or id is 0, return error
+    if ($method === 'DELETE') {
+        error_log("DELETE schedule request failed: method=$method, id=$id (invalid id)");
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid schedule ID']);
         exit();
     }
 

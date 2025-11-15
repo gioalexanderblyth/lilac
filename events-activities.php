@@ -1222,13 +1222,32 @@ No notifications yet
                 return new Date(dateString);
             }
 
-            // Function to load existing events from localStorage
+            // Function to load existing events from database (via in-memory data)
             function loadUpcomingEvents() {
-                const savedEvents = JSON.parse(localStorage.getItem('upcomingEvents') || '[]');
-                console.log('loadUpcomingEvents - savedEvents from localStorage:', savedEvents);
+                // Use in-memory events if available, otherwise fetch from database
+                if (window.currentEvents) {
+                    loadUpcomingEventsFromData(window.currentEvents);
+                    return;
+                }
+                // If no in-memory data, fetch from database
+                if (typeof loadEventsFromDatabase === 'function') {
+                    loadEventsFromDatabase();
+                    return;
+                }
+                // Fallback: show empty state
+                const upcomingEventsContainer = document.getElementById('upcomingEventsContainer');
+                if (upcomingEventsContainer) {
+                    upcomingEventsContainer.innerHTML = '<div class="col-span-3 text-center text-text-muted-light dark:text-text-muted-dark py-6">No upcoming events yet.</div>';
+                }
+            }
+            
+            // Helper function to load upcoming events from data array
+            function loadUpcomingEventsFromData(events) {
+                const savedEvents = Array.isArray(events) ? events : [];
+                console.log('loadUpcomingEventsFromData - events:', savedEvents);
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                console.log('loadUpcomingEvents - today date:', today.toISOString().split('T')[0]);
+                console.log('loadUpcomingEventsFromData - today date:', today.toISOString().split('T')[0]);
                 const futureEvents = savedEvents
                     .filter(event => {
                         const eventDate = parseDateOnly(event.date);
@@ -1238,14 +1257,14 @@ No notifications yet
                     })
                     .sort((a, b) => new Date(a.date) - new Date(b.date))
                     .slice(0, 3);
-                console.log('loadUpcomingEvents - futureEvents after filtering:', futureEvents);
+                console.log('loadUpcomingEventsFromData - futureEvents after filtering:', futureEvents);
                 const upcomingSection = document.getElementById('upcomingEventsSection');
                 const upcomingEventsContainer = document.getElementById('upcomingEventsContainer');
                 if (!upcomingEventsContainer) return;
                 // Always clear any static/demo content
                 upcomingEventsContainer.innerHTML = '';
                 if (futureEvents.length === 0) {
-                    // Show empty state without clearing saved past events (needed for Completed section)
+                    // Show empty state
                     const empty = document.createElement('div');
                     empty.className = 'col-span-3 text-center text-text-muted-light dark:text-text-muted-dark py-6';
                     empty.textContent = 'No upcoming events yet.';
@@ -1258,15 +1277,27 @@ No notifications yet
                 futureEvents.forEach(event => addEventToUpcomingSection(event));
             }
 
-            // Function to load completed events (past events)
+            // Function to load completed events (past events) from database
             function loadCompletedEvents() {
-                // Load and sanitize local events to remove any seeded demo/test items
-                let savedEvents = JSON.parse(localStorage.getItem('upcomingEvents') || '[]');
-                const sanitized = savedEvents.filter(ev => !/\btest\b/i.test((ev.title || '')));
-                if (sanitized.length !== savedEvents.length) {
-                    savedEvents = sanitized;
-                    localStorage.setItem('upcomingEvents', JSON.stringify(savedEvents));
+                // Use in-memory events if available, otherwise fetch from database
+                if (window.currentEvents) {
+                    loadCompletedEventsFromData(window.currentEvents);
+                    return;
                 }
+                // If no in-memory data, fetch from database
+                if (typeof loadEventsFromDatabase === 'function') {
+                    loadEventsFromDatabase();
+                    return;
+                }
+            }
+            
+            // Helper function to load completed events from data array
+            function loadCompletedEventsFromData(events) {
+                let savedEvents = Array.isArray(events) ? events : [];
+                // Sanitize events to remove any seeded demo/test items
+                const sanitized = savedEvents.filter(ev => !/\btest\b/i.test((ev.title || '')));
+                savedEvents = sanitized;
+                
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 
@@ -1275,13 +1306,6 @@ No notifications yet
                     .filter(event => parseDateOnly(event.date) < today)
                     .sort((a, b) => new Date(b.date) - new Date(a.date))
                     .slice(0, 6); // Show up to 6 completed events
-                // If storage has stale items but both past and future are empty, purge storage once
-                try {
-                    const hasFuture = Array.isArray(savedEvents) && savedEvents.some(e => parseDateOnly(e.date) >= today);
-                    if ((!pastEvents || pastEvents.length === 0) && !hasFuture && Array.isArray(savedEvents) && savedEvents.length > 0) {
-                        localStorage.setItem('upcomingEvents', JSON.stringify([]));
-                    }
-                } catch {}
                 
                 const completedSection = document.getElementById('completedEventsSection');
                 const completedEventsContainer = document.getElementById('completedEventsContainer');
@@ -1348,7 +1372,8 @@ No notifications yet
                 const scheduledEventsTitle = document.getElementById('scheduledEventsTitle');
                 if (!todayEventsContainer) return;
                 
-                const savedEvents = JSON.parse(localStorage.getItem('upcomingEvents') || '[]');
+                // Use in-memory events from database (single source of truth)
+                const savedEvents = window.currentEvents || [];
                 const eventsForDate = savedEvents.filter(event => event.date === dateString).slice(0, 5);
                 
                 // Clear container
@@ -1477,16 +1502,16 @@ No notifications yet
 
                         console.log('✅ Converted events:', convertedEvents);
 
-                        // On localhost with PHP server, database is the source of truth
-                        // Replace localStorage entirely with database data
-                        localStorage.setItem('upcomingEvents', JSON.stringify(convertedEvents));
-                        console.log('✅ Saved database events to localStorage (database is source of truth)');
-                        console.log('✅ Total events to display:', convertedEvents.length);
+                        // Database is the single source of truth - no localStorage needed
+                        console.log('✅ Total events loaded from database:', convertedEvents.length);
                         
-                        // Reload the UI with database events
-                        loadUpcomingEvents();
-                        loadTodayEvents();
-                        loadCompletedEvents();
+                        // Store events in memory for UI functions (not localStorage)
+                        window.currentEvents = convertedEvents;
+                        
+                        // Reload the UI with database events directly
+                        loadUpcomingEventsFromData(convertedEvents);
+                        loadTodayEventsFromData(convertedEvents);
+                        loadCompletedEventsFromData(convertedEvents);
                         
                         // Refresh calendar if function exists
                         if (typeof window.renderCalendar === 'function') {
@@ -2160,20 +2185,29 @@ Current mode: localStorage only (events will persist in browser)
                 modal.classList.remove('hidden'); modal.classList.add('flex');
                 try {
                     const res = await fetch(`api/events.php?id=${id}`);
-                    const itm = await res.json();
-                    if (!res.ok || itm.error) throw new Error('Fetch failed');
+                    const result = await res.json();
+                    if (!res.ok || !result.success || result.error) {
+                        throw new Error(result.error || 'Fetch failed');
+                    }
+                    
+                    // Extract event object from API response
+                    const itm = result.event || result;
+                    const eventId = itm.id || id;
+                    
+                    console.log('Event details loaded:', { result, itm, eventId });
+                    
                     body.innerHTML = `
                       <div class="flex items-start gap-4">
                         <img src="${itm.image_url || itm.thumbnail_url || 'https://via.placeholder.com/120x80?text=img'}" class="w-28 h-20 object-cover rounded" alt="Event image"/>
                         <div>
-                          <h4 class="text-lg font-bold">${itm.title.toUpperCase()}</h4>
-                          <p class="text-xs text-text-muted-light dark:text-text-muted-dark"><span class="material-symbols-outlined text-xs align-middle">location_on</span> ${itm.location}</p>
+                          <h4 class="text-lg font-bold">${(itm.title || '').toUpperCase()}</h4>
+                          <p class="text-xs text-text-muted-light dark:text-text-muted-dark"><span class="material-symbols-outlined text-xs align-middle">location_on</span> ${itm.location || ''}</p>
                         </div>
                       </div>
                       <div class="grid grid-cols-2 gap-3">
-                        <div><span class="text-text-muted-light dark:text-text-muted-dark">Start</span><p class="font-semibold">${itm.start_time}</p></div>
-                        <div><span class="text-text-muted-light dark:text-text-muted-dark">End</span><p class="font-semibold">${itm.end_time}</p></div>
-                        <div><span class="text-text-muted-light dark:text-text-muted-dark">Date</span><p class="font-semibold">${new Date(itm.date).toLocaleDateString()}</p></div>
+                        <div><span class="text-text-muted-light dark:text-text-muted-dark">Start</span><p class="font-semibold">${itm.start_time || ''}</p></div>
+                        <div><span class="text-text-muted-light dark:text-text-muted-dark">End</span><p class="font-semibold">${itm.end_time || ''}</p></div>
+                        <div><span class="text-text-muted-light dark:text-text-muted-dark">Date</span><p class="font-semibold">${itm.event_date || itm.date ? new Date(itm.event_date || itm.date).toLocaleDateString() : ''}</p></div>
                         <div><span class="text-text-muted-light dark:text-text-muted-dark">Eligible</span><p class="font-semibold">${itm.eligible_for_awards ? 'Yes' : 'No'}</p></div>
                       </div>
                       <div class="mt-2 text-xs text-text-muted-light dark:text-text-muted-dark">Awards eligibility details will appear on the Awards page.</div>`;
@@ -2183,23 +2217,47 @@ Current mode: localStorage only (events will persist in browser)
                             const ok = confirm('Delete this event? This cannot be undone.');
                             if (!ok) return;
                             try {
-                    const resp = await fetch(`api/events.php?id=${itm.id}`, { method: 'DELETE' });
-                                const j = await resp.json().catch(()=>({}));
-                                if (!resp.ok || j.error) throw new Error(j.error||'Delete failed');
+                                console.log('Attempting to delete event with ID:', eventId);
+                                const resp = await fetch(`api/events.php?id=${encodeURIComponent(eventId)}`, { 
+                                    method: 'DELETE',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    }
+                                });
+                                
+                                console.log('Delete response status:', resp.status);
+                                const responseText = await resp.text();
+                                console.log('Delete response text:', responseText);
+                                
+                                let j;
+                                try {
+                                    j = JSON.parse(responseText);
+                                } catch (e) {
+                                    console.error('Failed to parse JSON response:', e);
+                                    throw new Error('Server returned invalid response. Check console for details.');
+                                }
+                                
+                                console.log('Delete result:', j);
+                                
+                                if (!resp.ok || j.error || !j.success) {
+                                    throw new Error(j.error || j.message || 'Delete failed');
+                                }
+                                
                                 closeDetailsModal();
-                                // Refresh sections fed by events
+                                
+                                // Reload directly from database (single source of truth)
+                                // No localStorage manipulation - database is authoritative
                                 if (typeof loadEventsFromDatabase === 'function') {
-                                    loadEventsFromDatabase();
+                                    await loadEventsFromDatabase();
                                 } else if (typeof loadTodayEvents === 'function') {
                                     loadTodayEvents();
+                                } else {
+                                    // Fallback: reload page
+                                    window.location.reload();
                                 }
                             } catch (err) {
-                                // Offer local removal as fallback
-                                const proceedLocal = confirm('Server delete failed. Remove this event locally from the page?');
-                                if (proceedLocal) {
-                                    removeEventLocally(itm);
-                                    closeDetailsModal();
-                                }
+                                console.error('Delete error:', err);
+                                alert('Error deleting event: ' + err.message);
                             }
                         };
                     }
@@ -2778,8 +2836,10 @@ Current mode: localStorage only (events will persist in browser)
             }
 
             function checkForEvents(year, month, day) {
-                // Check if this date has any scheduled events (including today)
-                const savedEvents = JSON.parse(localStorage.getItem('upcomingEvents') || '[]');
+                // Check if this date has any scheduled events from database (single source of truth)
+                // Use in-memory events from database, not localStorage
+                const savedEvents = window.currentEvents || [];
+                
                 // Build local date string to avoid timezone shifts
                 const y = String(year);
                 const m = String(month + 1).padStart(2, '0');
@@ -2941,25 +3001,58 @@ window.loadEvents = async function() {
 };
 
 window.deleteEvent = async function(eventId) {
+    if (!eventId) {
+        alert('Error: Event ID is missing');
+        return;
+    }
+    
     if (!confirm('Are you sure you want to delete this event?')) return;
 
+    console.log('Attempting to delete event with ID:', eventId);
+    
     try {
-        const response = await fetch(API_BASE + '?action=delete&id=' + eventId, {
+        const response = await fetch(`api/events.php?id=${encodeURIComponent(eventId)}`, {
             method: 'DELETE',
             headers: {
-                'Authorization': 'Bearer ' + AUTH_TOKEN
+                'Content-Type': 'application/json'
             }
         });
 
-        const result = await response.json();
+        console.log('Delete response status:', response.status);
+        const responseText = await response.text();
+        console.log('Delete response text:', responseText);
+        
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            console.error('Failed to parse JSON response:', e);
+            alert('Error: Server returned invalid response. Check console for details.');
+            return;
+        }
+        
+        console.log('Delete result:', result);
 
         if (result.success) {
             alert('✓ Event deleted successfully');
-            if (typeof loadEvents === 'function') loadEvents();
+            
+            // Reload directly from database (single source of truth)
+            // No localStorage manipulation - database is authoritative
+            if (typeof loadEvents === 'function') {
+                await loadEvents();
+            } else if (typeof loadEventsFromDatabase === 'function') {
+                await loadEventsFromDatabase();
+            } else {
+                // Fallback: reload page
+                window.location.reload();
+            }
         } else {
-            alert('✗ Error: ' + (result.error || 'Delete failed'));
+            const errorMsg = result.error || result.message || 'Delete failed';
+            console.error('Delete failed:', errorMsg);
+            alert('✗ Error: ' + errorMsg);
         }
     } catch (error) {
+        console.error('Error deleting event:', error);
         alert('✗ Error: ' + error.message);
     }
 };
@@ -3062,29 +3155,56 @@ document.addEventListener('click', async function(e) {
     // Delete Event
     if (target.classList.contains('delete-event-btn')) {
         const eventId = target.dataset.eventId;
+        if (!eventId) {
+            alert('Error: Event ID is missing');
+            return;
+        }
+        
         if (!confirm('Are you sure you want to permanently delete this event?')) return;
 
+        console.log('Attempting to delete event with ID:', eventId);
+        
         try {
-            const response = await fetch(`api/events.php?id=${eventId}`, {
-                method: 'DELETE'
+            const response = await fetch(`api/events.php?id=${encodeURIComponent(eventId)}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             });
 
-            const result = await response.json();
+            console.log('Delete response status:', response.status);
+            const responseText = await response.text();
+            console.log('Delete response text:', responseText);
+            
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (e) {
+                console.error('Failed to parse JSON response:', e);
+                alert('Error: Server returned invalid response. Check console for details.');
+                return;
+            }
+            
+            console.log('Delete result:', result);
+            
             if (result.success) {
                 alert('Event deleted successfully');
-                // Remove from localStorage
-                const savedEvents = JSON.parse(localStorage.getItem('upcomingEvents') || '[]');
-                const filtered = savedEvents.filter(e => e.id != eventId);
-                localStorage.setItem('upcomingEvents', JSON.stringify(filtered));
-
-                // Reload events
+                
+                // Reload directly from database (single source of truth)
+                // No localStorage manipulation - database is authoritative
                 if (typeof loadEventsFromDatabase === 'function') {
                     await loadEventsFromDatabase();
+                } else {
+                    // Fallback: reload page if function doesn't exist
+                    window.location.reload();
                 }
             } else {
-                alert('Error: ' + (result.error || 'Failed to delete event'));
+                const errorMsg = result.error || result.message || 'Failed to delete event';
+                console.error('Delete failed:', errorMsg);
+                alert('Error: ' + errorMsg);
             }
         } catch (error) {
+            console.error('Error deleting event:', error);
             alert('Error deleting event: ' + error.message);
         }
     }

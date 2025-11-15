@@ -40,6 +40,11 @@ try {
     $method = $_SERVER['REQUEST_METHOD'];
     $action = $_GET['action'] ?? 'list';
     $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+    
+    // Debug logging for DELETE requests
+    if ($method === 'DELETE') {
+        error_log("DELETE API call: method=$method, id=$id, action=$action, userId=$userId, isAdmin=" . ($isAdmin ? 'true' : 'false'));
+    }
 
     // GET: List all events (admin sees all, user sees only their own)
     if ($method === 'GET' && $action === 'list') {
@@ -111,7 +116,7 @@ try {
         exit();
     }
 
-    // GET: Get specific event details
+    // GET: Get specific event details (all authenticated users can view any event)
     if ($method === 'GET' && $id > 0) {
         $stmt = $pdo->prepare("
             SELECT
@@ -131,13 +136,7 @@ try {
             exit();
         }
 
-        // Check permission (users can only view their own events unless admin)
-        if (!$isAdmin && $event['user_id'] != $userId) {
-            http_response_code(403);
-            echo json_encode(['success' => false, 'error' => 'Access denied']);
-            exit();
-        }
-
+        // Allow all authenticated users to view any event (removed permission check)
         echo json_encode(['success' => true, 'event' => $event]);
         exit();
     }
@@ -197,31 +196,48 @@ try {
         exit();
     }
 
-    // DELETE: Delete event (admin only, or user can delete their own)
+    // DELETE: Delete event (all authenticated users can delete any event)
     if ($method === 'DELETE' && $id > 0) {
-        // Check if event exists and get owner
-        $stmt = $pdo->prepare("SELECT user_id FROM events WHERE id = ?");
+        // Log the delete attempt for debugging
+        error_log("DELETE request received: method=$method, id=$id, userId=$userId");
+        
+        // Check if event exists
+        $stmt = $pdo->prepare("SELECT id, user_id FROM events WHERE id = ?");
         $stmt->execute([$id]);
         $event = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$event) {
+            error_log("DELETE failed: Event not found with id=$id");
             http_response_code(404);
             echo json_encode(['success' => false, 'error' => 'Event not found']);
             exit();
         }
 
-        // Check permission
-        if (!$isAdmin && $event['user_id'] != $userId) {
-            http_response_code(403);
-            echo json_encode(['success' => false, 'error' => 'Access denied']);
-            exit();
-        }
+        // Allow all authenticated users to delete events (removed permission check)
+        error_log("DELETE proceeding: Deleting event id=$id");
 
         // Delete event
         $stmt = $pdo->prepare("DELETE FROM events WHERE id = ?");
         $stmt->execute([$id]);
-
-        echo json_encode(['success' => true, 'message' => 'Event deleted successfully']);
+        
+        // Check if deletion was successful
+        $rowsAffected = $stmt->rowCount();
+        error_log("DELETE result: rows_affected=$rowsAffected for event id=$id");
+        
+        if ($rowsAffected > 0) {
+            echo json_encode(['success' => true, 'message' => 'Event deleted successfully', 'rows_affected' => $rowsAffected]);
+        } else {
+            // Event might have already been deleted, but still return success
+            echo json_encode(['success' => true, 'message' => 'Event deleted successfully (or already deleted)', 'rows_affected' => $rowsAffected]);
+        }
+        exit();
+    }
+    
+    // If DELETE method but no id or id is 0, return error
+    if ($method === 'DELETE') {
+        error_log("DELETE request failed: method=$method, id=$id (invalid id)");
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid event ID']);
         exit();
     }
 

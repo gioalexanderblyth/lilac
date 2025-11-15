@@ -1271,8 +1271,10 @@ try {
  
  <script>
 // Global variables to track calendar dates
-let currentCalendarDate = new Date(2025, 9, 1); // October 2025 - Main calendar & modal
-let sidebarCalendarDate = new Date(2025, 9, 1); // Sidebar mini calendar (independent when using its arrows)
+// Initialize calendar to current month/year (not hardcoded to October)
+const now = new Date();
+let currentCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Current month - Main calendar & modal
+let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Current month - Sidebar mini calendar (independent when using its arrows)
  
  function openCreateModal() {
     const overlay = document.getElementById('createModal');
@@ -1506,27 +1508,56 @@ window.saveEvent = function() {
          const dayNumber = dateNumber ? dateNumber[0] : '1';
          console.log('Day number:', dayNumber); // Debug log
          
-        // Parse date string to get proper date format (e.g., "Wednesday, 1 October 2025" -> "2025-10-01")
+        // Parse date string to get proper date format (e.g., "Friday, 15 November 2025" -> "2025-11-15")
+        // Format is: "DayName, Day MonthName Year" or "DayName, Day MonthName"
+        // Use manual formatting to avoid timezone conversion issues
         let scheduledDate = null;
         try {
-            // Try to parse the date string
-            const dateMatch = date.match(/(\d{1,2})\s+(\w+)(?:\s+(\d{4}))?/);
+            console.log('Original date string:', date); // Debug log
+            
+            // Remove day name prefix if present (e.g., "Friday, " or "Friday,")
+            let dateToParse = date.replace(/^[A-Za-z]+,\s*/i, '').trim();
+            console.log('Date after removing day name:', dateToParse); // Debug log
+            
+            // Parse the date: "15 November 2025" or "15 November"
+            const dateMatch = dateToParse.match(/^(\d{1,2})\s+(\w+)(?:\s+(\d{4}))?$/);
             if (dateMatch) {
                 const day = parseInt(dateMatch[1]);
                 const monthName = dateMatch[2];
                 const year = dateMatch[3] ? parseInt(dateMatch[3]) : currentCalendarDate.getFullYear();
                 
+                console.log('Date match found:', { day, monthName, year, currentYear: currentCalendarDate.getFullYear() }); // Debug log
+                
                 const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
                                   'july', 'august', 'september', 'october', 'november', 'december'];
-                const monthIndex = monthNames.findIndex(m => m.toLowerCase().startsWith(monthName.toLowerCase()));
+                const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthName.toLowerCase());
+                
+                console.log('Month index lookup:', { monthName: monthName.toLowerCase(), monthIndex }); // Debug log
                 
                 if (monthIndex !== -1) {
-                    const dateObj = new Date(year, monthIndex, day);
-                    scheduledDate = dateObj.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+                    // Format date directly as YYYY-MM-DD without timezone conversion
+                    // This avoids the issue where toISOString() converts to UTC and might shift the date
+                    const month = (monthIndex + 1).toString().padStart(2, '0');
+                    const dayStr = day.toString().padStart(2, '0');
+                    scheduledDate = `${year}-${month}-${dayStr}`; // Format: YYYY-MM-DD (no timezone conversion)
+                    
+                    console.log('✅ Successfully parsed date:', { dateString: date, parsedDate: dateToParse, year, monthIndex, month: monthIndex + 1, monthName, day, scheduledDate });
+                } else {
+                    console.error('❌ Month not found:', monthName);
                 }
+            } else {
+                console.error('❌ Date regex did not match:', dateToParse);
+                // Fallback: try to use currentCalendarDate
+                console.log('Attempting fallback with currentCalendarDate...');
+                const fallbackDate = currentCalendarDate;
+                const fallbackYear = fallbackDate.getFullYear();
+                const fallbackMonth = (fallbackDate.getMonth() + 1).toString().padStart(2, '0');
+                const fallbackDay = fallbackDate.getDate().toString().padStart(2, '0');
+                scheduledDate = `${fallbackYear}-${fallbackMonth}-${fallbackDay}`;
+                console.log('⚠️ Using fallback date:', scheduledDate);
             }
         } catch (e) {
-            console.error('Date parsing error:', e);
+            console.error('❌ Date parsing error:', e);
         }
          
         // Create or update event object
@@ -1632,6 +1663,8 @@ function renderEventsOnCalendar() {
    const displayMonth = currentCalendarDate.getMonth();
    const displayYear = currentCalendarDate.getFullYear();
    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+   
+   console.log('🔄 Rendering events on calendar. Display month/year:', displayMonth + 1, displayYear, 'Total events:', events.length);
      
    // Add events to their respective days (filtered by month/year)
    events.forEach(event => {
@@ -1646,10 +1679,24 @@ function renderEventsOnCalendar() {
            const yearMatch = (event.date || '').match(/\b(19|20)\d{2}\b/);
            eventYear = yearMatch ? parseInt(yearMatch[0]) : displayYear;
        }
+       
+       console.log('  Checking event:', { 
+           title: event.title, 
+           eventMonth: eventMonth + 1, 
+           eventYear, 
+           eventDayNumber: event.dayNumber,
+           displayMonth: displayMonth + 1, 
+           displayYear,
+           matches: eventMonth === displayMonth && eventYear === displayYear
+       });
+       
        // Skip events not in the currently displayed month/year
        if (eventMonth !== displayMonth || eventYear !== displayYear) {
+           console.log('  ⏭️ Skipping event (not in current month/year)');
            return;
        }
+       
+       console.log('  ✅ Event matches current month/year, rendering...');
 
        // Render in main calendar grid only
        mainDayCells.forEach(cell => {
@@ -2397,22 +2444,66 @@ function renderSidebarCalendar() {
         isEditingExisting = true;
         openCreateModal();
     });
-    // Delete current event
+    // Delete current event/schedule (use API, not localStorage)
     const detailDeleteBtn = document.getElementById('detailDeleteBtn');
-    if (detailDeleteBtn) detailDeleteBtn.addEventListener('click', () => {
+    if (detailDeleteBtn) detailDeleteBtn.addEventListener('click', async () => {
         if (currentOpenedEventId == null) return;
-        // Remove from events array
-        events = events.filter(ev => String(ev.id) !== String(currentOpenedEventId));
-        // Persist
-        localStorage.setItem('calendarEvents', JSON.stringify(events));
-        // Re-render
-        renderEventsOnCalendar();
-        renderMyEvents();
-        // Close modal
-        detailModal.classList.add('hidden');
-        detailModal.classList.remove('flex');
-        detailModal.style.display = 'none';
-        currentOpenedEventId = null;
+        
+        if (!confirm('Are you sure you want to delete this schedule?')) return;
+        
+        try {
+            console.log('Attempting to delete schedule with ID:', currentOpenedEventId);
+            
+            // Delete from database via API
+            const response = await fetch(API_BASE + '?id=' + encodeURIComponent(currentOpenedEventId), {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': 'Bearer ' + AUTH_TOKEN,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            console.log('Delete response status:', response.status);
+            const responseText = await response.text();
+            console.log('Delete response text:', responseText);
+            
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (e) {
+                console.error('Failed to parse JSON response:', e);
+                alert('Error: Server returned invalid response. Check console for details.');
+                return;
+            }
+            
+            console.log('Delete result:', result);
+            
+            if (result.success) {
+                alert('✓ Schedule deleted successfully');
+                
+                // Reload directly from database (single source of truth)
+                // No localStorage manipulation - database is authoritative
+                if (typeof loadSchedules === 'function') {
+                    await loadSchedules();
+                } else {
+                    // Fallback: reload page
+                    window.location.reload();
+                }
+                
+                // Close modal
+                detailModal.classList.add('hidden');
+                detailModal.classList.remove('flex');
+                detailModal.style.display = 'none';
+                currentOpenedEventId = null;
+            } else {
+                const errorMsg = result.error || result.message || 'Failed to delete schedule';
+                console.error('Delete failed:', errorMsg);
+                alert('✗ Error: ' + errorMsg);
+            }
+        } catch (error) {
+            console.error('Error deleting schedule:', error);
+            alert('✗ Error: ' + error.message);
+        }
     });
     if (detailModal) detailModal.addEventListener('click', (e) => {
         if (e.target === detailModal) {
@@ -2464,21 +2555,64 @@ function renderSidebarCalendar() {
    window.addEventListener('scroll', () => { ctxMenu.classList.add('hidden'); ctxMenu.style.display = 'none'; });
    window.addEventListener('resize', () => { ctxMenu.classList.add('hidden'); ctxMenu.style.display = 'none'; });
 
-   // Context menu actions
+   // Context menu actions - Delete (use API, not localStorage)
    const ctxDelete = document.getElementById('ctxDelete');
-   if (ctxDelete) ctxDelete.addEventListener('click', () => {
+   if (ctxDelete) ctxDelete.addEventListener('click', async () => {
        if (!ctxTargetEventId) return;
-       events = events.filter(ev => String(ev.id) !== String(ctxTargetEventId));
-       localStorage.setItem('calendarEvents', JSON.stringify(events));
-       renderEventsOnCalendar();
-      renderMyEvents();
-      // Also refresh day view if visible
-      const dayContainer = document.getElementById('dayCalendarContainer');
-      if (dayContainer && !dayContainer.classList.contains('hidden')) {
-          renderDayView(new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), parseInt(document.querySelector('button[onclick="toggleTimePicker()"]')?.textContent.match(/\b\d+\b/)?.[0] || '1')));
-      }
-       ctxMenu.classList.add('hidden');
-       ctxMenu.style.display = 'none';
+       
+       if (!confirm('Are you sure you want to delete this schedule?')) return;
+       
+       try {
+           console.log('Attempting to delete schedule with ID:', ctxTargetEventId);
+           
+           // Delete from database via API
+           const response = await fetch(API_BASE + '?id=' + encodeURIComponent(ctxTargetEventId), {
+               method: 'DELETE',
+               headers: {
+                   'Authorization': 'Bearer ' + AUTH_TOKEN,
+                   'Content-Type': 'application/json'
+               }
+           });
+           
+           console.log('Delete response status:', response.status);
+           const responseText = await response.text();
+           console.log('Delete response text:', responseText);
+           
+           let result;
+           try {
+               result = JSON.parse(responseText);
+           } catch (e) {
+               console.error('Failed to parse JSON response:', e);
+               alert('Error: Server returned invalid response. Check console for details.');
+               return;
+           }
+           
+           console.log('Delete result:', result);
+           
+           if (result.success) {
+               alert('✓ Schedule deleted successfully');
+               
+               // Reload directly from database (single source of truth)
+               // No localStorage manipulation - database is authoritative
+               if (typeof loadSchedules === 'function') {
+                   await loadSchedules();
+               } else {
+                   // Fallback: reload page
+                   window.location.reload();
+               }
+               
+               // Close context menu
+               ctxMenu.classList.add('hidden');
+               ctxMenu.style.display = 'none';
+           } else {
+               const errorMsg = result.error || result.message || 'Failed to delete schedule';
+               console.error('Delete failed:', errorMsg);
+               alert('✗ Error: ' + errorMsg);
+           }
+       } catch (error) {
+           console.error('Error deleting schedule:', error);
+           alert('✗ Error: ' + error.message);
+       }
    });
    // Color choices (apply and persist with tooltip names)
    ctxMenu.querySelectorAll('[data-color-choice]').forEach(btn => {
@@ -2627,8 +2761,76 @@ window.loadSchedules = async function() {
         const result = await response.json();
 
         if (result.success && result.schedules) {
+            console.log('✅ Loaded schedules from database:', result.schedules.length);
+            
+            // Update the events array with database schedules (database is single source of truth)
+            // Convert database schedules to calendar events format
+            // IMPORTANT: Parse date manually to avoid timezone conversion issues
+            const dbSchedules = result.schedules.map(schedule => {
+                // Parse date string manually (format: YYYY-MM-DD) to avoid timezone issues
+                // new Date("2025-11-15") interprets as UTC midnight, which can shift the date
+                const dateStr = schedule.scheduled_date; // e.g., "2025-11-15"
+                const dateParts = dateStr.split('-');
+                const year = parseInt(dateParts[0]);
+                const month = parseInt(dateParts[1]) - 1; // JavaScript months are 0-indexed
+                const day = parseInt(dateParts[2]);
+                
+                // Create a date object using local timezone (not UTC)
+                const scheduleDate = new Date(year, month, day);
+                
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                
+                const eventObj = {
+                    id: schedule.id, // Use database ID
+                    title: schedule.title,
+                    location: schedule.description || '',
+                    date: `${dayNames[scheduleDate.getDay()]}, ${day} ${monthNames[month]} ${year}`,
+                    dayNumber: day,
+                    month: month,
+                    year: year,
+                    time: schedule.scheduled_time || '',
+                    color: 'bg-blue-500', // Default color
+                    dbId: schedule.id // Store database ID for reference
+                };
+                
+                console.log('✅ Converted schedule to event:', { 
+                    id: schedule.id, 
+                    title: schedule.title,
+                    dateStr, 
+                    year, 
+                    month: month + 1, 
+                    day,
+                    eventMonth: month,
+                    eventYear: year,
+                    eventDayNumber: day,
+                    eventDate: eventObj.date
+                });
+                
+                return eventObj;
+            });
+            
+            console.log('✅ Total events after conversion:', dbSchedules.length);
+            console.log('✅ Events array:', dbSchedules);
+            
+            // Replace localStorage events with database schedules
+            events = dbSchedules;
+            localStorage.setItem('calendarEvents', JSON.stringify(events));
+            
+            console.log('✅ Events array updated, current calendar month/year:', currentCalendarDate.getMonth() + 1, currentCalendarDate.getFullYear());
+            
+            // Re-render calendar with database schedules
+            renderEventsOnCalendar();
+            renderMyEvents();
+            
+            // Also render in schedules container if it exists
             renderSchedules(result.schedules);
+            
+            console.log('✅ Calendar re-rendered with schedules');
+            
             return result.schedules;
+        } else {
+            console.error('❌ Failed to load schedules:', result);
         }
     } catch (error) {
         console.error('Load schedules error:', error);
@@ -2636,25 +2838,58 @@ window.loadSchedules = async function() {
 };
 
 window.deleteSchedule = async function(scheduleId) {
+    if (!scheduleId) {
+        alert('Error: Schedule ID is missing');
+        return;
+    }
+    
     if (!confirm('Are you sure you want to delete this schedule?')) return;
 
+    console.log('Attempting to delete schedule with ID:', scheduleId);
+    
     try {
-        const response = await fetch(API_BASE + '?action=delete&id=' + scheduleId, {
+        // Delete from database via API (accepts either ?action=delete&id=X or just ?id=X)
+        const response = await fetch(API_BASE + '?id=' + encodeURIComponent(scheduleId), {
             method: 'DELETE',
             headers: {
-                'Authorization': 'Bearer ' + AUTH_TOKEN
+                'Authorization': 'Bearer ' + AUTH_TOKEN,
+                'Content-Type': 'application/json'
             }
         });
 
-        const result = await response.json();
+        console.log('Delete response status:', response.status);
+        const responseText = await response.text();
+        console.log('Delete response text:', responseText);
+        
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            console.error('Failed to parse JSON response:', e);
+            alert('Error: Server returned invalid response. Check console for details.');
+            return;
+        }
+        
+        console.log('Delete result:', result);
 
         if (result.success) {
             alert('✓ Schedule deleted successfully');
-            if (typeof loadSchedules === 'function') loadSchedules();
+            
+            // Reload directly from database (single source of truth)
+            // No localStorage manipulation - database is authoritative
+            if (typeof loadSchedules === 'function') {
+                await loadSchedules();
+            } else {
+                // Fallback: reload page
+                window.location.reload();
+            }
         } else {
-            alert('✗ Error: ' + (result.error || 'Delete failed'));
+            const errorMsg = result.error || result.message || 'Failed to delete schedule';
+            console.error('Delete failed:', errorMsg);
+            alert('✗ Error: ' + errorMsg);
         }
     } catch (error) {
+        console.error('Error deleting schedule:', error);
         alert('✗ Error: ' + error.message);
     }
 };
@@ -2714,7 +2949,13 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+// Load schedules from database on page load (database is single source of truth)
+document.addEventListener('DOMContentLoaded', async function() {
+    // Load schedules from database first to populate calendar
+    if (typeof loadSchedules === 'function') {
+        await loadSchedules();
+    }
+    
     try {
         const profile = JSON.parse(localStorage.getItem('lilac_profile'));
         if (profile && profile.avatar) {
