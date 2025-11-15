@@ -1279,20 +1279,14 @@ let sidebarCalendarDate = new Date(2025, 9, 1); // Sidebar mini calendar (indepe
     overlay.classList.remove('hidden');
     const card = document.getElementById('createModalCard');
     if (card) {
-        // Try to restore saved position if available
-        const saved = JSON.parse(localStorage.getItem('createModalPos') || 'null');
-        if (saved && typeof saved.left === 'number' && typeof saved.top === 'number') {
-            card.style.position = 'absolute';
-            card.style.left = `${saved.left}px`;
-            card.style.top = `${saved.top}px`;
-            card.style.transform = 'none';
-        } else {
-            // Default center
-            card.style.position = '';
-            card.style.left = '';
-            card.style.top = '';
-            card.style.transform = '';
-        }
+        // Always center the modal
+        card.style.position = '';
+        card.style.left = '';
+        card.style.top = '';
+        card.style.transform = '';
+        card.style.margin = 'auto';
+        // Clear saved position to ensure it stays centered
+        localStorage.removeItem('createModalPos');
     }
  }
  
@@ -1300,6 +1294,15 @@ let sidebarCalendarDate = new Date(2025, 9, 1); // Sidebar mini calendar (indepe
     const overlay = document.getElementById('createModal');
     overlay.classList.add('hidden');
     overlay.classList.remove('dragging');
+    const card = document.getElementById('createModalCard');
+    if (card) {
+        // Reset position to center for next open
+        card.style.position = '';
+        card.style.left = '';
+        card.style.top = '';
+        card.style.transform = '';
+        card.style.margin = '';
+    }
  }
  
  let currentTimeType = 'start'; // Track which time button was clicked
@@ -2350,10 +2353,8 @@ function renderSidebarCalendar() {
             isDragging = false;
             createOverlay.classList.remove('dragging');
             document.removeEventListener('mousemove', onMouseMove);
-            // Persist final position
-            const rect = createCard.getBoundingClientRect();
-            const saved = { left: rect.left, top: rect.top + window.scrollY };
-            localStorage.setItem('createModalPos', JSON.stringify(saved));
+            // Don't persist position - always reset to center on next open
+            // This ensures the modal is always centered when opened
         }
 
         createHeader.addEventListener('mousedown', onMouseDown);

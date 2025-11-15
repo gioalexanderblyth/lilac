@@ -44,11 +44,8 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['token']) || $_SESSION['tok
 $user = $_SESSION['user'];
 $isAdmin = $user['role'] === 'admin';
 
-if (!$isAdmin) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'error' => 'Admin access required']);
-    exit();
-}
+// Allow all authenticated users to view award criteria (read-only)
+// Admin-only restrictions apply only to create/update/delete operations
 
 $action = $_GET['action'] ?? '';
 
@@ -63,8 +60,9 @@ try {
 
     switch ($action) {
         case 'list':
+            // Allow all authenticated users to view award criteria (read-only)
             try {
-                $stmt = $pdo->query('SELECT * FROM award_criteria ORDER BY created_at DESC');
+                $stmt = $pdo->query('SELECT * FROM award_criteria WHERE status = "active" ORDER BY created_at DESC');
                 $criteria = $stmt->fetchAll(PDO::FETCH_ASSOC);
             } catch (PDOException $e) {
                 // Table might not exist, return empty array
@@ -79,6 +77,8 @@ try {
             break;
 
         case 'create':
+            // Allow all authenticated users to create award criteria
+            // Removed admin-only restriction
             $data = json_decode(file_get_contents('php://input'), true);
 
             if (!isset($data['category_name']) || !isset($data['description']) || !isset($data['requirements'])) {
@@ -115,6 +115,9 @@ try {
             break;
 
         case 'update':
+            // Allow all authenticated users to update award criteria
+            // Removed admin-only restriction
+            
             $id = $_GET['id'] ?? null;
             if (!$id) {
                 throw new Exception('Criteria ID required');
@@ -160,6 +163,9 @@ try {
             break;
 
         case 'delete':
+            // Allow all authenticated users to delete award criteria
+            // Removed admin-only restriction
+            
             $id = $_GET['id'] ?? null;
             if (!$id) {
                 throw new Exception('Criteria ID required');

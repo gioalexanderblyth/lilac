@@ -602,7 +602,7 @@ try {
                                 <a class="tab-underline border-transparent text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:border-border-light dark:hover:border-border-dark whitespace-nowrap py-4 px-1 font-medium text-sm transition-colors duration-300"
                                     href="#" id="analytics-tab">Analytics Dashboard</a>
                                 <a class="tab-underline border-transparent text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:border-border-light dark:hover:border-border-dark whitespace-nowrap py-4 px-1 font-medium text-sm transition-colors duration-300"
-                                    href="#" id="award-list-tab">Award List<?php echo $isAdmin ? ' & Criteria' : ''; ?></a>
+                                    href="#" id="award-list-tab">Award List & Criteria</a>
                             </nav>
                         </div>
 
@@ -1137,8 +1137,7 @@ try {
                     <!-- Award List Tab Content -->
                     <div id="award-list-content" class="tab-content hidden">
 
-                        <!-- Admin Criteria Management Section -->
-                        <?php if ($isAdmin): ?>
+                        <!-- Award Criteria Management Section - Available to all authenticated users -->
                         <div class="mt-8 mb-6">
                             <div class="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-lg p-6">
                                 <div class="flex items-center justify-between mb-6">
@@ -1156,7 +1155,6 @@ try {
                                 </div>
                             </div>
                         </div>
-                        <?php endif; ?>
 
                         <!-- Award List Filters -->
                         <div
@@ -2887,6 +2885,27 @@ try {
                 console.log('loadAwardListData called, isAdmin:', isAdmin);
 
                 try {
+                    // Load award criteria for all users (for the criteria management section)
+                    const criteriaResponse = await fetch('api/award-criteria.php?action=list', {
+                        headers: {
+                            'Authorization': 'Bearer ' + AUTH_TOKEN
+                        }
+                    });
+                    
+                    let criteriaData = null;
+                    if (criteriaResponse.ok) {
+                        const criteriaResult = await criteriaResponse.json();
+                        if (criteriaResult.success && criteriaResult.criteria) {
+                            criteriaData = criteriaResult.criteria;
+                            // Load and render criteria cards in the management section for all users
+                            if (typeof renderCriteriaList === 'function') {
+                                renderCriteriaList(criteriaData);
+                            } else if (typeof window.loadCriteriaList === 'function') {
+                                window.loadCriteriaList();
+                            }
+                        }
+                    }
+
                     if (isAdmin) {
                         console.log('Loading admin criteria...');
                         // Load award criteria with applicant counts (existing admin code)
@@ -2908,24 +2927,31 @@ try {
                         renderAwardCriteriaList(result.criteria);
 
                     } else {
-                        console.log('Loading user submissions...');
+                        console.log('Loading user submissions and criteria...');
                         // Load user's own submissions
-                        const response = await fetch('api/user-award-submissions.php');
+                        const submissionsResponse = await fetch('api/user-award-submissions.php');
 
-                        if (!response.ok) {
-                            throw new Error('Failed to load submissions');
+                        // Load user submissions
+                        if (submissionsResponse.ok) {
+                            const submissionsResult = await submissionsResponse.json();
+                            if (submissionsResult.success) {
+                                allUserSubmissions = submissionsResult.submissions || [];
+                                console.log('User submissions loaded, count:', allUserSubmissions.length);
+                            }
                         }
 
-                        const result = await response.json();
-                        console.log('User submissions API response:', result);
-
-                        if (!result.success) {
-                            throw new Error(result.error || 'Failed to load submissions');
+                        // Show user submissions if they exist, otherwise show available awards
+                        if (criteriaData && criteriaData.length > 0) {
+                            if (allUserSubmissions && allUserSubmissions.length > 0) {
+                                renderUserSubmissionsList(allUserSubmissions);
+                            } else {
+                                // Show available awards they can apply for
+                                renderAvailableAwardsList(criteriaData);
+                            }
+                        } else {
+                            // Fallback to submissions list even if empty
+                            renderUserSubmissionsList(allUserSubmissions || []);
                         }
-
-                        allUserSubmissions = result.submissions || [];
-                        console.log('Rendering user submissions, count:', allUserSubmissions.length);
-                        renderUserSubmissionsList(allUserSubmissions);
                     }
 
                 } catch (error) {
@@ -3146,6 +3172,83 @@ try {
             window.viewSubmissionDetail = function(awardId) {
                 window.location.href = `user-award-detail.php?id=${awardId}`;
             };
+
+            // Render available awards list for non-admin users (when they have no submissions)
+            function renderAvailableAwardsList(criteria) {
+                const tbody = document.getElementById('award-criteria-tbody');
+                if (!tbody) return;
+
+                if (criteria.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                                <div class="flex flex-col items-center gap-3">
+                                    <span class="material-symbols-outlined text-5xl">folder_open</span>
+                                    <p class="text-lg font-medium">No awards available</p>
+                                    <p class="text-sm">Contact administrator to add award criteria</p>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                // Update counters to show available awards
+                document.getElementById('total-processed-count').textContent = criteria.length;
+                document.getElementById('recognized-count').textContent = '0';
+                document.getElementById('pending-count').textContent = '0';
+
+                tbody.innerHTML = criteria.map(c => {
+                    const requirements = c.requirements ? JSON.parse(c.requirements) : [];
+                    const requirementsCount = Array.isArray(requirements) ? requirements.length : 0;
+                    
+                    return `
+                        <tr class="hover:bg-primary/5 transition-colors">
+                            <td class="px-6 py-4">
+                                <div class="font-semibold text-primary">
+                                    ${escapeHtml(c.category_name || 'Unknown Award')}
+                                </div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    ${escapeHtml(c.description || '').substring(0, 80)}${c.description && c.description.length > 80 ? '...' : ''}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm text-gray-700 dark:text-gray-300">
+                                    Not submitted yet
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="text-lg font-bold text-gray-400">
+                                    0/${requirementsCount}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-2">
+                                    <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                        <div class="h-2 rounded-full bg-gray-400" style="width: 0%"></div>
+                                    </div>
+                                    <span class="text-sm font-semibold text-gray-400">0%</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400">
+                                    Not Started
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                                -
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <button class="p-2 rounded-md hover:bg-primary/10 text-primary"
+                                        onclick="window.location.href='#process-award'"
+                                        title="Submit Award">
+                                    <span class="material-symbols-outlined text-lg">add</span>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
 
             // Filter function for Award List & Criteria tab (works for both admin and user views) - make global
             window.filterAwardCriteriaList = function() {
@@ -7009,11 +7112,21 @@ try {
         // Load award list data when award list tab is clicked
         document.getElementById('award-list-tab')?.addEventListener('click', () => {
             loadAwardListData();
+            // Also load criteria cards for all users
+            if (typeof window.loadCriteriaList === 'function') {
+                window.loadCriteriaList();
+            }
         });
 
         // Also load on page load if award list tab is active (check URL hash)
         if (window.location.hash === '#award-list') {
-            setTimeout(() => loadAwardListData(), 100);
+            setTimeout(() => {
+                loadAwardListData();
+                // Also load criteria cards for all users
+                if (typeof window.loadCriteriaList === 'function') {
+                    window.loadCriteriaList();
+                }
+            }, 100);
         }
     </script>
 

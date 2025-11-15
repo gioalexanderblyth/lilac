@@ -370,14 +370,13 @@ No notifications yet
     </div>
 
     <div class="space-y-6">
-      <?php if ($isAdmin): ?>
+      <!-- Add Event button - available to all authenticated users -->
       <div class="flex justify-end">
         <button id="addEventBtn" class="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors">
           <span class="material-symbols-outlined">add</span>
           <span>Add Event</span>
         </button>
       </div>
-      <?php endif; ?>
       <div class="bg-card-light dark:bg-card-dark p-4 rounded-xl shadow-soft">
         <div class="flex justify-between items-center mb-4">
           <button id="prevMonth" class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-background-dark transition-colors">

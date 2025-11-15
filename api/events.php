@@ -142,13 +142,10 @@ try {
         exit();
     }
 
-    // POST: Create new event (admin only)
+    // POST: Create new event (all authenticated users can create events)
     if ($method === 'POST' && $action === 'create') {
-        if (!$isAdmin) {
-            http_response_code(403);
-            echo json_encode(['success' => false, 'error' => 'Only admins can create events']);
-            exit();
-        }
+        // Allow all authenticated users to create events
+        // Removed admin-only restriction
 
         $data = json_decode(file_get_contents('php://input'), true) ?? [];
 
