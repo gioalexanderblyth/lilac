@@ -67,6 +67,7 @@ try {
             }
         })();
     </script>
+    <script src="js/notifications.js"></script>
     <script>
         tailwind.config = {
             darkMode: "class",

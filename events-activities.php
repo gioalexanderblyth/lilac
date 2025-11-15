@@ -1654,7 +1654,7 @@ Current mode: localStorage only (events will persist in browser)
             }
 
             // Function to set reminder
-            function setReminder() {
+            async function setReminder() {
                 if (!currentReminderEvent) return;
 
                 const selectedReminder = document.querySelector('input[name="reminderTime"]:checked');
@@ -1713,7 +1713,7 @@ Current mode: localStorage only (events will persist in browser)
                 const existingReminder = savedReminders.find(r => r.eventId === currentReminderEvent.id);
                 
                 if (existingReminder) {
-                    const shouldReplace = confirm(`A reminder has already been set for this event.\n\nCurrent reminder: ${formatReminderDate(new Date(existingReminder.reminderTime))}\n\nDo you want to replace it with a new reminder?`);
+                    const shouldReplace = await showConfirm(`A reminder has already been set for this event.\n\nCurrent reminder: ${formatReminderDate(new Date(existingReminder.reminderTime))}\n\nDo you want to replace it with a new reminder?`, 'Replace Reminder', 'Replace', 'Cancel');
                     
                     if (shouldReplace) {
                         // Remove existing reminder
@@ -2215,7 +2215,7 @@ Current mode: localStorage only (events will persist in browser)
                     // Wire delete
                     if (delBtn) {
                         delBtn.onclick = async () => {
-                            const ok = confirm('Delete this event? This cannot be undone.');
+                            const ok = await showConfirm('Delete this event? This cannot be undone.', 'Delete Event', 'Delete', 'Cancel');
                             if (!ok) return;
                             try {
                                 console.log('Attempting to delete event with ID:', eventId);
@@ -2302,8 +2302,8 @@ Current mode: localStorage only (events will persist in browser)
                 if (delBtn) {
                     // Always allow local deletion here; hide only if no local data
                     delBtn.style.display = '';
-                    delBtn.onclick = () => {
-                        const ok = confirm('Remove this event from the page?');
+                    delBtn.onclick = async () => {
+                        const ok = await showConfirm('Remove this event from the page?', 'Remove Event', 'Remove', 'Cancel');
                         if (!ok) return;
                         removeEventLocally(itm || {});
                         closeDetailsModal();
@@ -2976,7 +2976,7 @@ window.createEvent = async function(eventData) {
             return false;
         }
     } catch (error) {
-        alert('✗ Error: ' + error.message);
+        showToast('Error: ' + error.message, 'error');
         return false;
     }
 };
@@ -3003,11 +3003,12 @@ window.loadEvents = async function() {
 
 window.deleteEvent = async function(eventId) {
     if (!eventId) {
-        alert('Error: Event ID is missing');
+        showToast('Error: Event ID is missing', 'error');
         return;
     }
     
-    if (!confirm('Are you sure you want to delete this event?')) return;
+    const confirmed = await showConfirm('Are you sure you want to delete this event?', 'Delete Event', 'Delete', 'Cancel');
+    if (!confirmed) return;
 
     console.log('Attempting to delete event with ID:', eventId);
     
@@ -3026,11 +3027,11 @@ window.deleteEvent = async function(eventId) {
         let result;
         try {
             result = JSON.parse(responseText);
-        } catch (e) {
-            console.error('Failed to parse JSON response:', e);
-            alert('Error: Server returned invalid response. Check console for details.');
-            return;
-        }
+            } catch (e) {
+                console.error('Failed to parse JSON response:', e);
+                showToast('Error: Server returned invalid response. Check console for details.', 'error');
+                return;
+            }
         
         console.log('Delete result:', result);
 
@@ -3054,7 +3055,7 @@ window.deleteEvent = async function(eventId) {
         }
     } catch (error) {
         console.error('Error deleting event:', error);
-        alert('✗ Error: ' + error.message);
+        showToast('Error: ' + error.message, 'error');
     }
 };
 
@@ -3080,7 +3081,7 @@ window.updateEvent = async function(eventId, eventData) {
             return false;
         }
     } catch (error) {
-        alert('✗ Error: ' + error.message);
+        showToast('Error: ' + error.message, 'error');
         return false;
     }
 };
@@ -3128,7 +3129,8 @@ document.addEventListener('click', async function(e) {
     // Cancel Event (update status to cancelled)
     if (target.classList.contains('cancel-event-btn')) {
         const eventId = target.dataset.eventId;
-        if (!confirm('Are you sure you want to cancel this event?')) return;
+        const confirmed = await showConfirm('Are you sure you want to cancel this event?', 'Cancel Event', 'Cancel Event', 'No');
+        if (!confirmed) return;
 
         try {
             const response = await fetch(`api/events.php?id=${eventId}`, {
@@ -3157,11 +3159,12 @@ document.addEventListener('click', async function(e) {
     if (target.classList.contains('delete-event-btn')) {
         const eventId = target.dataset.eventId;
         if (!eventId) {
-            alert('Error: Event ID is missing');
+            showToast('Error: Event ID is missing', 'error');
             return;
         }
         
-        if (!confirm('Are you sure you want to permanently delete this event?')) return;
+        const confirmed = await showConfirm('Are you sure you want to permanently delete this event?', 'Delete Event', 'Delete', 'Cancel');
+        if (!confirmed) return;
 
         console.log('Attempting to delete event with ID:', eventId);
         
@@ -3182,14 +3185,14 @@ document.addEventListener('click', async function(e) {
                 result = JSON.parse(responseText);
             } catch (e) {
                 console.error('Failed to parse JSON response:', e);
-                alert('Error: Server returned invalid response. Check console for details.');
+                showToast('Error: Server returned invalid response. Check console for details.', 'error');
                 return;
             }
             
             console.log('Delete result:', result);
             
             if (result.success) {
-                alert('Event deleted successfully');
+                showToast('Event deleted successfully', 'success');
                 
                 // Reload directly from database (single source of truth)
                 // No localStorage manipulation - database is authoritative
@@ -3202,11 +3205,11 @@ document.addEventListener('click', async function(e) {
             } else {
                 const errorMsg = result.error || result.message || 'Failed to delete event';
                 console.error('Delete failed:', errorMsg);
-                alert('Error: ' + errorMsg);
+                showToast('Error: ' + errorMsg, 'error');
             }
         } catch (error) {
             console.error('Error deleting event:', error);
-            alert('Error deleting event: ' + error.message);
+            showToast('Error deleting event: ' + error.message, 'error');
         }
     }
 });

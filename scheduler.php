@@ -56,6 +56,7 @@ try {
             }
         })();
 </script>
+<script src="js/notifications.js"></script>
 <script>
     tailwind.config = {
       darkMode: "class",
@@ -1388,14 +1389,14 @@ let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
      renderTimePicker();
  }
  
- // Edit functions for all clickable elements
- function editTimeZone() {
-     const currentValue = document.querySelector('button[onclick="editTimeZone()"]').textContent;
-     const newValue = prompt('Enter time zone:', currentValue);
-     if (newValue !== null && newValue.trim() !== '') {
-         document.querySelector('button[onclick="editTimeZone()"]').textContent = newValue.trim();
-     }
- }
+// Edit functions for all clickable elements
+async function editTimeZone() {
+    const currentValue = document.querySelector('button[onclick="editTimeZone()"]').textContent;
+    const newValue = await showPrompt('Enter time zone:', 'Time Zone', currentValue);
+    if (newValue !== null && newValue.trim() !== '') {
+        document.querySelector('button[onclick="editTimeZone()"]').textContent = newValue.trim();
+    }
+}
  
  function toggleRepeatDropdown() {
      const dropdown = document.getElementById('repeatDropdown');
@@ -1455,13 +1456,13 @@ let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
      }
  }
  
- function editMoreOptions() {
-     const options = prompt('Enter additional options (visibility, notifications, etc.):');
-     if (options !== null && options.trim() !== '') {
-         console.log('More options set to:', options.trim());
-         alert('Options saved: ' + options.trim());
-     }
- }
+async function editMoreOptions() {
+    const options = await showPrompt('Enter additional options (visibility, notifications, etc.):', 'Additional Options', '');
+    if (options !== null && options.trim() !== '') {
+        console.log('More options set to:', options.trim());
+        showToast('Options saved: ' + options.trim(), 'success');
+    }
+}
  
  // Global events storage - load from local storage or initialize empty array
  let events = JSON.parse(localStorage.getItem('calendarEvents') || '[]');
@@ -1488,7 +1489,7 @@ window.saveEvent = function() {
         console.log('Form data:', { title, startTime, endTime, date, location, description, eventType }); // Debug log
          
          if (!title.trim()) {
-             alert('Please enter a title for the event');
+             showToast('Please enter a title for the event', 'warning');
              return;
          }
          
@@ -1639,7 +1640,7 @@ window.saveEvent = function() {
          
      } catch (error) {
          console.error('Error in saveEvent:', error);
-         alert('Error saving event: ' + error.message);
+         showToast('Error saving event: ' + error.message, 'error');
      }
  };
  
@@ -2449,7 +2450,8 @@ function renderSidebarCalendar() {
     if (detailDeleteBtn) detailDeleteBtn.addEventListener('click', async () => {
         if (currentOpenedEventId == null) return;
         
-        if (!confirm('Are you sure you want to delete this schedule?')) return;
+        const confirmed = await showConfirm('Are you sure you want to delete this schedule?', 'Delete Schedule', 'Delete', 'Cancel');
+        if (!confirmed) return;
         
         try {
             console.log('Attempting to delete schedule with ID:', currentOpenedEventId);
@@ -2472,14 +2474,14 @@ function renderSidebarCalendar() {
                 result = JSON.parse(responseText);
             } catch (e) {
                 console.error('Failed to parse JSON response:', e);
-                alert('Error: Server returned invalid response. Check console for details.');
+                showToast('Error: Server returned invalid response. Check console for details.', 'error');
                 return;
             }
             
             console.log('Delete result:', result);
             
             if (result.success) {
-                alert('✓ Schedule deleted successfully');
+                showToast('Schedule deleted successfully', 'success');
                 
                 // Reload directly from database (single source of truth)
                 // No localStorage manipulation - database is authoritative
@@ -2498,11 +2500,11 @@ function renderSidebarCalendar() {
             } else {
                 const errorMsg = result.error || result.message || 'Failed to delete schedule';
                 console.error('Delete failed:', errorMsg);
-                alert('✗ Error: ' + errorMsg);
+                showToast('Error: ' + errorMsg, 'error');
             }
         } catch (error) {
             console.error('Error deleting schedule:', error);
-            alert('✗ Error: ' + error.message);
+            showToast('Error: ' + error.message, 'error');
         }
     });
     if (detailModal) detailModal.addEventListener('click', (e) => {
@@ -2557,10 +2559,11 @@ function renderSidebarCalendar() {
 
    // Context menu actions - Delete (use API, not localStorage)
    const ctxDelete = document.getElementById('ctxDelete');
-   if (ctxDelete) ctxDelete.addEventListener('click', async () => {
-       if (!ctxTargetEventId) return;
-       
-       if (!confirm('Are you sure you want to delete this schedule?')) return;
+  if (ctxDelete) ctxDelete.addEventListener('click', async () => {
+      if (!ctxTargetEventId) return;
+      
+      const confirmed = await showConfirm('Are you sure you want to delete this schedule?', 'Delete Schedule', 'Delete', 'Cancel');
+      if (!confirmed) return;
        
        try {
            console.log('Attempting to delete schedule with ID:', ctxTargetEventId);
@@ -2583,14 +2586,14 @@ function renderSidebarCalendar() {
                result = JSON.parse(responseText);
            } catch (e) {
                console.error('Failed to parse JSON response:', e);
-               alert('Error: Server returned invalid response. Check console for details.');
+               showToast('Error: Server returned invalid response. Check console for details.', 'error');
                return;
            }
            
            console.log('Delete result:', result);
            
            if (result.success) {
-               alert('✓ Schedule deleted successfully');
+               showToast('Schedule deleted successfully', 'success');
                
                // Reload directly from database (single source of truth)
                // No localStorage manipulation - database is authoritative
@@ -2607,11 +2610,11 @@ function renderSidebarCalendar() {
            } else {
                const errorMsg = result.error || result.message || 'Failed to delete schedule';
                console.error('Delete failed:', errorMsg);
-               alert('✗ Error: ' + errorMsg);
+               showToast('Error: ' + errorMsg, 'error');
            }
        } catch (error) {
            console.error('Error deleting schedule:', error);
-           alert('✗ Error: ' + error.message);
+           showToast('Error: ' + error.message, 'error');
        }
    });
    // Color choices (apply and persist with tooltip names)
@@ -2736,15 +2739,15 @@ window.createSchedule = async function(scheduleData) {
         const result = await response.json();
 
         if (result.success) {
-            alert('✓ Schedule created successfully!');
+            showToast('Schedule created successfully!', 'success');
             if (typeof loadSchedules === 'function') loadSchedules();
             return true;
         } else {
-            alert('✗ Error: ' + (result.error || 'Schedule creation failed'));
+            showToast('Error: ' + (result.error || 'Schedule creation failed'), 'error');
             return false;
         }
     } catch (error) {
-        alert('✗ Error: ' + error.message);
+        showToast('Error: ' + error.message, 'error');
         return false;
     }
 };
@@ -2839,11 +2842,12 @@ window.loadSchedules = async function() {
 
 window.deleteSchedule = async function(scheduleId) {
     if (!scheduleId) {
-        alert('Error: Schedule ID is missing');
+        showToast('Error: Schedule ID is missing', 'error');
         return;
     }
     
-    if (!confirm('Are you sure you want to delete this schedule?')) return;
+    const confirmed = await showConfirm('Are you sure you want to delete this schedule?', 'Delete Schedule', 'Delete', 'Cancel');
+    if (!confirmed) return;
 
     console.log('Attempting to delete schedule with ID:', scheduleId);
     
@@ -2866,14 +2870,14 @@ window.deleteSchedule = async function(scheduleId) {
             result = JSON.parse(responseText);
         } catch (e) {
             console.error('Failed to parse JSON response:', e);
-            alert('Error: Server returned invalid response. Check console for details.');
+            showToast('Error: Server returned invalid response. Check console for details.', 'error');
             return;
         }
         
         console.log('Delete result:', result);
 
         if (result.success) {
-            alert('✓ Schedule deleted successfully');
+            showToast('Schedule deleted successfully', 'success');
             
             // Reload directly from database (single source of truth)
             // No localStorage manipulation - database is authoritative
@@ -2886,11 +2890,11 @@ window.deleteSchedule = async function(scheduleId) {
         } else {
             const errorMsg = result.error || result.message || 'Failed to delete schedule';
             console.error('Delete failed:', errorMsg);
-            alert('✗ Error: ' + errorMsg);
+            showToast('Error: ' + errorMsg, 'error');
         }
     } catch (error) {
         console.error('Error deleting schedule:', error);
-        alert('✗ Error: ' + error.message);
+        showToast('Error: ' + error.message, 'error');
     }
 };
 
@@ -2908,15 +2912,15 @@ window.updateSchedule = async function(scheduleId, scheduleData) {
         const result = await response.json();
 
         if (result.success) {
-            alert('✓ Schedule updated successfully');
+            showToast('Schedule updated successfully', 'success');
             if (typeof loadSchedules === 'function') loadSchedules();
             return true;
         } else {
-            alert('✗ Error: ' + (result.error || 'Update failed'));
+            showToast('Error: ' + (result.error || 'Update failed'), 'error');
             return false;
         }
     } catch (error) {
-        alert('✗ Error: ' + error.message);
+        showToast('Error: ' + error.message, 'error');
         return false;
     }
 };
