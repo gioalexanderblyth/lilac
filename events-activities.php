@@ -53,6 +53,7 @@ try {
         })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="js/notifications.js"></script>
 <script>
         tailwind.config = {
             darkMode: "class",
@@ -873,7 +874,7 @@ No notifications yet
                 
                 // Validate required fields
                 if (!title.trim() || !date) {
-                    alert('Please fill in the event title and date.');
+                    showToast('Please fill in the event title and date.', 'warning');
                     return;
                 }
                 
@@ -1035,7 +1036,7 @@ No notifications yet
                         if (typeof loadCompletedEvents === 'function') loadCompletedEvents();
                         closeModal();
                     } catch (e) {
-                        alert('Failed to save event. If you are not running on localhost, events will not persist.');
+                        showToast('Failed to save event. If you are not running on localhost, events will not persist.', 'error');
                     }
                 }
             });
@@ -1588,14 +1589,14 @@ Current mode: localStorage only (events will persist in browser)
                 window.clearServerEvents = async () => {
                     try {
                         const isPhpServer = window.location.protocol === 'http:' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-                        if (!isPhpServer) { alert('Server clear only works on localhost.'); return; }
+                        if (!isPhpServer) { showToast('Server clear only works on localhost.', 'warning'); return; }
                         const resp = await fetch('api/events.php?action=clear', { method: 'POST' });
                         const j = await resp.json().catch(()=>({}));
                         if (!resp.ok || j.error) throw new Error(j.error || 'Failed to clear');
                         window.clearEventCache();
                         console.log('Server events cleared.');
                     } catch (e) {
-                        alert('Failed to clear server events.');
+                        showToast('Failed to clear server events.', 'error');
                     }
                 };
                 // Keyboard shortcut: Ctrl+Alt+E to clear cached events
@@ -1658,7 +1659,7 @@ Current mode: localStorage only (events will persist in browser)
 
                 const selectedReminder = document.querySelector('input[name="reminderTime"]:checked');
                 if (!selectedReminder) {
-                    alert('Please select a reminder time.');
+                    showToast('Please select a reminder time.', 'warning');
                     return;
                 }
 
@@ -1695,7 +1696,7 @@ Current mode: localStorage only (events will persist in browser)
                             // Use days before event
                             reminderTime = new Date(eventDate.getTime() - (customDays * 24 * 60 * 60 * 1000));
                         } else {
-                            alert('Please specify either a custom date & time or number of days before the event.');
+                            showToast('Please specify either a custom date & time or number of days before the event.', 'warning');
                             return;
                         }
                         break;
@@ -1703,7 +1704,7 @@ Current mode: localStorage only (events will persist in browser)
 
                 // Check if reminder time is in the past
                 if (reminderTime <= new Date()) {
-                    alert('Reminder time cannot be in the past. Please choose a different time.');
+                    showToast('Reminder time cannot be in the past. Please choose a different time.', 'warning');
                     return;
                 }
 
@@ -1742,7 +1743,7 @@ Current mode: localStorage only (events will persist in browser)
 
                 // Show confirmation with more details
                 const confirmationMessage = `Reminder set successfully!\n\nEvent: ${currentReminderEvent.title}\nReminder Time: ${formatReminderDate(reminderTime)}\n\nYou will be notified at this time.`;
-                alert(confirmationMessage);
+                showToast(confirmationMessage, 'success');
                 
                 // Close modal
                 closeReminderModal();
@@ -1883,7 +1884,7 @@ Current mode: localStorage only (events will persist in browser)
                     setTimeout(() => notification.close(), 10000);
                 } else {
                     // Fallback to alert if notifications are not allowed
-                    alert(`Reminder: ${reminder.eventTitle}\nYour event is coming up on ${formatEventDate(reminder.eventDate)} at ${reminder.eventTime}`);
+                    showToast(`Reminder: ${reminder.eventTitle}\nYour event is coming up on ${formatEventDate(reminder.eventDate)} at ${reminder.eventTime}`, 'info', 8000);
                 }
             }
             
@@ -2143,12 +2144,12 @@ Current mode: localStorage only (events will persist in browser)
                 modal.className = 'fixed inset-0 bg-black/30 hidden items-center justify-center z-[9999]';
                 modal.innerHTML = `
                   <div class="bg-white dark:bg-card-dark rounded-2xl shadow-2xl w-full max-w-xl mx-4 max-h-[85vh] overflow-y-auto border border-border-light dark:border-border-dark">
-                    <div class="p-4 border-b flex items-center justify-between">
+                    <div class="p-4 border-b border-border-light dark:border-border-dark flex items-center justify-between">
                       <h3 class="text-lg font-semibold text-text-light dark:text-text-dark">Event Details</h3>
-                      <button class="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-white/10" id="closeEventDetails"><span class="material-symbols-outlined">close</span></button>
+                      <button class="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-white/10" id="closeEventDetails"><span class="material-symbols-outlined text-text-light dark:text-text-dark">close</span></button>
                     </div>
                     <div id="eventDetailsBody" class="p-4 grid gap-3 text-sm"></div>
-                    <div class="p-4 border-t flex items-center justify-end gap-2">
+                    <div class="p-4 border-t border-border-light dark:border-border-dark flex items-center justify-end gap-2">
                       <button id="deleteEventBtn" class="px-3 py-1.5 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700">Delete</button>
                     </div>
                   </div>`;
@@ -2200,15 +2201,15 @@ Current mode: localStorage only (events will persist in browser)
                       <div class="flex items-start gap-4">
                         <img src="${itm.image_url || itm.thumbnail_url || 'https://via.placeholder.com/120x80?text=img'}" class="w-28 h-20 object-cover rounded" alt="Event image"/>
                         <div>
-                          <h4 class="text-lg font-bold">${(itm.title || '').toUpperCase()}</h4>
+                          <h4 class="text-lg font-bold text-text-light dark:text-text-dark">${(itm.title || '').toUpperCase()}</h4>
                           <p class="text-xs text-text-muted-light dark:text-text-muted-dark"><span class="material-symbols-outlined text-xs align-middle">location_on</span> ${itm.location || ''}</p>
                         </div>
                       </div>
                       <div class="grid grid-cols-2 gap-3">
-                        <div><span class="text-text-muted-light dark:text-text-muted-dark">Start</span><p class="font-semibold">${itm.start_time || ''}</p></div>
-                        <div><span class="text-text-muted-light dark:text-text-muted-dark">End</span><p class="font-semibold">${itm.end_time || ''}</p></div>
-                        <div><span class="text-text-muted-light dark:text-text-muted-dark">Date</span><p class="font-semibold">${itm.event_date || itm.date ? new Date(itm.event_date || itm.date).toLocaleDateString() : ''}</p></div>
-                        <div><span class="text-text-muted-light dark:text-text-muted-dark">Eligible</span><p class="font-semibold">${itm.eligible_for_awards ? 'Yes' : 'No'}</p></div>
+                        <div><span class="text-text-muted-light dark:text-text-muted-dark">Start</span><p class="font-semibold text-text-light dark:text-text-dark">${itm.start_time || ''}</p></div>
+                        <div><span class="text-text-muted-light dark:text-text-muted-dark">End</span><p class="font-semibold text-text-light dark:text-text-dark">${itm.end_time || ''}</p></div>
+                        <div><span class="text-text-muted-light dark:text-text-muted-dark">Date</span><p class="font-semibold text-text-light dark:text-text-dark">${itm.event_date || itm.date ? new Date(itm.event_date || itm.date).toLocaleDateString() : ''}</p></div>
+                        <div><span class="text-text-muted-light dark:text-text-muted-dark">Eligible</span><p class="font-semibold text-text-light dark:text-text-dark">${itm.eligible_for_awards ? 'Yes' : 'No'}</p></div>
                       </div>
                       <div class="mt-2 text-xs text-text-muted-light dark:text-text-muted-dark">Awards eligibility details will appear on the Awards page.</div>`;
                     // Wire delete
@@ -2257,7 +2258,7 @@ Current mode: localStorage only (events will persist in browser)
                                 }
                             } catch (err) {
                                 console.error('Delete error:', err);
-                                alert('Error deleting event: ' + err.message);
+                                showToast('Error deleting event: ' + err.message, 'error');
                             }
                         };
                     }
@@ -2290,13 +2291,13 @@ Current mode: localStorage only (events will persist in browser)
                   <div class="flex items-start gap-4">
                     <img src="${itm.imageUrl || itm.thumbnail_url || 'https://via.placeholder.com/120x80?text=img'}" class="w-28 h-20 object-cover rounded" alt="Event image"/>
                     <div>
-                      <h4 class="text-lg font-bold">${itm.title.toUpperCase()}</h4>
+                      <h4 class="text-lg font-bold text-text-light dark:text-text-dark">${itm.title.toUpperCase()}</h4>
                       <p class="text-xs text-text-muted-light dark:text-text-muted-dark"><span class="material-symbols-outlined text-xs align-middle">location_on</span> ${itm.location || ''}</p>
                     </div>
                   </div>
                   <div class="grid grid-cols-2 gap-3">
-                    <div><span class="text-text-muted-light dark:text-text-muted-dark">Time</span><p class="font-semibold">${itm.timeRange || ''}</p></div>
-                    <div><span class="text-text-muted-light dark:text-text-muted-dark">Date</span><p class="font-semibold">${itm.date ? new Date(itm.date).toLocaleDateString() : ''}</p></div>
+                    <div><span class="text-text-muted-light dark:text-text-muted-dark">Time</span><p class="font-semibold text-text-light dark:text-text-dark">${itm.timeRange || ''}</p></div>
+                    <div><span class="text-text-muted-light dark:text-text-muted-dark">Date</span><p class="font-semibold text-text-light dark:text-text-dark">${itm.date ? new Date(itm.date).toLocaleDateString() : ''}</p></div>
                   </div>`;
                 if (delBtn) {
                     // Always allow local deletion here; hide only if no local data
@@ -2967,11 +2968,11 @@ window.createEvent = async function(eventData) {
         const result = await response.json();
 
         if (result.success) {
-            alert('✓ Event created successfully!');
+            showToast('Event created successfully!', 'success');
             if (typeof loadEvents === 'function') loadEvents();
             return true;
         } else {
-            alert('✗ Error: ' + (result.error || 'Event creation failed'));
+            showToast('Error: ' + (result.error || 'Event creation failed'), 'error');
             return false;
         }
     } catch (error) {
@@ -3034,7 +3035,7 @@ window.deleteEvent = async function(eventId) {
         console.log('Delete result:', result);
 
         if (result.success) {
-            alert('✓ Event deleted successfully');
+            showToast('Event deleted successfully', 'success');
             
             // Reload directly from database (single source of truth)
             // No localStorage manipulation - database is authoritative
@@ -3049,7 +3050,7 @@ window.deleteEvent = async function(eventId) {
         } else {
             const errorMsg = result.error || result.message || 'Delete failed';
             console.error('Delete failed:', errorMsg);
-            alert('✗ Error: ' + errorMsg);
+            showToast('Error: ' + errorMsg, 'error');
         }
     } catch (error) {
         console.error('Error deleting event:', error);
@@ -3071,11 +3072,11 @@ window.updateEvent = async function(eventId, eventData) {
         const result = await response.json();
 
         if (result.success) {
-            alert('✓ Event updated successfully');
+            showToast('Event updated successfully', 'success');
             if (typeof loadEvents === 'function') loadEvents();
             return true;
         } else {
-            alert('✗ Error: ' + (result.error || 'Update failed'));
+            showToast('Error: ' + (result.error || 'Update failed'), 'error');
             return false;
         }
     } catch (error) {
@@ -3121,7 +3122,7 @@ document.addEventListener('click', async function(e) {
     if (target.classList.contains('update-event-btn')) {
         const eventId = target.dataset.eventId;
         // TODO: Implement update modal
-        alert(`Update event ${eventId} - Feature coming soon`);
+        showToast(`Update event ${eventId} - Feature coming soon`, 'info');
     }
 
     // Cancel Event (update status to cancelled)
@@ -3140,15 +3141,15 @@ document.addEventListener('click', async function(e) {
 
             const result = await response.json();
             if (result.success) {
-                alert('Event cancelled successfully');
+                showToast('Event cancelled successfully', 'success');
                 if (typeof loadEventsFromDatabase === 'function') {
                     await loadEventsFromDatabase();
                 }
             } else {
-                alert('Error: ' + (result.error || 'Failed to cancel event'));
+                showToast('Error: ' + (result.error || 'Failed to cancel event'), 'error');
             }
         } catch (error) {
-            alert('Error cancelling event: ' + error.message);
+            showToast('Error cancelling event: ' + error.message, 'error');
         }
     }
 

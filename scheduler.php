@@ -474,35 +474,35 @@ try {
 
 <!-- Event Details Modal -->
 <div id="eventDetailModal" class="fixed inset-0 bg-black/30 hidden items-center justify-center z-[9999]">
-    <div class="bg-white dark:bg-card-dark rounded-2xl shadow-2xl w-full max-w-xl mx-4 max-h-[85vh] overflow-y-auto">
-        <div class="p-4 border-b flex items-center justify-between">
+    <div class="bg-white dark:bg-card-dark rounded-2xl shadow-2xl w-full max-w-xl mx-4 max-h-[85vh] overflow-y-auto border border-border-light dark:border-border-dark">
+        <div class="p-4 border-b border-border-light dark:border-border-dark flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <span id="detailColorDot" class="w-3.5 h-3.5 rounded-full bg-blue-500"></span>
-                <h3 id="detailTitle" class="text-lg font-medium text-gray-900">Power Session</h3>
+                <h3 id="detailTitle" class="text-lg font-medium text-text-light dark:text-text-dark">Power Session</h3>
             </div>
-            <div class="flex items-center gap-3 text-gray-500">
-                <span id="detailEditBtn" class="material-symbols-outlined text-[20px] cursor-pointer">edit</span>
-                <span id="detailDeleteBtn" class="material-symbols-outlined text-[20px] cursor-pointer" title="Delete">delete</span>
-                <span class="material-symbols-outlined text-[20px] cursor-pointer">notifications</span>
-                <button id="detailCloseBtn" class="p-1 rounded-full hover:bg-gray-100">
-                    <span class="material-symbols-outlined">close</span>
+            <div class="flex items-center gap-3 text-text-muted-light dark:text-text-muted-dark">
+                <span id="detailEditBtn" class="material-symbols-outlined text-[20px] cursor-pointer hover:text-text-light dark:hover:text-text-dark">edit</span>
+                <span id="detailDeleteBtn" class="material-symbols-outlined text-[20px] cursor-pointer hover:text-text-light dark:hover:text-text-dark" title="Delete">delete</span>
+                <span class="material-symbols-outlined text-[20px] cursor-pointer hover:text-text-light dark:hover:text-text-dark">notifications</span>
+                <button id="detailCloseBtn" class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10">
+                    <span class="material-symbols-outlined text-text-light dark:text-text-dark">close</span>
                 </button>
             </div>
         </div>
         <div class="p-4">
-            <p id="detailDate" class="text-sm text-gray-600 mb-3">Thursday, 2 October</p>
+            <p id="detailDate" class="text-sm text-text-muted-light dark:text-text-muted-dark mb-3">Thursday, 2 October</p>
 
             <div class="mt-4 space-y-3">
-                <div class="flex items-start gap-3 text-gray-700">
-                    <span class="material-symbols-outlined text-[20px] text-gray-500">location_on</span>
+                <div class="flex items-start gap-3 text-text-light dark:text-text-dark">
+                    <span class="material-symbols-outlined text-[20px] text-text-muted-light dark:text-text-muted-dark">location_on</span>
                     <span id="detailLocation">RMA</span>
                 </div>
-                <div class="flex items-start gap-3 text-gray-700">
-                    <span class="material-symbols-outlined text-[20px] text-gray-500">notifications</span>
+                <div class="flex items-start gap-3 text-text-light dark:text-text-dark">
+                    <span class="material-symbols-outlined text-[20px] text-text-muted-light dark:text-text-muted-dark">notifications</span>
                     <span id="detailReminder">The day before at 5pm</span>
                 </div>
-                <div class="flex items-start gap-3 text-gray-700">
-                    <span class="material-symbols-outlined text-[20px] text-gray-500">account_circle</span>
+                <div class="flex items-start gap-3 text-text-light dark:text-text-dark">
+                    <span class="material-symbols-outlined text-[20px] text-text-muted-light dark:text-text-muted-dark">account_circle</span>
                     <span id="detailOrganizer">Chrisjane Patricio</span>
                 </div>
             </div>

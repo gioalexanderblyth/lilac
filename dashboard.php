@@ -16,6 +16,36 @@ $token = $_SESSION['token'];
 // Include necessary files
 require_once __DIR__ . '/api/config.php';
 
+// Refresh user data from database to ensure profile picture is up to date
+try {
+    $pdo = getDatabaseConnection();
+    if (!($pdo instanceof FileBasedDatabase)) {
+        // Ensure profile_picture column exists
+        try {
+            $stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'profile_picture'");
+            if ($stmt->rowCount() === 0) {
+                $pdo->exec("ALTER TABLE users ADD COLUMN profile_picture VARCHAR(255) NULL DEFAULT NULL AFTER full_name");
+            }
+        } catch (Exception $e) {
+            // Column might already exist, continue
+        }
+        
+        // Get fresh user data from database
+        $stmt = $pdo->prepare('SELECT id, username, email, full_name, role, department, phone, profile_picture, created_at FROM users WHERE id = ?');
+        $stmt->execute([$user['id']]);
+        $dbUser = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($dbUser) {
+            // Update session with fresh data from database
+            $_SESSION['user'] = array_merge($user, $dbUser);
+            $user = $_SESSION['user'];
+        }
+    }
+} catch (Exception $e) {
+    // If database refresh fails, continue with session data
+    error_log('Failed to refresh user data from database: ' . $e->getMessage());
+}
+
 // Get dashboard statistics from database
 $statsData = [];
 try {
@@ -802,7 +832,7 @@ try {
 <div class="px-4 py-4 border-t border-border-light dark:border-border-dark">
 <div class="flex items-center justify-between profile-container">
 <div class="flex items-center gap-3">
-<div class="w-10 h-10 rounded-full bg-cover bg-center sidebar-profile-picture hidden" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p");'></div>
+<div class="w-10 h-10 rounded-full bg-cover bg-center sidebar-profile-picture hidden" style='background-image: url("<?php echo !empty($user['profile_picture']) ? htmlspecialchars($user['profile_picture']) : 'https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p'; ?>");'></div>
 <div class="sidebar-profile-info hidden">
 <p class="font-semibold text-text-light dark:text-text-dark"><?php echo htmlspecialchars($user['role'] === 'admin' ? 'Admin User' : $user['username']); ?></p>
 <div class="flex gap-3">
@@ -821,7 +851,7 @@ try {
 </aside>
 <main class="flex-1 overflow-y-auto">
 <div class="p-8">
-<header class="flex justify-between items-center mb-8">
+<header class="flex justify-between items-center mb-8 header-animate">
 <div class="relative w-full max-w-sm">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
 <input class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition" placeholder="Search..." type="text"/>
@@ -858,19 +888,23 @@ try {
 <div class="flex items-center gap-3">
 <img alt="User avatar" class="w-10 h-10 rounded-full" src="<?php echo !empty($user['profile_picture']) ? htmlspecialchars($user['profile_picture']) : 'https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p'; ?>"/>
 <div>
-<p class="font-semibold text-slate-800 dark:text-slate-100 text-sm"><?php echo htmlspecialchars($user['full_name'] ?? $user['username']); ?></p>
+<p class="font-semibold text-slate-800 dark:text-slate-100 text-sm" id="user-greeting"><?php 
+$fullName = $user['full_name'] ?? $user['username'];
+$firstName = explode(' ', $fullName)[0];
+echo htmlspecialchars($firstName);
+?></p>
 <p class="text-xs text-slate-500 dark:text-slate-400"><?php echo htmlspecialchars($user['email'] ?? ''); ?></p>
 </div>
 </div>
 </div>
 </header>
-<div class="space-y-8">
-<div>
+<div class="space-y-8 content-animate">
+<div class="page-animate">
 <h2 class="text-3xl font-bold text-slate-900 dark:text-white">Dashboard</h2>
 <p class="mt-1 text-slate-500 dark:text-slate-400">Overview of your lilac system.</p>
 </div>
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-<a href="user-awards.php" class="bg-primary text-white p-6 rounded-lg flex flex-col justify-between cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95">
+<a href="user-awards.php" class="bg-primary text-white p-6 rounded-lg flex flex-col justify-between cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 page-animate-delay-1">
 <div class="flex justify-between items-start">
 <h3 class="font-semibold text-white/90">Total Awards</h3>
 <span class="material-symbols-outlined text-white/80">emoji_events</span>
@@ -880,7 +914,7 @@ try {
 <p class="text-sm text-white/70 mt-1">+<?php echo htmlspecialchars($statsData['eligible'] ?? 0); ?> eligible</p>
 </div>
 </a>
-<a href="events-activities.php" class="bg-white dark:bg-slate-800 p-6 rounded-lg cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border-2 border-transparent hover:border-primary/20">
+<a href="events-activities.php" class="bg-white dark:bg-slate-800 p-6 rounded-lg cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border-2 border-transparent hover:border-primary/20 page-animate-delay-1">
 <div class="flex justify-between items-start">
 <h3 class="font-semibold text-slate-600 dark:text-slate-300">Upcoming Events</h3>
 <span class="material-symbols-outlined text-slate-400 dark:text-slate-500">event</span>
@@ -890,7 +924,7 @@ try {
 <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Future events</p>
 </div>
 </a>
-<a href="scheduler.php" class="bg-white dark:bg-slate-800 p-6 rounded-lg cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border-2 border-transparent hover:border-primary/20">
+<a href="scheduler.php" class="bg-white dark:bg-slate-800 p-6 rounded-lg cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border-2 border-transparent hover:border-primary/20 page-animate-delay-2">
 <div class="flex justify-between items-start">
 <h3 class="font-semibold text-slate-600 dark:text-slate-300">Active Schedules</h3>
 <span class="material-symbols-outlined text-slate-400 dark:text-slate-500">calendar_month</span>
@@ -900,7 +934,7 @@ try {
 <p class="text-sm text-slate-500 dark:text-slate-400 mt-1"><?php echo htmlspecialchars($statsData['upcoming_schedules'] ?? 0); ?> upcoming</p>
 </div>
 </a>
-<a href="mou-moa.php" class="bg-white dark:bg-slate-800 p-6 rounded-lg cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border-2 border-transparent hover:border-primary/20">
+<a href="mou-moa.php" class="bg-white dark:bg-slate-800 p-6 rounded-lg cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border-2 border-transparent hover:border-primary/20 page-animate-delay-2">
 <div class="flex justify-between items-start">
 <h3 class="font-semibold text-slate-600 dark:text-slate-300">Signed MOUs</h3>
 <span class="material-symbols-outlined text-slate-400 dark:text-slate-500">handshake</span>
@@ -910,7 +944,7 @@ try {
 <p class="text-sm text-slate-500 dark:text-slate-400 mt-1"><?php echo htmlspecialchars($statsData['pending_renewal_mous'] ?? 0); ?> need renewal</p>
 </div>
 </a>
-<a href="documents.php" class="bg-white dark:bg-slate-800 p-6 rounded-lg cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border-2 border-transparent hover:border-primary/20">
+<a href="documents.php" class="bg-white dark:bg-slate-800 p-6 rounded-lg cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border-2 border-transparent hover:border-primary/20 page-animate-delay-2">
 <div class="flex justify-between items-start">
 <h3 class="font-semibold text-slate-600 dark:text-slate-300">Documents</h3>
 <span class="material-symbols-outlined text-slate-400 dark:text-slate-500">folder</span>
@@ -921,10 +955,10 @@ try {
 </div>
 </a>
 </div>
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 page-animate-delay-1">
 <div class="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-lg">
 <div class="flex justify-between items-center mb-4">
-<h3 class="text-lg font-semibold text-slate-900 dark:text-white">Awards by Category</h3>
+<h3 class="text-lg font-semibold text-slate-900 dark:text-white">Awards Performance</h3>
 <div class="flex gap-2 items-center" style="position: relative; z-index: 10;">
 <div class="relative inline-block" style="position: relative; margin: 0;">
 <select id="awardsMonthFilter" class="px-3 py-1.5 pr-8 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent hidden">
@@ -955,14 +989,14 @@ try {
 <canvas id="awardsChart"></canvas>
 </div>
 </div>
-<div class="bg-white dark:bg-slate-800 p-6 rounded-lg">
+<div class="bg-white dark:bg-slate-800 p-6 rounded-lg page-animate-delay-1">
 <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">Document Types</h3>
 <div class="h-80 flex items-center justify-center">
 <canvas id="docsChart"></canvas>
 </div>
 </div>
 </div>
-<div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+<div class="grid grid-cols-1 lg:grid-cols-5 gap-6 page-animate-delay-2">
 <div class="lg:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-lg">
 <div class="flex justify-between items-center mb-4">
 <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Upcoming Events</h3>
@@ -1006,7 +1040,7 @@ $statusText = ucfirst($status);
 </table>
 </div>
 </div>
-<div class="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-lg">
+<div class="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-lg page-animate-delay-2">
 <div class="flex justify-between items-center mb-4">
 <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Recent Activity</h3>
 <button class="text-sm font-medium text-primary hover:underline">View Log</button>
@@ -1124,7 +1158,7 @@ $statusText = ucfirst($status);
                 toggleDarkMode(!isCurrentlyDark);
                 // Charts will update automatically via MutationObserver
             });
-            // Chart.js rendering for Awards by Category
+            // Chart.js rendering for Awards Performance
             const renderCharts = () => {
                 const isDarkMode = () => document.documentElement.classList.contains('dark');
                 
@@ -1296,13 +1330,14 @@ $statusText = ucfirst($status);
                                     title: {
                                         display: true,
                                         text: 'Eligible Awards Count',
-                                        color: isDarkMode() ? '#94A3B8' : '#64748B',
+                                        color: isDarkMode() ? '#CBD5E1' : '#1E293B',
                                         font: {
-                                            size: 11,
-                                            weight: '500'
+                                            size: 16,
+                                            weight: '400',
+                                            family: 'inherit'
                                         },
                                         padding: {
-                                            bottom: 10
+                                            bottom: 15
                                 }
                             }
                         },
@@ -1316,12 +1351,14 @@ $statusText = ucfirst($status);
                                     title: {
                                         display: true,
                                         text: 'Hover over bars to see award names',
-                                        color: isDarkMode() ? '#94A3B8' : '#64748B',
+                                        color: isDarkMode() ? '#CBD5E1' : '#1E293B',
                                         font: {
-                                            size: 10
+                                            size: 16,
+                                            weight: '400',
+                                            family: 'inherit'
                                         },
                                         padding: {
-                                            top: 10
+                                            top: 15
                                         }
                                     }
                                 }
@@ -1509,24 +1546,27 @@ $statusText = ucfirst($status);
             renderCharts();
         });
 
-        // Load profile picture from localStorage if available
+        // Profile pictures are loaded from database via PHP - no localStorage needed
+        
+        // Update greeting based on time of day
         document.addEventListener('DOMContentLoaded', function() {
-            try {
-                const profile = JSON.parse(localStorage.getItem('lilac_profile'));
-                if (profile && profile.avatar) {
-                    const sidebarProfilePicture = document.querySelector('.sidebar-profile-picture');
-                    if (sidebarProfilePicture) {
-                        sidebarProfilePicture.style.backgroundImage = `url('${profile.avatar}')`;
-                    }
-                    
-                    // Also update the profile name if available
-                    const profileName = document.querySelector('.sidebar-profile-info p');
-                    if (profileName && profile.name) {
-                        profileName.textContent = profile.name;
-                    }
+            const greetingElement = document.getElementById('user-greeting');
+            if (greetingElement) {
+                const hour = new Date().getHours();
+                const firstName = greetingElement.textContent.trim();
+                let greeting = '';
+                
+                if (hour >= 5 && hour < 12) {
+                    greeting = 'Good Morning';
+                } else if (hour >= 12 && hour < 17) {
+                    greeting = 'Good Afternoon';
+                } else if (hour >= 17 && hour < 21) {
+                    greeting = 'Good Evening';
+                } else {
+                    greeting = 'Good Night';
                 }
-            } catch (error) {
-                console.log('No profile data found in localStorage');
+                
+                greetingElement.textContent = greeting + ', ' + firstName + '!';
             }
         });
     </script>
