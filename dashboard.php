@@ -30,6 +30,25 @@ try {
             // Column might already exist, continue
         }
         
+        // Ensure renewal_confirmed and renewal_confirmed_at columns exist in mou_moa table
+        try {
+            $stmt = $pdo->query("SHOW COLUMNS FROM mou_moa LIKE 'renewal_confirmed'");
+            if ($stmt->rowCount() === 0) {
+                $pdo->exec("ALTER TABLE mou_moa ADD COLUMN renewal_confirmed TINYINT(1) DEFAULT 0 AFTER status");
+            }
+        } catch (Exception $e) {
+            // Column might already exist, continue
+        }
+        
+        try {
+            $stmt = $pdo->query("SHOW COLUMNS FROM mou_moa LIKE 'renewal_confirmed_at'");
+            if ($stmt->rowCount() === 0) {
+                $pdo->exec("ALTER TABLE mou_moa ADD COLUMN renewal_confirmed_at TIMESTAMP NULL DEFAULT NULL AFTER renewal_confirmed");
+            }
+        } catch (Exception $e) {
+            // Column might already exist, continue
+        }
+        
         // Get fresh user data from database
         $stmt = $pdo->prepare('SELECT id, username, email, full_name, role, department, phone, profile_picture, created_at FROM users WHERE id = ?');
         $stmt->execute([$user['id']]);
@@ -514,6 +533,8 @@ try {
         })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="js/toast-notifications.js"></script>
+<script src="js/loading-states.js"></script>
 <script>
         tailwind.config = {
             darkMode: "class",
@@ -851,10 +872,15 @@ try {
 </aside>
 <main class="flex-1 overflow-y-auto">
 <div class="p-8">
-<header class="flex justify-between items-center mb-8 header-animate">
-<div class="relative w-full max-w-sm">
-<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-<input class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition" placeholder="Search..." type="text"/>
+<header class="flex justify-between items-center mb-8 header-animate relative" style="z-index: 50;">
+<div class="relative w-full max-w-sm" style="z-index: 10000;">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">search</span>
+<input id="globalSearchInput" class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition" placeholder="Search awards, events, documents..." type="text" autocomplete="off"/>
+<div id="searchResultsDropdown" class="hidden absolute left-0 top-full mt-2 w-full bg-white dark:bg-slate-800 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700" style="z-index: 10001; max-height: 24rem; overflow-y: auto;">
+<div id="searchResultsContent" class="p-2">
+<!-- Search results will be populated here -->
+</div>
+</div>
 </div>
 <div class="flex items-center gap-4">
 						<div class="relative z-[9999]">
@@ -898,7 +924,7 @@ echo htmlspecialchars($firstName);
 </div>
 </div>
 </header>
-<div class="space-y-8 content-animate">
+<div class="space-y-8 content-animate relative" style="z-index: 1;">
 <div class="page-animate">
 <h2 class="text-3xl font-bold text-slate-900 dark:text-white">Dashboard</h2>
 <p class="mt-1 text-slate-500 dark:text-slate-400">Overview of your lilac system.</p>
@@ -990,9 +1016,15 @@ echo htmlspecialchars($firstName);
 </div>
 </div>
 <div class="bg-white dark:bg-slate-800 p-6 rounded-lg page-animate-delay-1">
-<h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">Document Types</h3>
-<div class="h-80 flex items-center justify-center">
-<canvas id="docsChart"></canvas>
+<h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">MOU/MOA Notifications</h3>
+<div class="space-y-4 h-80 overflow-y-auto pr-2">
+<div id="renewalsContainer">
+<!-- Renewals will be loaded here via JavaScript -->
+<div class="flex items-center justify-center h-full text-slate-400 dark:text-slate-500">
+<span class="material-symbols-outlined animate-spin mr-2">sync</span>
+<span>Loading renewals...</span>
+</div>
+</div>
 </div>
 </div>
 </div>
@@ -1483,44 +1515,124 @@ $statusText = ucfirst($status);
                     }
                 }
                 
-                // Documents Chart (Doughnut Chart)
-                const docsCtx = document.getElementById('docsChart');
-                if (docsCtx) {
-                    new Chart(docsCtx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: ['Contracts', 'Reports', 'Proposals', 'Guides', 'Others'],
-                            datasets: [{
-                                label: 'Document Types',
-                                data: [65, 80, 45, 30, 36],
-                                backgroundColor: [
-                                    '#14704E', // primary
-                                    '#10B981', // emerald-500
-                                    '#34D399', // emerald-400
-                                    '#6EE7B7', // emerald-300
-                                    '#A7F3D0'  // emerald-200
-                                ],
-                                borderColor: isDarkMode() ? '#181A20' : '#fff',
-                                borderWidth: 4,
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            cutout: '70%',
-                            plugins: {
-                                legend: {
-                                    position: 'bottom',
-                                    labels: {
-                                        color: isDarkMode() ? '#CBD5E1' : '#475569',
-                                        usePointStyle: true,
-                                        boxWidth: 8
-                                    }
-                                }
-                            }
+                // Load MOU-MOA Renewals
+                async function loadRenewals() {
+                    const container = document.getElementById('renewalsContainer');
+                    if (!container) return;
+                    
+                    try {
+                        const response = await fetch('api/mou-moa.php?action=renewals');
+                        const result = await response.json();
+                        
+                        if (!result.success) {
+                            throw new Error(result.error || 'Failed to load renewals');
                         }
-                    });
+                        
+                        const renewals = result.data || [];
+                        
+                        if (renewals.length === 0) {
+                            container.innerHTML = `
+                                <div class="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500">
+                                    <span class="material-symbols-outlined text-4xl mb-2">check_circle</span>
+                                    <p class="text-sm">No renewals needed</p>
+                                    <p class="text-xs mt-1">All MOU/MOA are up to date</p>
+                                </div>
+                            `;
+                            return;
+                        }
+                        
+                        container.innerHTML = renewals.map(renewal => {
+                            const endDate = new Date(renewal.end_date);
+                            const formattedDate = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                            
+                            const title = renewal.title || renewal.institution || 'Untitled';
+                            
+                            return `
+                                <div class="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/50 relative">
+                                    <button 
+                                        onclick="viewMouDetails(${renewal.id})"
+                                        class="absolute top-2 right-2 p-1.5 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 rounded transition-colors"
+                                        title="View Details">
+                                        <span class="material-symbols-outlined text-base">visibility</span>
+                                    </button>
+                                    <p class="font-semibold text-yellow-800 dark:text-yellow-200 text-sm pr-8">${title}</p>
+                                    <p class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">Renewal Due: ${formattedDate}</p>
+                                    <button 
+                                        onclick="markAsRenewed(${renewal.id})"
+                                        class="mt-3 w-full text-sm font-semibold bg-yellow-400/50 dark:bg-yellow-400/30 text-yellow-900 dark:text-yellow-100 py-1.5 px-3 rounded-md hover:bg-yellow-400/70 dark:hover:bg-yellow-400/40 transition-colors">
+                                        Confirm Renewal
+                                    </button>
+                                </div>
+                            `;
+                        }).join('');
+                    } catch (error) {
+                        console.error('Error loading renewals:', error);
+                        container.innerHTML = `
+                            <div class="flex flex-col items-center justify-center h-full text-red-400 dark:text-red-500">
+                                <span class="material-symbols-outlined text-4xl mb-2">error</span>
+                                <p class="text-sm">Failed to load renewals</p>
+                                <button onclick="loadRenewals()" class="mt-2 text-xs text-primary hover:underline">Retry</button>
+                            </div>
+                        `;
+                    }
                 }
+                
+                // Mark as renewed function (global for onclick handlers)
+                window.markAsRenewed = async function(id) {
+                    if (!confirm('Have you already renewed this MOU/MOA?')) {
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`api/mou-moa.php?action=mark-renewed&id=${id}`, {
+                            method: 'PATCH'
+                        });
+                        const result = await response.json();
+                        
+                        if (!result.success) {
+                            throw new Error(result.error || 'Failed to mark as renewed');
+                        }
+                        
+                        // Reload renewals
+                        await loadRenewals();
+                        
+                        // Show success message (optional)
+                        const notification = document.createElement('div');
+                        notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2';
+                        notification.innerHTML = `
+                            <span class="material-symbols-outlined text-sm">check_circle</span>
+                            <span class="text-sm">Marked as renewed successfully</span>
+                        `;
+                        document.body.appendChild(notification);
+                        setTimeout(() => notification.remove(), 3000);
+                    } catch (error) {
+                        console.error('Error marking as renewed:', error);
+                        alert('Failed to mark as renewed: ' + error.message);
+                    }
+                }
+                
+                // Load renewals on page load
+                loadRenewals();
+                
+                // Make loadRenewals globally accessible for retry
+                window.loadRenewals = loadRenewals;
+                
+                // View MOU Details function
+                window.viewMouDetails = async function(id) {
+                    try {
+                        const response = await fetch(`api/mou-moa.php?action=get&id=${id}`);
+                        const result = await response.json();
+                        
+                        if (!result.success || !result.data) {
+                            throw new Error(result.error || 'Failed to load MOU details');
+                        }
+                        
+                        showMouDetailsModal(result.data);
+                    } catch (error) {
+                        console.error('Error loading MOU details:', error);
+                        alert('Failed to load MOU details: ' + error.message);
+                    }
+                };
                 
                 // Theme change observer
                 const observer = new MutationObserver((mutations) => {
@@ -1556,14 +1668,12 @@ $statusText = ucfirst($status);
                 const firstName = greetingElement.textContent.trim();
                 let greeting = '';
                 
-                if (hour >= 5 && hour < 12) {
+                if (hour >= 0 && hour < 12) {
                     greeting = 'Good Morning';
-                } else if (hour >= 12 && hour < 17) {
+                } else if (hour >= 12 && hour < 18) {
                     greeting = 'Good Afternoon';
-                } else if (hour >= 17 && hour < 21) {
-                    greeting = 'Good Evening';
                 } else {
-                    greeting = 'Good Night';
+                    greeting = 'Good Evening';
                 }
                 
                 greetingElement.textContent = greeting + ', ' + firstName + '!';
@@ -1788,6 +1898,429 @@ $statusText = ucfirst($status);
         });
     })();
 </script>
+<script>
+    // Global Search Functionality
+    (function() {
+        const searchInput = document.getElementById('globalSearchInput');
+        const searchDropdown = document.getElementById('searchResultsDropdown');
+        const searchResultsContent = document.getElementById('searchResultsContent');
+        
+        if (!searchInput || !searchDropdown || !searchResultsContent) return;
+        
+        let searchTimeout;
+        let currentSearchQuery = '';
+        
+        // Debounced search function
+        function performSearch(query) {
+            if (query.length < 2) {
+                searchDropdown.classList.add('hidden');
+                return;
+            }
+            
+            currentSearchQuery = query;
+            
+            // Show loading state
+            searchResultsContent.innerHTML = '<div class="p-4 text-sm text-slate-500 dark:text-slate-400 text-center">Searching...</div>';
+            searchDropdown.classList.remove('hidden');
+            
+            fetch(`api/search.php?q=${encodeURIComponent(query)}&limit=5`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Search request failed: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Search response:', data);
+                    if (currentSearchQuery === query) {
+                        if (data.success) {
+                            console.log('Results:', data.results);
+                            console.log('Counts:', data.counts);
+                            displaySearchResults(data.results, data.counts || {});
+                        } else {
+                            console.error('Search failed:', data.error);
+                            searchResultsContent.innerHTML = '<div class="p-4 text-sm text-red-500 dark:text-red-400 text-center">' + (data.error || 'Search failed. Please try again.') + '</div>';
+                            searchDropdown.classList.remove('hidden');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                    if (currentSearchQuery === query) {
+                        searchResultsContent.innerHTML = '<div class="p-4 text-sm text-red-500 dark:text-red-400 text-center">Error performing search. Please check your connection and try again.<br><small>' + error.message + '</small></div>';
+                        searchDropdown.classList.remove('hidden');
+                    }
+                });
+        }
+        
+        // Display search results
+        function displaySearchResults(results, counts) {
+            if (!results || results.length === 0) {
+                searchResultsContent.innerHTML = '<div class="p-4 text-sm text-slate-500 dark:text-slate-400 text-center">No results found</div>';
+                searchDropdown.classList.remove('hidden');
+                return;
+            }
+            
+            let html = '';
+            
+            // Group results by type
+            const grouped = {
+                awards: [],
+                events: [],
+                documents: [],
+                mous: []
+            };
+            
+            results.forEach(result => {
+                if (grouped[result.type + 's']) {
+                    grouped[result.type + 's'].push(result);
+                } else if (result.type === 'mou') {
+                    grouped.mous.push(result);
+                }
+            });
+            
+            // Awards section
+            if (grouped.awards.length > 0) {
+                html += '<div class="px-3 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Awards (' + counts.awards + ')</div>';
+                grouped.awards.forEach(item => {
+                    html += createResultItem(item, 'award');
+                });
+            }
+            
+            // Events section
+            if (grouped.events.length > 0) {
+                html += '<div class="px-3 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase border-t border-slate-200 dark:border-slate-700 mt-2">Events (' + counts.events + ')</div>';
+                grouped.events.forEach(item => {
+                    html += createResultItem(item, 'event');
+                });
+            }
+            
+            // Documents section
+            if (grouped.documents.length > 0) {
+                html += '<div class="px-3 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase border-t border-slate-200 dark:border-slate-700 mt-2">Documents (' + counts.documents + ')</div>';
+                grouped.documents.forEach(item => {
+                    html += createResultItem(item, 'document');
+                });
+            }
+            
+            // MOUs section
+            if (grouped.mous.length > 0) {
+                html += '<div class="px-3 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase border-t border-slate-200 dark:border-slate-700 mt-2">MOUs/MOAs (' + counts.mous + ')</div>';
+                grouped.mous.forEach(item => {
+                    html += createResultItem(item, 'mou');
+                });
+            }
+            
+            searchResultsContent.innerHTML = html;
+            searchDropdown.classList.remove('hidden');
+        }
+        
+        // Create result item HTML
+        function createResultItem(item, type) {
+            const icons = {
+                award: 'emoji_events',
+                event: 'event',
+                document: 'description',
+                mou: 'handshake'
+            };
+            
+            const colors = {
+                award: 'text-yellow-600 dark:text-yellow-400',
+                event: 'text-blue-600 dark:text-blue-400',
+                document: 'text-green-600 dark:text-green-400',
+                mou: 'text-purple-600 dark:text-purple-400'
+            };
+            
+            const date = new Date(item.created_at);
+            const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            
+            return `
+                <a href="${item.url}" class="flex items-center gap-3 p-3 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors group">
+                    <span class="material-symbols-outlined ${colors[type]}">${icons[type]}</span>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-medium text-slate-900 dark:text-slate-100 truncate group-hover:text-primary">${escapeHtml(item.title)}</div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400">${formattedDate}</div>
+                    </div>
+                    <span class="material-symbols-outlined text-slate-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">arrow_forward</span>
+                </a>
+            `;
+        }
+        
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Event listeners
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            
+            clearTimeout(searchTimeout);
+            
+            if (query.length < 2) {
+                searchDropdown.classList.add('hidden');
+                return;
+            }
+            
+            searchTimeout = setTimeout(() => {
+                performSearch(query);
+            }, 300); // 300ms debounce
+        });
+        
+        searchInput.addEventListener('focus', () => {
+            if (searchInput.value.trim().length >= 2 && searchResultsContent.innerHTML) {
+                searchDropdown.classList.remove('hidden');
+            }
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+                searchDropdown.classList.add('hidden');
+            }
+        });
+        
+        // Handle Enter key to navigate to first result
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const firstResult = searchResultsContent.querySelector('a');
+                if (firstResult) {
+                    e.preventDefault();
+                    window.location.href = firstResult.href;
+                }
+            }
+        });
+    })();
+</script>
+
+<!-- MOU Details Modal -->
+<div id="mouDetailsModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+    <div class="flex min-h-screen items-start justify-center p-4 pt-12">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" onclick="closeMouDetailsModal()"></div>
+        
+        <!-- Modal Content -->
+        <div class="relative w-full max-w-7xl bg-white dark:bg-background-dark rounded-xl shadow-2xl">
+            <div class="p-8 overflow-y-auto max-h-[90vh]">
+                <!-- Breadcrumbs -->
+                <div class="flex flex-wrap gap-2 items-center mb-6">
+                    <a href="#" class="text-slate-500 dark:text-slate-400 text-sm font-medium hover:text-primary" onclick="closeMouDetailsModal(); return false;">Dashboard</a>
+                    <span class="material-symbols-outlined text-slate-400 dark:text-slate-500 text-base">chevron_right</span>
+                    <span class="text-slate-800 dark:text-slate-200 text-sm font-medium" id="modalBreadcrumbTitle">MOU Details</span>
+                </div>
+                
+                <!-- Header -->
+                <div class="flex flex-wrap justify-between items-start gap-4 mb-8">
+                    <div class="flex flex-col gap-2">
+                        <h1 class="text-slate-900 dark:text-slate-50 text-4xl font-black leading-tight tracking-tight" id="modalTitle">MOU Title</h1>
+                        <div class="flex items-center gap-2">
+                            <span class="relative flex h-2 w-2">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                            <p class="text-green-600 dark:text-green-400 text-sm font-medium" id="modalStatus">Active</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-1 sm:flex-none gap-3 flex-wrap justify-start sm:justify-end">
+                        <button onclick="editMouFromModal()" class="flex min-w-[84px] cursor-pointer items-center justify-center rounded-lg h-10 px-4 bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-50 text-sm font-bold hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">
+                            <span>Edit</span>
+                        </button>
+                        <button onclick="renewMouFromModal()" class="flex min-w-[84px] cursor-pointer items-center justify-center rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors">
+                            <span>Renew</span>
+                        </button>
+                        <button onclick="closeMouDetailsModal()" class="flex size-10 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-50 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">
+                            <span class="material-symbols-outlined">close</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Content Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Left Column -->
+                    <div class="lg:col-span-2 flex flex-col gap-8">
+                        <!-- Key Details -->
+                        <div class="bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+                            <h2 class="text-slate-900 dark:text-slate-50 text-lg font-bold mb-6">Key Details</h2>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                                <div class="flex flex-col gap-1">
+                                    <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Parties Involved</p>
+                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200" id="modalParties">-</p>
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Type</p>
+                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200" id="modalType">-</p>
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Effective Date</p>
+                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200" id="modalSignDate">-</p>
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Expiration / Renewal Date</p>
+                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200" id="modalEndDate">-</p>
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Location</p>
+                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200" id="modalLocation">-</p>
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Contact Person</p>
+                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200" id="modalContact">-</p>
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Term</p>
+                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200" id="modalTerm">-</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Terms & Conditions -->
+                        <div class="bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+                            <h2 class="text-slate-900 dark:text-slate-50 text-lg font-bold mb-4">Terms & Conditions</h2>
+                            <div class="prose prose-sm dark:prose-invert max-h-60 overflow-y-auto pr-3 text-slate-600 dark:text-slate-300" id="modalDescription">
+                                <p>No description available.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Column -->
+                    <div class="flex flex-col gap-8">
+                        <!-- Associated Documents -->
+                        <div class="bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+                            <h2 class="text-slate-900 dark:text-slate-50 text-lg font-bold mb-4">Associated Documents</h2>
+                            <ul class="space-y-3" id="modalDocuments">
+                                <li class="text-sm text-slate-500 dark:text-slate-400">No documents attached.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // MOU Details Modal Functions
+    let currentMouData = null;
+    
+    function showMouDetailsModal(data) {
+        currentMouData = data;
+        const modal = document.getElementById('mouDetailsModal');
+        
+        // Set title
+        const title = data.title || data.institution || 'Untitled MOU/MOA';
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalBreadcrumbTitle').textContent = title.length > 40 ? title.substring(0, 40) + '...' : title;
+        
+        // Set status
+        const status = data.status || 'Active';
+        const statusEl = document.getElementById('modalStatus');
+        statusEl.textContent = status;
+        if (status === 'Expired') {
+            statusEl.className = 'text-red-600 dark:text-red-400 text-sm font-medium';
+        } else if (status === 'Expires Soon') {
+            statusEl.className = 'text-yellow-600 dark:text-yellow-400 text-sm font-medium';
+        } else {
+            statusEl.className = 'text-green-600 dark:text-green-400 text-sm font-medium';
+        }
+        
+        // Set key details
+        document.getElementById('modalParties').textContent = data.partner || data.institution || '-';
+        document.getElementById('modalType').textContent = data.type || data.category || '-';
+        document.getElementById('modalSignDate').textContent = data.sign_date ? formatModalDate(data.sign_date) : '-';
+        document.getElementById('modalEndDate').textContent = data.end_date ? formatModalDate(data.end_date) : '-';
+        document.getElementById('modalLocation').textContent = data.location || '-';
+        document.getElementById('modalContact').textContent = data.contact_email || '-';
+        document.getElementById('modalTerm').textContent = data.term || '-';
+        
+        // Set description
+        const descEl = document.getElementById('modalDescription');
+        if (data.description && data.description.trim()) {
+            descEl.innerHTML = '<p>' + escapeHtml(data.description).replace(/\n/g, '</p><p>') + '</p>';
+        } else {
+            descEl.innerHTML = '<p>No description available.</p>';
+        }
+        
+        // Set documents
+        const docsEl = document.getElementById('modalDocuments');
+        if (data.file_name && data.file_path) {
+            const fileName = data.file_name || 'Document';
+            const fileSize = ''; // File size not stored in DB
+            docsEl.innerHTML = `
+                <li class="flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/50">
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center justify-center size-10 bg-primary/10 dark:bg-primary/20 rounded-lg">
+                            <span class="material-symbols-outlined text-primary">picture_as_pdf</span>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">${escapeHtml(fileName)}</p>
+                            ${fileSize ? '<p class="text-xs text-slate-500 dark:text-slate-400">' + fileSize + '</p>' : ''}
+                        </div>
+                    </div>
+                    <a href="api/mou-moa.php?action=download&id=${data.id}" class="text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary">
+                        <span class="material-symbols-outlined">download</span>
+                    </a>
+                </li>
+            `;
+        } else {
+            docsEl.innerHTML = '<li class="text-sm text-slate-500 dark:text-slate-400">No documents attached.</li>';
+        }
+        
+        // Show modal
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+    
+    function closeMouDetailsModal() {
+        const modal = document.getElementById('mouDetailsModal');
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+        currentMouData = null;
+    }
+    
+    function formatModalDate(dateString) {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        });
+    }
+    
+    function editMouFromModal() {
+        if (currentMouData) {
+            window.location.href = `mou-moa.php?id=${currentMouData.id}`;
+        }
+    }
+    
+    function renewMouFromModal() {
+        if (currentMouData) {
+            if (confirm('Have you already renewed this MOU/MOA?')) {
+                markAsRenewed(currentMouData.id);
+                closeMouDetailsModal();
+            }
+        }
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('mouDetailsModal');
+            if (modal && !modal.classList.contains('hidden')) {
+                closeMouDetailsModal();
+            }
+        }
+    });
+</script>
+
 <script>
     // XAMPP/Apache version - no port redirect needed
 </script>

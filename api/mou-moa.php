@@ -9,7 +9,7 @@ session_start();
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 // Handle preflight requests
@@ -334,6 +334,57 @@ function deleteEntry($pdo, $id) {
     }
 }
 
+// Get MOU/MOA entries due for renewal (60 days before expiration)
+function getRenewals($pdo) {
+    try {
+        $today = date('Y-m-d');
+        $sixtyDaysFromNow = date('Y-m-d', strtotime('+60 days'));
+        
+        $sql = "SELECT id, title, institution, partner, type, end_date, 
+                       DATEDIFF(end_date, CURDATE()) as days_remaining
+                FROM mou_moa 
+                WHERE end_date IS NOT NULL
+                AND end_date >= CURDATE()
+                AND end_date <= DATE_ADD(CURDATE(), INTERVAL 60 DAY)
+                AND (renewal_confirmed = 0 OR renewal_confirmed IS NULL)
+                ORDER BY end_date ASC";
+        
+        $stmt = $pdo->query($sql);
+        $renewals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Map 'type' from database to 'category' for frontend
+        foreach ($renewals as &$renewal) {
+            if (isset($renewal['type'])) {
+                $renewal['category'] = $renewal['type'];
+            }
+            // Ensure days_remaining is an integer
+            $renewal['days_remaining'] = (int)$renewal['days_remaining'];
+        }
+        
+        return $renewals;
+    } catch (PDOException $e) {
+        throw new Exception('Failed to fetch renewals: ' . $e->getMessage());
+    }
+}
+
+// Mark MOU/MOA as renewed
+function markAsRenewed($pdo, $id) {
+    try {
+        $stmt = $pdo->prepare("
+            UPDATE mou_moa 
+            SET renewal_confirmed = 1, 
+                renewal_confirmed_at = NOW(),
+                updated_at = NOW()
+            WHERE id = ?
+        ");
+        $stmt->execute([$id]);
+        
+        return $stmt->rowCount() > 0;
+    } catch (PDOException $e) {
+        throw new Exception('Failed to mark as renewed: ' . $e->getMessage());
+    }
+}
+
 // Main request handling
 try {
     $method = $_SERVER['REQUEST_METHOD'];
@@ -345,6 +396,10 @@ try {
                 // Get all entries - all authenticated users have full access
                 $entries = getAllEntries($pdo, $userId, true);
                 echo json_encode(['success' => true, 'data' => $entries]);
+            } elseif ($action === 'renewals') {
+                // Get MOU/MOA entries due for renewal
+                $renewals = getRenewals($pdo);
+                echo json_encode(['success' => true, 'data' => $renewals]);
             } elseif ($action === 'get') {
                 // Get single entry
                 $id = $_GET['id'] ?? null;
@@ -460,6 +515,26 @@ try {
                 echo json_encode(['success' => true, 'message' => 'Entry updated successfully']);
             } else {
                 throw new Exception('Entry not found or no changes made');
+            }
+            break;
+
+        case 'PATCH':
+            // Handle mark as renewed
+            $action = $_GET['action'] ?? '';
+            if ($action === 'mark-renewed') {
+                $id = $_GET['id'] ?? null;
+                if (!$id) {
+                    throw new Exception('ID is required');
+                }
+                
+                $success = markAsRenewed($pdo, $id);
+                if ($success) {
+                    echo json_encode(['success' => true, 'message' => 'Marked as renewed successfully']);
+                } else {
+                    throw new Exception('Entry not found or already marked as renewed');
+                }
+            } else {
+                throw new Exception('Invalid action');
             }
             break;
 

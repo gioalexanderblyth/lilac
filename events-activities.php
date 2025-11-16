@@ -383,7 +383,15 @@ No notifications yet
           <button id="prevMonth" class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-background-dark transition-colors">
             <span class="material-symbols-outlined">chevron_left</span>
           </button>
-          <h4 id="calendarTitle" class="font-semibold text-text-light dark:text-text-dark">Loading...</h4>
+          <div class="relative">
+            <button id="calendarTitle" type="button" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark hover:bg-gray-50 dark:hover:bg-card-dark transition-colors font-semibold text-text-light dark:text-text-dark cursor-pointer">
+              <span id="calendarTitleText">Loading...</span>
+              <span class="material-symbols-outlined text-sm">expand_more</span>
+            </button>
+            <div id="monthYearDropdown" class="hidden absolute left-0 top-full mt-2 w-48 bg-white dark:bg-card-dark rounded-lg shadow-xl border border-border-light dark:border-border-dark z-50 max-h-80 overflow-y-auto">
+              <!-- Month/Year options will be generated here -->
+            </div>
+          </div>
           <div class="flex items-center gap-2">
             <button id="nextMonth" class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-background-dark transition-colors">
             <span class="material-symbols-outlined">chevron_right</span>
@@ -2717,9 +2725,69 @@ Current mode: localStorage only (events will persist in browser)
             window.updateCalendarTitle = function() {
                 const month = window.monthNames[window.currentDate.getMonth()];
                 const year = window.currentDate.getFullYear();
-                const titleElement = document.getElementById('calendarTitle');
-                if (titleElement) {
-                    titleElement.textContent = `${month} ${year}`;
+                const titleTextElement = document.getElementById('calendarTitleText');
+                if (titleTextElement) {
+                    // Format as "Nov 2025" style
+                    const shortMonth = month.substring(0, 3);
+                    titleTextElement.textContent = `${shortMonth} ${year}`;
+                }
+            }
+
+            // Function to populate month/year dropdown
+            window.populateMonthYearDropdown = function() {
+                const dropdown = document.getElementById('monthYearDropdown');
+                if (!dropdown) return;
+
+                dropdown.innerHTML = '';
+                const now = new Date();
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth();
+                
+                // Use a Set to track added months and avoid duplicates
+                const addedMonths = new Set();
+                
+                // Helper function to add a month option
+                const addMonthOption = (year, month) => {
+                    const key = `${year}-${month}`;
+                    if (addedMonths.has(key)) return; // Skip duplicates
+                    addedMonths.add(key);
+                    
+                    const option = document.createElement('button');
+                    option.type = 'button';
+                    option.className = 'w-full text-left px-4 py-2 text-sm text-text-light dark:text-text-dark hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors';
+                    const shortMonth = window.monthNames[month].substring(0, 3);
+                    option.textContent = `${shortMonth} ${year}`;
+                    option.dataset.year = year;
+                    option.dataset.month = month;
+                    
+                    option.addEventListener('click', () => {
+                        window.currentDate.setFullYear(year);
+                        window.currentDate.setMonth(month);
+                        window.updateCalendarTitle();
+                        window.renderCalendar();
+                        dropdown.classList.add('hidden');
+                    });
+                    
+                    dropdown.appendChild(option);
+                };
+                
+                // Past 12 months (excluding current month which will be added in future section)
+                for (let i = 12; i >= 1; i--) {
+                    const pastDate = new Date(currentYear, currentMonth - i, 1);
+                    const year = pastDate.getFullYear();
+                    const month = pastDate.getMonth();
+                    addMonthOption(year, month);
+                }
+                
+                // Current month and all future months (current year from current month, then next 5 years)
+                for (let yearOffset = 0; yearOffset <= 5; yearOffset++) {
+                    const year = currentYear + yearOffset;
+                    const startMonth = yearOffset === 0 ? currentMonth : 0;
+                    
+                    // Always include all remaining months for each year
+                    for (let month = startMonth; month < 12; month++) {
+                        addMonthOption(year, month);
+                    }
                 }
             }
 
@@ -2893,11 +2961,32 @@ Current mode: localStorage only (events will persist in browser)
             // Initialize calendar immediately
             window.updateCalendarTitle();
             window.renderCalendar();
+            window.populateMonthYearDropdown();
             
             // Set today as the initial selected date
             const today = new Date();
             const todayString = today.toISOString().split('T')[0];
             window.selectedCalendarDate = todayString;
+
+            // Dropdown toggle functionality
+            const calendarTitleBtn = document.getElementById('calendarTitle');
+            const monthYearDropdown = document.getElementById('monthYearDropdown');
+            
+            if (calendarTitleBtn && monthYearDropdown) {
+                calendarTitleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // Regenerate dropdown each time it opens to ensure it's always current
+                    window.populateMonthYearDropdown();
+                    monthYearDropdown.classList.toggle('hidden');
+                });
+
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!calendarTitleBtn.contains(e.target) && !monthYearDropdown.contains(e.target)) {
+                        monthYearDropdown.classList.add('hidden');
+                    }
+                });
+            }
             
             // Add manual refresh function for debugging
             window.refreshCalendar = function() {

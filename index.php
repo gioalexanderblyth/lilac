@@ -1036,9 +1036,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         </button>
                     </div>
                 </div>
-                <div class="flex items-center">
-                    <input type="checkbox" name="remember_me" id="remember" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                    <label for="remember" class="ml-2 text-gray-700 text-sm">Remember me for 30 days</label>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <input type="checkbox" name="remember_me" id="remember" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                        <label for="remember" class="ml-2 text-gray-700 text-sm">Remember me for 30 days</label>
+                    </div>
+                    <a href="reset-password.php" class="text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors">Forgot Password?</a>
                 </div>
                 <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-lg shadow hover:bg-blue-700 transition">Login</button>
 
