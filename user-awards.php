@@ -31,6 +31,7 @@ try {
                 $_SESSION['role'] = $dbUser['role'];
             }
         }
+
     } else {
         // Fallback to session role for file-based system
         $isAdmin = isset($user['role']) && $user['role'] === 'admin';
@@ -789,11 +790,11 @@ try {
                                 <a class="active tab-underline text-primary whitespace-nowrap py-4 px-1 font-bold text-sm relative"
                                     href="#" id="process-tab">Process Award</a>
                                 <a class="tab-underline border-transparent text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:border-border-light dark:hover:border-border-dark whitespace-nowrap py-4 px-1 font-medium text-sm transition-colors duration-300"
-                                    href="#" id="ched-guidance-tab">CHED Guidelines</a>
-                                <a class="tab-underline border-transparent text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:border-border-light dark:hover:border-border-dark whitespace-nowrap py-4 px-1 font-medium text-sm transition-colors duration-300"
                                     href="#" id="analytics-tab">Analytics Dashboard</a>
                                 <a class="tab-underline border-transparent text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:border-border-light dark:hover:border-border-dark whitespace-nowrap py-4 px-1 font-medium text-sm transition-colors duration-300"
                                     href="#" id="award-list-tab">Award List & Criteria</a>
+                                <a class="tab-underline border-transparent text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:border-border-light dark:hover:border-border-dark whitespace-nowrap py-4 px-1 font-medium text-sm transition-colors duration-300"
+                                    href="#" id="ched-guidance-tab">CHED Guidelines</a>
                             </nav>
                         </div>
 
@@ -837,15 +838,44 @@ try {
                                         </a>
                                     </div>
                                 </div>
-                                <div class="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-2xl p-6 shadow-soft">
-                                    <h3 class="text-lg font-bold text-text-light dark:text-text-dark">Gaps vs Current System</h3>
-                                    <p class="text-sm text-text-muted-light dark:text-text-muted-dark mb-4">These items surfaced while mapping the CHED brief to the existing awards page:</p>
-                                    <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-2 list-disc list-inside">
-                                        <li>No UI distinction between Institutional (Cat A/B), Individual, and Special awards.</li>
-                                        <li>No place to upload/track required videos, MOUs, certificates, or policies.</li>
-                                        <li>Deadline/reminder workflow missing—risk of missing CHED cut-offs.</li>
-                                        <li>Lack of narrative guidance tying similarity scores to CHED’s qualitative criteria.</li>
-                                    </ul>
+                                <div class="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-2xl p-6 shadow-soft" id="milestoneTimelineCard">
+                                    <div class="flex items-center justify-between flex-wrap gap-3">
+                                        <div>
+                                            <h3 class="text-lg font-bold text-text-light dark:text-text-dark">Milestone Timeline</h3>
+                                            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Auto-order tasks based on your evidence tracker progress.</p>
+                                        </div>
+                                        <span class="px-3 py-1 text-xs rounded-full bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-200">CHED 2024 cycle</span>
+                                    </div>
+                                    <div class="mt-6 space-y-4" id="milestoneTimelineList">
+                                        <div class="flex items-start gap-3 timeline-step" data-requirements="videos,supporting-docs">
+                                            <div class="timeline-indicator h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold">1</div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-text-light dark:text-text-dark">Compile evidence package</p>
+                                                <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Upload pitch video, MOUs, certificates, and related policies.</p>
+                                                <p class="timeline-status text-xs font-semibold mt-1 text-primary" data-default-label="Due soon">Due soon</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start gap-3 timeline-step" data-requirements="impact-metrics,deadline-plan">
+                                            <div class="timeline-indicator h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold">2</div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-text-light dark:text-text-dark">Reviewer alignment</p>
+                                                <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Lock timeline & assign reviewers to validate impact metrics.</p>
+                                                <p class="timeline-status text-xs font-semibold mt-1 text-primary" data-default-label="Schedule ASAP">Schedule ASAP</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start gap-3 timeline-step" data-requirements="nomination-form">
+                                            <div class="timeline-indicator h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold">3</div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-text-light dark:text-text-dark">CHED submission prep</p>
+                                                <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Lock the nomination form and readiness survey before the cutoff.</p>
+                                                <p class="timeline-status text-xs font-semibold mt-1 text-primary" data-default-label="01 Oct 2024 · 10:00 PM PhST">01 Oct 2024 · 10:00 PM PhST</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button id="refreshMilestoneTimeline" class="mt-6 inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80">
+                                        <span class="material-symbols-outlined text-base">update</span>
+                                        Refresh timeline
+                                    </button>
                                 </div>
                             </div>
 
@@ -1245,84 +1275,33 @@ try {
                                         </div>
                                     </div>
 
-                                    <!-- New Advanced Visualizations -->
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <!-- OCR Accuracy Metrics -->
-                                        <div class="analytics-card p-6">
-                                            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-                                                <span class="material-symbols-outlined text-primary">speed</span>
-                                                OCR Processing Accuracy
-                                            </h3>
-                                            <div class="space-y-4">
-                                                <div>
-                                                    <div class="flex justify-between text-sm mb-1">
-                                                        <span class="text-gray-600 dark:text-gray-400">Text Recognition</span>
-                                                        <span class="font-semibold text-green-600 dark:text-green-400" id="ocr-text-accuracy">94.2%</span>
-                                                    </div>
-                                                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                                        <div class="bg-green-500 h-2 rounded-full transition-all duration-500" style="width: 94.2%"></div>
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <div class="flex justify-between text-sm mb-1">
-                                                        <span class="text-gray-600 dark:text-gray-400">Layout Analysis</span>
-                                                        <span class="font-semibold text-blue-600 dark:text-blue-400" id="ocr-layout-accuracy">97.8%</span>
-                                                    </div>
-                                                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                                        <div class="bg-blue-500 h-2 rounded-full transition-all duration-500" style="width: 97.8%"></div>
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <div class="flex justify-between text-sm mb-1">
-                                                        <span class="text-gray-600 dark:text-gray-400">Image Quality</span>
-                                                        <span class="font-semibold text-purple-600 dark:text-purple-400" id="ocr-quality-score">91.5%</span>
-                                                    </div>
-                                                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                                        <div class="bg-purple-500 h-2 rounded-full transition-all duration-500" style="width: 91.5%"></div>
-                                                    </div>
-                                                </div>
-                                                <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                                                    <p class="text-xs text-gray-700 dark:text-gray-300 flex items-start gap-2">
-                                                        <span class="material-symbols-outlined text-sm text-blue-600 dark:text-blue-400">info</span>
-                                                        <span>Average processing time: <strong>2.3 seconds</strong> per document</span>
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-
                                         <!-- Recent Award Processing Activity -->
                                         <div class="analytics-card p-6">
                                             <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
                                                 <span class="material-symbols-outlined text-primary">timeline</span>
                                                 Recent Award Processing Activity
                                             </h3>
-                                            <div class="space-y-3" id="processing-timeline">
-                                                <!-- Timeline will be populated dynamically -->
-                                                <div class="flex items-start gap-3 pb-3 border-b border-gray-200 dark:border-gray-700">
-                                                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                                                        <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-lg">check_circle</span>
-                                                    </div>
-                                                    <div class="flex-1">
-                                                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100">Innovation Award - Approved</p>
-                                                        <p class="text-xs text-gray-500 dark:text-gray-400">Processed successfully • 2 hours ago</p>
-                                                    </div>
-                                                </div>
-                                                <div class="flex items-start gap-3 pb-3 border-b border-gray-200 dark:border-gray-700">
-                                                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                                                        <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-lg">hourglass_empty</span>
-                                                    </div>
-                                                    <div class="flex-1">
-                                                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100">Leadership Award - Under Review</p>
-                                                        <p class="text-xs text-gray-500 dark:text-gray-400">OCR accuracy: 96.3% • 5 hours ago</p>
-                                                    </div>
-                                                </div>
-                                                <div class="flex items-start gap-3">
-                                                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                                                        <span class="material-symbols-outlined text-purple-600 dark:text-purple-400 text-lg">analytics</span>
-                                                    </div>
-                                                    <div class="flex-1">
-                                                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100">Global Citizenship Award - Analyzed</p>
-                                                        <p class="text-xs text-gray-500 dark:text-gray-400">Match score: 87% • Yesterday</p>
+                                        <div class="space-y-3" id="processing-timeline">
+                                            <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                                                <span class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                                                <span>Loading recent activity…</span>
+                                            </div>
+                                        </div>
+                                        </div>
+
+                                        <!-- Award Momentum Insights -->
+                                        <div class="analytics-card p-6">
+                                            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                                                <span class="material-symbols-outlined text-primary">trending_up</span>
+                                                Award Momentum (Top Candidates)
+                                            </h3>
+                                            <div id="topAwardsMomentum" class="space-y-4 text-sm text-gray-600 dark:text-gray-300">
+                                                <div class="flex items-center gap-3">
+                                                    <div class="w-10 h-10 rounded-full bg-primary/10 animate-pulse"></div>
+                                                    <div>
+                                                        <p class="font-medium text-gray-700 dark:text-gray-200">Analyzing submissions…</p>
+                                                        <p class="text-xs text-gray-500 dark:text-gray-400">Please wait</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1379,7 +1358,7 @@ try {
                                         class="analytics-card p-6 min-h-full border-l-4 border-primary bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 content-card">
                                         <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
                                             <span class="material-symbols-outlined text-primary">auto_awesome</span>
-                                            AI-Powered Analysis & Recommendations
+                                            Analysis & Recommendations
                                         </h3>
                                         <div id="recommendationsContainer" class="space-y-4">
                                             <!-- Performance Summary -->
@@ -2827,6 +2806,9 @@ try {
             const requirementCheckboxes = document.querySelectorAll('.ched-requirement');
             const requirementProgressCount = document.getElementById('ched-requirement-progress-count');
             const requirementProgressBar = document.getElementById('ched-requirement-progress-bar');
+            const timelineCard = document.getElementById('milestoneTimelineCard');
+            const timelineSteps = timelineCard ? timelineCard.querySelectorAll('.timeline-step') : [];
+            const refreshTimelineButton = document.getElementById('refreshMilestoneTimeline');
 
             function loadBackupRequirementState() {
                 try {
@@ -2863,6 +2845,60 @@ try {
                 requirementProgressCount.textContent = `${completed}/${total} ready`;
                 requirementProgressBar.style.width = `${percent}%`;
                 requirementProgressBar.setAttribute('aria-valuenow', percent);
+            }
+
+            function setIndicatorState(indicatorEl, state) {
+                if (!indicatorEl) return;
+                indicatorEl.classList.remove('bg-primary/10', 'text-primary', 'bg-emerald-500', 'bg-amber-500', 'text-white');
+                if (state === 'complete') {
+                    indicatorEl.classList.add('bg-emerald-500', 'text-white');
+                } else if (state === 'partial') {
+                    indicatorEl.classList.add('bg-amber-500', 'text-white');
+                } else {
+                    indicatorEl.classList.add('bg-primary/10', 'text-primary');
+                }
+            }
+
+            function updateMilestoneTimeline() {
+                if (!timelineSteps.length) return;
+                timelineSteps.forEach((step) => {
+                    const requirementAttr = step.dataset.requirements || '';
+                    const requirements = requirementAttr.split(',').map(id => id.trim()).filter(Boolean);
+                    const statusEl = step.querySelector('.timeline-status');
+                    const indicatorEl = step.querySelector('.timeline-indicator');
+                    if (!statusEl) return;
+
+                    let completed = 0;
+                    requirements.forEach((id) => {
+                        if (requirementState[id]) {
+                            completed++;
+                        }
+                    });
+                    const total = requirements.length;
+
+                    let statusText = statusEl.dataset.defaultLabel || 'Pending';
+                    let statusClasses = 'timeline-status text-xs font-semibold mt-1 text-primary';
+                    if (total > 0) {
+                        if (completed === total) {
+                            statusText = 'Ready';
+                            statusClasses = 'timeline-status text-xs font-semibold mt-1 text-emerald-600 dark:text-emerald-400';
+                            setIndicatorState(indicatorEl, 'complete');
+                        } else if (completed > 0) {
+                            statusText = `In progress — ${completed}/${total} done`;
+                            statusClasses = 'timeline-status text-xs font-semibold mt-1 text-amber-600 dark:text-amber-400';
+                            setIndicatorState(indicatorEl, 'partial');
+                        } else {
+                            statusText = statusEl.dataset.defaultLabel || 'Pending';
+                            statusClasses = 'timeline-status text-xs font-semibold mt-1 text-primary dark:text-primary-300';
+                            setIndicatorState(indicatorEl, 'pending');
+                        }
+                    } else {
+                        setIndicatorState(indicatorEl, 'pending');
+                    }
+
+                    statusEl.textContent = statusText;
+                    statusEl.className = statusClasses;
+                });
             }
 
             function backupRequirementState() {
@@ -2918,10 +2954,18 @@ try {
                         persistRequirementState();
                     }
                     updateRequirementProgress();
+                    updateMilestoneTimeline();
                 });
             });
 
             updateRequirementProgress();
+            updateMilestoneTimeline();
+
+            if (refreshTimelineButton) {
+                refreshTimelineButton.addEventListener('click', () => {
+                    updateMilestoneTimeline();
+                });
+            }
 
             // Deadline countdown logic
             const deadlineElement = document.getElementById('ched-deadline-countdown');
@@ -3538,6 +3582,7 @@ try {
                             }
                         }
                     }
+
 
                     // ALL USERS (admin and regular) see the same view - award categories with statistics
                     console.log('Loading award categories with statistics...');
@@ -4850,6 +4895,7 @@ try {
 
                 setTimeout(() => {
                     loadAnalyticsData();
+                    loadProcessingActivity();
                 }, 100);
             };
 
@@ -7266,6 +7312,9 @@ try {
                             </tr>
                         `;
                     }
+                    updateTopAwardsMomentum(data.requirements || []);
+                } else {
+                    updateTopAwardsMomentum([]);
                 }
 
                 // Update recommendations based on insights
@@ -7275,6 +7324,142 @@ try {
 
             } catch (error) {
                 console.error('Error loading analytics data:', error);
+            }
+        }
+
+        function updateTopAwardsMomentum(requirements) {
+            const container = document.getElementById('topAwardsMomentum');
+            if (!container) return;
+
+            if (!requirements || !requirements.length) {
+                container.innerHTML = `
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Upload more awards to see top-performing candidates.</p>
+                `;
+                return;
+            }
+
+            const topItems = [...requirements]
+                .sort((a, b) => (parseFloat(b.match_percentage) || 0) - (parseFloat(a.match_percentage) || 0))
+                .slice(0, 3);
+
+            const badgeClasses = [
+                'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+                'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+                'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
+            ];
+
+            container.innerHTML = topItems.map((item, index) => {
+                const match = Math.round(parseFloat(item.match_percentage) || 0);
+                const statusLabel = item.status_label || item.status || 'Pending';
+                const badgeClass = badgeClasses[index] || 'bg-gray-100 text-gray-600 dark:bg-gray-800/40 dark:text-gray-300';
+                return `
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${badgeClass}">
+                            ${index + 1}
+                        </div>
+                        <div class="flex-1 space-y-1">
+                            <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">${item.award_name || 'Award Opportunity'}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">${statusLabel} • Match score ${match}%</p>
+                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                <div class="h-2 rounded-full bg-gradient-to-r from-primary to-blue-500 transition-all duration-500" style="width: ${Math.min(match, 100)}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        const processingStatusStyles = {
+            success: { icon: 'check_circle', bg: 'bg-emerald-100 dark:bg-emerald-900/30', color: 'text-emerald-600 dark:text-emerald-400' },
+            review: { icon: 'hourglass_empty', bg: 'bg-blue-100 dark:bg-blue-900/30', color: 'text-blue-600 dark:text-blue-400' },
+            info: { icon: 'analytics', bg: 'bg-purple-100 dark:bg-purple-900/30', color: 'text-purple-600 dark:text-purple-400' },
+            warning: { icon: 'upload_file', bg: 'bg-gray-100 dark:bg-gray-800/40', color: 'text-gray-600 dark:text-gray-300' },
+            danger: { icon: 'warning', bg: 'bg-red-100 dark:bg-red-900/30', color: 'text-red-600 dark:text-red-400' }
+        };
+
+        function formatRelativeTime(timestamp) {
+            if (!timestamp) return 'Just now';
+            const date = new Date(timestamp);
+            if (Number.isNaN(date.getTime())) return 'Just now';
+
+            const diff = Date.now() - date.getTime();
+            const minute = 60 * 1000;
+            const hour = 60 * minute;
+            const day = 24 * hour;
+
+            if (diff < minute) return 'Just now';
+            if (diff < hour) {
+                const mins = Math.floor(diff / minute);
+                return `${mins} minute${mins !== 1 ? 's' : ''} ago`;
+            }
+            if (diff < day) {
+                const hours = Math.floor(diff / hour);
+                return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+            }
+            const days = Math.floor(diff / day);
+            return days === 1 ? 'Yesterday' : `${days} days ago`;
+        }
+
+        function renderProcessingActivityItem(activity, index, total) {
+            const styles = processingStatusStyles[activity.status_type] || processingStatusStyles.warning;
+            const borderClass = index < total - 1 ? 'pb-3 border-b border-gray-200 dark:border-gray-700' : '';
+            const matchText = activity.match_percentage !== null && activity.match_percentage !== undefined
+                ? `Match score: ${activity.match_percentage}%`
+                : null;
+            const subtitleParts = [];
+            if (activity.detail) subtitleParts.push(activity.detail);
+            if (matchText) subtitleParts.push(matchText);
+            subtitleParts.push(formatRelativeTime(activity.timestamp));
+
+            return `
+                <div class="flex items-start gap-3 ${borderClass}">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full ${styles.bg} flex items-center justify-center">
+                        <span class="material-symbols-outlined text-lg ${styles.color}">${styles.icon}</span>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100">${activity.title} - ${activity.status_label}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">${subtitleParts.join(' • ')}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadProcessingActivity() {
+            const timeline = document.getElementById('processing-timeline');
+            if (!timeline) return;
+
+            timeline.innerHTML = `
+                <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <span class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                    <span>Loading recent activity…</span>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('api/award-activity.php');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch processing activity');
+                }
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || 'Unable to load activity');
+                }
+
+                const activities = result.activities || [];
+                if (!activities.length) {
+                    timeline.innerHTML = `
+                        <p class="text-sm text-gray-500 dark:text-gray-400">No recent award activity yet. Upload a document to get started.</p>
+                    `;
+                    return;
+                }
+
+                timeline.innerHTML = activities
+                    .map((activity, index) => renderProcessingActivityItem(activity, index, activities.length))
+                    .join('');
+            } catch (error) {
+                timeline.innerHTML = `
+                    <p class="text-sm text-red-500 dark:text-red-400">Unable to load recent activity. ${error.message}</p>
+                `;
             }
         }
 
@@ -7404,6 +7589,7 @@ try {
 
             // Load analytics data when the page loads
             loadAnalyticsData();
+            loadProcessingActivity();
         });
 
         const API_BASE = 'api/analyze-award-v2.php';
