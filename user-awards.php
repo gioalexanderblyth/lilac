@@ -71,6 +71,9 @@ try {
 }
 
 $awards = [];
+$canPersistRequirementTracker = false;
+$chedRequirementState = [];
+$CHED_REQUIREMENT_PREF_KEY = 'ched_requirement_tracker';
 try {
     $pdo = getDatabaseConnection();
     if ($pdo instanceof FileBasedDatabase) {
@@ -91,6 +94,37 @@ try {
             $stmt = $pdo->prepare('SELECT a.*, aa.predicted_category, aa.match_percentage, aa.status FROM awards a LEFT JOIN award_analysis aa ON aa.award_id = a.id WHERE a.user_id = ? ORDER BY a.created_at DESC');
             $stmt->execute([$user['id']]);
             $awards = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+
+        try {
+            $canPersistRequirementTracker = true;
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS user_preferences (
+                    id INT(11) NOT NULL AUTO_INCREMENT,
+                    user_id INT(11) NOT NULL,
+                    preference_key VARCHAR(100) NOT NULL,
+                    preference_value TEXT DEFAULT NULL,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id),
+                    UNIQUE KEY unique_user_preference (user_id, preference_key),
+                    KEY idx_user_id (user_id),
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+
+            $prefStmt = $pdo->prepare('SELECT preference_value FROM user_preferences WHERE user_id = ? AND preference_key = ?');
+            $prefStmt->execute([$user['id'], $CHED_REQUIREMENT_PREF_KEY]);
+            $pref = $prefStmt->fetch(PDO::FETCH_ASSOC);
+            if ($pref && !empty($pref['preference_value'])) {
+                $decoded = json_decode($pref['preference_value'], true);
+                if (is_array($decoded)) {
+                    $chedRequirementState = $decoded;
+                }
+            }
+        } catch (Exception $prefError) {
+            $canPersistRequirementTracker = false;
+            error_log('CHED requirement tracker persistence unavailable: ' . $prefError->getMessage());
         }
     }
 } catch (Exception $e) {
@@ -122,6 +156,14 @@ try {
         })();
     </script>
     <script src="js/notifications.js"></script>
+    <script>
+        window.chedRequirementConfig = <?php echo json_encode([
+            'canPersist' => $canPersistRequirementTracker,
+            'initialState' => !empty($chedRequirementState) ? $chedRequirementState : new stdClass(),
+            'storageKey' => 'chedRequirementTracker',
+            'preferenceKey' => $CHED_REQUIREMENT_PREF_KEY,
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+    </script>
     <script>
         tailwind.config = {
             darkMode: "class",
@@ -878,7 +920,7 @@ try {
                                 <div class="flex items-center justify-between flex-wrap gap-3">
                                     <div>
                                         <h3 class="text-xl font-bold text-text-light dark:text-text-dark">Submission Requirement Tracker</h3>
-                                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Mark items once the evidence is ready. Progress is stored locally so teams can resume later.</p>
+                                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Mark items once the evidence is ready. Progress now saves to your account so teams can resume later.</p>
                                     </div>
                                     <div class="text-sm font-semibold text-primary-700 dark:text-primary-300" id="ched-requirement-progress-count">0/0 ready</div>
                                 </div>
@@ -1447,8 +1489,8 @@ try {
 
                         <!-- Modal for KPI Details -->
                         <div id="kpiModal"
-                            class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4 overflow-y-auto">
-                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full my-8">
+                            class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-start justify-center p-4 overflow-y-auto">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full mt-16 mb-8">
                                 <div
                                     class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
                                     <h2 id="modalTitle" class="text-xl font-bold text-gray-900 dark:text-gray-100"></h2>
@@ -2778,18 +2820,37 @@ try {
             });
             // Awards cards are now responsive grid - no carousel controls needed
 
-            // CHED requirement tracker state (stored locally)
-            const CHED_REQUIREMENT_STORAGE_KEY = 'chedRequirementTracker';
+            // CHED requirement tracker state (persisted per user)
+            const requirementConfig = window.chedRequirementConfig || {};
+            const CHED_REQUIREMENT_STORAGE_KEY = requirementConfig.storageKey || 'chedRequirementTracker';
+            const requirementPreferenceKey = requirementConfig.preferenceKey || 'ched_requirement_tracker';
             const requirementCheckboxes = document.querySelectorAll('.ched-requirement');
             const requirementProgressCount = document.getElementById('ched-requirement-progress-count');
             const requirementProgressBar = document.getElementById('ched-requirement-progress-bar');
 
+            function loadBackupRequirementState() {
+                try {
+                    return JSON.parse(localStorage.getItem(CHED_REQUIREMENT_STORAGE_KEY) || '{}') || {};
+                } catch (error) {
+                    console.warn('Failed to parse CHED requirement tracker state:', error);
+                    return {};
+                }
+            }
+
             let requirementState = {};
-            try {
-                requirementState = JSON.parse(localStorage.getItem(CHED_REQUIREMENT_STORAGE_KEY) || '{}');
-            } catch (error) {
-                console.warn('Failed to parse CHED requirement tracker state:', error);
-                requirementState = {};
+            if (requirementConfig.canPersist && requirementConfig.initialState) {
+                requirementState = Object.assign({}, requirementConfig.initialState);
+                if (!Object.keys(requirementState).length) {
+                    const backupState = loadBackupRequirementState();
+                    if (Object.keys(backupState).length) {
+                        requirementState = backupState;
+                        setTimeout(() => persistRequirementState(), 250);
+                    }
+                } else {
+                    backupRequirementState();
+                }
+            } else {
+                requirementState = loadBackupRequirementState();
             }
 
             function updateRequirementProgress() {
@@ -2804,14 +2865,58 @@ try {
                 requirementProgressBar.setAttribute('aria-valuenow', percent);
             }
 
+            function backupRequirementState() {
+                try {
+                    localStorage.setItem(CHED_REQUIREMENT_STORAGE_KEY, JSON.stringify(requirementState));
+                } catch (storageError) {
+                    console.warn('Failed to back up CHED requirement tracker state:', storageError);
+                }
+            }
+
+            let requirementSaveTimeout = null;
+            function persistRequirementState() {
+                if (!requirementConfig.canPersist) {
+                    return;
+                }
+                if (requirementSaveTimeout) {
+                    clearTimeout(requirementSaveTimeout);
+                }
+                requirementSaveTimeout = setTimeout(async () => {
+                    requirementSaveTimeout = null;
+                    try {
+                        const response = await fetch('api/user-preferences.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                key: requirementPreferenceKey,
+                                value: JSON.stringify(requirementState)
+                            })
+                        });
+                        const result = await response.json();
+                        if (!result.success) {
+                            console.error('Failed to save CHED requirement tracker state:', result.error);
+                            backupRequirementState();
+                        }
+                    } catch (error) {
+                        console.error('Error saving CHED requirement tracker state:', error);
+                        backupRequirementState();
+                    }
+                }, 300);
+            }
+
             requirementCheckboxes.forEach((checkbox) => {
                 const id = checkbox.dataset.requirementId;
-                if (requirementState[id]) {
-                    checkbox.checked = true;
+                if (Object.prototype.hasOwnProperty.call(requirementState, id)) {
+                    checkbox.checked = !!requirementState[id];
                 }
                 checkbox.addEventListener('change', () => {
                     requirementState[id] = checkbox.checked;
-                    localStorage.setItem(CHED_REQUIREMENT_STORAGE_KEY, JSON.stringify(requirementState));
+                    backupRequirementState();
+                    if (requirementConfig.canPersist) {
+                        persistRequirementState();
+                    }
                     updateRequirementProgress();
                 });
             });
