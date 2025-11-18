@@ -4091,6 +4091,12 @@ try {
 
                     const award = result.award;
                     const similarity = Math.round((award.similarity_score || award.match_percentage / 100) * 100);
+                    const unmatchedList = normalizeCriteriaList(award.unmatched_criteria);
+                    const detailGuidanceHtml = buildGuidanceTips(
+                        unmatchedList,
+                        similarity,
+                        award.predicted_category || award.title || 'CHED ICONS Award'
+                    );
 
                     // Determine status badge color
                     const statusColors = {
@@ -4201,14 +4207,14 @@ try {
                             ` : ''}
 
                             <!-- Unmatched Criteria -->
-                            ${award.unmatched_criteria && award.unmatched_criteria.length > 0 ? `
+                            ${unmatchedList && unmatchedList.length > 0 ? `
                                 <div>
                                     <h4 class="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
                                         <span class="material-symbols-outlined text-red-600">cancel</span>
                                         Unmatched Criteria
                                     </h4>
                                     <div class="flex flex-wrap gap-2">
-                                        ${award.unmatched_criteria.map(c => `
+                                        ${unmatchedList.map(c => `
                                             <span class="px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg text-sm font-medium">
                                                 ✗ ${c}
                                             </span>
@@ -4216,6 +4222,9 @@ try {
                                     </div>
                                 </div>
                             ` : ''}
+
+                            <!-- Eligibility Guidance -->
+                            ${detailGuidanceHtml}
 
                             <!-- Status Management -->
                             <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
@@ -4329,6 +4338,12 @@ try {
                     } else {
                         applicantsHtml = applicants.map(app => {
                             const similarity = Math.round((app.similarity_score || app.match_percentage / 100) * 100);
+                            const unmatchedList = normalizeCriteriaList(app.unmatched_criteria);
+                            const applicantGuidance = buildGuidanceTips(
+                                unmatchedList,
+                                similarity,
+                                app.predicted_category || category
+                            );
                             const statusColors = {
                                 'pending': { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', border: 'border-yellow-200 dark:border-yellow-800', label: 'Pending' },
                                 'approved': { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', border: 'border-green-200 dark:border-green-800', label: 'Recognized' },
@@ -4395,6 +4410,23 @@ try {
                                             </div>
                                         </div>
                                     ` : ''}
+
+                                    ${unmatchedList && unmatchedList.length > 0 ? `
+                                        <div class="mb-3">
+                                            <div class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                                Unmatched Criteria
+                                            </div>
+                                            <div class="flex flex-wrap gap-1">
+                                                ${unmatchedList.slice(0, 5).map(c => `
+                                                    <span class="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-xs">
+                                                        ✗ ${c}
+                                                    </span>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+
+                                    ${applicantGuidance}
 
                                     <!-- Status Update Buttons -->
                                     <div class="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
@@ -4501,6 +4533,83 @@ try {
                     default: return 'gray-500';
                 }
             }
+
+    const CHED_GUIDANCE_URL = 'https://sites.google.com/ched.gov.ph/icons-awards-2024/home?authuser=0';
+    const ELIGIBILITY_GUIDANCE_THRESHOLD = 70;
+    const CHED_CRITERIA_GUIDANCE = {
+        equity: 'Show how the initiative creates inclusive, intercultural experiences that welcome diverse learners and remove participation barriers.',
+        poverty: 'Document measurable contributions to SDG-aligned poverty or inequality challenges (e.g., livelihood, scholarships, community outreach).',
+        innovation: 'Highlight fresh, scalable approaches to internationalization or global engagement that go beyond legacy practices.',
+        community: 'Provide evidence of student and community partnerships that turn global awareness into on-the-ground action.',
+        international: 'Include MOUs, exchanges, or collaborations with overseas partners that demonstrate global reach.',
+        sustainability: 'Explain how outcomes are sustained long term and aligned with just, equitable, and environmentally responsible practices.',
+        citizenship: 'Describe how students are empowered as global citizens—equipped with mindset, skills, and experiences to act.',
+        global: 'Connect the submission to cross-border impact, intercultural understanding, and SDG commitments.',
+        access: 'Show policies or support systems that keep internationalization accessible to all learners.',
+        partnerships: 'List strategic local/international partners and explain the shared impact achieved.',
+        default: 'Add documentation or narrative proof that clearly links your submission to this CHED ICONS criterion.'
+    };
+
+    function normalizeCriteriaList(criteria) {
+        if (!criteria) return [];
+        if (Array.isArray(criteria)) return criteria;
+
+        if (typeof criteria === 'string') {
+            const trimmed = criteria.trim();
+            if (!trimmed) return [];
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (Array.isArray(parsed)) return parsed;
+            } catch (error) {
+                // Not JSON, fallback to comma-separated text
+            }
+            return trimmed.split(',').map(item => item.trim()).filter(Boolean);
+        }
+
+        return [criteria].filter(Boolean);
+    }
+
+    function buildGuidanceTips(unmatchedCriteria = [], similarityScore = 0, awardLabel = '') {
+        const normalizedList = normalizeCriteriaList(unmatchedCriteria);
+        if (!normalizedList.length) return '';
+        if (similarityScore >= ELIGIBILITY_GUIDANCE_THRESHOLD) return '';
+
+        const renderedItems = [];
+        const seen = new Set();
+
+        normalizedList.forEach((label) => {
+            if (!label) return;
+            const normalized = label.toString().trim().toLowerCase();
+            if (seen.has(normalized)) return;
+            seen.add(normalized);
+            const description = CHED_CRITERIA_GUIDANCE[normalized] || CHED_CRITERIA_GUIDANCE.default;
+            renderedItems.push(`
+                <li class="flex items-start gap-2">
+                    <span class="material-symbols-outlined text-sm text-red-500 mt-0.5">priority_high</span>
+                    <div>
+                        <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">${label}</p>
+                        <p class="text-xs text-gray-600 dark:text-gray-400 leading-snug">${description}</p>
+                    </div>
+                </li>
+            `);
+        });
+
+        if (!renderedItems.length) return '';
+
+        return `
+            <div class="mt-4 border border-red-200 dark:border-red-800 bg-red-50/70 dark:bg-red-900/20 rounded-lg p-4">
+                <div class="flex items-center gap-2 text-red-700 dark:text-red-300 font-semibold mb-2">
+                    <span class="material-symbols-outlined text-base">campaign</span>
+                    <span>${awardLabel ? `${awardLabel}: ` : ''}Action needed to reach eligibility (${similarityScore}% match)</span>
+                </div>
+                <ul class="space-y-3">${renderedItems.join('')}</ul>
+                <a href="${CHED_GUIDANCE_URL}" target="_blank" rel="noopener" class="mt-3 inline-flex items-center gap-1 text-xs font-medium text-red-700 dark:text-red-200 underline">
+                    Review CHED ICONS 2024 criteria
+                    <span class="material-symbols-outlined text-sm">open_in_new</span>
+                </a>
+            </div>
+        `;
+    }
 
             function updateAwardListCounters(stats) {
                 // Handle both object and array formats
@@ -6065,6 +6174,13 @@ try {
                                       sub.status === 'Almost Eligible' ? 'yellow' : 'gray';
                     const statusBg = `bg-${statusColor}-100 dark:bg-${statusColor}-900/30`;
                     const statusText = `text-${statusColor}-700 dark:text-${statusColor}-400`;
+                    const submissionSimilarity = Math.round((sub.similarity_score || sub.match_percentage / 100) * 100);
+                    const unmatchedList = normalizeCriteriaList(sub.unmatched_criteria);
+                    const submissionGuidance = buildGuidanceTips(
+                        unmatchedList,
+                        submissionSimilarity,
+                        awardName
+                    );
 
                     content += `
                         <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
@@ -6081,7 +6197,7 @@ try {
                             <div class="grid grid-cols-2 gap-4 mt-3">
                                 <div>
                                     <div class="text-xs text-gray-500 dark:text-gray-400">Similarity Score</div>
-                                    <div class="text-lg font-semibold text-gray-900 dark:text-white">${Math.round((sub.similarity_score || sub.match_percentage / 100) * 100)}%</div>
+                                    <div class="text-lg font-semibold text-gray-900 dark:text-white">${submissionSimilarity}%</div>
                                 </div>
                                 <div>
                                     <div class="text-xs text-gray-500 dark:text-gray-400">Matched Criteria</div>
@@ -6102,11 +6218,11 @@ try {
                                 </div>
                             ` : ''}
 
-                            ${sub.unmatched_criteria && sub.unmatched_criteria.length > 0 ? `
+                            ${unmatchedList && unmatchedList.length > 0 ? `
                                 <div class="mt-2">
                                     <div class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Unmatched Criteria:</div>
                                     <div class="flex flex-wrap gap-1">
-                                        ${sub.unmatched_criteria.map(c => `
+                                        ${unmatchedList.map(c => `
                                             <span class="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-xs">
                                                 ✗ ${c}
                                             </span>
@@ -6114,6 +6230,8 @@ try {
                                     </div>
                                 </div>
                             ` : ''}
+
+                            ${submissionGuidance}
                         </div>
                     `;
                 });

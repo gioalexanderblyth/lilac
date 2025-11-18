@@ -87,18 +87,31 @@ try {
     foreach ($submissions as &$submission) {
         if ($submission['all_matches']) {
             $matches = json_decode($submission['all_matches'], true);
+            $matched = [];
+            $missing = [];
+
             if ($matches && is_array($matches)) {
                 // Handle two formats
                 if (isset($matches['matched'])) {
                     // New format
-                    $submission['matched_keywords_array'] = $matches['matched'] ?? [];
-                    $submission['missing_keywords_array'] = $matches['missing'] ?? [];
+                    $matched = $matches['matched'] ?? [];
+                    $missing = $matches['missing'] ?? [];
                 } elseif (isset($matches[0])) {
                     // Old format
-                    $submission['matched_keywords_array'] = $matches[0]['met_criteria'] ?? [];
-                    $submission['missing_keywords_array'] = $matches[0]['unmet_criteria'] ?? [];
+                    $matched = $matches[0]['met_criteria'] ?? [];
+                    $missing = $matches[0]['unmet_criteria'] ?? [];
                 }
             }
+
+            $submission['matched_keywords_array'] = $matched;
+            $submission['missing_keywords_array'] = $missing;
+            $submission['matched_criteria'] = $matched;
+            $submission['unmatched_criteria'] = $missing;
+        } else {
+            $submission['matched_keywords_array'] = [];
+            $submission['missing_keywords_array'] = [];
+            $submission['matched_criteria'] = [];
+            $submission['unmatched_criteria'] = [];
         }
 
         // Remove large JSON fields from response

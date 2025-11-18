@@ -293,6 +293,117 @@ if (!$awardCategory) {
         const AUTH_TOKEN = '<?php echo $_SESSION['token'] ?? ''; ?>';
         const AWARD_CATEGORY = '<?php echo addslashes($awardCategory); ?>';
         const IS_ADMIN = <?php echo $isAdmin ? 'true' : 'false'; ?>;
+        const CHED_GUIDANCE_URL = 'https://sites.google.com/ched.gov.ph/icons-awards-2024/home?authuser=0';
+        const ELIGIBILITY_GUIDANCE_THRESHOLD = 70;
+        const CHED_CRITERIA_GUIDANCE = {
+            equity: 'Show how the initiative guarantees inclusive, intercultural access for diverse learners.',
+            poverty: 'Highlight measurable efforts addressing SDG-aligned poverty or inequality challenges.',
+            innovation: 'Describe bold, scalable approaches that reimagine internationalization or partnerships.',
+            community: 'Provide evidence that students and communities work together to translate awareness into action.',
+            international: 'Attach proof of overseas collaborations, exchanges, or cross-border programs.',
+            sustainability: 'Explain how outcomes are sustained long term with just and responsible practices.',
+            citizenship: 'Demonstrate how students are empowered as global citizens ready to engage worldwide.',
+            global: 'Connect the initiative to cross-border impact, intercultural understanding, or SDG commitments.',
+            access: 'Show policies or support systems ensuring internationalization is accessible to all learners.',
+            partnerships: 'Name strategic partners and the shared results you achieved together.',
+            default: 'Add documentation or narrative proof that links your submission to this CHED ICONS criterion.'
+        };
+
+        function normalizeCriteriaList(criteria) {
+            if (!criteria) return [];
+            if (Array.isArray(criteria)) return criteria.filter(Boolean);
+            if (typeof criteria === 'string') {
+                const trimmed = criteria.trim();
+                if (!trimmed) return [];
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    if (Array.isArray(parsed)) return parsed.filter(Boolean);
+                } catch (error) {
+                    // not JSON, fall through
+                }
+                return trimmed.split(',').map(item => item.trim()).filter(Boolean);
+            }
+            return [criteria].filter(Boolean);
+        }
+
+        window.toggleGuidanceSection = function(sectionId, triggerId, iconId) {
+            const section = document.getElementById(sectionId);
+            if (!section) return;
+            const isHidden = section.classList.contains('hidden');
+            section.classList.toggle('hidden');
+
+            const trigger = triggerId ? document.getElementById(triggerId) : null;
+            const icon = iconId ? document.getElementById(iconId) : null;
+
+            if (trigger) {
+                trigger.querySelector('span:first-child').textContent = isHidden ? 'Hide details' : 'Show details';
+            }
+            if (icon) {
+                icon.classList.toggle('rotate-90', isHidden);
+            }
+        };
+
+        function buildGuidanceTips(unmatchedCriteria = [], similarityScore = 0, awardLabel = '', id = '') {
+            const normalized = normalizeCriteriaList(unmatchedCriteria);
+            if (!normalized.length || similarityScore >= ELIGIBILITY_GUIDANCE_THRESHOLD) return '';
+
+            const seen = new Set();
+            const items = normalized.reduce((acc, label) => {
+                const key = (label || '').toString().trim().toLowerCase();
+                if (!key || seen.has(key)) return acc;
+                seen.add(key);
+                const description = CHED_CRITERIA_GUIDANCE[key] || CHED_CRITERIA_GUIDANCE.default;
+                acc.push(`
+                    <li class="flex items-start gap-2">
+                        <span class="material-symbols-outlined text-sm text-red-500 mt-0.5">priority_high</span>
+                        <div>
+                            <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">${label}</p>
+                            <p class="text-xs text-gray-600 dark:text-gray-400">${description}</p>
+                        </div>
+                    </li>
+                `);
+                return acc;
+            }, []);
+
+            if (!items.length) return '';
+
+            const sectionId = `guidance-body-${id || Math.random().toString(36).slice(2)}`;
+            const triggerId = `guidance-trigger-${id || Math.random().toString(36).slice(2)}`;
+            const iconId = `guidance-icon-${id || Math.random().toString(36).slice(2)}`;
+            const summaryText = normalized.slice(0, 3).join(' • ') + (normalized.length > 3 ? '…' : '');
+
+            return `
+                <div class="bg-red-50 dark:bg-red-900/15 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div>
+                            <div class="flex items-center gap-2 text-red-700 dark:text-red-300 font-semibold">
+                                <span class="material-symbols-outlined text-base">campaign</span>
+                                <span>Action needed to reach eligibility</span>
+                            </div>
+                            <p class="text-[11px] text-red-700/80 dark:text-red-200 mt-1">${summaryText}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-semibold text-red-600 dark:text-red-200">${similarityScore.toFixed(1)}% match</span>
+                            <button type="button"
+                                id="${triggerId}"
+                                class="flex items-center gap-1 text-xs font-semibold text-red-600 dark:text-red-200 underline decoration-dotted"
+                                onclick="toggleGuidanceSection('${sectionId}', '${triggerId}', '${iconId}')">
+                                <span>Show details</span>
+                                <span id="${iconId}" class="material-symbols-outlined text-sm transition-transform">chevron_right</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="${sectionId}" class="space-y-3 hidden mt-3">
+                        <ul class="space-y-2">${items.join('')}</ul>
+                        <a href="${CHED_GUIDANCE_URL}" target="_blank" rel="noopener"
+                           class="inline-flex items-center gap-1 text-xs font-medium text-red-700 dark:text-red-200 underline">
+                            Review CHED ICONS 2024 criteria
+                            <span class="material-symbols-outlined text-sm">open_in_new</span>
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
 
         let allApplicants = [];
         let filteredApplicants = [];
@@ -404,6 +515,10 @@ if (!$awardCategory) {
                     text: 'text-red-700 dark:text-red-400',
                     border: 'border-red-300 dark:border-red-700'
                 };
+
+                const matchedList = normalizeCriteriaList(app.matched_criteria);
+                const unmatchedList = normalizeCriteriaList(app.unmatched_criteria);
+                const guidanceCard = buildGuidanceTips(unmatchedList, similarity, AWARD_CATEGORY, app.award_id);
 
                 return `
                     <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/50 rounded-xl py-2.5 px-4 hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/30 transition-all duration-200 animate-slide-in opacity-0 group" style="animation-delay: ${index * 0.05}s" data-award-id="${app.award_id}">
@@ -529,17 +644,17 @@ if (!$awardCategory) {
                                 <!-- Right Column -->
                                 <div class="flex flex-col gap-4">
                                     <!-- Matched Criteria -->
-                                    ${app.matched_criteria && app.matched_criteria.length > 0 ? `
+                                    ${matchedList.length > 0 ? `
                                         <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
                                             <div class="flex items-center justify-between mb-3">
                                                 <h4 class="text-sm font-semibold text-green-700 dark:text-green-400 flex items-center gap-2">
                                                     <span class="material-symbols-outlined text-base">check_circle</span>
                                                     Matched Criteria
                                                 </h4>
-                                                <span class="text-xs font-medium text-green-600 dark:text-green-400">${app.criteria_met || app.matched_criteria.length}/${app.criteria_total || app.matched_criteria.length + (app.unmatched_criteria?.length || 0)}</span>
+                                                <span class="text-xs font-medium text-green-600 dark:text-green-400">${app.criteria_met || matchedList.length}/${app.criteria_total || matchedList.length + unmatchedList.length}</span>
                                             </div>
                                             <div class="flex flex-wrap gap-2">
-                                                ${app.matched_criteria.map(c => `
+                                                ${matchedList.map(c => `
                                                     <span class="px-3 py-1.5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">
                                                         ✓ ${escapeHtml(c)}
                                                     </span>
@@ -549,14 +664,14 @@ if (!$awardCategory) {
                                     ` : '<div></div>'}
                                     
                                     <!-- Unmatched Criteria -->
-                                    ${app.unmatched_criteria && app.unmatched_criteria.length > 0 ? `
+                                    ${unmatchedList.length > 0 ? `
                                         <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-200 dark:border-red-800">
                                             <h4 class="text-sm font-semibold text-red-700 dark:text-red-400 flex items-center gap-2 mb-3">
                                                 <span class="material-symbols-outlined text-base">cancel</span>
                                                 Unmatched Criteria
                                             </h4>
                                             <div class="flex flex-wrap gap-2">
-                                                ${app.unmatched_criteria.map(c => `
+                                                ${unmatchedList.map(c => `
                                                     <span class="px-3 py-1.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 rounded-full text-xs font-medium">
                                                         ✗ ${escapeHtml(c)}
                                                     </span>
@@ -564,6 +679,8 @@ if (!$awardCategory) {
                                             </div>
                                         </div>
                                     ` : '<div></div>'}
+
+                                    ${guidanceCard}
                                 </div>
                             </div>
 

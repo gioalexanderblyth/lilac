@@ -154,6 +154,31 @@ $userId = $_SESSION['user_id'];
                 </div>
             </div>
 
+            <!-- CHED Criteria Guidance -->
+            <div id="guidance-card" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white">Action Needed to Reach Eligibility</h2>
+                    <span id="guidance-score" class="text-sm font-semibold text-red-600 dark:text-red-300"></span>
+                </div>
+                
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Address the CHED ICONS 2024 requirements below to improve your submission. Each item links back to the official criteria.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <h3 class="text-xs font-semibold text-green-700 dark:text-green-400 uppercase mb-2 tracking-wide">Matched Criteria</h3>
+                        <div id="matched-criteria-chips" class="flex flex-wrap gap-2 text-sm"></div>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-semibold text-red-600 dark:text-red-400 uppercase mb-2 tracking-wide">Unmatched Criteria</h3>
+                        <div id="unmatched-criteria-chips" class="flex flex-wrap gap-2 text-sm"></div>
+                    </div>
+                </div>
+
+                <div id="guidance-content"></div>
+            </div>
+
             <!-- Progress Visualization -->
             <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
                 <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Progress Overview</h2>
@@ -237,6 +262,73 @@ $userId = $_SESSION['user_id'];
     <script>
         const awardId = <?php echo json_encode($awardId); ?>;
         const userId = <?php echo json_encode($userId); ?>;
+        const CHED_GUIDANCE_URL = 'https://sites.google.com/ched.gov.ph/icons-awards-2024/home?authuser=0';
+        const ELIGIBILITY_GUIDANCE_THRESHOLD = 70;
+        const CHED_CRITERIA_GUIDANCE = {
+            equity: 'Show how your program creates inclusive, intercultural spaces and removes participation barriers.',
+            poverty: 'Highlight measurable SDG-aligned efforts addressing poverty or inequality in the last 1-2 years.',
+            innovation: 'Describe bold, scalable approaches to internationalization or global engagement.',
+            community: 'Provide evidence of student/community partnerships that convert awareness into action.',
+            international: 'Attach MOUs or stories of collaboration with overseas institutions or partners.',
+            sustainability: 'Explain the long-term, just and sustainable outcomes produced by the initiative.',
+            citizenship: 'Document how learners are empowered as global citizens ready to engage worldwide.',
+            global: 'Connect your work to cross-border impact, intercultural understanding, or SDG commitments.',
+            access: 'Show policies/support that keep internationalization accessible to diverse learners.',
+            partnerships: 'List key local/international partners and the shared impact achieved.',
+            default: 'Add documentation or narrative proof that clearly links your submission to this CHED ICONS criterion.'
+        };
+
+        function normalizeCriteriaList(criteria) {
+            if (!criteria) return [];
+            if (Array.isArray(criteria)) return criteria.filter(Boolean);
+            if (typeof criteria === 'string') {
+                const trimmed = criteria.trim();
+                if (!trimmed) return [];
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    if (Array.isArray(parsed)) return parsed.filter(Boolean);
+                } catch (error) {
+                    // not json
+                }
+                return trimmed.split(',').map(item => item.trim()).filter(Boolean);
+            }
+            return [criteria].filter(Boolean);
+        }
+
+        function buildGuidanceTips(unmatchedCriteria = [], similarityScore = 0, awardLabel = '') {
+            const normalized = normalizeCriteriaList(unmatchedCriteria);
+            if (normalized.length === 0) return '';
+            if (similarityScore >= ELIGIBILITY_GUIDANCE_THRESHOLD) return '';
+
+            const seen = new Set();
+            const renderedItems = normalized.reduce((acc, label) => {
+                const key = (label || '').toString().trim().toLowerCase();
+                if (!key || seen.has(key)) return acc;
+                seen.add(key);
+                const description = CHED_CRITERIA_GUIDANCE[key] || CHED_CRITERIA_GUIDANCE.default;
+                acc.push(`
+                    <li class="flex items-start gap-2">
+                        <span class="material-symbols-outlined text-sm text-red-500 mt-0.5">priority_high</span>
+                        <div>
+                            <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">${label}</p>
+                            <p class="text-xs text-gray-600 dark:text-gray-400">${description}</p>
+                        </div>
+                    </li>
+                `);
+                return acc;
+            }, []);
+
+            if (!renderedItems.length) return '';
+
+            return `
+                <ul class="space-y-3">${renderedItems.join('')}</ul>
+                <a href="${CHED_GUIDANCE_URL}" target="_blank" rel="noopener"
+                   class="mt-3 inline-flex items-center gap-1 text-xs font-medium text-red-700 dark:text-red-200 underline">
+                    Review CHED ICONS 2024 criteria
+                    <span class="material-symbols-outlined text-sm">open_in_new</span>
+                </a>
+            `;
+        }
 
         async function loadSubmissionDetail() {
             try {
@@ -390,6 +482,46 @@ $userId = $_SESSION['user_id'];
                     `).join('');
                 } else {
                     missingContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No missing keywords - All criteria met!</p>';
+                }
+
+                // Criteria & guidance
+                const matchedCriteria = normalizeCriteriaList(submission.matched_criteria || submission.matched_keywords_array || []);
+                const unmatchedCriteria = normalizeCriteriaList(submission.unmatched_criteria || submission.missing_keywords_array || []);
+                const matchedChips = document.getElementById('matched-criteria-chips');
+                const unmatchedChips = document.getElementById('unmatched-criteria-chips');
+                const guidanceCard = document.getElementById('guidance-card');
+                const guidanceContent = document.getElementById('guidance-content');
+                const guidanceScore = document.getElementById('guidance-score');
+
+                matchedChips.innerHTML = matchedCriteria.length
+                    ? matchedCriteria.map(c => `
+                        <span class="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg">
+                            ✓ ${c}
+                        </span>
+                    `).join('')
+                    : '<p class="text-gray-500 dark:text-gray-400 text-sm">No matched criteria yet.</p>';
+
+                unmatchedChips.innerHTML = unmatchedCriteria.length
+                    ? unmatchedCriteria.map(c => `
+                        <span class="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg">
+                            ✗ ${c}
+                        </span>
+                    `).join('')
+                    : '<p class="text-gray-500 dark:text-gray-400 text-sm">No unmatched criteria remaining!</p>';
+
+                const guidanceHtml = buildGuidanceTips(unmatchedCriteria, matchPct, submission.award_name || submission.predicted_category || 'Award');
+                if (guidanceHtml) {
+                    guidanceCard.classList.remove('hidden');
+                    if (guidanceScore) {
+                        guidanceScore.textContent = `${matchPct.toFixed(1)}% match`;
+                    }
+                    guidanceContent.innerHTML = guidanceHtml;
+                } else {
+                    guidanceCard.classList.add('hidden');
+                    if (guidanceScore) {
+                        guidanceScore.textContent = '';
+                    }
+                    guidanceContent.innerHTML = '';
                 }
 
                 // Document
