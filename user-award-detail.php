@@ -156,27 +156,35 @@ $userId = $_SESSION['user_id'];
 
             <!-- CHED Criteria Guidance -->
             <div id="guidance-card" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 hidden">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xl font-bold text-gray-900 dark:text-white">Action Needed to Reach Eligibility</h2>
-                    <span id="guidance-score" class="text-sm font-semibold text-red-600 dark:text-red-300"></span>
-                </div>
-                
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Address the CHED ICONS 2024 requirements below to improve your submission. Each item links back to the official criteria.
-                </p>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div>
-                        <h3 class="text-xs font-semibold text-green-700 dark:text-green-400 uppercase mb-2 tracking-wide">Matched Criteria</h3>
-                        <div id="matched-criteria-chips" class="flex flex-wrap gap-2 text-sm"></div>
+                        <div class="flex items-center gap-2 text-red-600 dark:text-red-300 font-semibold">
+                            <span class="material-symbols-outlined text-base">campaign</span>
+                            <span>Action Needed to Reach Eligibility</span>
+                        </div>
+                        <p id="guidance-summary" class="text-xs text-gray-600 dark:text-gray-400 mt-1"></p>
                     </div>
-                    <div>
-                        <h3 class="text-xs font-semibold text-red-600 dark:text-red-400 uppercase mb-2 tracking-wide">Unmatched Criteria</h3>
-                        <div id="unmatched-criteria-chips" class="flex flex-wrap gap-2 text-sm"></div>
-                    </div>
+                    <button type="button" id="guidance-toggle"
+                        class="flex items-center gap-1 text-xs font-semibold text-red-600 dark:text-red-200 underline decoration-dotted">
+                        <span>Show details</span>
+                        <span id="guidance-toggle-icon" class="material-symbols-outlined text-sm transition-transform">chevron_right</span>
+                    </button>
                 </div>
 
-                <div id="guidance-content"></div>
+                <div id="guidance-body" class="space-y-4 hidden mt-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h3 class="text-xs font-semibold text-green-700 dark:text-green-400 uppercase mb-2 tracking-wide">Matched Criteria</h3>
+                            <div id="matched-criteria-chips" class="flex flex-wrap gap-2 text-sm"></div>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-semibold text-red-600 dark:text-red-400 uppercase mb-2 tracking-wide">Unmatched Criteria</h3>
+                            <div id="unmatched-criteria-chips" class="flex flex-wrap gap-2 text-sm"></div>
+                        </div>
+                    </div>
+
+                    <div id="guidance-content"></div>
+                </div>
             </div>
 
             <!-- Progress Visualization -->
@@ -491,7 +499,10 @@ $userId = $_SESSION['user_id'];
                 const unmatchedChips = document.getElementById('unmatched-criteria-chips');
                 const guidanceCard = document.getElementById('guidance-card');
                 const guidanceContent = document.getElementById('guidance-content');
-                const guidanceScore = document.getElementById('guidance-score');
+                const guidanceSummary = document.getElementById('guidance-summary');
+                const guidanceToggle = document.getElementById('guidance-toggle');
+                const guidanceToggleIcon = document.getElementById('guidance-toggle-icon');
+                const guidanceBody = document.getElementById('guidance-body');
 
                 matchedChips.innerHTML = matchedCriteria.length
                     ? matchedCriteria.map(c => `
@@ -512,16 +523,22 @@ $userId = $_SESSION['user_id'];
                 const guidanceHtml = buildGuidanceTips(unmatchedCriteria, matchPct, submission.award_name || submission.predicted_category || 'Award');
                 if (guidanceHtml) {
                     guidanceCard.classList.remove('hidden');
-                    if (guidanceScore) {
-                        guidanceScore.textContent = `${matchPct.toFixed(1)}% match`;
-                    }
                     guidanceContent.innerHTML = guidanceHtml;
+                    guidanceSummary.textContent = unmatchedCriteria.length
+                        ? unmatchedCriteria.slice(0, 3).join(' • ') + (unmatchedCriteria.length > 3 ? '…' : '')
+                        : 'All CHED ICONS criteria satisfied';
+                    let detailsVisible = false;
+                    const toggleDetails = () => {
+                        detailsVisible = !detailsVisible;
+                        guidanceBody.classList.toggle('hidden', !detailsVisible);
+                        guidanceToggle.querySelector('span').textContent = detailsVisible ? 'Hide details' : 'Show details';
+                        guidanceToggleIcon.classList.toggle('rotate-90', detailsVisible);
+                    };
+                    guidanceToggle.onclick = toggleDetails;
                 } else {
                     guidanceCard.classList.add('hidden');
-                    if (guidanceScore) {
-                        guidanceScore.textContent = '';
-                    }
                     guidanceContent.innerHTML = '';
+                    guidanceSummary.textContent = '';
                 }
 
                 // Document
