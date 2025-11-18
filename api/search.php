@@ -50,22 +50,25 @@ try {
         'mous' => []
     ];
     
-    // Search Awards (handle NULL descriptions)
+    // Search Awards (handle NULL descriptions and empty titles)
     try {
         $stmt = $pdo->prepare("
             SELECT 
                 a.id,
-                a.title,
+                COALESCE(NULLIF(a.title, ''), 'Untitled Award') as title,
                 a.created_at,
                 'award' as type,
                 CONCAT('user-awards.php?id=', a.id) as url
             FROM awards a
-            WHERE (a.title LIKE ? OR COALESCE(a.description, '') LIKE ?)
-            AND a.title IS NOT NULL AND a.title != ''
+            WHERE (
+                (a.title IS NOT NULL AND a.title != '' AND a.title LIKE ?)
+                OR (a.description IS NOT NULL AND a.description LIKE ?)
+                OR (a.file_name IS NOT NULL AND a.file_name LIKE ?)
+            )
             ORDER BY a.created_at DESC
             LIMIT ?
         ");
-        $stmt->execute([$searchTerm, $searchTerm, $limit]);
+        $stmt->execute([$searchTerm, $searchTerm, $searchTerm, $limit]);
         $results['awards'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         error_log("Search Awards Error: " . $e->getMessage());
@@ -116,22 +119,31 @@ try {
         $results['documents'] = [];
     }
     
-    // Search MOUs/MOAs (handle NULL values)
+    // Search MOUs/MOAs (handle NULL values and search institution field)
     try {
         $stmt = $pdo->prepare("
             SELECT 
                 m.id,
-                m.title,
+                COALESCE(
+                    NULLIF(m.title, ''),
+                    NULLIF(m.institution, ''),
+                    'Untitled MOU/MOA'
+                ) as title,
                 m.created_at,
                 'mou' as type,
                 CONCAT('mou-moa.php?id=', m.id) as url
             FROM mou_moa m
-            WHERE (m.title LIKE ? OR COALESCE(m.partner, '') LIKE ? OR COALESCE(m.description, '') LIKE ?)
-            AND m.title IS NOT NULL AND m.title != ''
+            WHERE (
+                (m.title IS NOT NULL AND m.title != '' AND m.title LIKE ?)
+                OR (m.institution IS NOT NULL AND m.institution != '' AND m.institution LIKE ?)
+                OR (m.partner IS NOT NULL AND m.partner != '' AND m.partner LIKE ?)
+                OR (m.description IS NOT NULL AND m.description != '' AND m.description LIKE ?)
+                OR (m.location IS NOT NULL AND m.location != '' AND m.location LIKE ?)
+            )
             ORDER BY m.created_at DESC
             LIMIT ?
         ");
-        $stmt->execute([$searchTerm, $searchTerm, $searchTerm, $limit]);
+        $stmt->execute([$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm, $limit]);
         $results['mous'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         error_log("Search MOUs Error: " . $e->getMessage());

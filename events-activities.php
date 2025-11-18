@@ -10,6 +10,36 @@ $isAdmin = $user['role'] === 'admin';
 
 require_once __DIR__ . '/api/config.php';
 
+// Refresh user data from database to ensure profile picture is up to date
+try {
+    $pdo = getDatabaseConnection();
+    if (!($pdo instanceof FileBasedDatabase)) {
+        // Ensure profile_picture column exists
+        try {
+            $stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'profile_picture'");
+            if ($stmt->rowCount() === 0) {
+                $pdo->exec("ALTER TABLE users ADD COLUMN profile_picture VARCHAR(255) NULL DEFAULT NULL AFTER full_name");
+            }
+        } catch (Exception $e) {
+            // Column might already exist, continue
+        }
+        
+        // Get fresh user data from database
+        $stmt = $pdo->prepare('SELECT id, username, email, full_name, role, department, phone, profile_picture, created_at FROM users WHERE id = ?');
+        $stmt->execute([$user['id']]);
+        $dbUser = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($dbUser) {
+            // Update session with fresh data from database
+            $_SESSION['user'] = array_merge($user, $dbUser);
+            $user = $_SESSION['user'];
+        }
+    }
+} catch (Exception $e) {
+    // If database refresh fails, continue with session data
+    error_log('Failed to refresh user data from database: ' . $e->getMessage());
+}
+
 $events = [];
 try {
     $pdo = getDatabaseConnection();
@@ -131,11 +161,17 @@ try {
         .sidebar-collapsed .sidebar-logo-text {
             display: none;
         }
+        .sidebar {
+            width: 16rem;
+            min-width: 16rem;
+            max-width: 16rem;
+            flex-shrink: 0;
+            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
+        }
         .sidebar-collapsed .sidebar {
             width: 5rem;
-        }
-        .sidebar-expanded .sidebar {
-            width: 16rem;
+            min-width: 5rem;
+            max-width: 5rem;
         }
         .sidebar-collapsed .sidebar-profile-info {
             display: none;
@@ -150,17 +186,15 @@ try {
         .sidebar-expanded .sidebar-profile-info {
             display: block;
         }
+        main {
+            flex: 1;
+            transition: margin-left 0.3s ease;
+        }
         .sidebar-collapsed main {
-            margin-left: 2rem;
+            margin-left: 0;
         }
-        .sidebar-expanded main {
-            margin-left: 0 !important;
-        }
-        .sidebar-expanded .main-content {
-            padding-left: 2rem;
-        }
-        .sidebar-collapsed .main-content {
-            padding-left: 2rem;
+        .main-content {
+            padding-left: 0;
         }
         .sidebar-collapsed .sidebar-toggle-icon-open {
             display: none;
@@ -259,28 +293,28 @@ try {
 </div>
 </div>
 <nav class="flex-1 px-4 py-6 space-y-2">
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="dashboard.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="dashboard.php" title="Dashboard">
 <span class="material-symbols-outlined">dashboard</span>
 <span class="sidebar-text hidden">Dashboard</span>
 </a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
 <span class="material-symbols-outlined">emoji_events</span>
 <span class="sidebar-text hidden">Awards Progress</span>
 </a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-primary-600 dark:text-primary-400 font-semibold sidebar-nav-link" href="events-activities.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-primary-600 dark:text-primary-400 font-semibold sidebar-nav-link" href="events-activities.php" title="Events & Activities">
 <span class="material-symbols-outlined filled">event</span>
 <span class="sidebar-text hidden">Events & Activities</span>
 </a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="scheduler.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="scheduler.php" title="Scheduler">
 <span class="material-symbols-outlined">calendar_today</span>
 <span class="sidebar-text hidden">Scheduler</span>
 </a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="mou-moa.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="mou-moa.php" title="MOUs & MOAs">
 <span class="material-symbols-outlined">handshake</span>
 <span class="sidebar-text hidden">MOUs &amp; MOAs</span>
 </a>
 
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="documents.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="documents.php" title="Documents">
 <span class="material-symbols-outlined">description</span>
 <span class="sidebar-text hidden">Documents</span>
 </a>
@@ -288,7 +322,7 @@ try {
 <div class="px-4 py-4 border-t border-border-light dark:border-border-dark">
 <div class="flex items-center justify-between profile-container">
 <div class="flex items-center gap-3">
-<div class="w-10 h-10 rounded-full bg-cover bg-center sidebar-profile-picture hidden" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p");'></div>
+<div class="w-10 h-10 rounded-full bg-cover bg-center sidebar-profile-picture hidden" style='background-image: url("<?php echo !empty($user['profile_picture']) ? htmlspecialchars($user['profile_picture']) : 'https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p'; ?>");'></div>
 <div class="sidebar-profile-info hidden">
 <p class="font-semibold text-text-light dark:text-text-dark"><?php echo htmlspecialchars($user['role'] === 'admin' ? 'Admin User' : $user['username']); ?></p>
 <div class="flex gap-3">
@@ -639,36 +673,38 @@ No notifications yet
             const toggleSidebar = () => {
                 const isCollapsed = appContainer.classList.contains('sidebar-collapsed');
                 if (isCollapsed) {
+                    // Expand sidebar
                     appContainer.classList.remove('sidebar-collapsed');
-                    appContainer.classList.add('sidebar-expanded');
-                    // Clear any inline styles so CSS classes control layout
-                    sidebar.style.width = '';
-                    mainContent.style.marginLeft = '';
                     sidebarLogoText.classList.remove('hidden');
                     sidebarTexts.forEach(text => text.classList.remove('hidden'));
                     sidebarProfileInfo.classList.remove('hidden');
                     sidebarProfilePicture.classList.remove('hidden');
-                    openIcon.style.display = 'block';
-                    closedIcon.style.display = 'none';
+                    openIcon.classList.remove('hidden');
+                    openIcon.classList.add('block');
+                    closedIcon.classList.add('hidden');
+                    closedIcon.classList.remove('block');
                     navLinks.forEach(link => link.classList.remove('justify-center'));
-                    profileContainer.classList.remove('justify-center');
-                    toggleContainer.classList.remove('justify-center');
+                    if (profileContainer) profileContainer.classList.remove('justify-center');
+                    if (toggleContainer) toggleContainer.classList.remove('justify-center');
                 } else {
+                    // Collapse sidebar
                     appContainer.classList.add('sidebar-collapsed');
-                    appContainer.classList.remove('sidebar-expanded');
-                    // Clear any inline styles so CSS classes control layout
-                    sidebar.style.width = '';
-                    mainContent.style.marginLeft = '';
                     sidebarLogoText.classList.add('hidden');
                     sidebarTexts.forEach(text => text.classList.add('hidden'));
                     sidebarProfileInfo.classList.add('hidden');
                     sidebarProfilePicture.classList.add('hidden');
-                    openIcon.style.display = 'none';
-                    closedIcon.style.display = 'block';
+                    openIcon.classList.add('hidden');
+                    openIcon.classList.remove('block');
+                    closedIcon.classList.remove('hidden');
+                    closedIcon.classList.add('block');
                     navLinks.forEach(link => link.classList.add('justify-center'));
-                    profileContainer.classList.add('justify-center');
-                    toggleContainer.classList.add('justify-center');
+                    if (profileContainer) profileContainer.classList.add('justify-center');
+                    if (toggleContainer) toggleContainer.classList.add('justify-center');
                 }
+                
+                // Force a reflow to ensure layout updates properly
+                void appContainer.offsetHeight;
+                
                 // Add a small delay for the chart to re-render after transition
                 setTimeout(() => {
                     if (window.awardsProgressChartInstance) {

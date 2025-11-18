@@ -16,6 +16,124 @@ $token = $_SESSION['token'];
 // Include necessary files
 require_once __DIR__ . '/api/config.php';
 
+if (!function_exists('formatTimeAgo')) {
+    function formatTimeAgo($datetime): string
+    {
+        if (empty($datetime)) {
+            return 'Just now';
+        }
+
+        $timestamp = is_numeric($datetime) ? (int)$datetime : strtotime($datetime);
+        if (!$timestamp) {
+            return 'Just now';
+        }
+
+        $diff = time() - $timestamp;
+        if ($diff < 60) {
+            return 'Just now';
+        }
+
+        $periods = [
+            31536000 => 'year',
+            2592000 => 'month',
+            604800 => 'week',
+            86400 => 'day',
+            3600 => 'hour',
+            60 => 'minute',
+        ];
+
+        foreach ($periods as $seconds => $label) {
+            if ($diff >= $seconds) {
+                $value = (int)floor($diff / $seconds);
+                return $value . ' ' . $label . ($value > 1 ? 's' : '') . ' ago';
+            }
+        }
+
+        return 'Just now';
+    }
+}
+
+if (!function_exists('getActivityMeta')) {
+    function getActivityMeta(?string $actionType): array
+    {
+        $map = [
+            'create' => [
+                'icon' => 'add_circle',
+                'bg' => 'bg-blue-100 dark:bg-blue-900/50',
+                'color' => 'text-blue-600 dark:text-blue-300',
+            ],
+            'update' => [
+                'icon' => 'sync',
+                'bg' => 'bg-purple-100 dark:bg-purple-900/50',
+                'color' => 'text-purple-600 dark:text-purple-300',
+            ],
+            'delete' => [
+                'icon' => 'delete',
+                'bg' => 'bg-red-100 dark:bg-red-900/50',
+                'color' => 'text-red-600 dark:text-red-300',
+            ],
+            'upload' => [
+                'icon' => 'upload_file',
+                'bg' => 'bg-blue-100 dark:bg-blue-900/50',
+                'color' => 'text-blue-600 dark:text-blue-300',
+            ],
+            'comment' => [
+                'icon' => 'chat',
+                'bg' => 'bg-emerald-100 dark:bg-emerald-900/50',
+                'color' => 'text-emerald-600 dark:text-emerald-300',
+            ],
+            'status_change' => [
+                'icon' => 'task_alt',
+                'bg' => 'bg-amber-100 dark:bg-amber-900/50',
+                'color' => 'text-amber-600 dark:text-amber-300',
+            ],
+            'default' => [
+                'icon' => 'info',
+                'bg' => 'bg-slate-100 dark:bg-slate-800/50',
+                'color' => 'text-slate-600 dark:text-slate-300',
+            ],
+        ];
+
+        $key = strtolower($actionType ?? 'default');
+        return $map[$key] ?? $map['default'];
+    }
+}
+
+if (!function_exists('getDefaultRecentActivity')) {
+    function getDefaultRecentActivity(array $user): array
+    {
+        $displayName = $user['full_name'] ?? $user['username'] ?? 'You';
+
+        $defaults = [
+            [
+                'meta' => getActivityMeta('upload'),
+                'title' => sprintf('%s uploaded a new MOU.', $displayName),
+                'subtitle' => 'Recently',
+            ],
+            [
+                'meta' => getActivityMeta('create'),
+                'title' => 'Award submission was processed.',
+                'subtitle' => 'Recently',
+            ],
+            [
+                'meta' => getActivityMeta('status_change'),
+                'title' => 'New event was scheduled.',
+                'subtitle' => 'Recently',
+            ],
+        ];
+
+        return array_map(static function ($activity) {
+            return [
+                'icon' => $activity['meta']['icon'],
+                'icon_bg' => $activity['meta']['bg'],
+                'icon_color' => $activity['meta']['color'],
+                'title' => $activity['title'],
+                'subtitle' => $activity['subtitle'],
+            ];
+        }, $defaults);
+    }
+}
+
 // Refresh user data from database to ensure profile picture is up to date
 try {
     $pdo = getDatabaseConnection();
@@ -144,6 +262,7 @@ try {
         $statsData['recent_uploads'] = array_slice($statsData['recent_uploads'], 0, 5);
         $statsData['avg_match_percentage'] = count($awards) > 0 ?
             array_sum(array_column(array_column($awards, 'analysis_result'), 'match_percentage')) / count($awards) : 0;
+        $statsData['recent_activity'] = getDefaultRecentActivity($user);
 
     } else {
         // Database statistics - Get ALL awards (not filtered by user)
@@ -217,7 +336,7 @@ try {
         ];
         
         // Helper function to calculate category distribution for a date range
-        $calculateCategoryDistribution = function($dateFilter = null, $monthYear = null) use ($pdo, $displayAwards, $specificAwards) {
+        $calculateCategoryDistribution = function($dateFilter = null, $monthYear = null, $yearFilter = null) use ($pdo, $displayAwards, $specificAwards) {
             $categoryDistribution = [];
             foreach ($displayAwards as $awardName) {
                 $categoryDistribution[$awardName] = 0;
@@ -234,7 +353,11 @@ try {
                     $dateCondition = "AND DATE(a.created_at) >= DATE_FORMAT(NOW(), '%Y-%m-01')";
                 }
             } elseif ($dateFilter === 'YTD') {
-                $dateCondition = "AND DATE(a.created_at) >= DATE_FORMAT(NOW(), '%Y-01-01')";
+                $yearValue = (int)($yearFilter ?: date('Y'));
+                if ($yearValue < 2000 || $yearValue > 2100) {
+                    $yearValue = (int)date('Y');
+                }
+                $dateCondition = "AND YEAR(a.created_at) = " . $yearValue;
             }
             
             $stmt = $pdo->query("
@@ -317,6 +440,7 @@ try {
         // Load user preference for selected month
         $selectedMonth = date('Y-m'); // Default to current month
         $selectedFilter = 'YTD'; // Default filter
+        $selectedYear = date('Y');
         try {
             $prefStmt = $pdo->prepare('SELECT preference_value FROM user_preferences WHERE user_id = ? AND preference_key = ?');
             $prefStmt->execute([$user['id'], 'dashboard_awards_filter']);
@@ -330,16 +454,23 @@ try {
             if ($monthPref) {
                 $selectedMonth = $monthPref['preference_value'] ?? date('Y-m');
             }
+
+            $prefStmt->execute([$user['id'], 'dashboard_awards_year']);
+            $yearPref = $prefStmt->fetch(PDO::FETCH_ASSOC);
+            if ($yearPref && isset($yearPref['preference_value']) && preg_match('/^\d{4}$/', $yearPref['preference_value'])) {
+                $selectedYear = $yearPref['preference_value'];
+            }
         } catch (Exception $e) {
             // Preferences table might not exist yet, use defaults
         }
         
         // Calculate both MTD and YTD distributions
-        $statsData['category_distribution'] = $calculateCategoryDistribution('YTD'); // Default to YTD
+        $statsData['category_distribution'] = $calculateCategoryDistribution('YTD', null, $selectedYear); // Default to selected YTD
         $statsData['category_distribution_mtd'] = $calculateCategoryDistribution('MTD', $selectedMonth);
-        $statsData['category_distribution_ytd'] = $calculateCategoryDistribution('YTD');
+        $statsData['category_distribution_ytd'] = $calculateCategoryDistribution('YTD', null, $selectedYear);
         $statsData['selected_filter'] = $selectedFilter;
         $statsData['selected_month'] = $selectedMonth;
+        $statsData['selected_year'] = $selectedYear;
         
         // Get available months for MTD dropdown (last 12 months)
         $availableMonths = [];
@@ -352,6 +483,27 @@ try {
             ];
         }
         $statsData['available_months'] = $availableMonths;
+
+        // Get available years for YTD dropdown (distinct years from awards)
+        $availableYears = [];
+        try {
+            $yearStmt = $pdo->query("SELECT DISTINCT YEAR(created_at) as year FROM awards WHERE created_at IS NOT NULL ORDER BY year DESC");
+            $yearResults = $yearStmt->fetchAll(PDO::FETCH_COLUMN);
+            foreach ($yearResults as $yearVal) {
+                if ($yearVal) {
+                    $availableYears[] = (int)$yearVal;
+                }
+            }
+        } catch (Exception $e) {
+            // Ignore errors, fallback to default year list
+        }
+        if (empty($availableYears)) {
+            $availableYears[] = (int)date('Y');
+        }
+        if (!in_array((int)$selectedYear, $availableYears, true)) {
+            array_unshift($availableYears, (int)$selectedYear);
+        }
+        $statsData['available_years'] = array_values(array_unique($availableYears));
 
         // Recent uploads
         $stmt = $pdo->prepare('
@@ -465,8 +617,51 @@ try {
         $stmt = $pdo->query("SELECT title, event_date, location, status FROM events WHERE event_date >= CURDATE() ORDER BY event_date ASC LIMIT 4");
         $statsData['upcoming_events_list'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Get recent activity (simplified - can be enhanced)
-        $statsData['recent_activity'] = [];
+        // Get recent activity feed
+        $statsData['recent_activity'] = getDefaultRecentActivity($user);
+        try {
+            $activityStmt = $pdo->prepare("
+                SELECT 
+                    ah.action_type,
+                    ah.description,
+                    ah.created_at,
+                    u.full_name,
+                    u.username
+                FROM activity_history ah
+                LEFT JOIN users u ON u.id = ah.user_id
+                ORDER BY ah.created_at DESC
+                LIMIT 5
+            ");
+            $activityStmt->execute();
+            $activities = $activityStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (!empty($activities)) {
+                $formattedActivities = [];
+                foreach ($activities as $activity) {
+                    $meta = getActivityMeta($activity['action_type'] ?? null);
+                    $actor = $activity['full_name'] ?? $activity['username'] ?? 'System';
+                    $description = $activity['description'] ?: sprintf('%s activity', ucfirst($activity['action_type'] ?? 'Recent'));
+                    $subtitle = formatTimeAgo($activity['created_at'] ?? null);
+                    if (!empty($actor)) {
+                        $subtitle .= ' • ' . $actor;
+                    }
+
+                    $formattedActivities[] = [
+                        'icon' => $meta['icon'],
+                        'icon_bg' => $meta['bg'],
+                        'icon_color' => $meta['color'],
+                        'title' => $description,
+                        'subtitle' => $subtitle,
+                    ];
+                }
+
+                if (!empty($formattedActivities)) {
+                    $statsData['recent_activity'] = $formattedActivities;
+                }
+            }
+        } catch (Exception $activityError) {
+            error_log('Failed to load recent activity: ' . $activityError->getMessage());
+        }
     }
 } catch (Exception $e) {
     error_log('Dashboard stats error: ' . $e->getMessage());
@@ -678,11 +873,47 @@ try {
         .sidebar-collapsed .sidebar-logo-text {
             display: none;
         }
+        .sidebar {
+            width: 16rem;
+            min-width: 16rem;
+            max-width: 16rem;
+            flex-shrink: 0;
+            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
+        }
+        .custom-select-wrapper {
+            position: relative;
+        }
+        .custom-select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            padding-right: 2.5rem;
+            background-image: none;
+        }
+        .custom-select::-ms-expand {
+            display: none;
+        }
+        .custom-select-arrow {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dark .custom-select-arrow {
+            color: #cbd5f5;
+        }
+        .custom-select.hidden + .custom-select-arrow {
+            display: none;
+        }
         .sidebar-collapsed .sidebar {
             width: 5rem;
-        }
-        .sidebar-expanded .sidebar {
-            width: 16rem;
+            min-width: 5rem;
+            max-width: 5rem;
         }
         .sidebar-collapsed .sidebar-profile-info {
             display: none;
@@ -697,17 +928,15 @@ try {
         .sidebar-expanded .sidebar-profile-info {
             display: block;
         }
+        main {
+            flex: 1;
+            transition: margin-left 0.3s ease;
+        }
         .sidebar-collapsed main {
-            margin-left: 2rem;
+            margin-left: 0;
         }
-        .sidebar-expanded main {
-            margin-left: 0 !important;
-        }
-        .sidebar-expanded .main-content {
-            padding-left: 2rem;
-        }
-        .sidebar-collapsed .main-content {
-            padding-left: 2rem;
+        .main-content {
+            padding-left: 0;
         }
         .sidebar-collapsed .sidebar-toggle-icon-open {
             display: none;
@@ -824,28 +1053,28 @@ try {
 </div>
 </div>
 <nav class="flex-1 px-4 py-6 space-y-2">
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-primary-600 dark:text-primary-400 font-semibold sidebar-nav-link" href="dashboard.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-primary-600 dark:text-primary-400 font-semibold sidebar-nav-link" href="dashboard.php" title="Dashboard">
 <span class="material-symbols-outlined filled">dashboard</span>
 <span class="sidebar-text hidden">Dashboard</span>
 </a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
 <span class="material-symbols-outlined">emoji_events</span>
 <span class="sidebar-text hidden">Awards Progress</span>
 </a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="events-activities.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
 <span class="material-symbols-outlined">event</span>
 <span class="sidebar-text hidden">Events &amp; Activities</span>
 </a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="scheduler.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="scheduler.php" title="Scheduler">
 <span class="material-symbols-outlined">calendar_today</span>
 <span class="sidebar-text hidden">Scheduler</span>
 </a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="mou-moa.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="mou-moa.php" title="MOUs & MOAs">
 <span class="material-symbols-outlined">handshake</span>
 <span class="sidebar-text hidden">MOUs &amp; MOAs</span>
 </a>
 
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="documents.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="documents.php" title="Documents">
 <span class="material-symbols-outlined">description</span>
 <span class="sidebar-text hidden">Documents</span>
 </a>
@@ -986,27 +1215,39 @@ echo htmlspecialchars($firstName);
 <div class="flex justify-between items-center mb-4">
 <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Awards Performance</h3>
 <div class="flex gap-2 items-center" style="position: relative; z-index: 10;">
-<div class="relative inline-block" style="position: relative; margin: 0;">
-<select id="awardsMonthFilter" class="px-3 py-1.5 pr-8 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent hidden">
+                    <div class="relative inline-block custom-select-wrapper" style="position: relative; margin: 0;">
+<select id="awardsMonthFilter" class="custom-select px-3 py-1.5 pr-8 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent hidden">
 <?php foreach ($statsData['available_months'] ?? [] as $month): ?>
 <option value="<?php echo htmlspecialchars($month['value']); ?>" <?php echo ($month['value'] === ($statsData['selected_month'] ?? date('Y-m'))) ? 'selected' : ''; ?>><?php echo htmlspecialchars($month['label']); ?></option>
 <?php endforeach; ?>
 </select>
-<span class="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-</svg>
+<span class="custom-select-arrow" aria-hidden="true">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+    </svg>
 </span>
 </div>
-<div class="relative inline-block">
-<select id="awardsTimeFilter" class="px-3 py-1.5 pr-8 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                    <div class="relative inline-block custom-select-wrapper" style="position: relative; margin: 0;">
+                        <select id="awardsYearFilter" class="custom-select px-3 py-1.5 pr-8 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent hidden">
+<?php foreach ($statsData['available_years'] ?? [] as $yearOption): ?>
+<option value="<?php echo htmlspecialchars($yearOption); ?>" <?php echo ((string)$yearOption === (string)($statsData['selected_year'] ?? date('Y'))) ? 'selected' : ''; ?>><?php echo htmlspecialchars($yearOption); ?></option>
+<?php endforeach; ?>
+</select>
+                        <span class="custom-select-arrow" aria-hidden="true">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </span>
+                    </div>
+<div class="relative inline-block custom-select-wrapper">
+<select id="awardsTimeFilter" class="custom-select px-3 py-1.5 pr-8 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
 <option value="YTD" <?php echo (($statsData['selected_filter'] ?? 'YTD') === 'YTD') ? 'selected' : ''; ?>>YTD</option>
 <option value="MTD" <?php echo (($statsData['selected_filter'] ?? 'YTD') === 'MTD') ? 'selected' : ''; ?>>MTD</option>
 </select>
-<span class="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
-<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-</svg>
+<span class="custom-select-arrow" aria-hidden="true">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+    </svg>
 </span>
 </div>
 </div>
@@ -1077,34 +1318,25 @@ $statusText = ucfirst($status);
 <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Recent Activity</h3>
 <button class="text-sm font-medium text-primary hover:underline">View Log</button>
 </div>
+<?php $recentActivities = $statsData['recent_activity'] ?? []; ?>
 <ul class="space-y-4">
+<?php if (!empty($recentActivities)): ?>
+<?php foreach ($recentActivities as $activity): ?>
 <li class="flex items-start gap-4">
-<div class="bg-blue-100 dark:bg-blue-900/50 p-2 rounded-full">
-<span class="material-symbols-outlined text-blue-600 dark:text-blue-300 text-base">upload_file</span>
+<div class="<?php echo htmlspecialchars($activity['icon_bg'] ?? 'bg-slate-100 dark:bg-slate-800/50'); ?> p-2 rounded-full">
+<span class="material-symbols-outlined <?php echo htmlspecialchars($activity['icon_color'] ?? 'text-slate-600 dark:text-slate-300'); ?> text-base">
+<?php echo htmlspecialchars($activity['icon'] ?? 'info'); ?>
+</span>
 </div>
 <div>
-<p class="text-sm text-slate-800 dark:text-slate-200"><span class="font-semibold"><?php echo htmlspecialchars($user['full_name'] ?? $user['username']); ?></span> uploaded a new MOU.</p>
-<p class="text-xs text-slate-500 dark:text-slate-400">Recently</p>
+<p class="text-sm text-slate-800 dark:text-slate-200"><?php echo htmlspecialchars($activity['title'] ?? 'Recent activity update'); ?></p>
+<p class="text-xs text-slate-500 dark:text-slate-400"><?php echo htmlspecialchars($activity['subtitle'] ?? 'Recently'); ?></p>
 </div>
 </li>
-<li class="flex items-start gap-4">
-<div class="bg-green-100 dark:bg-green-900/50 p-2 rounded-full">
-<span class="material-symbols-outlined text-green-600 dark:text-green-300 text-base">emoji_events</span>
-</div>
-<div>
-<p class="text-sm text-slate-800 dark:text-slate-200">Award submission was processed.</p>
-<p class="text-xs text-slate-500 dark:text-slate-400">Recently</p>
-</div>
-</li>
-<li class="flex items-start gap-4">
-<div class="bg-purple-100 dark:bg-purple-900/50 p-2 rounded-full">
-<span class="material-symbols-outlined text-purple-600 dark:text-purple-300 text-base">event_available</span>
-</div>
-<div>
-<p class="text-sm text-slate-800 dark:text-slate-200">New event was scheduled.</p>
-<p class="text-xs text-slate-500 dark:text-slate-400">Recently</p>
-</div>
-</li>
+<?php endforeach; ?>
+<?php else: ?>
+<li class="text-sm text-slate-500 dark:text-slate-400">No recent activity.</li>
+<?php endif; ?>
 </ul>
 </div>
 </div>
@@ -1132,32 +1364,38 @@ $statusText = ucfirst($status);
             const toggleSidebar = () => {
                 const isCollapsed = appContainer.classList.contains('sidebar-collapsed');
                 if (isCollapsed) {
+                    // Expand sidebar
                     appContainer.classList.remove('sidebar-collapsed');
-                    sidebar.style.width = '16rem';
-                    mainContent.style.marginLeft = '0';
                     sidebarLogoText.classList.remove('hidden');
                     sidebarTexts.forEach(text => text.classList.remove('hidden'));
                     sidebarProfileInfo.classList.remove('hidden');
                     sidebarProfilePicture.classList.remove('hidden');
-                    openIcon.style.display = 'block';
-                    closedIcon.style.display = 'none';
+                    openIcon.classList.remove('hidden');
+                    openIcon.classList.add('block');
+                    closedIcon.classList.add('hidden');
+                    closedIcon.classList.remove('block');
                     navLinks.forEach(link => link.classList.remove('justify-center'));
-                    profileContainer.classList.remove('justify-center');
-                    toggleContainer.classList.remove('justify-center');
+                    if (profileContainer) profileContainer.classList.remove('justify-center');
+                    if (toggleContainer) toggleContainer.classList.remove('justify-center');
                 } else {
+                    // Collapse sidebar
                     appContainer.classList.add('sidebar-collapsed');
-                    sidebar.style.width = '5rem';
-                    mainContent.style.marginLeft = '5rem';
                     sidebarLogoText.classList.add('hidden');
                     sidebarTexts.forEach(text => text.classList.add('hidden'));
                     sidebarProfileInfo.classList.add('hidden');
                     sidebarProfilePicture.classList.add('hidden');
-                    openIcon.style.display = 'none';
-                    closedIcon.style.display = 'block';
+                    openIcon.classList.add('hidden');
+                    openIcon.classList.remove('block');
+                    closedIcon.classList.remove('hidden');
+                    closedIcon.classList.add('block');
                     navLinks.forEach(link => link.classList.add('justify-center'));
-                    profileContainer.classList.add('justify-center');
-                    toggleContainer.classList.add('justify-center');
+                    if (profileContainer) profileContainer.classList.add('justify-center');
+                    if (toggleContainer) toggleContainer.classList.add('justify-center');
                 }
+                
+                // Force a reflow to ensure layout updates properly
+                void appContainer.offsetHeight;
+                
                 // Add a small delay for the chart to re-render after transition
                 setTimeout(() => {
                     Chart.helpers.each(Chart.instances, (instance) => {
@@ -1204,9 +1442,10 @@ $statusText = ucfirst($status);
                     
                     // Get initial data from PHP
                     let categoryDataMTD = <?php echo json_encode($statsData['category_distribution_mtd'] ?? []); ?>;
-                    const categoryDataYTD = <?php echo json_encode($statsData['category_distribution_ytd'] ?? []); ?>;
+                    let categoryDataYTD = <?php echo json_encode($statsData['category_distribution_ytd'] ?? []); ?>;
                     const selectedFilter = '<?php echo htmlspecialchars($statsData['selected_filter'] ?? 'YTD'); ?>';
                     const selectedMonth = '<?php echo htmlspecialchars($statsData['selected_month'] ?? date('Y-m')); ?>';
+                    const selectedYear = '<?php echo htmlspecialchars($statsData['selected_year'] ?? date('Y')); ?>';
                     
                     // Ensure labels are in the correct order (8 specific awards)
                     // Use shortened names for X-axis to save space
@@ -1275,10 +1514,26 @@ $statusText = ucfirst($status);
                             return {};
                         }
                     };
+
+                    // Function to fetch YTD data for a specific year
+                    const fetchYTDData = async (yearValue) => {
+                        try {
+                            const response = await fetch(`api/dashboard-ytd-data.php?year=${encodeURIComponent(yearValue)}`);
+                            const result = await response.json();
+                            if (result.success && result.data) {
+                                return result.data;
+                            }
+                            return {};
+                        } catch (error) {
+                            console.error('Error fetching YTD data:', error);
+                            return {};
+                        }
+                    };
                     
                     // Initialize with saved filter
                     let currentFilter = selectedFilter;
                     let currentMonth = selectedMonth;
+                    let currentYear = selectedYear;
                     let chartData = getChartData(currentFilter);
                     
                     // Create chart instance
@@ -1404,11 +1659,12 @@ $statusText = ucfirst($status);
                     // Get filter elements
                     let timeFilter = document.getElementById('awardsTimeFilter');
                     let monthFilter = document.getElementById('awardsMonthFilter');
+                    let yearFilter = document.getElementById('awardsYearFilter');
                     
-                    // Show/hide month filter based on selected filter
-                    const updateMonthFilterVisibility = () => {
-                        // Re-get element in case it was cloned
+                    // Show/hide filters based on selected timeframe
+                    const updateFilterVisibility = () => {
                         monthFilter = document.getElementById('awardsMonthFilter');
+                        yearFilter = document.getElementById('awardsYearFilter');
                         if (monthFilter) {
                             if (currentFilter === 'MTD') {
                                 monthFilter.classList.remove('hidden');
@@ -1416,10 +1672,17 @@ $statusText = ucfirst($status);
                                 monthFilter.classList.add('hidden');
                             }
                         }
+                        if (yearFilter) {
+                            if (currentFilter === 'YTD') {
+                                yearFilter.classList.remove('hidden');
+                            } else {
+                                yearFilter.classList.add('hidden');
+                            }
+                        }
                     };
                     
                     // Update chart with new data and max value
-                    const updateChart = async (filter, month = null) => {
+                    const updateChart = async (filter, month = null, year = null) => {
                         let data = chartData;
                         let maxValue = 100;
                         
@@ -1434,6 +1697,12 @@ $statusText = ucfirst($status);
                             data = getChartData('MTD', categoryDataMTD);
                         } else {
                             maxValue = 100;
+                            const desiredYear = year || currentYear;
+                            if (desiredYear && desiredYear !== currentYear) {
+                                const newYTDData = await fetchYTDData(desiredYear);
+                                categoryDataYTD = newYTDData;
+                                currentYear = desiredYear;
+                            }
                             data = getChartData('YTD');
                         }
                         
@@ -1456,8 +1725,8 @@ $statusText = ucfirst($status);
                         awardsChart.update('none');
                     };
                     
-                    // Initialize month filter visibility and chart max value
-                    updateMonthFilterVisibility();
+                    // Initialize filter visibility and chart max value
+                    updateFilterVisibility();
                     // Set initial max value based on saved filter
                     awardsChart.options.scales.y.max = currentFilter === 'MTD' ? 20 : 100;
                     awardsChart.options.scales.y.ticks.stepSize = currentFilter === 'MTD' ? 5 : 10;
@@ -1475,8 +1744,12 @@ $statusText = ucfirst($status);
                         // Add event listener to the new element
                         newTimeFilter.addEventListener('change', async function() {
                             currentFilter = this.value;
-                            await updateChart(currentFilter);
-                            updateMonthFilterVisibility();
+                            if (currentFilter === 'MTD') {
+                                await updateChart(currentFilter, currentMonth);
+                            } else {
+                                await updateChart(currentFilter, null, currentYear);
+                            }
+                            updateFilterVisibility();
                             await savePreference('dashboard_awards_filter', currentFilter);
                         });
                     }
@@ -1511,6 +1784,22 @@ $statusText = ucfirst($status);
                             const selectedMonth = this.value;
                             await updateChart('MTD', selectedMonth);
                             await savePreference('dashboard_awards_month', selectedMonth);
+                        });
+                    }
+
+                    // Add event listener to year filter dropdown
+                    yearFilter = document.getElementById('awardsYearFilter');
+                    if (yearFilter) {
+                        const currentYearValue = yearFilter.value || currentYear;
+                        const newYearFilter = yearFilter.cloneNode(true);
+                        newYearFilter.value = currentYearValue;
+                        yearFilter.parentNode.replaceChild(newYearFilter, yearFilter);
+                        yearFilter = newYearFilter;
+                        
+                        newYearFilter.addEventListener('change', async function() {
+                            const selectedYearValue = this.value;
+                            await updateChart('YTD', null, selectedYearValue);
+                            await savePreference('dashboard_awards_year', selectedYearValue);
                         });
                     }
                 }
@@ -1925,6 +2214,7 @@ $statusText = ucfirst($status);
             
             fetch(`api/search.php?q=${encodeURIComponent(query)}&limit=5`)
                 .then(response => {
+                    console.log('Search API response status:', response.status);
                     if (!response.ok) {
                         throw new Error('Search request failed: ' + response.status);
                     }
@@ -1935,8 +2225,18 @@ $statusText = ucfirst($status);
                     if (currentSearchQuery === query) {
                         if (data.success) {
                             console.log('Results:', data.results);
+                            console.log('Results count:', Array.isArray(data.results) ? data.results.length : 'Not an array');
                             console.log('Counts:', data.counts);
-                            displaySearchResults(data.results, data.counts || {});
+                            
+                            // Ensure counts object exists with defaults
+                            const counts = data.counts || {
+                                awards: 0,
+                                events: 0,
+                                documents: 0,
+                                mous: 0
+                            };
+                            
+                            displaySearchResults(data.results, counts);
                         } else {
                             console.error('Search failed:', data.error);
                             searchResultsContent.innerHTML = '<div class="p-4 text-sm text-red-500 dark:text-red-400 text-center">' + (data.error || 'Search failed. Please try again.') + '</div>';
@@ -1955,7 +2255,20 @@ $statusText = ucfirst($status);
         
         // Display search results
         function displaySearchResults(results, counts) {
-            if (!results || results.length === 0) {
+            // Handle both array and object formats
+            let resultsArray = [];
+            if (Array.isArray(results)) {
+                resultsArray = results;
+            } else if (results && typeof results === 'object') {
+                // If results is an object with categories, flatten it
+                Object.keys(results).forEach(category => {
+                    if (Array.isArray(results[category])) {
+                        resultsArray = resultsArray.concat(results[category]);
+                    }
+                });
+            }
+            
+            if (!resultsArray || resultsArray.length === 0) {
                 searchResultsContent.innerHTML = '<div class="p-4 text-sm text-slate-500 dark:text-slate-400 text-center">No results found</div>';
                 searchDropdown.classList.remove('hidden');
                 return;
@@ -1971,9 +2284,13 @@ $statusText = ucfirst($status);
                 mous: []
             };
             
-            results.forEach(result => {
-                if (grouped[result.type + 's']) {
-                    grouped[result.type + 's'].push(result);
+            resultsArray.forEach(result => {
+                if (result.type === 'award') {
+                    grouped.awards.push(result);
+                } else if (result.type === 'event') {
+                    grouped.events.push(result);
+                } else if (result.type === 'document') {
+                    grouped.documents.push(result);
                 } else if (result.type === 'mou') {
                     grouped.mous.push(result);
                 }

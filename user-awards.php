@@ -12,9 +12,63 @@ if (!isset($_SESSION['user_id'])) {
 
 $user = $_SESSION['user'];
 $token = $_SESSION['token'];
-$isAdmin = $user['role'] === 'admin';
 
 require_once __DIR__ . '/api/config.php';
+
+// Verify admin status from database to ensure accuracy
+$isAdmin = false;
+try {
+    $pdo = getDatabaseConnection();
+    if (!($pdo instanceof FileBasedDatabase)) {
+        $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+        $stmt->execute([$user['id']]);
+        $dbUser = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($dbUser) {
+            $isAdmin = ($dbUser['role'] === 'admin');
+            // Update session if role changed
+            if (isset($_SESSION['user']['role']) && $_SESSION['user']['role'] !== $dbUser['role']) {
+                $_SESSION['user']['role'] = $dbUser['role'];
+                $_SESSION['role'] = $dbUser['role'];
+            }
+        }
+    } else {
+        // Fallback to session role for file-based system
+        $isAdmin = isset($user['role']) && $user['role'] === 'admin';
+    }
+} catch (Exception $e) {
+    // Fallback to session role on error
+    $isAdmin = isset($user['role']) && $user['role'] === 'admin';
+}
+
+// Refresh user data from database to ensure profile picture is up to date
+try {
+    $pdo = getDatabaseConnection();
+    if (!($pdo instanceof FileBasedDatabase)) {
+        // Ensure profile_picture column exists
+        try {
+            $stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'profile_picture'");
+            if ($stmt->rowCount() === 0) {
+                $pdo->exec("ALTER TABLE users ADD COLUMN profile_picture VARCHAR(255) NULL DEFAULT NULL AFTER full_name");
+            }
+        } catch (Exception $e) {
+            // Column might already exist, continue
+        }
+        
+        // Get fresh user data from database
+        $stmt = $pdo->prepare('SELECT id, username, email, full_name, role, department, phone, profile_picture, created_at FROM users WHERE id = ?');
+        $stmt->execute([$user['id']]);
+        $dbUser = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($dbUser) {
+            // Update session with fresh data from database
+            $_SESSION['user'] = array_merge($user, $dbUser);
+            $user = $_SESSION['user'];
+        }
+    }
+} catch (Exception $e) {
+    // If database refresh fails, continue with session data
+    error_log('Failed to refresh user data from database: ' . $e->getMessage());
+}
 
 $awards = [];
 try {
@@ -145,12 +199,18 @@ try {
             display: none;
         }
 
-        .sidebar-collapsed .sidebar {
-            width: 5rem;
+        .sidebar {
+            width: 16rem;
+            min-width: 16rem;
+            max-width: 16rem;
+            flex-shrink: 0;
+            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
         }
 
-        .sidebar-expanded .sidebar {
-            width: 16rem;
+        .sidebar-collapsed .sidebar {
+            width: 5rem;
+            min-width: 5rem;
+            max-width: 5rem;
         }
 
         .sidebar-collapsed .sidebar-profile-info {
@@ -169,20 +229,23 @@ try {
             display: block;
         }
 
+        main {
+            flex: 1;
+            transition: margin-left 0.3s ease;
+        }
+
+        /* When sidebar is collapsed, add margin to main to account for sidebar width */
         .sidebar-collapsed main {
-            margin-left: 2rem;
+            margin-left: 0;
+        }
+        
+        /* Ensure main content doesn't get pushed incorrectly */
+        #app-container.sidebar-collapsed main {
+            margin-left: 0;
         }
 
-        .sidebar-expanded main {
-            margin-left: 0 !important;
-        }
-
-        .sidebar-expanded .main-content {
-            padding-left: 2rem;
-        }
-
-        .sidebar-collapsed .main-content {
-            padding-left: 2rem;
+        .main-content {
+            padding-left: 0;
         }
 
         /* Analytics Dashboard Styles */
@@ -260,6 +323,89 @@ try {
 
         .sidebar-collapsed .profile-container {
             justify-content: center;
+        }
+
+        /* Modern Dropdown Styles */
+        .modern-dropdown {
+            max-height: 280px;
+            overflow-y: auto;
+            animation: dropdownFadeIn 0.2s ease-out;
+        }
+
+        @keyframes dropdownFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .dropdown-content {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 38px -10px rgba(22, 23, 24, 0.35),
+                        0 10px 20px -15px rgba(22, 23, 24, 0.2);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .dark .dropdown-content {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 38px -10px rgba(0, 0, 0, 0.5),
+                        0 10px 20px -15px rgba(0, 0, 0, 0.3);
+        }
+
+        .dropdown-option {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 0.875rem;
+            color: #0f172a;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .dropdown-option:last-child {
+            border-bottom: none;
+        }
+
+        .dark .dropdown-option {
+            color: #e2e8f0;
+            border-bottom-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .dropdown-option:hover,
+        .dropdown-option.highlighted {
+            background: linear-gradient(135deg, rgba(19, 127, 236, 0.08) 0%, rgba(19, 127, 236, 0.05) 100%);
+            color: #137fec;
+            padding-left: 1.25rem;
+        }
+
+        .dark .dropdown-option:hover,
+        .dark .dropdown-option.highlighted {
+            background: linear-gradient(135deg, rgba(19, 127, 236, 0.15) 0%, rgba(19, 127, 236, 0.08) 100%);
+            color: #4596f7;
+        }
+
+        .dropdown-option:active {
+            background: linear-gradient(135deg, rgba(19, 127, 236, 0.12) 0%, rgba(19, 127, 236, 0.08) 100%);
+        }
+
+        .dark .dropdown-option:active {
+            background: linear-gradient(135deg, rgba(19, 127, 236, 0.2) 0%, rgba(19, 127, 236, 0.12) 100%);
+        }
+
+        /* Hide native datalist dropdown arrow and datalist */
+        #award_name::-webkit-calendar-picker-indicator {
+            display: none;
+        }
+        
+        /* Completely hide native datalist dropdown */
+        datalist#award-suggestions {
+            display: none !important;
         }
 
         .progress-circle {
@@ -529,7 +675,7 @@ try {
                 <div class="flex items-center justify-between profile-container">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-full bg-cover bg-center sidebar-profile-picture hidden"
-                            style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p");'>
+                            style='background-image: url("<?php echo !empty($user['profile_picture']) ? htmlspecialchars($user['profile_picture']) : 'https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p'; ?>");'>
                         </div>
                         <div class="sidebar-profile-info hidden">
                             <p class="font-semibold text-text-light dark:text-text-dark"><?php echo htmlspecialchars($user['role'] === 'admin' ? 'Admin User' : $user['username']); ?></p>
@@ -593,7 +739,7 @@ try {
                     </button>
                 </div>
             </header>
-            <div class="p-2 lg:p-1 main-content content-animate">
+            <div class="p-4 lg:px-10 lg:py-6 main-content content-animate">
                 <div class="max-w-7xl mx-auto">
                     <div class="flex flex-col gap-8">
                         <div class="border-b border-border-light dark:border-border-dark page-animate-delay-1">
@@ -601,10 +747,183 @@ try {
                                 <a class="active tab-underline text-primary whitespace-nowrap py-4 px-1 font-bold text-sm relative"
                                     href="#" id="process-tab">Process Award</a>
                                 <a class="tab-underline border-transparent text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:border-border-light dark:hover:border-border-dark whitespace-nowrap py-4 px-1 font-medium text-sm transition-colors duration-300"
+                                    href="#" id="ched-guidance-tab">CHED Guidelines</a>
+                                <a class="tab-underline border-transparent text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:border-border-light dark:hover:border-border-dark whitespace-nowrap py-4 px-1 font-medium text-sm transition-colors duration-300"
                                     href="#" id="analytics-tab">Analytics Dashboard</a>
                                 <a class="tab-underline border-transparent text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:border-border-light dark:hover:border-border-dark whitespace-nowrap py-4 px-1 font-medium text-sm transition-colors duration-300"
                                     href="#" id="award-list-tab">Award List & Criteria</a>
                             </nav>
+                        </div>
+
+                        <!-- CHED ICONS 2024 Guidance & Gaps -->
+                        <div id="ched-guidance-content" class="tab-content hidden">
+                        <section id="ched-guidance" class="space-y-6 page-animate-delay-1">
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                <div class="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-2xl p-6 shadow-soft">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div>
+                                            <h3 class="text-lg font-bold text-text-light dark:text-text-dark">CHED ICONS Awards 2024 Snapshot</h3>
+                                            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Celebrating HEIs that lead on sustainability, ASEAN awareness, and internationalization.</p>
+                                        </div>
+                                        <span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-primary/10 text-primary-700 dark:text-primary-300">Institutional · Individual · Special</span>
+                                    </div>
+                                    <ul class="mt-4 text-sm text-text-muted-light dark:text-text-muted-dark space-y-2 list-disc list-inside">
+                                        <li>Icons Awards highlight CPU’s role in bringing PH higher education to the global stage.</li>
+                                        <li>Internationalization (IZN) Awards remain the highlight—proof of strategic leadership is crucial.</li>
+                                        <li>Focus areas lifted from CHED brief: intercultural understanding, inclusive access, and measurable impact.</li>
+                                    </ul>
+                                </div>
+                                <div class="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-2xl p-6 shadow-soft space-y-4">
+                                    <div>
+                                        <h3 class="text-lg font-bold text-text-light dark:text-text-dark">Deadlines & Official References</h3>
+                                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Nominations close <strong>01 October 2024 · 10:00 PM PhST</strong> (extended).</p>
+                                    </div>
+                                    <div class="p-4 rounded-xl border border-dashed border-primary/30 bg-primary/5">
+                                        <p class="text-xs uppercase tracking-wide text-primary-700 dark:text-primary-300 mb-1">Countdown</p>
+                                        <p id="ched-deadline-countdown" class="text-base font-semibold text-text-light dark:text-text-dark">Loading timeline…</p>
+                                    </div>
+                                    <div class="flex flex-wrap gap-3">
+                                        <a href="https://ieducationphl.ched.gov.ph/asia-pacific/" target="_blank" rel="noopener"
+                                            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors">
+                                            <span class="material-symbols-outlined text-sm">description</span>
+                                            CHED Guidelines
+                                        </a>
+                                        <a href="https://forms.office.com/" target="_blank" rel="noopener"
+                                            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border-light dark:border-border-dark text-sm font-semibold text-text-light dark:text-text-dark hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                                            <span class="material-symbols-outlined text-sm">open_in_new</span>
+                                            Nomination Form
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-2xl p-6 shadow-soft">
+                                    <h3 class="text-lg font-bold text-text-light dark:text-text-dark">Gaps vs Current System</h3>
+                                    <p class="text-sm text-text-muted-light dark:text-text-muted-dark mb-4">These items surfaced while mapping the CHED brief to the existing awards page:</p>
+                                    <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-2 list-disc list-inside">
+                                        <li>No UI distinction between Institutional (Cat A/B), Individual, and Special awards.</li>
+                                        <li>No place to upload/track required videos, MOUs, certificates, or policies.</li>
+                                        <li>Deadline/reminder workflow missing—risk of missing CHED cut-offs.</li>
+                                        <li>Lack of narrative guidance tying similarity scores to CHED’s qualitative criteria.</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div class="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-2xl p-6 shadow-soft space-y-6">
+                                <div class="flex items-center justify-between flex-wrap gap-3">
+                                    <div>
+                                        <h3 class="text-xl font-bold text-text-light dark:text-text-dark">Award Families & Readiness Cues</h3>
+                                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Use these quick cues when validating similarity scores against CHED’s narrative requirements.</p>
+                                    </div>
+                                    <span class="text-xs font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-400">Source: CHED ICONS Awards 2024 content</span>
+                                </div>
+                                <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                    <div class="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/30">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Global Citizenship Awards</h4>
+                                            <span class="px-3 py-1 text-xs rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Institutional · Cat A/B</span>
+                                        </div>
+                                        <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
+                                            <li>Ignite intercultural understanding with inclusive learning arenas.</li>
+                                            <li>Empower changemakers aligned with SDGs.</li>
+                                            <li>Provide platforms for students to convert awareness into equitable action.</li>
+                                        </ul>
+                                    </div>
+                                    <div class="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/30">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Outstanding International Education Program</h4>
+                                            <span class="px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Institutional · Cat A/B</span>
+                                        </div>
+                                        <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
+                                            <li>Expand access—track inclusion of students across backgrounds and abilities.</li>
+                                            <li>Foster collaborative innovation with varied local/foreign partners.</li>
+                                            <li>Document how barriers are dismantled so mobility benefits everyone.</li>
+                                        </ul>
+                                    </div>
+                                    <div class="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/30">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Emerging Leadership Award</h4>
+                                            <span class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">Individual · Directors/Managers</span>
+                                        </div>
+                                        <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
+                                            <li>Spotlight innovative approaches in IRO operations or student services.</li>
+                                            <li>Show how leaders drive inclusive, strategic growth for all stakeholders.</li>
+                                            <li>Capture mentoring stories proving they empower next-gen champions.</li>
+                                        </ul>
+                                    </div>
+                                    <div class="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/30">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Internationalization Leadership Award</h4>
+                                            <span class="px-3 py-1 text-xs rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">Individual · Executives</span>
+                                        </div>
+                                        <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
+                                            <li>Champion bold innovation that embeds IZN across governance, curriculum, and services.</li>
+                                            <li>Demonstrate how leaders cultivate ethical, inclusive, and globally ready graduates.</li>
+                                            <li>Highlight metrics that prove lifelong learning and resilience mindsets.</li>
+                                        </ul>
+                                    </div>
+                                    <div class="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/30 xl:col-span-2">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Best Regional Office for Internationalization</h4>
+                                            <span class="px-3 py-1 text-xs rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">Special · CHED ROs</span>
+                                        </div>
+                                        <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
+                                            <li>Log comprehensive regional initiatives promoting sustainable & inclusive IZN.</li>
+                                            <li>Track cooperation with CHED IAS and responsiveness to national programs.</li>
+                                            <li>Maintain evidence of measurable impact (rankings, mobility, faculty exchange, July 15 survey readiness).</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-2xl p-6 shadow-soft space-y-4">
+                                <div class="flex items-center justify-between flex-wrap gap-3">
+                                    <div>
+                                        <h3 class="text-xl font-bold text-text-light dark:text-text-dark">Submission Requirement Tracker</h3>
+                                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Mark items once the evidence is ready. Progress is stored locally so teams can resume later.</p>
+                                    </div>
+                                    <div class="text-sm font-semibold text-primary-700 dark:text-primary-300" id="ched-requirement-progress-count">0/0 ready</div>
+                                </div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                                    <div class="bg-primary h-2.5 rounded-full transition-all duration-500" id="ched-requirement-progress-bar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <div class="divide-y divide-border-light dark:divide-border-dark text-sm text-text-light dark:text-text-dark">
+                                    <label class="flex items-start gap-3 py-3 cursor-pointer">
+                                        <input type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary ched-requirement" data-requirement-id="videos">
+                                        <div>
+                                            <p class="font-semibold">Official video pitch</p>
+                                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">5-min for IZN Leadership; 3-min for other awards. Confirm scripting, narration, and subtitles.</p>
+                                        </div>
+                                    </label>
+                                    <label class="flex items-start gap-3 py-3 cursor-pointer">
+                                        <input type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary ched-requirement" data-requirement-id="supporting-docs">
+                                        <div>
+                                            <p class="font-semibold">Supporting documents</p>
+                                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">MOAs/MOUs, certificates, and board-approved policies referenced in CHED guidelines.</p>
+                                        </div>
+                                    </label>
+                                    <label class="flex items-start gap-3 py-3 cursor-pointer">
+                                        <input type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary ched-requirement" data-requirement-id="nomination-form">
+                                        <div>
+                                            <p class="font-semibold">Nomination/Application form</p>
+                                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Ensure all sections (institutional data, focal person, narrative answers) are filled before the deadline.</p>
+                                        </div>
+                                    </label>
+                                    <label class="flex items-start gap-3 py-3 cursor-pointer">
+                                        <input type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary ched-requirement" data-requirement-id="impact-metrics">
+                                        <div>
+                                            <p class="font-semibold">Impact & collaboration metrics</p>
+                                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Regional rankings, student/faculty mobility numbers, CHED IAS cooperation logs, July 15 survey readiness.</p>
+                                        </div>
+                                    </label>
+                                    <label class="flex items-start gap-3 py-3 cursor-pointer">
+                                        <input type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary ched-requirement" data-requirement-id="deadline-plan">
+                                        <div>
+                                            <p class="font-semibold">Deadline & reviewer plan</p>
+                                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Internal milestone plan leading to 01 Oct 2024 10:00 PM PhST submission, with assigned reviewers.</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </section>
                         </div>
 
                         <!-- Process Award Tab Content -->
@@ -614,21 +933,31 @@ try {
                                     <h3 class="text-xl font-bold text-text-light dark:text-text-dark">Input &amp; Upload
                                     </h3>
                                     <form class="space-y-4" id="award-analysis-form" enctype="multipart/form-data">
-                                        <label class="block">
+                                        <label class="block relative">
                                             <span class="text-sm font-medium text-text-light dark:text-text-dark">Award
                                                 Name / Category</span>
                                             <input
                                                 class="mt-1 block w-full rounded-lg border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark text-text-light dark:text-text-dark focus:ring-primary focus:border-primary"
                                                 placeholder="e.g. Global Citizenship Award" type="text" name="award_name"
-                                                id="award_name" autocomplete="off" required
-                                                list="award-suggestions" />
-                                            <datalist id="award-suggestions">
+                                                id="award_name" autocomplete="off" required />
+                                            <!-- Native datalist removed - using custom dropdown instead -->
+                                            <datalist id="award-suggestions" style="display: none;">
                                                 <option value="Global Citizenship Award">
                                                 <option value="Outstanding International Education Program Award">
                                                 <option value="Sustainability Award">
                                                 <option value="Emerging Leadership Award">
                                                 <option value="International Leadership Award">
                                             </datalist>
+                                            <!-- Modern Custom Dropdown -->
+                                            <div id="award-name-dropdown" class="modern-dropdown hidden absolute left-0 right-0 mt-1 z-50">
+                                                <div class="dropdown-content">
+                                                    <div class="dropdown-option" data-value="Global Citizenship Award">Global Citizenship Award</div>
+                                                    <div class="dropdown-option" data-value="Outstanding International Education Program Award">Outstanding International Education Program Award</div>
+                                                    <div class="dropdown-option" data-value="Sustainability Award">Sustainability Award</div>
+                                                    <div class="dropdown-option" data-value="Emerging Leadership Award">Emerging Leadership Award</div>
+                                                    <div class="dropdown-option" data-value="International Leadership Award">International Leadership Award</div>
+                                                </div>
+                                            </div>
                                         </label>
                                         <label class="block">
                                             <span
@@ -1243,7 +1572,6 @@ try {
                                     <thead
                                         class="bg-gray-50 dark:bg-gray-800 text-xs text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">
                                         <tr>
-                                            <?php if ($isAdmin): ?>
                                             <th class="px-6 py-3 font-medium">Award Name</th>
                                             <th class="px-6 py-3 font-medium text-center">Type</th>
                                             <th class="px-6 py-3 font-medium text-center">Requirements</th>
@@ -1251,15 +1579,6 @@ try {
                                             <th class="px-6 py-3 font-medium text-center">Pending</th>
                                             <th class="px-6 py-3 font-medium text-center">Recognized</th>
                                             <th class="px-6 py-3 font-medium text-center">Processed</th>
-                                            <?php else: ?>
-                                            <th class="px-6 py-3 font-medium">Award Name</th>
-                                            <th class="px-6 py-3 font-medium">Submission Title</th>
-                                            <th class="px-6 py-3 font-medium">Criteria Met</th>
-                                            <th class="px-6 py-3 font-medium">Progress</th>
-                                            <th class="px-6 py-3 font-medium">Status</th>
-                                            <th class="px-6 py-3 font-medium">Date Submitted</th>
-                                            <th class="px-6 py-3 font-medium">Actions</th>
-                                            <?php endif; ?>
                                         </tr>
                                     </thead>
                                     <tbody id="award-criteria-tbody" class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -1609,6 +1928,7 @@ try {
                 </div>
             </div>
         </div>
+    <?php endif; ?>
 
         <div id="addCriteriaModal"
             class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
@@ -1616,7 +1936,7 @@ try {
                 id="addCriteriaModalContent">
                 <div class="p-6">
                     <div class="flex items-center justify-between mb-6">
-                        <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Add Award Criteria</h3>
+                        <h3 class="text-xl font-semibold text-gray-900 dark:text-white" id="criteriaModalTitle">Add Award Criteria</h3>
                         <button onclick="hideAddCriteriaModal()"
                             class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
                             <span class="material-symbols-outlined">close</span>
@@ -1707,17 +2027,16 @@ try {
                                 class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
                                 Cancel
                             </button>
-                            <button type="submit"
+                            <button type="submit" id="criteriaSubmitBtn"
                                 class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center">
                                 <span class="material-symbols-outlined text-lg mr-2">save</span>
-                                Save Criteria
+                                <span id="criteriaSubmitText">Save Criteria</span>
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
-    <?php endif; ?>
 
     <script>
         // Notification function - defined early so it's available everywhere
@@ -2204,6 +2523,131 @@ try {
             }
         }
 
+        // Modern Dropdown Functionality for Award Name
+        (function() {
+            const awardInput = document.getElementById('award_name');
+            const dropdown = document.getElementById('award-name-dropdown');
+            const dropdownOptions = dropdown?.querySelectorAll('.dropdown-option');
+            
+            if (!awardInput || !dropdown || !dropdownOptions) return;
+            
+            let highlightedIndex = -1;
+            const options = Array.from(dropdownOptions);
+            let filteredOptions = [...options];
+            
+            function showDropdown() {
+                if (dropdown) {
+                    dropdown.classList.remove('hidden');
+                }
+            }
+            
+            function hideDropdown() {
+                if (dropdown) {
+                    dropdown.classList.add('hidden');
+                }
+                highlightedIndex = -1;
+            }
+            
+            function filterOptions(searchTerm) {
+                const term = searchTerm.toLowerCase().trim();
+                
+                options.forEach(option => {
+                    const value = option.getAttribute('data-value').toLowerCase();
+                    if (term === '' || value.includes(term)) {
+                        option.style.display = '';
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+                
+                // Update filtered options to only visible ones
+                filteredOptions = options.filter(option => option.style.display !== 'none');
+                highlightedIndex = -1;
+            }
+            
+            function highlightOption(index) {
+                filteredOptions.forEach((opt, i) => {
+                    opt.classList.remove('highlighted');
+                });
+                
+                if (index >= 0 && index < filteredOptions.length) {
+                    filteredOptions[index].classList.add('highlighted');
+                    filteredOptions[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+            }
+            
+            function selectOption(option) {
+                const value = option.getAttribute('data-value');
+                awardInput.value = value;
+                hideDropdown();
+                awardInput.focus();
+            }
+            
+            // Show dropdown on focus or when typing
+            awardInput.addEventListener('focus', () => {
+                filterOptions(awardInput.value);
+                showDropdown();
+            });
+            
+            awardInput.addEventListener('input', (e) => {
+                filterOptions(e.target.value);
+                showDropdown();
+            });
+            
+            // Handle option clicks
+            options.forEach(option => {
+                option.addEventListener('click', () => {
+                    selectOption(option);
+                });
+                
+                option.addEventListener('mouseenter', () => {
+                    const index = filteredOptions.indexOf(option);
+                    if (index !== -1) {
+                        highlightedIndex = index;
+                        highlightOption(index);
+                    }
+                });
+            });
+            
+            // Handle keyboard navigation
+            awardInput.addEventListener('keydown', (e) => {
+                if (filteredOptions.length === 0) return;
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    highlightedIndex = (highlightedIndex + 1) % filteredOptions.length;
+                    highlightOption(highlightedIndex);
+                    if (dropdown.classList.contains('hidden')) {
+                        showDropdown();
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (highlightedIndex <= 0) {
+                        highlightedIndex = filteredOptions.length - 1;
+                    } else {
+                        highlightedIndex--;
+                    }
+                    highlightOption(highlightedIndex);
+                    if (dropdown.classList.contains('hidden')) {
+                        showDropdown();
+                    }
+                } else if (e.key === 'Enter' && highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
+                    e.preventDefault();
+                    selectOption(filteredOptions[highlightedIndex]);
+                } else if (e.key === 'Escape') {
+                    hideDropdown();
+                }
+            });
+            
+            // Hide dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                const inputContainer = awardInput.closest('label');
+                if (inputContainer && !inputContainer.contains(e.target)) {
+                    hideDropdown();
+                }
+            });
+        })();
+
         document.addEventListener('DOMContentLoaded', () => {
             const themeToggle = document.getElementById('theme-toggle');
             const sidebarToggle = document.getElementById('sidebar-toggle');
@@ -2223,32 +2667,37 @@ try {
             const toggleSidebar = () => {
                 const isCollapsed = appContainer.classList.contains('sidebar-collapsed');
                 if (isCollapsed) {
+                    // Expand sidebar
                     appContainer.classList.remove('sidebar-collapsed');
-                    sidebar.style.width = '16rem';
-                    mainContent.style.marginLeft = '0';
                     sidebarLogoText.classList.remove('hidden');
                     sidebarTexts.forEach(text => text.classList.remove('hidden'));
                     sidebarProfileInfo.classList.remove('hidden');
                     sidebarProfilePicture.classList.remove('hidden');
-                    openIcon.style.display = 'block';
-                    closedIcon.style.display = 'none';
+                    openIcon.classList.remove('hidden');
+                    openIcon.classList.add('block');
+                    closedIcon.classList.add('hidden');
+                    closedIcon.classList.remove('block');
                     navLinks.forEach(link => link.classList.remove('justify-center'));
-                    profileContainer.classList.remove('justify-center');
-                    toggleContainer.classList.remove('justify-center');
+                    if (profileContainer) profileContainer.classList.remove('justify-center');
+                    if (toggleContainer) toggleContainer.classList.remove('justify-center');
                 } else {
+                    // Collapse sidebar
                     appContainer.classList.add('sidebar-collapsed');
-                    sidebar.style.width = '5rem';
-                    mainContent.style.marginLeft = '5rem';
                     sidebarLogoText.classList.add('hidden');
                     sidebarTexts.forEach(text => text.classList.add('hidden'));
                     sidebarProfileInfo.classList.add('hidden');
                     sidebarProfilePicture.classList.add('hidden');
-                    openIcon.style.display = 'none';
-                    closedIcon.style.display = 'block';
+                    openIcon.classList.add('hidden');
+                    openIcon.classList.remove('block');
+                    closedIcon.classList.remove('hidden');
+                    closedIcon.classList.add('block');
                     navLinks.forEach(link => link.classList.add('justify-center'));
-                    profileContainer.classList.add('justify-center');
-                    toggleContainer.classList.add('justify-center');
+                    if (profileContainer) profileContainer.classList.add('justify-center');
+                    if (toggleContainer) toggleContainer.classList.add('justify-center');
                 }
+                
+                // Force a reflow to ensure layout updates properly
+                void appContainer.offsetHeight;
             };
             sidebarToggle.addEventListener('click', toggleSidebar);
             // Function to toggle dark mode
@@ -2328,6 +2777,82 @@ try {
                 }
             });
             // Awards cards are now responsive grid - no carousel controls needed
+
+            // CHED requirement tracker state (stored locally)
+            const CHED_REQUIREMENT_STORAGE_KEY = 'chedRequirementTracker';
+            const requirementCheckboxes = document.querySelectorAll('.ched-requirement');
+            const requirementProgressCount = document.getElementById('ched-requirement-progress-count');
+            const requirementProgressBar = document.getElementById('ched-requirement-progress-bar');
+
+            let requirementState = {};
+            try {
+                requirementState = JSON.parse(localStorage.getItem(CHED_REQUIREMENT_STORAGE_KEY) || '{}');
+            } catch (error) {
+                console.warn('Failed to parse CHED requirement tracker state:', error);
+                requirementState = {};
+            }
+
+            function updateRequirementProgress() {
+                if (!requirementCheckboxes.length || !requirementProgressCount || !requirementProgressBar) {
+                    return;
+                }
+                const total = requirementCheckboxes.length;
+                const completed = Array.from(requirementCheckboxes).filter(cb => cb.checked).length;
+                const percent = Math.round((completed / total) * 100);
+                requirementProgressCount.textContent = `${completed}/${total} ready`;
+                requirementProgressBar.style.width = `${percent}%`;
+                requirementProgressBar.setAttribute('aria-valuenow', percent);
+            }
+
+            requirementCheckboxes.forEach((checkbox) => {
+                const id = checkbox.dataset.requirementId;
+                if (requirementState[id]) {
+                    checkbox.checked = true;
+                }
+                checkbox.addEventListener('change', () => {
+                    requirementState[id] = checkbox.checked;
+                    localStorage.setItem(CHED_REQUIREMENT_STORAGE_KEY, JSON.stringify(requirementState));
+                    updateRequirementProgress();
+                });
+            });
+
+            updateRequirementProgress();
+
+            // Deadline countdown logic
+            const deadlineElement = document.getElementById('ched-deadline-countdown');
+            const chedDeadline = new Date('2024-10-01T22:00:00+08:00');
+            const DAY_MS = 1000 * 60 * 60 * 24;
+            const HOUR_MS = 1000 * 60 * 60;
+            const MIN_MS = 1000 * 60;
+
+            function renderDeadlineCountdown() {
+                if (!deadlineElement || Number.isNaN(chedDeadline.getTime())) return;
+                const now = new Date();
+                const diff = chedDeadline - now;
+
+                if (diff <= 0) {
+                    deadlineElement.textContent = 'Submission window closed — prepare assets for the next ICONS cycle.';
+                    deadlineElement.classList.add('text-red-600', 'dark:text-red-400');
+                    return;
+                }
+
+                const days = Math.floor(diff / DAY_MS);
+                const hours = Math.floor((diff % DAY_MS) / HOUR_MS);
+                const minutes = Math.floor((diff % HOUR_MS) / MIN_MS);
+                deadlineElement.textContent = `${days} day(s), ${hours} hr(s), ${minutes} min(s) remaining`;
+
+                deadlineElement.classList.remove('text-red-600', 'dark:text-red-400', 'text-yellow-600', 'dark:text-yellow-400');
+                if (diff <= 3 * DAY_MS) {
+                    deadlineElement.classList.add('text-red-600', 'dark:text-red-400');
+                } else if (diff <= 14 * DAY_MS) {
+                    deadlineElement.classList.add('text-yellow-600', 'dark:text-yellow-400');
+                }
+            }
+
+            renderDeadlineCountdown();
+            if (deadlineElement) {
+                setInterval(renderDeadlineCountdown, 60000);
+            }
 
             // Show notification function
 
@@ -2884,6 +3409,8 @@ try {
             window.loadAwardListData = async function() {
                 const isAdmin = <?php echo $isAdmin ? 'true' : 'false'; ?>;
                 console.log('loadAwardListData called, isAdmin:', isAdmin);
+                console.log('PHP isAdmin value:', <?php echo $isAdmin ? 'true' : 'false'; ?>);
+                console.log('User role from session:', '<?php echo htmlspecialchars($user['role'] ?? 'unknown'); ?>');
 
                 try {
                     // Load award criteria for all users (for the criteria management section)
@@ -2907,53 +3434,25 @@ try {
                         }
                     }
 
-                    if (isAdmin) {
-                        console.log('Loading admin criteria...');
-                        // Load award criteria with applicant counts (existing admin code)
-                        const response = await fetch('api/award-applicants.php?list_all=true', {
-                            headers: {
-                                'Authorization': 'Bearer ' + AUTH_TOKEN
-                            }
-                        });
-
-                        if (!response.ok) {
-                            throw new Error('Failed to load award criteria');
+                    // ALL USERS (admin and regular) see the same view - award categories with statistics
+                    console.log('Loading award categories with statistics...');
+                    // Load award criteria with applicant counts (same view for everyone)
+                    const response = await fetch('api/award-applicants.php?list_all=true', {
+                        headers: {
+                            'Authorization': 'Bearer ' + AUTH_TOKEN
                         }
+                    });
 
-                        const result = await response.json();
-                        if (!result.success) {
-                            throw new Error(result.error || 'Failed to load criteria');
-                        }
-
-                        renderAwardCriteriaList(result.criteria);
-
-                    } else {
-                        console.log('Loading user submissions and criteria...');
-                        // Load user's own submissions
-                        const submissionsResponse = await fetch('api/user-award-submissions.php');
-
-                        // Load user submissions
-                        if (submissionsResponse.ok) {
-                            const submissionsResult = await submissionsResponse.json();
-                            if (submissionsResult.success) {
-                                allUserSubmissions = submissionsResult.submissions || [];
-                                console.log('User submissions loaded, count:', allUserSubmissions.length);
-                            }
-                        }
-
-                        // Show user submissions if they exist, otherwise show available awards
-                        if (criteriaData && criteriaData.length > 0) {
-                            if (allUserSubmissions && allUserSubmissions.length > 0) {
-                                renderUserSubmissionsList(allUserSubmissions);
-                            } else {
-                                // Show available awards they can apply for
-                                renderAvailableAwardsList(criteriaData);
-                            }
-                        } else {
-                            // Fallback to submissions list even if empty
-                            renderUserSubmissionsList(allUserSubmissions || []);
-                        }
+                    if (!response.ok) {
+                        throw new Error('Failed to load award criteria');
                     }
+
+                    const result = await response.json();
+                    if (!result.success) {
+                        throw new Error(result.error || 'Failed to load criteria');
+                    }
+
+                    renderAwardCriteriaList(result.criteria);
 
                 } catch (error) {
                     console.error('Error loading award list:', error);
@@ -4134,9 +4633,11 @@ try {
 
             // Tab functionality
             const processTab = document.getElementById('process-tab');
+            const chedGuidanceTab = document.getElementById('ched-guidance-tab');
             const analyticsTab = document.getElementById('analytics-tab');
             const awardListTab = document.getElementById('award-list-tab');
             const processContent = document.getElementById('process-content');
+            const chedGuidanceContent = document.getElementById('ched-guidance-content');
             const analyticsContent = document.getElementById('analytics-content');
             const awardListContent = document.getElementById('award-list-content');
             const isAdmin = <?php echo $isAdmin ? 'true' : 'false'; ?>;
@@ -4149,6 +4650,10 @@ try {
                 analyticsContent.style.display = 'none';
                 awardListContent.classList.add('hidden');
                 awardListContent.style.display = 'none';
+                if (chedGuidanceContent) {
+                    chedGuidanceContent.classList.add('hidden');
+                    chedGuidanceContent.style.display = 'none';
+                }
                 
                 // Reset styles for clean animation
                 processContent.style.opacity = '';
@@ -4163,6 +4668,11 @@ try {
 
                 awardListTab.classList.remove('active', 'font-bold', 'text-primary');
                 awardListTab.classList.add('font-medium', 'text-text-muted-light', 'dark:text-text-muted-dark');
+
+                if (chedGuidanceTab) {
+                    chedGuidanceTab.classList.remove('active', 'font-bold', 'text-primary');
+                    chedGuidanceTab.classList.add('font-medium', 'text-text-muted-light', 'dark:text-text-muted-dark');
+                }
 
                 // Show and animate new content
                 processContent.classList.remove('hidden');
@@ -4190,6 +4700,10 @@ try {
                 }
                 awardListContent.classList.add('hidden');
                 awardListContent.style.display = 'none';
+                if (chedGuidanceContent) {
+                    chedGuidanceContent.classList.add('hidden');
+                    chedGuidanceContent.style.display = 'none';
+                }
                 
                 // Reset styles for clean animation
                 analyticsContent.style.opacity = '';
@@ -4206,6 +4720,11 @@ try {
 
                 awardListTab.classList.remove('active', 'font-bold', 'text-primary');
                 awardListTab.classList.add('font-medium', 'text-text-muted-light', 'dark:text-text-muted-dark');
+
+                if (chedGuidanceTab) {
+                    chedGuidanceTab.classList.remove('active', 'font-bold', 'text-primary');
+                    chedGuidanceTab.classList.add('font-medium', 'text-text-muted-light', 'dark:text-text-muted-dark');
+                }
 
                 // Show and animate new content
                 analyticsContent.classList.remove('hidden');
@@ -4237,6 +4756,10 @@ try {
                 }
                 analyticsContent.classList.add('hidden');
                 analyticsContent.style.display = 'none';
+                if (chedGuidanceContent) {
+                    chedGuidanceContent.classList.add('hidden');
+                    chedGuidanceContent.style.display = 'none';
+                }
                 
                 // Reset styles for clean animation
                 awardListContent.style.opacity = '';
@@ -4253,6 +4776,11 @@ try {
 
                 analyticsTab.classList.remove('active', 'font-bold', 'text-primary');
                 analyticsTab.classList.add('font-medium', 'text-text-muted-light', 'dark:text-text-muted-dark');
+
+                if (chedGuidanceTab) {
+                    chedGuidanceTab.classList.remove('active', 'font-bold', 'text-primary');
+                    chedGuidanceTab.classList.add('font-medium', 'text-text-muted-light', 'dark:text-text-muted-dark');
+                }
 
                 // Show and animate new content
                 awardListContent.classList.remove('hidden');
@@ -4280,10 +4808,63 @@ try {
                 }
             };
 
+            const switchToGuidance = () => {
+                if (processContent) {
+                    processContent.classList.add('hidden');
+                    processContent.style.display = 'none';
+                }
+                analyticsContent.classList.add('hidden');
+                analyticsContent.style.display = 'none';
+                awardListContent.classList.add('hidden');
+                awardListContent.style.display = 'none';
+
+                if (chedGuidanceContent) {
+                    chedGuidanceContent.style.opacity = '';
+                    chedGuidanceContent.style.transform = '';
+                    chedGuidanceContent.style.transition = '';
+                }
+
+                if (chedGuidanceTab) {
+                    chedGuidanceTab.classList.add('active', 'font-bold', 'text-primary');
+                    chedGuidanceTab.classList.remove('font-medium', 'text-text-muted-light', 'dark:text-text-muted-dark');
+                }
+
+                if (processTab) {
+                    processTab.classList.remove('active', 'font-bold', 'text-primary');
+                    processTab.classList.add('font-medium', 'text-text-muted-light', 'dark:text-text-muted-dark');
+                }
+
+                analyticsTab.classList.remove('active', 'font-bold', 'text-primary');
+                analyticsTab.classList.add('font-medium', 'text-text-muted-light', 'dark:text-text-muted-dark');
+
+                awardListTab.classList.remove('active', 'font-bold', 'text-primary');
+                awardListTab.classList.add('font-medium', 'text-text-muted-light', 'dark:text-text-muted-dark');
+
+                if (chedGuidanceContent) {
+                    chedGuidanceContent.classList.remove('hidden');
+                    chedGuidanceContent.style.display = 'block';
+                    chedGuidanceContent.offsetHeight;
+                    chedGuidanceContent.style.opacity = '0';
+                    chedGuidanceContent.style.transform = 'translateY(15px)';
+                    chedGuidanceContent.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+                    requestAnimationFrame(() => {
+                        chedGuidanceContent.style.opacity = '1';
+                        chedGuidanceContent.style.transform = 'translateY(0)';
+                    });
+                }
+            };
+
             if (processTab) {
                 processTab.addEventListener('click', (e) => {
                     e.preventDefault();
                     switchToProcess();
+                });
+            }
+
+            if (chedGuidanceTab) {
+                chedGuidanceTab.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    switchToGuidance();
                 });
             }
 
@@ -4302,6 +4883,8 @@ try {
                 switchToAnalytics();
             } else if (window.location.hash === '#award-list') {
                 switchToAwardList();
+            } else if (window.location.hash === '#ched-guidelines') {
+                switchToGuidance();
             } else {
                 // Default: show Process Award for regular users, Analytics for admins
                 if (processTab && processContent) {
@@ -6835,7 +7418,63 @@ try {
             }
         };
 
-        window.showAddCriteriaModal = function () {
+        let criteriaFormMode = 'create';
+        let editingCriteriaId = null;
+
+        window.showAddCriteriaModal = function (mode = 'create', criteriaData = null) {
+            const modalTitle = document.getElementById('criteriaModalTitle');
+            const submitText = document.getElementById('criteriaSubmitText');
+            const form = document.getElementById('addCriteriaForm');
+            if (!form) {
+                console.error('addCriteriaForm not found');
+                return;
+            }
+
+            criteriaFormMode = mode === 'edit' ? 'edit' : 'create';
+            editingCriteriaId = null;
+
+            if (criteriaFormMode === 'edit') {
+                if (!criteriaData || !criteriaData.id) {
+                    showNotification('Unable to edit this criteria right now.', 'error');
+                    return;
+                }
+                editingCriteriaId = criteriaData.id;
+                if (modalTitle) modalTitle.textContent = 'Edit Award Criteria';
+                if (submitText) submitText.textContent = 'Save Changes';
+
+                form.elements['category_name'].value = criteriaData.category_name || '';
+                form.elements['award_type'].value = criteriaData.award_type || 'Individual';
+                form.elements['status'].value = criteriaData.status || 'active';
+                form.elements['description'].value = criteriaData.description || '';
+
+                let requirementsFieldValue = '';
+                const requirementsData = criteriaData.requirementsArray || criteriaData.requirements || [];
+                if (Array.isArray(requirementsData)) {
+                    requirementsFieldValue = requirementsData.join('\n');
+                } else if (typeof requirementsData === 'string' && requirementsData.trim().length > 0) {
+                    try {
+                        const parsedReq = JSON.parse(requirementsData);
+                        requirementsFieldValue = Array.isArray(parsedReq) ? parsedReq.join('\n') : requirementsData;
+                    } catch (parseError) {
+                        requirementsFieldValue = requirementsData;
+                    }
+                }
+                form.elements['requirements'].value = requirementsFieldValue;
+
+                const keywordsValue = Array.isArray(criteriaData.keywords)
+                    ? criteriaData.keywords.join(', ')
+                    : (criteriaData.keywords || '');
+                form.elements['keywords'].value = keywordsValue;
+                form.elements['min_match_percentage'].value = criteriaData.min_match_percentage ?? 60;
+                form.elements['weight'].value = criteriaData.weight ?? 5;
+            } else {
+                if (modalTitle) modalTitle.textContent = 'Add Award Criteria';
+                if (submitText) submitText.textContent = 'Save Criteria';
+                form.reset();
+                form.elements['min_match_percentage'].value = 60;
+                form.elements['weight'].value = 5;
+            }
+
             const modal = document.getElementById('addCriteriaModal');
             const modalContent = document.getElementById('addCriteriaModalContent');
             modal.classList.remove('hidden');
@@ -6852,7 +7491,18 @@ try {
             modalContent.classList.add('scale-95', 'opacity-0');
             setTimeout(() => {
                 modal.classList.add('hidden');
-                document.getElementById('addCriteriaForm').reset();
+                const form = document.getElementById('addCriteriaForm');
+                if (form) {
+                    form.reset();
+                    form.elements['min_match_percentage'].value = 60;
+                    form.elements['weight'].value = 5;
+                }
+                criteriaFormMode = 'create';
+                editingCriteriaId = null;
+                const modalTitle = document.getElementById('criteriaModalTitle');
+                const submitText = document.getElementById('criteriaSubmitText');
+                if (modalTitle) modalTitle.textContent = 'Add Award Criteria';
+                if (submitText) submitText.textContent = 'Save Criteria';
             }, 300);
         };
 
@@ -7022,8 +7672,14 @@ try {
             };
 
             try {
-                const response = await fetch('api/award-criteria.php?action=create', {
-                    method: 'POST',
+                const isEditing = criteriaFormMode === 'edit' && editingCriteriaId;
+                const endpoint = isEditing
+                    ? `api/award-criteria.php?action=update&id=${editingCriteriaId}`
+                    : 'api/award-criteria.php?action=create';
+                const method = isEditing ? 'PUT' : 'POST';
+
+                const response = await fetch(endpoint, {
+                    method,
                     headers: {
                         'Authorization': 'Bearer ' + AUTH_TOKEN,
                         'Content-Type': 'application/json'
@@ -7034,9 +7690,11 @@ try {
                 const result = await response.json();
 
                 if (result.success) {
-                    showNotification('Award criteria created successfully!', 'success');
+                    showNotification(isEditing ? 'Award criteria updated successfully!' : 'Award criteria created successfully!', 'success');
                     hideAddCriteriaModal();
                     loadCriteriaList();
+                    criteriaFormMode = 'create';
+                    editingCriteriaId = null;
                 } else {
                     showNotification('Error: ' + (result.error || 'Failed to create criteria'), 'error');
                 }
@@ -7106,8 +7764,45 @@ try {
             }
         };
 
-        window.editCriteria = function (criteriaId) {
-            showNotification('Edit functionality coming soon', 'info');
+        window.editCriteria = async function (criteriaId) {
+            try {
+                const response = await fetch(`api/award-criteria.php?action=get&id=${criteriaId}`, {
+                    headers: {
+                        'Authorization': 'Bearer ' + AUTH_TOKEN
+                    }
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success || !result.criteria) {
+                    throw new Error(result.error || 'Unable to load criteria details');
+                }
+
+                const criteria = result.criteria;
+                let requirementsArray = [];
+
+                if (Array.isArray(criteria.requirements)) {
+                    requirementsArray = criteria.requirements;
+                } else if (typeof criteria.requirements === 'string') {
+                    try {
+                        const parsedReqs = JSON.parse(criteria.requirements);
+                        requirementsArray = Array.isArray(parsedReqs) ? parsedReqs : criteria.requirements.split('\n').map(req => req.trim()).filter(Boolean);
+                    } catch (parseError) {
+                        requirementsArray = criteria.requirements
+                            .split('\n')
+                            .map(req => req.trim())
+                            .filter(Boolean);
+                    }
+                }
+
+                showAddCriteriaModal('edit', {
+                    ...criteria,
+                    requirementsArray
+                });
+            } catch (error) {
+                console.error('Error loading criteria for edit:', error);
+                showNotification(error.message || 'Failed to load award criteria details', 'error');
+            }
         };
 
         // Load award list data when award list tab is clicked

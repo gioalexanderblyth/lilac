@@ -227,13 +227,11 @@ try {
             exit();
         }
 
-        // Check if user is admin
-        $user = $_SESSION['user'];
-        $isAdmin = $user['role'] === 'admin';
-        
-        if (!$isAdmin) {
-            http_response_code(403);
-            echo json_encode(['success' => false, 'error' => 'Admin access required']);
+        // Sanitize IDs
+        $awardIds = array_values(array_filter(array_map('intval', $awardIds)));
+        if (empty($awardIds)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Invalid award IDs provided']);
             exit();
         }
 

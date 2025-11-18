@@ -132,11 +132,17 @@ try {
         .sidebar-collapsed .sidebar-logo-text {
             display: none;
         }
+        .sidebar {
+            width: 16rem;
+            min-width: 16rem;
+            max-width: 16rem;
+            flex-shrink: 0;
+            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
+        }
         .sidebar-collapsed .sidebar {
             width: 5rem;
-        }
-        .sidebar-expanded .sidebar {
-            width: 16rem;
+            min-width: 5rem;
+            max-width: 5rem;
         }
         .sidebar-collapsed .sidebar-profile-info {
             display: none;
@@ -151,17 +157,15 @@ try {
         .sidebar-expanded .sidebar-profile-info {
             display: block;
         }
+        main {
+            flex: 1;
+            transition: margin-left 0.3s ease;
+        }
         .sidebar-collapsed main {
-            margin-left: 2rem;
+            margin-left: 0;
         }
-        .sidebar-expanded main {
-            margin-left: 0 !important;
-        }
-        .sidebar-expanded .main-content {
-            padding-left: 2rem;
-        }
-        .sidebar-collapsed .main-content {
-            padding-left: 2rem;
+        .main-content {
+            padding-left: 0;
         }
         .sidebar-collapsed .sidebar-toggle-icon-open {
             display: none;
@@ -239,28 +243,28 @@ try {
 </div>
 </div>
 <nav class="flex-1 px-4 py-6 space-y-2">
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="dashboard.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="dashboard.php" title="Dashboard">
 <span class="material-symbols-outlined">dashboard</span>
 <span class="sidebar-text hidden">Dashboard</span>
 </a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
 <span class="material-symbols-outlined">emoji_events</span>
 <span class="sidebar-text hidden">Awards Progress</span>
 </a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="events-activities.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
 <span class="material-symbols-outlined">event</span>
 <span class="sidebar-text hidden">Events &amp; Activities</span>
 </a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="scheduler.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="scheduler.php" title="Scheduler">
 <span class="material-symbols-outlined">calendar_today</span>
 <span class="sidebar-text hidden">Scheduler</span>
 </a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="mou-moa.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="mou-moa.php" title="MOUs & MOAs">
 <span class="material-symbols-outlined">handshake</span>
 <span class="sidebar-text hidden">MOUs &amp; MOAs</span>
 </a>
 
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="documents.php">
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="documents.php" title="Documents">
 <span class="material-symbols-outlined">description</span>
 <span class="sidebar-text hidden">Documents</span>
 </a>
@@ -507,44 +511,47 @@ try {
             
             // Function to toggle sidebar
             const toggleSidebar = () => {
-                appContainer.classList.toggle('sidebar-collapsed');
-                appContainer.classList.toggle('sidebar-expanded');
-                
-                // Toggle profile info visibility
-                if (sidebarProfileInfo) {
-                    sidebarProfileInfo.classList.toggle('hidden');
+                const isCollapsed = appContainer.classList.contains('sidebar-collapsed');
+                if (isCollapsed) {
+                    // Expand sidebar
+                    appContainer.classList.remove('sidebar-collapsed');
+                    sidebarLogoText.classList.remove('hidden');
+                    sidebarTexts.forEach(text => text.classList.remove('hidden'));
+                    sidebarProfileInfo.classList.remove('hidden');
+                    sidebarProfilePicture.classList.remove('hidden');
+                    if (sidebarToggleIconOpen) {
+                        sidebarToggleIconOpen.classList.remove('hidden');
+                        sidebarToggleIconOpen.classList.add('block');
+                    }
+                    if (sidebarToggleIconClosed) {
+                        sidebarToggleIconClosed.classList.add('hidden');
+                        sidebarToggleIconClosed.classList.remove('block');
+                    }
+                    sidebarNavLinks.forEach(link => link.classList.remove('justify-center'));
+                    if (profileContainer) profileContainer.classList.remove('justify-center');
+                    if (sidebarToggleContainer) sidebarToggleContainer.classList.remove('justify-center');
+                } else {
+                    // Collapse sidebar
+                    appContainer.classList.add('sidebar-collapsed');
+                    sidebarLogoText.classList.add('hidden');
+                    sidebarTexts.forEach(text => text.classList.add('hidden'));
+                    sidebarProfileInfo.classList.add('hidden');
+                    sidebarProfilePicture.classList.add('hidden');
+                    if (sidebarToggleIconOpen) {
+                        sidebarToggleIconOpen.classList.add('hidden');
+                        sidebarToggleIconOpen.classList.remove('block');
+                    }
+                    if (sidebarToggleIconClosed) {
+                        sidebarToggleIconClosed.classList.remove('hidden');
+                        sidebarToggleIconClosed.classList.add('block');
+                    }
+                    sidebarNavLinks.forEach(link => link.classList.add('justify-center'));
+                    if (profileContainer) profileContainer.classList.add('justify-center');
+                    if (sidebarToggleContainer) sidebarToggleContainer.classList.add('justify-center');
                 }
-                if (sidebarProfilePicture) {
-                    sidebarProfilePicture.classList.toggle('hidden');
-                }
                 
-                // Toggle sidebar text visibility
-                sidebarTexts.forEach(text => {
-                    text.classList.toggle('hidden');
-                });
-                
-                // Toggle logo text visibility
-                if (sidebarLogoText) {
-                    sidebarLogoText.classList.toggle('hidden');
-                }
-                
-                // Toggle toggle icons
-                if (sidebarToggleIconOpen) {
-                    sidebarToggleIconOpen.classList.toggle('hidden');
-                }
-                if (sidebarToggleIconClosed) {
-                    sidebarToggleIconClosed.classList.toggle('hidden');
-                }
-                
-                // Toggle nav link justification
-                sidebarNavLinks.forEach(link => {
-                    link.classList.toggle('justify-center');
-                });
-                
-                // Toggle container justification
-                if (profileContainer) {
-                    profileContainer.classList.toggle('justify-center');
-                }
+                // Force a reflow to ensure layout updates properly
+                void appContainer.offsetHeight;
             };
             
             sidebarToggle.addEventListener('click', toggleSidebar);
@@ -707,29 +714,49 @@ try {
                             body: formData
                         });
                         
+                        // Check if response is OK
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        
                         const result = await response.json();
                         
                         if (result.success) {
-                            // Update profile avatar image
+                            // Update profile avatar image immediately
                             if (result.profile_picture_url) {
-                                profileAvatar.src = result.profile_picture_url;
+                                // Add timestamp to prevent caching issues
+                                const timestamp = new Date().getTime();
+                                const imageUrl = result.profile_picture_url + (result.profile_picture_url.includes('?') ? '&' : '?') + 't=' + timestamp;
+                                
+                                profileAvatar.src = imageUrl;
+                                profileAvatar.onerror = function() {
+                                    // If image fails to load, try without timestamp
+                                    this.src = result.profile_picture_url;
+                                };
                                 
                                 // Update sidebar profile picture if it exists
                                 const sidebarProfilePicture = document.querySelector('.sidebar-profile-picture');
                                 if (sidebarProfilePicture) {
-                                    sidebarProfilePicture.style.backgroundImage = `url('${result.profile_picture_url}')`;
+                                    sidebarProfilePicture.style.backgroundImage = `url('${imageUrl}')`;
                                 }
                                 
                                 // Update profile data
                                 profileData.profile_picture = result.profile_picture_url;
+                                
+                                // Force a page refresh after 1 second to ensure all pages show the new picture
+                                setTimeout(() => {
+                                    // Reload the page to ensure database changes are reflected everywhere
+                                    window.location.reload();
+                                }, 1000);
                             }
                             
-                            alert('✓ Profile picture updated successfully!');
+                            alert('✓ Profile picture updated and saved to database successfully!');
                         } else {
                             alert('✗ Error: ' + (result.error || 'Failed to upload profile picture'));
                         }
                     } catch (error) {
-                        alert('✗ Error: ' + error.message);
+                        console.error('Profile picture upload error:', error);
+                        alert('✗ Error uploading profile picture: ' + error.message + '\n\nPlease try again or contact support if the problem persists.');
                     } finally {
                         avatarBtn.disabled = false;
                         avatarBtn.querySelector('span').textContent = 'photo_camera';

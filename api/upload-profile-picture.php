@@ -43,6 +43,23 @@ try {
     exit();
 }
 
+// Verify user exists in database
+try {
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE id = ?");
+    $stmt->execute([$userId]);
+    $userExists = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$userExists) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'error' => 'User not found in database']);
+        exit();
+    }
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
+    exit();
+}
+
 // Ensure profile_picture column exists
 try {
     $stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'profile_picture'");
@@ -52,6 +69,7 @@ try {
     }
 } catch (Exception $e) {
     // Column might already exist, continue
+    error_log('Profile picture column check: ' . $e->getMessage());
 }
 
 // Handle file upload
@@ -192,27 +210,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Update database
-        $stmt = $pdo->prepare("UPDATE users SET profile_picture = ?, updated_at = NOW() WHERE id = ?");
-        $stmt->execute([$relativePath, $userId]);
+        // Update database - Use transaction to ensure data integrity
+        $pdo->beginTransaction();
+        try {
+            $stmt = $pdo->prepare("UPDATE users SET profile_picture = ?, updated_at = NOW() WHERE id = ?");
+            $stmt->execute([$relativePath, $userId]);
+            
+            // Verify the update was successful
+            if ($stmt->rowCount() === 0) {
+                throw new Exception('Failed to update profile picture in database. User may not exist.');
+            }
+            
+            // Verify the data was actually saved by querying it back
+            $verifyStmt = $pdo->prepare("SELECT profile_picture FROM users WHERE id = ?");
+            $verifyStmt->execute([$userId]);
+            $verified = $verifyStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$verified || $verified['profile_picture'] !== $relativePath) {
+                throw new Exception('Database update verification failed. Profile picture was not saved correctly.');
+            }
+            
+            // Commit transaction
+            $pdo->commit();
+            
+            // Delete old profile picture if it exists (only after successful database update)
+            if ($oldPicturePath && file_exists(__DIR__ . '/../' . $oldPicturePath)) {
+                @unlink(__DIR__ . '/../' . $oldPicturePath);
+            }
 
-        // Delete old profile picture if it exists
-        if ($oldPicturePath && file_exists(__DIR__ . '/../' . $oldPicturePath)) {
-            @unlink(__DIR__ . '/../' . $oldPicturePath);
+            // Update session only after successful database save
+            $_SESSION['user']['profile_picture'] = $relativePath;
+            
+            // Log successful upload
+            if (function_exists('logActivity')) {
+                logActivity("Profile picture uploaded successfully for user ID: {$userId}", 'INFO');
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Profile picture uploaded and saved successfully',
+                'profile_picture' => $relativePath,
+                'profile_picture_url' => $relativePath // Return relative path for frontend
+            ]);
+            
+        } catch (Exception $dbException) {
+            // Rollback transaction on error
+            $pdo->rollBack();
+            
+            // Delete the uploaded file if database update failed
+            if (file_exists($filePath)) {
+                @unlink($filePath);
+            }
+            
+            throw $dbException;
         }
-
-        // Update session
-        $_SESSION['user']['profile_picture'] = $relativePath;
-
-        echo json_encode([
-            'success' => true,
-            'message' => 'Profile picture uploaded successfully',
-            'profile_picture' => $relativePath,
-            'profile_picture_url' => $relativePath // Return relative path for frontend
-        ]);
 
     } catch (Exception $e) {
         http_response_code(400);
+        
+        // Log the error for debugging
+        error_log('Profile picture upload error for user ' . $userId . ': ' . $e->getMessage());
+        if (function_exists('logActivity')) {
+            logActivity("Profile picture upload failed for user ID: {$userId} - " . $e->getMessage(), 'ERROR');
+        }
+        
         echo json_encode([
             'success' => false,
             'error' => $e->getMessage()
