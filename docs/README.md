@@ -315,15 +315,18 @@ Display Results
 
 ---
 
-## 🔑 User Accounts
+## 🔑 Default Credentials
 
-⚠️ **Security Note:** Default credentials have been removed for security. 
+### Admin Account
+- **Username:** `lesley`
+- **Password:** `Central@2025`
 
-Users must be created through:
-- The signup page (`signup.php`) for new user registration
-- Administrator account management for creating admin accounts
+### Test User Account (if created)
+- **Username:** `user`
+- **Email:** `user@cpu.edu.ph`
+- **Password:** `password`
 
-All passwords must be set securely during account creation.
+⚠️ **Important:** Change these passwords after first login!
 
 ---
 

@@ -899,7 +899,7 @@ try {
             top: 50%;
             transform: translateY(-50%);
             pointer-events: none;
-            color: #94a3b8;
+            color: #475569;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1258,10 +1258,10 @@ echo htmlspecialchars($firstName);
 </div>
 <div class="bg-white dark:bg-slate-800 p-6 rounded-lg page-animate-delay-1">
 <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">MOU/MOA Notifications</h3>
-<div class="space-y-4 h-80 overflow-y-auto pr-2">
-<div id="renewalsContainer">
+<div class="h-80 overflow-y-auto pr-2">
+<div id="renewalsContainer" class="flex items-center justify-center min-h-full">
 <!-- Renewals will be loaded here via JavaScript -->
-<div class="flex items-center justify-center h-full text-slate-400 dark:text-slate-500">
+<div class="flex items-center justify-center text-slate-400 dark:text-slate-500">
 <span class="material-symbols-outlined animate-spin mr-2">sync</span>
 <span>Loading renewals...</span>
 </div>
@@ -1593,7 +1593,7 @@ $statusText = ucfirst($status);
                                         color: isDarkMode() ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
                             },
                             ticks: {
-                                        color: isDarkMode() ? '#CBD5E1' : '#475569',
+                                        color: isDarkMode() ? '#CBD5E1' : '#0F172A',
                                         stepSize: currentFilter === 'MTD' ? 5 : 10, // MTD: step 5, YTD: step 10
                                 callback: function(value) {
                                             // Show ticks based on filter
@@ -1617,7 +1617,7 @@ $statusText = ucfirst($status);
                                     title: {
                                         display: true,
                                         text: 'Eligible Awards Count',
-                                        color: isDarkMode() ? '#CBD5E1' : '#1E293B',
+                                        color: isDarkMode() ? '#CBD5E1' : '#0F172A',
                                         font: {
                                             size: 16,
                                             weight: '400',
@@ -1638,7 +1638,7 @@ $statusText = ucfirst($status);
                                     title: {
                                         display: true,
                                         text: 'Hover over bars to see award names',
-                                        color: isDarkMode() ? '#CBD5E1' : '#1E293B',
+                                        color: isDarkMode() ? '#CBD5E1' : '#0F172A',
                                         font: {
                                             size: 16,
                                             weight: '400',
@@ -1820,17 +1820,19 @@ $statusText = ucfirst($status);
                         const renewals = result.data || [];
                         
                         if (renewals.length === 0) {
+                            container.classList.add('flex', 'items-center', 'justify-center');
                             container.innerHTML = `
-                                <div class="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500">
-                                    <span class="material-symbols-outlined text-4xl mb-2">check_circle</span>
-                                    <p class="text-sm">No renewals needed</p>
+                                <div class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+                                    <span class="material-symbols-outlined text-4xl mb-3">check_circle</span>
+                                    <p class="text-sm font-medium">No renewals needed</p>
                                     <p class="text-xs mt-1">All MOU/MOA are up to date</p>
                                 </div>
                             `;
                             return;
                         }
                         
-                        container.innerHTML = renewals.map(renewal => {
+                        container.classList.remove('flex', 'items-center', 'justify-center');
+                        container.innerHTML = `<div class="space-y-4">${renewals.map(renewal => {
                             const endDate = new Date(renewal.end_date);
                             const formattedDate = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                             
@@ -1853,7 +1855,7 @@ $statusText = ucfirst($status);
                                     </button>
                                 </div>
                             `;
-                        }).join('');
+                        }).join('')}</div>`;
                     } catch (error) {
                         console.error('Error loading renewals:', error);
                         container.innerHTML = `
@@ -1983,6 +1985,11 @@ $statusText = ucfirst($status);
         
         let notifications = [];
         
+        if (notificationList) {
+            notificationList.addEventListener('click', handleNotificationListClick);
+            notificationList.addEventListener('keydown', handleNotificationListKeydown);
+        }
+        
         // Toggle dropdown
         if (notificationBtn && notificationDropdown) {
             notificationBtn.addEventListener('click', (e) => {
@@ -2069,11 +2076,47 @@ $statusText = ucfirst($status);
                 const timeAgo = getTimeAgo(notif.created_at);
                 const icon = getNotificationIcon(notif.type);
                 const bgColor = getNotificationBgColor(notif.type);
+                const targetUrl = getNotificationUrl(notif);
+                const urlAttribute = targetUrl ? ` data-url="${encodeURIComponent(targetUrl)}"` : '';
+                const isMouNotification = notif.related_type === 'mou_moa';
+                const isConfirmed = notif.is_confirmed || false;
+                
+                // Show confirmation buttons for MOU notifications that haven't been confirmed
+                let confirmationButtons = '';
+                if (isMouNotification && !isConfirmed) {
+                    confirmationButtons = `
+                        <div class="mt-3 flex gap-2">
+                            <button onclick="event.stopPropagation(); confirmMouRenewal(${notif.id}, 'renewed')" 
+                                    class="px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">check_circle</span>
+                                Renewed
+                            </button>
+                            <button onclick="event.stopPropagation(); confirmMouRenewal(${notif.id}, 'not_renewed')" 
+                                    class="px-3 py-1.5 text-xs font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">cancel</span>
+                                Not Renewed
+                            </button>
+                        </div>
+                    `;
+                } else if (isMouNotification && isConfirmed) {
+                    const statusText = notif.mou_renewal_status === 'renewed' ? 'Renewed' : 'Not Renewed';
+                    const statusColor = notif.mou_renewal_status === 'renewed' ? 'text-green-500' : 'text-red-500';
+                    confirmationButtons = `
+                        <div class="mt-2">
+                            <p class="text-xs ${statusColor} font-medium flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">${notif.mou_renewal_status === 'renewed' ? 'check_circle' : 'cancel'}</span>
+                                Status: ${statusText}
+                            </p>
+                        </div>
+                    `;
+                }
+                
+                const actionHint = targetUrl && !isMouNotification ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
+                const clickableClass = isMouNotification && !isConfirmed ? '' : 'cursor-pointer';
                 
                 return `
-                    <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${notif.is_read ? 'opacity-60' : ''}" 
-                         data-id="${notif.id}" 
-                         onclick="markNotificationAsRead(${notif.id})">
+                    <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${clickableClass} focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark ${notif.is_read ? 'opacity-60' : ''}" 
+                         ${!isMouNotification || isConfirmed ? `role="button" tabindex="0" data-id="${notif.id}" data-notification-id="${notif.id}"${urlAttribute}` : ''}>
                         <div class="flex items-start gap-3">
                             <div class="flex-shrink-0 w-10 h-10 rounded-full ${bgColor} flex items-center justify-center">
                                 <span class="material-symbols-outlined text-white text-lg">${icon}</span>
@@ -2082,12 +2125,49 @@ $statusText = ucfirst($status);
                                 <p class="text-sm font-medium text-gray-900 dark:text-white">${escapeHtml(notif.title)}</p>
                                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${escapeHtml(notif.message)}</p>
                                 <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${timeAgo}</p>
+                                ${actionHint}
+                                ${confirmationButtons}
                             </div>
                             ${!notif.is_read ? '<div class="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>' : ''}
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+        
+        function handleNotificationListClick(event) {
+            // Don't handle clicks on confirmation buttons
+            if (event.target.closest('button') || event.target.closest('[onclick*="confirmMouRenewal"]')) {
+                return;
+            }
+            
+            const target = event.target.closest('[data-notification-id]');
+            if (!target) return;
+            event.preventDefault();
+            handleNotificationSelection(target);
+        }
+        
+        function handleNotificationListKeydown(event) {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            const target = event.target.closest('[data-notification-id]');
+            if (!target) return;
+            event.preventDefault();
+            handleNotificationSelection(target);
+        }
+        
+        async function handleNotificationSelection(element) {
+            const notificationId = Number(element.dataset.notificationId);
+            if (!notificationId) return;
+            
+            await markNotificationAsRead(notificationId);
+            
+            const targetUrl = decodeUrlAttribute(element.dataset.url);
+            if (targetUrl) {
+                if (notificationDropdown) {
+                    notificationDropdown.classList.add('hidden');
+                }
+                window.location.href = targetUrl;
+            }
         }
         
         // Mark notification as read
@@ -2104,9 +2184,12 @@ $statusText = ucfirst($status);
                         updateNotificationDisplay();
                         updateNotificationBadge();
                     }
+                    return true;
                 }
+                return false;
             } catch (error) {
                 console.error('Error marking notification as read:', error);
+                return false;
             }
         };
         
@@ -2174,15 +2257,80 @@ $statusText = ucfirst($status);
             return colors[type] || 'bg-gray-500';
         }
         
+        function getNotificationUrl(notif) {
+            if (!notif || !notif.related_type || !notif.related_id) {
+                return '';
+            }
+            
+            const encodedId = encodeURIComponent(notif.related_id);
+            
+            if (notif.related_type === 'mou_moa') {
+                return `mou-moa.php?entry=${encodedId}`;
+            }
+            
+            if (notif.related_type === 'event') {
+                return `events-activities.php?event=${encodedId}`;
+            }
+            
+            return '';
+        }
+        
+        function decodeUrlAttribute(value) {
+            if (!value) return '';
+            try {
+                return decodeURIComponent(value);
+            } catch (error) {
+                console.warn('Unable to decode notification URL attribute:', error);
+                return value;
+            }
+        }
+        
+        // Confirm MOU renewal status
+        window.confirmMouRenewal = async function(notificationId, renewalStatus) {
+            try {
+                const response = await fetch('api/notifications.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'confirm_mou_renewal',
+                        notification_id: notificationId,
+                        renewal_status: renewalStatus
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    // Reload notifications to reflect the confirmation
+                    await loadNotifications();
+                    await updateNotificationBadge();
+                } else {
+                    console.error('Failed to confirm MOU renewal:', data.error);
+                    alert('Failed to confirm MOU renewal status. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error confirming MOU renewal:', error);
+                alert('An error occurred while confirming MOU renewal status. Please try again.');
+            }
+        };
+        
+        async function refreshNotificationIndicators() {
+            try {
+                await checkNotifications();
+                await updateNotificationBadge();
+            } catch (error) {
+                console.error('Error refreshing notification indicators:', error);
+            }
+        }
+        
         // Initialize: Check for notifications and load them
         document.addEventListener('DOMContentLoaded', () => {
-            checkNotifications();
-            updateNotificationBadge();
+            refreshNotificationIndicators();
             
             // Refresh notifications every 5 minutes
             setInterval(() => {
-                checkNotifications();
-                updateNotificationBadge();
+                refreshNotificationIndicators();
             }, 5 * 60 * 1000);
         });
     })();

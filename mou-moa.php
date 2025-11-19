@@ -3322,6 +3322,11 @@ try {
             // Use API-based notification system instead of localStorage
             let notifications = [];
             
+            if (notificationList) {
+                notificationList.addEventListener('click', handleNotificationListClick);
+                notificationList.addEventListener('keydown', handleNotificationListKeydown);
+            }
+            
             // Check for new notifications and create them
             async function checkNotifications() {
                 try {
@@ -3393,11 +3398,18 @@ try {
                     const timeAgo = getTimeAgo(notif.created_at);
                     const icon = getNotificationIcon(notif.type);
                     const bgColor = getNotificationBgColor(notif.type);
+                    const targetUrl = getNotificationUrl(notif);
+                    const urlAttribute = targetUrl ? ` data-url="${encodeURIComponent(targetUrl)}"` : '';
+                    const actionHint = targetUrl ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
+                    const relatedTypeAttr = notif.related_type ? ` data-related-type="${notif.related_type}"` : '';
+                    const relatedIdAttr = notif.related_id ? ` data-related-id="${notif.related_id}"` : '';
                     
                     return `
-                        <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${notif.is_read ? 'opacity-60' : ''}" 
-                             data-id="${notif.id}" 
-                             onclick="markNotificationAsRead(${notif.id})">
+                        <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark ${notif.is_read ? 'opacity-60' : ''}" 
+                             role="button"
+                             tabindex="0"
+                             data-id="${notif.id}"
+                             data-notification-id="${notif.id}"${relatedTypeAttr}${relatedIdAttr}${urlAttribute}>
                             <div class="flex items-start gap-3">
                                 <div class="flex-shrink-0 w-10 h-10 rounded-full ${bgColor} flex items-center justify-center">
                                     <span class="material-symbols-outlined text-white text-lg">${icon}</span>
@@ -3406,12 +3418,54 @@ try {
                                     <p class="text-sm font-medium text-gray-900 dark:text-white">${escapeHtml(notif.title)}</p>
                                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${escapeHtml(notif.message)}</p>
                                     <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${timeAgo}</p>
+                                    ${actionHint}
                                     </div>
                                 ${!notif.is_read ? '<div class="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>' : ''}
                             </div>
                         </div>
                     `;
                 }).join('');
+            }
+            
+            function handleNotificationListClick(event) {
+                const target = event.target.closest('[data-notification-id]');
+                if (!target) return;
+                event.preventDefault();
+                handleNotificationSelection(target);
+            }
+            
+            function handleNotificationListKeydown(event) {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                const target = event.target.closest('[data-notification-id]');
+                if (!target) return;
+                event.preventDefault();
+                handleNotificationSelection(target);
+            }
+            
+            async function handleNotificationSelection(element) {
+                const notificationId = Number(element.dataset.notificationId);
+                if (!notificationId) return;
+                
+                await markNotificationAsRead(notificationId);
+                
+                const relatedType = element.dataset.relatedType;
+                const relatedId = element.dataset.relatedId;
+                
+                if (relatedType === 'mou_moa' && relatedId) {
+                    if (notificationDropdown) {
+                        notificationDropdown.classList.add('hidden');
+                    }
+                    highlightEntry(relatedId);
+                    return;
+                }
+                
+                const targetUrl = decodeUrlAttribute(element.dataset.url);
+                if (targetUrl) {
+                    if (notificationDropdown) {
+                        notificationDropdown.classList.add('hidden');
+                    }
+                    window.location.href = targetUrl;
+                }
             }
             
             // Mark notification as read
@@ -3428,9 +3482,12 @@ try {
                             updateNotificationDisplay();
                             updateNotificationBadge();
                         }
+                        return true;
                     }
+                    return false;
                 } catch (error) {
                     console.error('Error marking notification as read:', error);
+                    return false;
                 }
             };
             
@@ -3498,6 +3555,34 @@ try {
                 return colors[type] || 'bg-gray-500';
             }
             
+            function getNotificationUrl(notif) {
+                if (!notif || !notif.related_type || !notif.related_id) {
+                    return '';
+                }
+                
+                const encodedId = encodeURIComponent(notif.related_id);
+                
+                if (notif.related_type === 'mou_moa') {
+                    return `mou-moa.php?entry=${encodedId}`;
+                }
+                
+                if (notif.related_type === 'event') {
+                    return `events-activities.php?event=${encodedId}`;
+                }
+                
+                return '';
+            }
+            
+            function decodeUrlAttribute(value) {
+                if (!value) return '';
+                try {
+                    return decodeURIComponent(value);
+                } catch (error) {
+                    console.warn('Unable to decode notification URL attribute:', error);
+                    return value;
+                }
+            }
+            
             // Highlight entry in table
             function highlightEntry(entryId) {
                 const checkbox = document.querySelector(`.row-checkbox[data-id="${entryId}"]`);
@@ -3516,15 +3601,22 @@ try {
                 }
             }
             
+            async function refreshNotificationIndicators() {
+                try {
+                    await checkNotifications();
+                    await updateNotificationBadge();
+                } catch (error) {
+                    console.error('Error refreshing notification indicators:', error);
+                }
+            }
+            
             // Initialize: Check for notifications and load them
             (async function() {
-                await checkNotifications();
-                await updateNotificationBadge();
+                await refreshNotificationIndicators();
                 
                 // Refresh notifications every 5 minutes
                 setInterval(() => {
-                    checkNotifications();
-                    updateNotificationBadge();
+                    refreshNotificationIndicators();
                 }, 5 * 60 * 1000);
             })();
             

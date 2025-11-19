@@ -232,6 +232,7 @@ function getNotifications($pdo, $userId, $unreadOnly = false) {
     try {
         // For global notifications (user_id IS NULL), check notification_reads table
         // For user-specific notifications, use the is_read field
+        // Exclude MOU notifications that have been confirmed by this user
         $sql = "SELECT n.*, 
                        CASE 
                            WHEN n.related_type = 'mou_moa' THEN m.title
@@ -242,14 +243,31 @@ function getNotifications($pdo, $userId, $unreadOnly = false) {
                            WHEN n.user_id IS NULL THEN 
                                CASE WHEN nr.id IS NOT NULL THEN 1 ELSE 0 END
                            ELSE n.is_read
-                       END as is_read_for_user
+                       END as is_read_for_user,
+                       nc.renewal_status as mou_renewal_status,
+                       CASE WHEN nc.id IS NOT NULL THEN 1 ELSE 0 END as is_confirmed,
+                       m.end_date as mou_end_date,
+                       m.status as mou_status,
+                       m.institution as mou_institution,
+                       m.partner as mou_partner
                 FROM notifications n
                 LEFT JOIN mou_moa m ON n.related_type = 'mou_moa' AND n.related_id = m.id
                 LEFT JOIN events e ON n.related_type = 'event' AND n.related_id = e.id
                 LEFT JOIN notification_reads nr ON n.id = nr.notification_id AND nr.user_id = ? AND n.user_id IS NULL
-                WHERE (n.user_id = ? OR n.user_id IS NULL)";
+                LEFT JOIN notification_confirmations nc ON n.id = nc.notification_id AND nc.user_id = ? AND n.related_type = 'mou_moa'
+                WHERE (n.user_id = ? OR n.user_id IS NULL)
+                AND (
+                    n.related_type IS NULL
+                    OR (n.related_type = 'mou_moa' AND m.id IS NOT NULL)
+                    OR (n.related_type = 'event' AND e.id IS NOT NULL)
+                )
+                AND (
+                    n.related_type != 'mou_moa' 
+                    OR n.related_type IS NULL
+                    OR (nc.id IS NULL OR nc.renewal_status = 'not_renewed')
+                )";
         
-        $params = [$userId, $userId];
+        $params = [$userId, $userId, $userId];
         
         if ($unreadOnly) {
             $sql .= " AND (
@@ -269,6 +287,16 @@ function getNotifications($pdo, $userId, $unreadOnly = false) {
             $notif['created_at'] = date('Y-m-d H:i:s', strtotime($notif['created_at']));
             $notif['read_at'] = $notif['read_at'] ? date('Y-m-d H:i:s', strtotime($notif['read_at'])) : null;
             $notif['is_read'] = (bool)($notif['is_read_for_user'] ?? $notif['is_read']);
+            $notif['is_confirmed'] = (bool)($notif['is_confirmed'] ?? false);
+            $notif['mou_renewal_status'] = $notif['mou_renewal_status'] ?? null;
+            // Calculate criticality for MOU notifications
+            if ($notif['related_type'] === 'mou_moa' && $notif['mou_end_date']) {
+                $endDate = new DateTime($notif['mou_end_date']);
+                $today = new DateTime();
+                $daysDiff = (int)$today->diff($endDate)->format('%r%a');
+                $notif['mou_days_until_expiry'] = $daysDiff;
+                $notif['mou_is_expired'] = $daysDiff < 0;
+            }
             unset($notif['is_read_for_user']); // Remove helper field
         }
         
@@ -375,22 +403,71 @@ function getUnreadCount($pdo, $userId) {
     try {
         // Count user-specific unread notifications
         // Plus global notifications that this user hasn't read
+        // Exclude MOU notifications that have been confirmed
         $stmt = $pdo->prepare("
             SELECT COUNT(*) as count 
             FROM notifications n
             LEFT JOIN notification_reads nr ON n.id = nr.notification_id AND nr.user_id = ? AND n.user_id IS NULL
+            LEFT JOIN mou_moa m ON n.related_type = 'mou_moa' AND n.related_id = m.id
+            LEFT JOIN events e ON n.related_type = 'event' AND n.related_id = e.id
+            LEFT JOIN notification_confirmations nc ON n.id = nc.notification_id AND nc.user_id = ? AND n.related_type = 'mou_moa'
             WHERE (n.user_id = ? OR n.user_id IS NULL)
+            AND (
+                n.related_type IS NULL
+                OR (n.related_type = 'mou_moa' AND m.id IS NOT NULL)
+                OR (n.related_type = 'event' AND e.id IS NOT NULL)
+            )
+            AND (
+                n.related_type != 'mou_moa' 
+                OR n.related_type IS NULL
+                OR (nc.id IS NULL OR nc.renewal_status = 'not_renewed')
+            )
             AND (
                 (n.user_id IS NULL AND nr.id IS NULL) OR 
                 (n.user_id IS NOT NULL AND n.is_read = 0)
             )
         ");
-        $stmt->execute([$userId, $userId]);
+        $stmt->execute([$userId, $userId, $userId]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         return (int)($result['count'] ?? 0);
     } catch (Exception $e) {
         error_log('Error getting unread count: ' . $e->getMessage());
         return 0;
+    }
+}
+
+/**
+ * Confirm MOU renewal status
+ */
+function confirmMouRenewal($pdo, $notificationId, $userId, $renewalStatus) {
+    try {
+        // Verify notification exists and is an MOU notification
+        $checkStmt = $pdo->prepare("
+            SELECT id, related_type 
+            FROM notifications 
+            WHERE id = ? AND related_type = 'mou_moa'
+        ");
+        $checkStmt->execute([$notificationId]);
+        $notification = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$notification) {
+            return false;
+        }
+        
+        // Insert or update confirmation
+        $stmt = $pdo->prepare("
+            INSERT INTO notification_confirmations (notification_id, user_id, renewal_status, confirmed_at)
+            VALUES (?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE 
+                renewal_status = VALUES(renewal_status),
+                confirmed_at = NOW()
+        ");
+        $stmt->execute([$notificationId, $userId, $renewalStatus]);
+        
+        return $stmt->rowCount() > 0;
+    } catch (Exception $e) {
+        error_log('Error confirming MOU renewal: ' . $e->getMessage());
+        return false;
     }
 }
 
@@ -446,6 +523,27 @@ try {
     } catch (Exception $e) {
         // Table might already exist with different structure, try to alter it
         error_log('Error creating notification_reads table: ' . $e->getMessage());
+    }
+    
+    // Create notification_confirmations table for MOU renewal confirmations
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS notification_confirmations (
+                id INT(11) NOT NULL AUTO_INCREMENT,
+                notification_id INT(11) NOT NULL,
+                user_id INT(11) NOT NULL,
+                renewal_status ENUM('renewed', 'not_renewed') NOT NULL,
+                confirmed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY unique_user_notification_confirmation (notification_id, user_id),
+                KEY idx_notification_id (notification_id),
+                KEY idx_user_id (user_id),
+                FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+    } catch (Exception $e) {
+        error_log('Error creating notification_confirmations table: ' . $e->getMessage());
     }
     
     $method = $_SERVER['REQUEST_METHOD'];
@@ -510,6 +608,26 @@ try {
             } else {
                 http_response_code(400);
                 echo json_encode(['error' => 'Invalid request']);
+            }
+            break;
+            
+        case 'POST':
+            $data = jsonInput();
+            
+            if (isset($data['action']) && $data['action'] === 'confirm_mou_renewal') {
+                $notificationId = isset($data['notification_id']) ? (int)$data['notification_id'] : 0;
+                $renewalStatus = isset($data['renewal_status']) ? $data['renewal_status'] : '';
+                
+                if ($notificationId > 0 && in_array($renewalStatus, ['renewed', 'not_renewed'])) {
+                    $success = confirmMouRenewal($pdo, $notificationId, $userId, $renewalStatus);
+                    echo json_encode(['success' => $success]);
+                } else {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Invalid request parameters']);
+                }
+            } else {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid action']);
             }
             break;
             
