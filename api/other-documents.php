@@ -192,13 +192,6 @@ try {
 
         case 'PUT':
             // Update document
-            $input = json_decode(file_get_contents("php://input"), true);
-            if (!$input) {
-                // Try form data if JSON parsing fails
-                parse_str(file_get_contents("php://input"), $_PUT);
-                $input = $_PUT;
-            }
-
             if (!isset($_GET['id'])) {
                 throw new Exception('Document ID required');
             }
@@ -215,18 +208,57 @@ try {
                 throw new Exception('Document not found');
             }
 
+            // Check if file is being uploaded (multipart/form-data)
+            $fileUpdated = false;
+            $newFilePath = $existing['file_path'];
+            $newFileName = $existing['file_name'];
+            
+            if (isset($_FILES['file']) && $_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE) {
+                // Handle file upload
+                $fileInfo = handleFileUpload($_FILES['file']);
+                $newFilePath = $fileInfo['filepath'];
+                $newFileName = $fileInfo['filename'];
+                $fileUpdated = true;
+                
+                // Delete old file if it exists
+                if (!empty($existing['file_path']) && file_exists($existing['file_path'])) {
+                    @unlink($existing['file_path']);
+                }
+                
+                // Get data from POST (multipart/form-data)
+                $title = $_POST['title'] ?? $existing['title'];
+                $description = $_POST['description'] ?? $existing['description'];
+                $category = $_POST['category'] ?? $existing['category'];
+            } else {
+                // No file upload, get data from JSON
+                $input = json_decode(file_get_contents("php://input"), true);
+                if (!$input) {
+                    // Try form data if JSON parsing fails
+                    parse_str(file_get_contents("php://input"), $_PUT);
+                    $input = $_PUT;
+                }
+                
+                $title = $input['title'] ?? $existing['title'];
+                $description = $input['description'] ?? $existing['description'];
+                $category = $input['category'] ?? $existing['category'];
+            }
+
             // Update fields
-            $title = $input['title'] ?? $existing['title'];
-            $description = $input['description'] ?? $existing['description'];
-            $category = $input['category'] ?? $existing['category'];
-
-            $stmt = $pdo->prepare("
-                UPDATE other_documents
-                SET title = ?, description = ?, category = ?, updated_at = NOW()
-                WHERE id = ?
-            ");
-
-            $stmt->execute([$title, $description, $category, $id]);
+            if ($fileUpdated) {
+                $stmt = $pdo->prepare("
+                    UPDATE other_documents
+                    SET title = ?, description = ?, category = ?, file_name = ?, file_path = ?, updated_at = NOW()
+                    WHERE id = ?
+                ");
+                $stmt->execute([$title, $description, $category, $newFileName, $newFilePath, $id]);
+            } else {
+                $stmt = $pdo->prepare("
+                    UPDATE other_documents
+                    SET title = ?, description = ?, category = ?, updated_at = NOW()
+                    WHERE id = ?
+                ");
+                $stmt->execute([$title, $description, $category, $id]);
+            }
 
             // Get updated document
             $stmt = $pdo->prepare("
@@ -241,7 +273,7 @@ try {
             echo json_encode([
                 'success' => true,
                 'message' => 'Document updated successfully',
-                'data' => $updated
+                'document' => $updated
             ]);
             break;
 

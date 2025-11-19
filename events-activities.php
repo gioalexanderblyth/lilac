@@ -215,6 +215,28 @@ try {
             justify-content: center;
         }
 
+        /* Clickable table rows */
+        tbody tr {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background-color: rgba(19, 127, 236, 0.05) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark tbody tr:hover {
+            background-color: rgba(19, 127, 236, 0.1) !important;
+        }
+
+        /* Prevent hover effects on buttons and checkboxes */
+        tbody tr:hover td button,
+        tbody tr:hover td input[type="checkbox"] {
+            pointer-events: auto;
+        }
+
         /* Page Animation Effects */
         @keyframes fadeInUp {
             from {
@@ -401,6 +423,35 @@ No notifications yet
           <!-- Completed events will be injected here -->
         </div>
   </div>
+
+      <!-- Events Table View -->
+      <div class="bg-card-light dark:bg-card-dark p-6 rounded-xl shadow-soft">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h3 class="text-xl font-bold text-text-light dark:text-text-dark">All Events</h3>
+            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">View all events in a table format</p>
+          </div>
+        </div>
+        <div class="bg-card-light dark:bg-card-dark rounded-xl shadow-soft overflow-hidden border border-border-light dark:border-border-dark">
+          <div class="overflow-x-auto">
+            <table class="w-full divide-y divide-border-light dark:divide-border-dark">
+              <thead class="bg-gray-50 dark:bg-white/5">
+                <tr>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Event Name</th>
+                  <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Date</th>
+                  <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Time</th>
+                  <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Location</th>
+                  <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Status</th>
+                  <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="eventsTableBody" class="divide-y divide-border-light dark:divide-border-dark">
+                <!-- Table rows will be populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
     </div>
 
@@ -1558,6 +1609,9 @@ No notifications yet
                         loadTodayEventsFromData(convertedEvents);
                         loadCompletedEventsFromData(convertedEvents);
                         
+                        // Populate events table
+                        renderEventsTable(convertedEvents);
+                        
                         // Refresh calendar if function exists
                         if (typeof window.renderCalendar === 'function') {
                             window.renderCalendar();
@@ -1574,6 +1628,14 @@ No notifications yet
                     loadTodayEvents();
                     loadCompletedEvents();
                     
+                    // Try to populate table from localStorage
+                    try {
+                        const savedEvents = JSON.parse(localStorage.getItem('upcomingEvents') || '[]');
+                        renderEventsTable(savedEvents);
+                    } catch (e) {
+                        renderEventsTable([]);
+                    }
+                    
                     // Refresh calendar if function exists
                     if (typeof window.renderCalendar === 'function') {
                         window.renderCalendar();
@@ -1581,6 +1643,125 @@ No notifications yet
                     
                     return false;
                 }
+            }
+
+            // Function to render events in table format
+            function renderEventsTable(events) {
+                const tableBody = document.getElementById('eventsTableBody');
+                if (!tableBody) return;
+
+                // Clear existing rows
+                tableBody.innerHTML = '';
+
+                // Show empty state if no events
+                if (!Array.isArray(events) || events.length === 0) {
+                    const emptyRow = document.createElement('tr');
+                    emptyRow.innerHTML = `
+                        <td colspan="6" class="px-6 py-12 text-center">
+                            <div class="flex flex-col items-center justify-center">
+                                <span class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-500 mb-4">event</span>
+                                <p class="text-lg font-medium text-text-muted-light dark:text-text-muted-dark mb-2">No events found</p>
+                                <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Click "Add Event" to create your first event</p>
+                            </div>
+                        </td>
+                    `;
+                    tableBody.appendChild(emptyRow);
+                    return;
+                }
+
+                // Sort events by date (newest first)
+                const sortedEvents = [...events].sort((a, b) => {
+                    const dateA = new Date(a.date || a.event_date || 0);
+                    const dateB = new Date(b.date || b.event_date || 0);
+                    return dateB - dateA;
+                });
+
+                // Add rows for each event
+                sortedEvents.forEach(event => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-border-light dark:border-border-dark';
+                    
+                    const eventDate = event.date || event.event_date || 'N/A';
+                    const eventTime = event.timeRange || event.time || 'N/A';
+                    const eventLocation = event.location || 'N/A';
+                    const eventTitle = event.title || 'Untitled Event';
+                    
+                    // Determine status
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const eventDateObj = new Date(eventDate);
+                    eventDateObj.setHours(0, 0, 0, 0);
+                    
+                    let statusText = 'Upcoming';
+                    let statusClass = 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300';
+                    
+                    if (eventDateObj < today) {
+                        statusText = 'Completed';
+                        statusClass = 'bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300';
+                    } else if (eventDateObj.getTime() === today.getTime()) {
+                        statusText = 'Today';
+                        statusClass = 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
+                    }
+
+                    // Format date
+                    let formattedDate = 'N/A';
+                    if (eventDate !== 'N/A') {
+                        try {
+                            const date = new Date(eventDate);
+                            formattedDate = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                        } catch (e) {
+                            formattedDate = eventDate;
+                        }
+                    }
+
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-light dark:text-text-dark text-left">
+                            ${escapeHtml(eventTitle)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-text-muted-light dark:text-text-muted-dark text-center">
+                            ${formattedDate}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-text-muted-light dark:text-text-muted-dark text-center">
+                            ${escapeHtml(eventTime)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-text-muted-light dark:text-text-muted-dark text-center">
+                            ${escapeHtml(eventLocation)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">
+                                ${statusText}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 text-primary view-event-btn" data-event-id="${event.id}" aria-label="View" title="View Details">
+                                    <span class="material-symbols-outlined text-base">visibility</span>
+                                </button>
+                                ${isAdmin ? `
+                                    <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 text-primary update-event-btn" data-event-id="${event.id}" aria-label="Edit" title="Edit Event">
+                                        <span class="material-symbols-outlined text-base">edit</span>
+                                    </button>
+                                    <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400" aria-label="Delete" onclick="if(typeof deleteEvent === 'function') deleteEvent(${event.id})" title="Delete Event">
+                                        <span class="material-symbols-outlined text-base">delete</span>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                    
+                    // Add event listener for view button
+                    const viewBtn = row.querySelector('.view-event-btn');
+                    if (viewBtn) {
+                        viewBtn.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            if (typeof openDetailsModalSmart === 'function') {
+                                openDetailsModalSmart(event);
+                            }
+                        });
+                    }
+                });
             }
 
             // Disable demo seeding: no sample events

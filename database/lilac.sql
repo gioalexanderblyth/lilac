@@ -436,17 +436,20 @@ CREATE TABLE `users` (
 
 --
 -- Dumping data for table `users`
+-- Default admin account for maintenance access
 --
 
 INSERT INTO `users` (`id`, `username`, `email`, `phone`, `password_hash`, `full_name`, `department`, `role`, `status`, `created_at`, `updated_at`, `last_login`) VALUES
-(1, 'admin', 'admin@cpu.edu.ph', NULL, '$2y$10$sVoVWIn8azmDdAgCBHXR3eTQSbbVqqBoYFs6SJ8THBXahh9kqaWiq', 'System Administrator', 'College of Arts and Sciences', 'admin', 'active', '2025-11-06 00:27:13', '2025-11-06 10:30:58', '2025-11-06 10:30:58'),
-(2, 'user', 'user@cpu.edu.ph', NULL, '$2y$10$pC5K0MZoigkREey47sRHwePVpcTCv8GmAc2UZA7EueEIt2IWDU7j2', 'Regular User', 'College of Engineering', 'user', 'active', '2025-11-06 00:27:13', '2025-11-06 05:42:17', '2025-11-06 05:14:14'),
-(5, 'john_doe', 'john.doe@cpu.edu.ph', NULL, '', NULL, 'College of Medicine', 'user', 'active', '2025-11-06 03:38:07', '2025-11-06 05:42:17', NULL),
-(6, 'maria_santos', 'maria.santos@cpu.edu.ph', NULL, '', NULL, 'College of Business Administration', 'user', 'active', '2025-11-06 03:38:07', '2025-11-06 05:42:17', NULL),
-(7, 'robert_lee', 'robert.lee@cpu.edu.ph', NULL, '', NULL, 'Graduate School', 'user', 'active', '2025-11-06 03:38:07', '2025-11-06 05:42:17', NULL),
-(8, 'sarah_kim', 'sarah.kim@cpu.edu.ph', NULL, '', NULL, 'College of Arts and Sciences', 'user', 'active', '2025-11-06 03:38:07', '2025-11-06 05:42:17', NULL),
-(9, 'david_chen', 'david.chen@cpu.edu.ph', NULL, '', NULL, 'Graduate School', 'user', 'active', '2025-11-06 03:38:07', '2025-11-06 05:42:17', NULL),
-(11, 'juan_dela', 'juandela@cpu.edu.ph', '9234534545', '$2y$10$8sPXn0TDi2ylhyXr6sggD.7eO4fuZBT.MBKY7zweQmKsXjlZlBH7W', 'Juan Dela Cruz', 'College of Arts and Sciences', 'user', 'active', '2025-11-06 06:28:46', '2025-11-06 11:45:31', '2025-11-06 10:23:29');
+(1, 'admin', 'admin@cpu.edu.ph', NULL, '$2y$10$sVoVWIn8azmDdAgCBHXR3eTQSbbVqqBoYFs6SJ8THBXahh9kqaWiq', 'System Administrator', 'College of Arts and Sciences', 'admin', 'active', '2025-11-06 00:27:13', '2025-11-06 10:30:58', '2025-11-06 10:30:58');
+
+-- Sample test users (also removed - create users through signup)
+-- INSERT INTO `users` (`id`, `username`, `email`, `phone`, `password_hash`, `full_name`, `department`, `role`, `status`, `created_at`, `updated_at`, `last_login`) VALUES
+-- (5, 'john_doe', 'john.doe@cpu.edu.ph', NULL, '', NULL, 'College of Medicine', 'user', 'active', '2025-11-06 03:38:07', '2025-11-06 05:42:17', NULL),
+-- (6, 'maria_santos', 'maria.santos@cpu.edu.ph', NULL, '', NULL, 'College of Business Administration', 'user', 'active', '2025-11-06 03:38:07', '2025-11-06 05:42:17', NULL),
+-- (7, 'robert_lee', 'robert.lee@cpu.edu.ph', NULL, '', NULL, 'Graduate School', 'user', 'active', '2025-11-06 03:38:07', '2025-11-06 05:42:17', NULL),
+-- (8, 'sarah_kim', 'sarah.kim@cpu.edu.ph', NULL, '', NULL, 'College of Arts and Sciences', 'user', 'active', '2025-11-06 03:38:07', '2025-11-06 05:42:17', NULL),
+-- (9, 'david_chen', 'david.chen@cpu.edu.ph', NULL, '', NULL, 'Graduate School', 'user', 'active', '2025-11-06 03:38:07', '2025-11-06 05:42:17', NULL),
+-- (11, 'juan_dela', 'juandela@cpu.edu.ph', '9234534545', '$2y$10$8sPXn0TDi2ylhyXr6sggD.7eO4fuZBT.MBKY7zweQmKsXjlZlBH7W', 'Juan Dela Cruz', 'College of Arts and Sciences', 'user', 'active', '2025-11-06 06:28:46', '2025-11-06 11:45:31', '2025-11-06 10:23:29');
 
 --
 -- Indexes for dumped tables

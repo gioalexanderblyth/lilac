@@ -282,6 +282,28 @@ try {
 
         }
 
+        /* Clickable table rows */
+        tbody tr {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background-color: rgba(19, 127, 236, 0.05) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark tbody tr:hover {
+            background-color: rgba(19, 127, 236, 0.1) !important;
+        }
+
+        /* Prevent hover effects on buttons and checkboxes */
+        tbody tr:hover td button,
+        tbody tr:hover td input[type="checkbox"] {
+            pointer-events: auto;
+        }
+
         .sidebar-collapsed .sidebar-text {
 
             display: none;
@@ -838,15 +860,30 @@ Add Document
 
                 // If no documents, show placeholder row
                 if (!Array.isArray(filteredDocuments) || filteredDocuments.length === 0) {
-                    noDocumentsRow.style.display = '';
                     // Remove any existing document rows
                     const existingRows = documentsTableBody.querySelectorAll('tr:not(#no-documents-row)');
                     existingRows.forEach(row => row.remove());
+                    
+                    // Update empty state row with better styling
+                    if (noDocumentsRow) {
+                        noDocumentsRow.style.display = '';
+                        noDocumentsRow.innerHTML = `
+                            <td colspan="4" class="px-6 py-12 text-center">
+                                <div class="flex flex-col items-center justify-center">
+                                    <span class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-500 mb-4">description</span>
+                                    <p class="text-lg font-medium text-text-muted-light dark:text-text-muted-dark mb-2">No documents found</p>
+                                    <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Click "Add Document" to upload your first document</p>
+                                </div>
+                            </td>
+                        `;
+                    }
                     return;
                 }
 
                 // Hide placeholder row
-                noDocumentsRow.style.display = 'none';
+                if (noDocumentsRow) {
+                    noDocumentsRow.style.display = 'none';
+                }
 
                 // Remove existing document rows first
                 const existingRows = documentsTableBody.querySelectorAll('tr:not(#no-documents-row)');
@@ -869,7 +906,7 @@ Add Document
                     const filePath = (doc && doc.file_path) ? doc.file_path : '';
 
                     const row = document.createElement('tr');
-                    row.className = 'border-b border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-slate-800';
+                    row.className = 'border-b border-border-light dark:border-border-dark';
                     row.innerHTML = `
                         <td class="py-4 px-4 font-medium text-text-light dark:text-text-dark">${name}</td>
                         <td class="py-4 px-4 text-text-muted-light dark:text-text-muted-dark text-center">${category}</td>
@@ -1284,6 +1321,178 @@ Add Document
                 }
             }
 
+            // File Viewer Modal Functionality
+            const fileViewerModal = document.getElementById('fileViewerModal');
+            const closeFileViewer = document.getElementById('closeFileViewer');
+            const closeFileViewerBtn = document.getElementById('closeFileViewerBtn');
+            const fileViewerTitle = document.getElementById('fileViewerTitle');
+            const fileViewerSubtitle = document.getElementById('fileViewerSubtitle');
+            const fileViewerContent = document.getElementById('fileViewerContent');
+            const downloadFile = document.getElementById('downloadFile');
+            
+            let currentFileData = null;
+            
+            // Function to show file viewer modal
+            function showFileViewer(filePath, fileName) {
+                currentFileData = { path: filePath, name: fileName };
+                
+                // Update modal title and subtitle
+                fileViewerTitle.textContent = fileName || 'View File';
+                fileViewerSubtitle.textContent = 'Document preview';
+                
+                // Clear previous content
+                fileViewerContent.innerHTML = '';
+                
+                // Show loading state
+                fileViewerContent.innerHTML = `
+                    <div class="text-center">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                        <p class="text-gray-500 dark:text-gray-400">Loading file...</p>
+                    </div>
+                `;
+                
+                // Show modal
+                fileViewerModal.classList.remove('hidden');
+                
+                // Load file content
+                setTimeout(() => {
+                    loadFileContent(filePath, fileName);
+                }, 100);
+            }
+            
+            // Function to load file content
+            function loadFileContent(filePath, fileName) {
+                const fileExtension = fileName ? fileName.split('.').pop().toLowerCase() : '';
+                
+                // Handle different file types
+                if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(fileExtension)) {
+                    // Show image preview
+                    fileViewerContent.innerHTML = `
+                        <div class="w-full h-full flex items-center justify-center p-4">
+                            <img src="${filePath}" alt="${fileName}" class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg" 
+                                 onerror="this.parentElement.innerHTML='<div class=\\'text-center\\'><span class=\\'material-symbols-outlined text-6xl text-gray-400 mb-4\\'>error</span><p class=\\'text-gray-500\\'>Failed to load image</p></div>'">
+                        </div>
+                    `;
+                } else if (fileExtension === 'pdf') {
+                    // Show PDF in iframe
+                    fileViewerContent.innerHTML = `
+                        <div class="w-full h-full">
+                            <iframe src="${filePath}" class="w-full h-full min-h-[600px] rounded-lg" frameborder="0"></iframe>
+                        </div>
+                    `;
+                } else {
+                    // Show generic preview with download option
+                    fileViewerContent.innerHTML = `
+                        <div class="w-full h-full flex flex-col items-center justify-center p-8">
+                            <div class="text-center max-w-md">
+                                <div class="w-24 h-24 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-4xl text-gray-400 dark:text-gray-600">description</span>
+                                </div>
+                                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">${fileName || 'Document'}</h4>
+                                <p class="text-gray-500 dark:text-gray-400 mb-4">Preview not available for this file type. You can download the file using the button below.</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Function to download current file
+            function downloadCurrentFile() {
+                if (currentFileData && currentFileData.path) {
+                    const link = document.createElement('a');
+                    link.href = currentFileData.path;
+                    link.download = currentFileData.name || 'document';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            }
+            
+            // Close file viewer modal
+            function closeFileViewerModal() {
+                fileViewerModal.classList.add('hidden');
+                currentFileData = null;
+            }
+            
+            // Event listeners for file viewer modal
+            if (closeFileViewer) {
+                closeFileViewer.addEventListener('click', closeFileViewerModal);
+            }
+            
+            if (closeFileViewerBtn) {
+                closeFileViewerBtn.addEventListener('click', closeFileViewerModal);
+            }
+            
+            if (downloadFile) {
+                downloadFile.addEventListener('click', downloadCurrentFile);
+            }
+            
+            // Close modal when clicking outside
+            if (fileViewerModal) {
+                fileViewerModal.addEventListener('click', function(e) {
+                    if (e.target === fileViewerModal) {
+                        closeFileViewerModal();
+                    }
+                });
+            }
+            
+            // Close modal with Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && fileViewerModal && !fileViewerModal.classList.contains('hidden')) {
+                    closeFileViewerModal();
+                }
+            });
+
+            // Function to edit other documents
+            async function editOtherDocument(id, docData) {
+                try {
+                    // Fetch document details from API
+                    const response = await fetch(`api/other-documents.php?id=${id}`, {
+                        headers: {
+                            'Authorization': 'Bearer ' + (typeof AUTH_TOKEN !== 'undefined' ? AUTH_TOKEN : '')
+                        }
+                    });
+                    
+                    const result = await response.json();
+                    const document = result.document || docData;
+                    
+                    if (!document) {
+                        alert('Document not found');
+                        return;
+                    }
+                    
+                    // Pre-fill the add document modal with existing data
+                    const modal = document.getElementById('addDocumentModal');
+                    const form = document.getElementById('addDocumentForm');
+                    const titleField = document.getElementById('documentTitle');
+                    const descField = document.getElementById('documentDescription');
+                    
+                    if (titleField) titleField.value = document.title || '';
+                    if (descField) descField.value = document.description || '';
+                    
+                    // Set editing mode
+                    window.editingDocumentId = id;
+                    window.editingDocumentSource = 'other_documents';
+                    
+                    // Update modal title
+                    const modalTitle = modal?.querySelector('h2');
+                    if (modalTitle) modalTitle.textContent = 'Edit Document';
+                    
+                    // Update submit button
+                    const submitBtn = form?.querySelector('button[type="submit"]');
+                    if (submitBtn) submitBtn.textContent = 'Update Document';
+                    
+                    // Show modal
+                    if (modal) {
+                        modal.classList.remove('hidden');
+                        document.body.style.overflow = 'hidden';
+                    }
+                } catch (error) {
+                    console.error('Error loading document for edit:', error);
+                    alert('Failed to load document for editing');
+                }
+            }
+
             // Delegated click handling for Actions (View/Edit/Delete)
             if (documentsTableBody) {
                 documentsTableBody.addEventListener('click', async (event) => {
@@ -1293,20 +1502,33 @@ Add Document
                     const id = target.getAttribute('data-id');
                     const source = target.getAttribute('data-source');
                     const filePath = target.getAttribute('data-file');
+                    
+                    // Find the document data from the row
+                    const row = target.closest('tr');
+                    let doc = null;
+                    if (row) {
+                        const docName = row.querySelector('td:first-child')?.textContent?.trim();
+                        doc = allDocuments.find(d => (d.title || d.name) === docName);
+                    }
 
                     if (action === 'view') {
-                        // Open file in new tab
+                        // Show file viewer modal
                         if (filePath) {
-                            window.open(filePath, '_blank');
+                            const fileName = (doc && doc.file_name) ? doc.file_name : filePath.split('/').pop();
+                            showFileViewer(filePath, fileName);
                         } else {
                             alert('File path not found');
                         }
                     } else if (action === 'edit') {
-                        // Redirect to appropriate edit page
+                        // Handle edit based on source
                         if (source === 'mou_moa') {
+                            // For MOU/MOA, redirect to mou-moa page and trigger edit
+                            // Store the ID in sessionStorage so mou-moa.php can pick it up
+                            sessionStorage.setItem('editMouId', id);
                             window.location.href = 'mou-moa.php';
                         } else if (source === 'other_documents') {
-                            alert('Editing other documents coming soon');
+                            // Edit other documents
+                            editOtherDocument(id, doc);
                         }
                     } else if (action === 'delete') {
                         if (confirm('Are you sure you want to delete this document?')) {
@@ -1732,6 +1954,16 @@ Add Document
                 classificationResult.classList.add('hidden');
                 documentFile.removeAttribute('data-classification');
                 documentFile.removeAttribute('data-confidence');
+                
+                // Reset edit mode
+                window.editingDocumentId = null;
+                window.editingDocumentSource = null;
+                
+                // Reset modal title and button text
+                const modalTitle = addDocumentModal.querySelector('h2');
+                if (modalTitle) modalTitle.textContent = 'Add New Document';
+                const submitBtn = addDocumentForm.querySelector('button[type="submit"]');
+                if (submitBtn) submitBtn.textContent = 'Upload Document';
             };
 
             closeModal.addEventListener('click', closeModalFunc);
@@ -2059,9 +2291,12 @@ Add Document
                 const submitBtn = addDocumentForm.querySelector('button[type="submit"]');
                 const originalText = submitBtn.textContent;
                 
+                // Check if we're in edit mode
+                const isEditMode = window.editingDocumentId && window.editingDocumentSource;
+                
                 // Show loading state
                 submitBtn.disabled = true;
-                submitBtn.textContent = 'Uploading...';
+                submitBtn.textContent = isEditMode ? 'Updating...' : 'Uploading...';
                 
                 try {
                     const formData = new FormData(addDocumentForm);
@@ -2069,29 +2304,90 @@ Add Document
                     const classification = documentFile.dataset.classification || 'Other';
                     const confidence = documentFile.dataset.confidence || '0';
                     
-                    const documentData = {
-                        title: formData.get('title').toUpperCase(), // Convert title to uppercase
-                        description: formData.get('description'),
-                        category: classification,
-                        confidence: confidence,
-                        fileName: file.name,
-                        fileSize: file.size,
-                        fileType: file.type,
-                        uploadDate: new Date().toISOString(),
-                        file: file
-                    };
+                    if (isEditMode) {
+                        // Update existing document
+                        const updateData = {
+                            title: formData.get('title').toUpperCase(),
+                            description: formData.get('description'),
+                            category: classification === 'Other' ? 'Other Documents' : classification
+                        };
+                        
+                        // If a new file is selected, include it
+                        if (file) {
+                            const updateFormData = new FormData();
+                            updateFormData.append('file', file);
+                            updateFormData.append('title', updateData.title);
+                            updateFormData.append('description', updateData.description);
+                            updateFormData.append('category', updateData.category);
+                            
+                            const response = await fetch(`api/other-documents.php?id=${window.editingDocumentId}`, {
+                                method: 'PUT',
+                                body: updateFormData
+                            });
+                            
+                            const result = await response.json();
+                            
+                            if (result.success) {
+                                alert('✓ Document updated successfully!');
+                                closeModalFunc();
+                                // Reset edit mode
+                                window.editingDocumentId = null;
+                                window.editingDocumentSource = null;
+                                // Reload documents
+                                location.reload();
+                            } else {
+                                throw new Error(result.error || 'Update failed');
+                            }
+                        } else {
+                            // Update without file change
+                            const response = await fetch(`api/other-documents.php?id=${window.editingDocumentId}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(updateData)
+                            });
+                            
+                            const result = await response.json();
+                            
+                            if (result.success) {
+                                alert('✓ Document updated successfully!');
+                                closeModalFunc();
+                                // Reset edit mode
+                                window.editingDocumentId = null;
+                                window.editingDocumentSource = null;
+                                // Reload documents
+                                location.reload();
+                            } else {
+                                throw new Error(result.error || 'Update failed');
+                            }
+                        }
+                    } else {
+                        // Create new document
+                        const documentData = {
+                            title: formData.get('title').toUpperCase(), // Convert title to uppercase
+                            description: formData.get('description'),
+                            category: classification,
+                            confidence: confidence,
+                            fileName: file.name,
+                            fileSize: file.size,
+                            fileType: file.type,
+                            uploadDate: new Date().toISOString(),
+                            file: file
+                        };
 
-                    // Simulate upload process
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    
-                    // Store document in appropriate locations based on classification
-                    await storeDocument(documentData);
-                    
-                    closeModalFunc();
+                        // Simulate upload process
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        
+                        // Store document in appropriate locations based on classification
+                        await storeDocument(documentData);
+                        
+                        closeModalFunc();
+                    }
                     
                 } catch (error) {
-                    console.error('Upload error:', error);
-                    const errorMessage = error.message || 'Error uploading document. Please try again.';
+                    console.error('Upload/Update error:', error);
+                    const errorMessage = error.message || 'Error processing document. Please try again.';
                     alert('✗ ' + errorMessage);
                 } finally {
                     submitBtn.disabled = false;
@@ -2260,6 +2556,44 @@ Add Document
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- File Viewer Modal -->
+<div id="fileViewerModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+    <div class="w-full max-w-4xl bg-white dark:bg-background-dark rounded-xl shadow-2xl m-4 flex flex-col max-h-[90vh]">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 flex items-center justify-between">
+            <div>
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white" id="fileViewerTitle">View File</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1" id="fileViewerSubtitle">Document preview</p>
+            </div>
+            <button id="closeFileViewer" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        
+        <!-- Modal Body -->
+        <div class="p-6 flex-1 overflow-hidden">
+            <div class="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <div id="fileViewerContent" class="w-full h-full flex items-center justify-center">
+                    <!-- File content will be displayed here -->
+                    <div class="text-center">
+                        <span class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-600 mb-4">description</span>
+                        <p class="text-gray-500 dark:text-gray-400">File preview will be displayed here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Footer -->
+        <div class="p-4 bg-gray-50 dark:bg-background-dark/30 rounded-b-xl flex justify-between items-center flex-shrink-0">
+            <button id="downloadFile" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800">
+                <span class="material-symbols-outlined text-sm align-middle">download</span>
+                Download
+            </button>
+            <button id="closeFileViewerBtn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800">Close</button>
+        </div>
     </div>
 </div>
 

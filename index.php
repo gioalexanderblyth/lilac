@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $pdo = getDatabaseConnection();
 
         if ($pdo instanceof FileBasedDatabase) {
-            // File-based authentication
+            // File-based authentication for maintenance
             if (($username === 'admin' && $password === 'admin123') ||
                 ($username === 'user' && $password === 'user123')) {
 
@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 header('Location: dashboard.php');
                 exit();
             } else {
-                $error = 'Invalid username or password. Try: admin/admin123 or user/user123';
+                $error = 'Invalid username or password. For maintenance: admin/admin123 or user/user123';
             }
         } else {
             // Database authentication
@@ -1053,11 +1053,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             Sign up here
                         </a>
                     </p>
-                </div>
-
-                <div class="text-center text-sm text-gray-600 mt-4">
-                    <p class="mb-1">Default credentials:</p>
-                    <p class="font-mono text-xs">admin / admin123 or user / user123</p>
                 </div>
             </form>
         </div>

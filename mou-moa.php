@@ -2430,6 +2430,22 @@ try {
                 const tableBody = document.querySelector('tbody');
                 tableBody.innerHTML = '';
                 
+                // Show empty state if no entries
+                if (allEntries.length === 0) {
+                    const emptyRow = document.createElement('tr');
+                    emptyRow.innerHTML = `
+                        <td colspan="7" class="px-6 py-12 text-center">
+                            <div class="flex flex-col items-center justify-center">
+                                <span class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-500 mb-4">description</span>
+                                <p class="text-lg font-medium text-text-muted-light dark:text-text-muted-dark mb-2">No MOUs/MOAs found</p>
+                                <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Click "Add File" to upload your first MOU/MOA</p>
+                            </div>
+                        </td>
+                    `;
+                    tableBody.appendChild(emptyRow);
+                    return;
+                }
+                
                 const startIndex = (currentPage - 1) * itemsPerPage;
                 const endIndex = startIndex + itemsPerPage;
                 const currentPageEntries = allEntries.slice(startIndex, endIndex);
@@ -2445,8 +2461,8 @@ try {
                 const totalPages = Math.ceil(totalEntries / itemsPerPage);
                 
                 // Update pagination text
-                const startEntry = (currentPage - 1) * itemsPerPage + 1;
-                const endEntry = Math.min(currentPage * itemsPerPage, totalEntries);
+                const startEntry = totalEntries === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+                const endEntry = totalEntries === 0 ? 0 : Math.min(currentPage * itemsPerPage, totalEntries);
                 
                 document.getElementById('startEntry').textContent = startEntry;
                 document.getElementById('endEntry').textContent = endEntry;
@@ -2688,7 +2704,21 @@ try {
             }
             
             // Load existing data when page loads
-            loadFromDatabase();
+            (async () => {
+                await loadFromDatabase();
+                // Check if we need to open edit mode (from documents page)
+                const editMouId = sessionStorage.getItem('editMouId');
+                if (editMouId) {
+                    // Clear the sessionStorage
+                    sessionStorage.removeItem('editMouId');
+                    // Wait a bit for data to be fully loaded, then trigger edit
+                    setTimeout(() => {
+                        if (typeof editEntry === 'function') {
+                            editEntry(editMouId);
+                        }
+                    }, 500);
+                }
+            })();
             
             // Add a manual refresh function for debugging
             window.debugRefreshMOUData = function() {

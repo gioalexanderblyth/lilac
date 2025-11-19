@@ -8101,7 +8101,17 @@ try {
                 if (result.success) {
                     showNotification(isEditing ? 'Award criteria updated successfully!' : 'Award criteria created successfully!', 'success');
                     hideAddCriteriaModal();
-                    loadCriteriaList();
+                    
+                    // Refresh both the card view and table view
+                    if (typeof loadCriteriaList === 'function') {
+                        loadCriteriaList();
+                    }
+                    if (typeof loadAwardCriteria === 'function') {
+                        loadAwardCriteria();
+                    } else if (typeof window.loadAwardListData === 'function') {
+                        window.loadAwardListData();
+                    }
+                    
                     criteriaFormMode = 'create';
                     editingCriteriaId = null;
                 } else {
@@ -8129,7 +8139,16 @@ try {
 
                 if (result.success) {
                     showNotification('Award criteria deleted successfully', 'success');
-                    loadCriteriaList();
+                    
+                    // Refresh both the card view and table view
+                    if (typeof loadCriteriaList === 'function') {
+                        loadCriteriaList();
+                    }
+                    if (typeof loadAwardCriteria === 'function') {
+                        loadAwardCriteria();
+                    } else if (typeof window.loadAwardListData === 'function') {
+                        window.loadAwardListData();
+                    }
                 } else {
                     showNotification('Error: ' + (result.error || 'Delete failed'), 'error');
                 }
