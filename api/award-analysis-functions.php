@@ -689,11 +689,12 @@ function analyzeTextAgainstCriteria($text, $awardsCriteria) {
         
         // Only include awards with meaningful scores (> 25%) and relevance validation
         if ($finalScore > 25 && $isRelevant) {
-            // Use centralized thresholds for eligibility
+            // Use centralized thresholds for eligibility - stricter requirements
             $status = 'Not Eligible';
-            if ($finalScore >= $thresholds['eligible'] && $directHits >= 2) {
+            // Require higher score (80+) AND at least 3 direct criteria hits for Eligible status
+            if ($finalScore >= $thresholds['eligible'] && $directHits >= 3) {
                 $status = 'Eligible';
-            } elseif ($finalScore >= $thresholds['partial'] && $directHits >= 1) {
+            } elseif ($finalScore >= $thresholds['partial'] && $directHits >= 2) {
                 $status = 'Partially Eligible';
             }
             
@@ -889,7 +890,22 @@ function validateRelevance($category, $textLower, $matchedCriteria) {
             return false;
             
         default:
-            return true; // For other categories, use standard validation
+            // For other categories, require at least 2 specific matched criteria (not just generic keywords)
+            // This prevents false positives from generic terms like "program", "international", etc.
+            if (count($matchedCriteria) >= 2) {
+                // Check if matched criteria are specific enough (not just generic words)
+                $specificTerms = ['award', 'certificate', 'recognition', 'achievement', 'qualification'];
+                $hasSpecificContext = false;
+                foreach ($specificTerms as $term) {
+                    if (strpos($textLower, $term) !== false) {
+                        $hasSpecificContext = true;
+                        break;
+                    }
+                }
+                // Require either specific context OR at least 3 matched criteria
+                return $hasSpecificContext || count($matchedCriteria) >= 3;
+            }
+            return false; // Too few matches or too generic
     }
 }
 

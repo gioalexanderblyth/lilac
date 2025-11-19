@@ -176,21 +176,21 @@ try {
     ];
 
     try {
-        // Total awards that have been analyzed and are eligible
+        // Total awards that have been analyzed and are eligible (90%+ match only)
         $stmt = $pdo->query("
             SELECT COUNT(DISTINCT aa.award_id) as total
             FROM award_analysis aa
-            WHERE aa.status IN ('Eligible', 'Almost Eligible')
+            WHERE aa.status = 'Eligible' AND aa.match_percentage >= 90
         ");
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         $stats['total_awards_met'] = (int)($result['total'] ?? 0);
 
-        // Count distinct users who have submitted awards
+        // Count distinct users who have submitted awards (90%+ match only)
         $stmt = $pdo->query("
             SELECT COUNT(DISTINCT a.user_id) as total
             FROM awards a
             INNER JOIN award_analysis aa ON a.id = aa.award_id
-            WHERE aa.status IN ('Eligible', 'Almost Eligible')
+            WHERE aa.status = 'Eligible' AND aa.match_percentage >= 90
         ");
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         $stats['eligible_departments'] = (int)($result['total'] ?? 0);
@@ -204,10 +204,10 @@ try {
             $stats['new_partnerships'] = 0;
         }
 
-        // Calculate success rate: eligible / total submissions
+        // Calculate success rate: eligible (90%+) / total submissions
         $stmt = $pdo->query("
             SELECT
-                COUNT(CASE WHEN aa.status IN ('Eligible', 'Almost Eligible') THEN 1 END) as eligible,
+                COUNT(CASE WHEN aa.status = 'Eligible' AND aa.match_percentage >= 90 THEN 1 END) as eligible,
                 COUNT(*) as total
             FROM award_analysis aa
         ");

@@ -774,6 +774,26 @@ try {
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- MOU Notification Detail Modal -->
+                    <div id="mouNotificationModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+                        <div class="w-full max-w-md bg-white dark:bg-background-dark rounded-xl shadow-2xl m-4 border border-gray-200 dark:border-gray-700">
+                            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white">MOU/MOA Notification</h3>
+                                    <button id="closeMouModal" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+                                        <span class="material-symbols-outlined">close</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="p-6">
+                                <div id="mouModalContent">
+                                    <!-- Content will be populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <button
                         class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors duration-200"
                         id="theme-toggle">
@@ -1269,8 +1289,10 @@ try {
                                         <div class="analytics-card p-6">
                                             <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                                                 Award Fulfillment Trends</h3>
-                                            <div class="h-48">
-                                                <canvas id="trendsChart"></canvas>
+                                            <div class="flex items-center justify-center" style="min-height: 280px;">
+                                                <div class="w-full max-w-full" style="height: 280px;">
+                                                    <canvas id="trendsChart"></canvas>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -7092,6 +7114,13 @@ try {
             const gridColor = isDarkMode ? '#334155' : '#e2e8f0';
             const tickColor = isDarkMode ? '#94a3b8' : '#64748b';
 
+            // Calculate max value for Y-axis based on actual data
+            const maxEligible = Math.max(...(trendsData.eligible || [0]), 0);
+            const maxTotal = Math.max(...(trendsData.total || [0]), 0);
+            const maxValue = Math.max(maxEligible, maxTotal, 1);
+            // Round up to nearest even number and ensure minimum of 10
+            const yAxisMax = Math.max(Math.ceil(maxValue / 2) * 2, 10);
+
             window.trendsChartInstance = new Chart(trendsCtx.getContext('2d'), {
                 type: 'bar',
                 data: {
@@ -7156,10 +7185,19 @@ try {
                             grid: {
                                 color: gridColor
                             },
+                            max: yAxisMax,
                             ticks: {
                                 color: tickColor,
                                 font: {
                                     size: 11
+                                },
+                                stepSize: 2,
+                                callback: function(value) {
+                                    // Show only even numbers: 0, 2, 4, 6, 8, 10, etc.
+                                    if (Number.isInteger(value) && value % 2 === 0) {
+                                        return value;
+                                    }
+                                    return '';
                                 }
                             }
                         }
@@ -7260,7 +7298,8 @@ try {
 
                 // Update KPIs
                 if (data.kpis) {
-                    document.getElementById('kpi-total-awards').textContent = data.kpis.total_awards || 0;
+                    // Use awards_eligible (90%+) for "Total Awards Met" - only count eligible awards
+                    document.getElementById('kpi-total-awards').textContent = data.kpis.awards_eligible || 0;
                     document.getElementById('kpi-eligible-awards').textContent = data.kpis.awards_eligible || 0;
                     document.getElementById('kpi-orc-data').textContent = data.kpis.orc_data_analyzed || 0;
                     document.getElementById('kpi-success-rate').textContent = (data.kpis.success_rate || 0) + '%';
@@ -8251,6 +8290,11 @@ try {
             
             let notifications = [];
             
+            if (notificationList) {
+                notificationList.addEventListener('click', handleNotificationListClick);
+                notificationList.addEventListener('keydown', handleNotificationListKeydown);
+            }
+            
             // Toggle dropdown
             notificationBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -8335,11 +8379,42 @@ try {
                     const timeAgo = getTimeAgo(notif.created_at);
                     const icon = getNotificationIcon(notif.type);
                     const bgColor = getNotificationBgColor(notif.type);
+                    const targetUrl = getNotificationUrl(notif);
+                    const urlAttribute = targetUrl ? ` data-url="${encodeURIComponent(targetUrl)}"` : '';
+                    const isMouNotification = notif.related_type === 'mou_moa';
+                    const isConfirmed = notif.is_confirmed || false;
+                    
+                    // Show status indicator for confirmed MOU notifications
+                    let statusIndicator = '';
+                    if (isMouNotification && isConfirmed && notif.mou_renewal_status === 'renewed') {
+                        statusIndicator = `
+                            <div class="mt-2">
+                                <p class="text-xs text-green-500 font-medium flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-sm">check_circle</span>
+                                    Status: Renewed
+                                </p>
+                            </div>
+                        `;
+                    } else if (isMouNotification) {
+                        // Show click hint for unconfirmed MOU notifications
+                        statusIndicator = `
+                            <div class="mt-2">
+                                <p class="text-xs text-primary font-medium flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-sm">touch_app</span>
+                                    Click to view details and confirm status
+                                </p>
+                            </div>
+                        `;
+                    }
+                    
+                    const actionHint = targetUrl && !isMouNotification ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
+                    const clickableClass = 'cursor-pointer';
+                    const mouClickHandler = isMouNotification ? `onclick="event.stopPropagation(); showMouNotificationModal(${notif.id})"` : '';
                     
                     return `
-                        <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${notif.is_read ? 'opacity-60' : ''}" 
-                             data-id="${notif.id}" 
-                             onclick="markNotificationAsRead(${notif.id})">
+                        <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${clickableClass} focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark ${notif.is_read ? 'opacity-60' : ''}" 
+                             ${!isMouNotification ? `role="button" tabindex="0" data-id="${notif.id}" data-notification-id="${notif.id}"${urlAttribute}` : ''}
+                             ${mouClickHandler}>
                             <div class="flex items-start gap-3">
                                 <div class="flex-shrink-0 w-10 h-10 rounded-full ${bgColor} flex items-center justify-center">
                                     <span class="material-symbols-outlined text-white text-lg">${icon}</span>
@@ -8347,13 +8422,50 @@ try {
                                 <div class="flex-1 min-w-0">
                                     <p class="text-sm font-medium text-gray-900 dark:text-white">${escapeHtml(notif.title)}</p>
                                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${escapeHtml(notif.message)}</p>
-                                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${timeAgo}</p>
+                                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${timeAgo}</p>
+                                ${actionHint}
+                                ${statusIndicator}
                                 </div>
                                 ${!notif.is_read ? '<div class="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>' : ''}
                             </div>
                         </div>
                     `;
                 }).join('');
+            }
+            
+            function handleNotificationListClick(event) {
+                // Don't handle clicks on confirmation buttons
+                if (event.target.closest('button') || event.target.closest('[onclick*="confirmMouRenewal"]')) {
+                    return;
+                }
+                
+                const target = event.target.closest('[data-notification-id]');
+                if (!target) return;
+                event.preventDefault();
+                handleNotificationSelection(target);
+            }
+            
+            function handleNotificationListKeydown(event) {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                const target = event.target.closest('[data-notification-id]');
+                if (!target) return;
+                event.preventDefault();
+                handleNotificationSelection(target);
+            }
+            
+            async function handleNotificationSelection(element) {
+                const notificationId = Number(element.dataset.notificationId);
+                if (!notificationId) return;
+                
+                await markNotificationAsRead(notificationId);
+                
+                const targetUrl = decodeUrlAttribute(element.dataset.url);
+                if (targetUrl) {
+                    if (notificationDropdown) {
+                        notificationDropdown.classList.add('hidden');
+                    }
+                    window.location.href = targetUrl;
+                }
             }
             
             // Mark notification as read
@@ -8370,9 +8482,12 @@ try {
                             updateNotificationDisplay();
                             updateNotificationBadge();
                         }
+                        return true;
                     }
+                    return false;
                 } catch (error) {
                     console.error('Error marking notification as read:', error);
+                    return false;
                 }
             };
             
@@ -8440,15 +8555,224 @@ try {
                 return colors[type] || 'bg-gray-500';
             }
             
+            function getNotificationUrl(notif) {
+                if (!notif || !notif.related_type || !notif.related_id) {
+                    return '';
+                }
+                
+                const encodedId = encodeURIComponent(notif.related_id);
+                
+                if (notif.related_type === 'mou_moa') {
+                    return `mou-moa.php?entry=${encodedId}`;
+                }
+                
+                if (notif.related_type === 'event') {
+                    return `events-activities.php?event=${encodedId}`;
+                }
+                
+                return '';
+            }
+            
+            function decodeUrlAttribute(value) {
+                if (!value) return '';
+                try {
+                    return decodeURIComponent(value);
+                } catch (error) {
+                    console.warn('Unable to decode notification URL attribute:', error);
+                    return value;
+                }
+            }
+            
+            // Show MOU notification modal
+            window.showMouNotificationModal = function(notificationId) {
+                const notif = notifications.find(n => n.id === notificationId);
+                if (!notif || notif.related_type !== 'mou_moa') return;
+                
+                const modal = document.getElementById('mouNotificationModal');
+                const modalContent = document.getElementById('mouModalContent');
+                if (!modal || !modalContent) return;
+                
+                // Determine criticality
+                const isExpired = notif.mou_is_expired || false;
+                const daysUntilExpiry = notif.mou_days_until_expiry || 0;
+                const isExpiringSoon = !isExpired && daysUntilExpiry <= 30;
+                
+                let criticalityLevel = 'Low';
+                let criticalityColor = 'text-blue-500';
+                let criticalityBg = 'bg-blue-50 dark:bg-blue-900/20';
+                let criticalityIcon = 'info';
+                
+                if (isExpired) {
+                    criticalityLevel = 'Critical';
+                    criticalityColor = 'text-red-500';
+                    criticalityBg = 'bg-red-50 dark:bg-red-900/20';
+                    criticalityIcon = 'error';
+                } else if (isExpiringSoon) {
+                    criticalityLevel = 'High';
+                    criticalityColor = 'text-yellow-500';
+                    criticalityBg = 'bg-yellow-50 dark:bg-yellow-900/20';
+                    criticalityIcon = 'warning';
+                }
+                
+                const mouTitle = notif.mou_institution || notif.mou_partner || 'Unknown';
+                const endDate = notif.mou_end_date ? new Date(notif.mou_end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Not specified';
+                const statusText = notif.mou_status || 'Unknown';
+                
+                modalContent.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="${criticalityBg} p-4 rounded-lg border border-current ${criticalityColor}">
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined">${criticalityIcon}</span>
+                                <p class="font-semibold">Priority Level: ${criticalityLevel}</p>
+                            </div>
+                            ${isExpired ? 
+                                `<p class="text-sm mt-2">This MOU/MOA has expired and requires immediate attention.</p>` :
+                                isExpiringSoon ?
+                                `<p class="text-sm mt-2">This MOU/MOA will expire in ${daysUntilExpiry} day(s). Please take action soon.</p>` :
+                                `<p class="text-sm mt-2">This MOU/MOA is still active but should be monitored.</p>`
+                            }
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Institution/Partner</p>
+                                <p class="text-base text-gray-900 dark:text-white">${escapeHtml(mouTitle)}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">End Date</p>
+                                <p class="text-base text-gray-900 dark:text-white">${endDate}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</p>
+                                <p class="text-base text-gray-900 dark:text-white">${escapeHtml(statusText)}</p>
+                            </div>
+                            ${isExpired ? 
+                                `<div>
+                                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Days Since Expiration</p>
+                                    <p class="text-base text-red-600 dark:text-red-400 font-semibold">${Math.abs(daysUntilExpiry)} day(s)</p>
+                                </div>` :
+                                `<div>
+                                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Days Until Expiration</p>
+                                    <p class="text-base ${isExpiringSoon ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-900 dark:text-white'} font-semibold">${daysUntilExpiry} day(s)</p>
+                                </div>`
+                            }
+                        </div>
+                        
+                        <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Please confirm the renewal status:</p>
+                            <div class="flex gap-2">
+                                <button onclick="confirmMouRenewal(${notif.id}, 'renewed'); closeMouModal();" 
+                                        class="flex-1 px-4 py-2 text-sm font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined text-sm">check_circle</span>
+                                    Mark as Renewed
+                                </button>
+                                <button onclick="confirmMouRenewal(${notif.id}, 'not_renewed'); closeMouModal();" 
+                                        class="flex-1 px-4 py-2 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined text-sm">cancel</span>
+                                    Not Renewed
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Note: If marked as "Not Renewed", you will continue to receive notifications until it is renewed.</p>
+                        </div>
+                    </div>
+                `;
+                
+                modal.classList.remove('hidden');
+            };
+            
+            // Close MOU modal
+            window.closeMouModal = function() {
+                const modal = document.getElementById('mouNotificationModal');
+                if (modal) {
+                    modal.classList.add('hidden');
+                }
+            };
+            
+            // Setup modal close handlers
+            document.addEventListener('DOMContentLoaded', () => {
+                const closeBtn = document.getElementById('closeMouModal');
+                const modal = document.getElementById('mouNotificationModal');
+                
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', closeMouModal);
+                }
+                
+                if (modal) {
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) {
+                            closeMouModal();
+                        }
+                    });
+                }
+                
+                // Close on Escape key
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+                        closeMouModal();
+                    }
+                });
+            });
+            
+            // Confirm MOU renewal status
+            window.confirmMouRenewal = async function(notificationId, renewalStatus) {
+                try {
+                    const response = await fetch('api/notifications.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            action: 'confirm_mou_renewal',
+                            notification_id: notificationId,
+                            renewal_status: renewalStatus
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        // Reload notifications to reflect the confirmation
+                        await loadNotifications();
+                        await updateNotificationBadge();
+                        
+                        if (renewalStatus === 'renewed') {
+                            if (typeof showToast === 'function') {
+                                showToast('MOU/MOA marked as renewed. Notification will be removed.', 'success');
+                            } else {
+                                alert('MOU/MOA marked as renewed. Notification will be removed.');
+                            }
+                        } else {
+                            if (typeof showToast === 'function') {
+                                showToast('MOU/MOA marked as not renewed. You will continue to receive notifications.', 'info');
+                            } else {
+                                alert('MOU/MOA marked as not renewed. You will continue to receive notifications.');
+                            }
+                        }
+                    } else {
+                        console.error('Failed to confirm MOU renewal:', data.error);
+                        alert('Failed to confirm MOU renewal status. Please try again.');
+                    }
+                } catch (error) {
+                    console.error('Error confirming MOU renewal:', error);
+                    alert('An error occurred while confirming MOU renewal status. Please try again.');
+                }
+            };
+            
+            async function refreshNotificationIndicators() {
+                try {
+                    await checkNotifications();
+                    await updateNotificationBadge();
+                } catch (error) {
+                    console.error('Error refreshing notification indicators:', error);
+                }
+            }
+            
             // Initialize: Check for notifications and load them
             document.addEventListener('DOMContentLoaded', () => {
-                checkNotifications();
-                updateNotificationBadge();
+                refreshNotificationIndicators();
                 
                 // Refresh notifications every 5 minutes
                 setInterval(() => {
-                    checkNotifications();
-                    updateNotificationBadge();
+                    refreshNotificationIndicators();
                 }, 5 * 60 * 1000);
             });
         })();

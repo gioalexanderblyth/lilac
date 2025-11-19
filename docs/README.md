@@ -318,9 +318,8 @@ Display Results
 ## 🔑 Default Credentials
 
 ### Admin Account
-- **Username:** `admin`
-- **Email:** `admin@cpu.edu.ph`
-- **Password:** `admin123`
+- **Username:** `lesley`
+- **Password:** `Central@2025`
 
 ### Test User Account (if created)
 - **Username:** `user`
