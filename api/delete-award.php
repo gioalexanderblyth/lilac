@@ -36,7 +36,7 @@ try {
         $awardIdInt = (int)$awardId;
         
         // First, get the award details to delete associated files
-        $stmt = $pdo->prepare('SELECT file_path, file_name FROM awards WHERE id = ?');
+        $stmt = $pdo->prepare('SELECT file_path, file_name, created_at FROM awards WHERE id = ?');
         $stmt->execute([$awardIdInt]);
         $award = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -47,6 +47,48 @@ try {
         }
         
         $deletedFiles = [];
+
+        // 1. Find and delete linked OTHER DOCUMENTS (Documents Page)
+        $stmtDocs = $pdo->prepare("SELECT id, title, file_path, created_at FROM other_documents WHERE award_id = ?");
+        $stmtDocs->execute([$awardIdInt]);
+        $linkedDocs = $stmtDocs->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($linkedDocs as $doc) {
+            // Delete physical file from Documents folder
+            if ($doc['file_path'] && file_exists(__DIR__ . '/../' . $doc['file_path'])) {
+                if (unlink(__DIR__ . '/../' . $doc['file_path'])) {
+                    $deletedFiles[] = basename($doc['file_path']);
+                }
+            }
+
+            // Delete the record
+            $stmtDel = $pdo->prepare("DELETE FROM other_documents WHERE id = ?");
+            $stmtDel->execute([$doc['id']]);
+
+            // CASCADE: Delete linked MOU/MOA entries if they match (auto-copied ones)
+            if ($doc['title']) {
+                // Find potential MOU/MOA duplicate created around the same time
+                $stmtMou = $pdo->prepare("
+                    SELECT id, file_path FROM mou_moa 
+                    WHERE title = ? AND ABS(UNIX_TIMESTAMP(created_at) - UNIX_TIMESTAMP(?)) < 60
+                ");
+                $stmtMou->execute([$doc['title'], $doc['created_at']]);
+                $linkedMou = $stmtMou->fetch(PDO::FETCH_ASSOC);
+
+                if ($linkedMou) {
+                    // Delete MOU file
+                    if ($linkedMou['file_path'] && file_exists(__DIR__ . '/../' . $linkedMou['file_path'])) {
+                        unlink(__DIR__ . '/../' . $linkedMou['file_path']);
+                    }
+                    // Delete MOU record
+                    $pdo->prepare("DELETE FROM mou_moa WHERE id = ?")->execute([$linkedMou['id']]);
+                }
+            }
+        }
+        
+        // Delete associated analysis records explicitly
+        $stmt = $pdo->prepare('DELETE FROM award_analysis WHERE award_id = ?');
+        $stmt->execute([$awardIdInt]);
         
         // Delete the uploaded file if it exists
         if ($award['file_path'] && file_exists($award['file_path'])) {
@@ -55,7 +97,7 @@ try {
             }
         }
         
-        // Delete from database (CASCADE will handle award_analysis deletion)
+        // Delete from database
         $stmt = $pdo->prepare('DELETE FROM awards WHERE id = ?');
         $stmt->execute([$awardIdInt]);
         

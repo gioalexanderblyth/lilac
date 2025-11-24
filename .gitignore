@@ -1,2 +1,4 @@
 #
+logs/activity.log
+logs/*.log
 .claude

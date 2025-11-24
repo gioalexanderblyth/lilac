@@ -261,9 +261,47 @@ function listAwards($pdo) {
         return;
     }
     
-    // Normal database query for SQLite
-    $stmt = $pdo->query('SELECT * FROM awards ORDER BY created_at DESC');
-    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+    // Normal database query for SQLite/MySQL
+    $stmt = $pdo->query("
+        SELECT 
+            a.*, 
+            aa.predicted_category, 
+            aa.confidence, 
+            aa.matched_categories_json, 
+            aa.status as analysis_status,
+            aa.analysis_results,
+            od.id as document_id,
+            od.title as document_title
+        FROM awards a 
+        LEFT JOIN award_analysis aa ON a.id = aa.award_id 
+        LEFT JOIN other_documents od ON a.id = od.award_id
+        ORDER BY a.created_at DESC
+    ");
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Transform for frontend
+    $awards = array_map(function($row) {
+        return [
+            'id' => $row['id'],
+            'title' => $row['title'],
+            'date' => $row['date'],
+            'description' => $row['description'],
+            'file_name' => $row['file_name'],
+            'file_path' => $row['file_path'],
+            'ocr_text' => $row['ocr_text'],
+            'created_by' => $row['created_by'] ?? 'admin',
+            'created_at' => $row['created_at'],
+            'document_id' => $row['document_id'] ?? null,
+            'analysis' => [
+                'confidence' => (float)($row['confidence'] ?? 0),
+                'predicted_category' => $row['predicted_category'] ?? 'Not Analyzed',
+                'matched_criteria' => json_decode($row['matched_categories_json'] ?? '[]', true) ?: [],
+                'status' => $row['analysis_status'] ?? 'Pending Review'
+            ]
+        ];
+    }, $results);
+    
+    echo json_encode($awards);
 }
 
 function detail($pdo, $id) {
@@ -518,7 +556,7 @@ function deleteAward($pdo, $id) {
     }
 
     // Get award details for file cleanup
-    $stmt = $pdo->prepare('SELECT file_path FROM awards WHERE id = ?');
+    $stmt = $pdo->prepare('SELECT title, file_path, created_at FROM awards WHERE id = ?');
     $stmt->execute([$id]);
     $award = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -528,20 +566,57 @@ function deleteAward($pdo, $id) {
         return;
     }
 
-    // Delete associated analysis records first (foreign key constraint)
+    // 1. Find and delete linked OTHER DOCUMENTS (Documents Page)
+    $stmtDocs = $pdo->prepare("SELECT id, title, file_path, created_at FROM other_documents WHERE award_id = ?");
+    $stmtDocs->execute([$id]);
+    $linkedDocs = $stmtDocs->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($linkedDocs as $doc) {
+        // Delete physical file from Documents folder
+        if ($doc['file_path'] && file_exists(__DIR__ . '/../' . $doc['file_path'])) {
+            @unlink(__DIR__ . '/../' . $doc['file_path']);
+        }
+
+        // Delete the record
+        $stmtDel = $pdo->prepare("DELETE FROM other_documents WHERE id = ?");
+        $stmtDel->execute([$doc['id']]);
+
+        // CASCADE: Delete linked MOU/MOA entries if they match (auto-copied ones)
+        // This logic mirrors the one in api/other-documents.php
+        if ($doc['title']) {
+            // Find potential MOU/MOA duplicate created around the same time
+            $stmtMou = $pdo->prepare("
+                SELECT id, file_path FROM mou_moa 
+                WHERE title = ? AND ABS(UNIX_TIMESTAMP(created_at) - UNIX_TIMESTAMP(?)) < 60
+            ");
+            $stmtMou->execute([$doc['title'], $doc['created_at']]);
+            $linkedMou = $stmtMou->fetch(PDO::FETCH_ASSOC);
+
+            if ($linkedMou) {
+                // Delete MOU file
+                if ($linkedMou['file_path'] && file_exists(__DIR__ . '/../' . $linkedMou['file_path'])) {
+                    @unlink(__DIR__ . '/../' . $linkedMou['file_path']);
+                }
+                // Delete MOU record
+                $pdo->prepare("DELETE FROM mou_moa WHERE id = ?")->execute([$linkedMou['id']]);
+            }
+        }
+    }
+
+    // 2. Delete associated analysis records first (foreign key constraint)
     $stmt = $pdo->prepare('DELETE FROM award_analysis WHERE award_id = ?');
     $stmt->execute([$id]);
 
-    // Delete the award
+    // 3. Delete the award record
     $stmt = $pdo->prepare('DELETE FROM awards WHERE id = ?');
     $stmt->execute([$id]);
 
-    // Delete file if exists
+    // 4. Delete the award file itself
     if ($award['file_path'] && file_exists(__DIR__ . '/../' . $award['file_path'])) {
         @unlink(__DIR__ . '/../' . $award['file_path']);
     }
 
-    echo json_encode(['success'=>true, 'message'=>'Award deleted successfully']);
+    echo json_encode(['success'=>true, 'message'=>'Award and associated documents deleted successfully']);
 }
 
 function stats($pdo) {

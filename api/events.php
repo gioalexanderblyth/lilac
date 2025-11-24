@@ -49,23 +49,29 @@ try {
     // GET: List all events (admin sees all, user sees only their own)
     if ($method === 'GET' && $action === 'list') {
         if ($isAdmin) {
-            $stmt = $pdo->query("
-                SELECT
-                    e.*,
-                    u.username,
-                    u.full_name as created_by
-                FROM events e
-                LEFT JOIN users u ON e.user_id = u.id
-                ORDER BY e.event_date DESC, e.start_time DESC
-            ");
+        $stmt = $pdo->query("
+            SELECT
+                e.*,
+                u.username,
+                u.full_name as created_by,
+                od.title as document_title,
+                od.file_path as document_path
+            FROM events e
+            LEFT JOIN users u ON e.user_id = u.id
+            LEFT JOIN other_documents od ON e.document_id = od.id
+            ORDER BY e.event_date DESC, e.start_time DESC
+        ");
         } else {
             $stmt = $pdo->prepare("
                 SELECT
                     e.*,
                     u.username,
-                    u.full_name as created_by
+                    u.full_name as created_by,
+                    od.title as document_title,
+                    od.file_path as document_path
                 FROM events e
                 LEFT JOIN users u ON e.user_id = u.id
+                LEFT JOIN other_documents od ON e.document_id = od.id
                 WHERE e.user_id = ?
                 ORDER BY e.event_date DESC, e.start_time DESC
             ");
@@ -122,9 +128,13 @@ try {
             SELECT
                 e.*,
                 u.username,
-                u.full_name as created_by
+                u.full_name as created_by,
+                od.title as document_title,
+                od.file_path as document_path,
+                od.id as document_id
             FROM events e
             LEFT JOIN users u ON e.user_id = u.id
+            LEFT JOIN other_documents od ON e.document_id = od.id
             WHERE e.id = ?
         ");
         $stmt->execute([$id]);
@@ -166,13 +176,14 @@ try {
         $endTime = $data['end_time'] ?? '17:00:00';
         $location = $data['location'] ?? '';
         $status = $data['status'] ?? 'planned';
+        $documentId = isset($data['document_id']) && $data['document_id'] !== '' ? (int)$data['document_id'] : null;
 
         // Insert event
         $stmt = $pdo->prepare("
             INSERT INTO events (
                 user_id, title, description, event_date,
-                start_time, end_time, location, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                start_time, end_time, location, status, document_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $stmt->execute([
@@ -183,7 +194,8 @@ try {
             $startTime,
             $endTime,
             $location,
-            $status
+            $status,
+            $documentId
         ]);
 
         $newId = $pdo->lastInsertId();
@@ -294,6 +306,10 @@ try {
         if (isset($data['status'])) {
             $updateFields[] = "status = ?";
             $updateValues[] = $data['status'];
+        }
+        if (isset($data['document_id'])) {
+            $updateFields[] = "document_id = ?";
+            $updateValues[] = $data['document_id'] !== '' ? (int)$data['document_id'] : null;
         }
 
         if (empty($updateFields)) {

@@ -4,6 +4,105 @@
 require_once 'config.php';
 
 /**
+ * Clean and normalize text for matching (From Awards Page Logic)
+ */
+function cleanText($text) {
+    // Convert to lowercase
+    $text = strtolower($text);
+
+    // Remove special characters and extra spaces
+    $text = preg_replace('/[^a-z0-9\s]/', ' ', $text);
+    $text = preg_replace('/\s+/', ' ', $text);
+
+    return trim($text);
+}
+
+/**
+ * Calculate weighted keyword match percentage (From Awards Page Logic)
+ */
+function calculateStrictWeightedMatch($text, $criteria) {
+    $categoryName = $criteria['category_name'] ?? $criteria['title'] ?? 'Unknown';
+    $keywordsStr = is_array($criteria['keywords']) ? implode(',', $criteria['keywords']) : ($criteria['keywords'] ?? '');
+    $totalWeight = floatval($criteria['weight'] ?? 50);
+
+    // Parse keywords (comma-separated if string)
+    if (is_array($criteria['keywords'])) {
+        $keywords = $criteria['keywords'];
+    } else {
+        $keywords = array_map('trim', explode(',', $keywordsStr));
+    }
+    $keywords = array_filter($keywords);
+
+    if (empty($keywords)) {
+        return [
+            'category_name' => $categoryName,
+            'award_type' => $criteria['award_type'] ?? 'General',
+            'match_percentage' => 0,
+            'confidence' => 'low',
+            'matched_keywords' => [],
+            'missing_keywords' => [],
+            'total_possible_weight' => $totalWeight
+        ];
+    }
+
+    // Calculate weight per keyword
+    $weightPerKeyword = $totalWeight / count($keywords);
+
+    // Find matched keywords
+    $matchedKeywords = [];
+    $missingKeywords = [];
+    $totalMatchedWeight = 0;
+
+    foreach ($keywords as $keyword) {
+        $keyword = strtolower(trim($keyword));
+
+        // Check if keyword exists in text
+        if (strpos($text, $keyword) !== false) {
+            $matchedKeywords[] = $keyword;
+            $totalMatchedWeight += $weightPerKeyword;
+        } else {
+            $missingKeywords[] = $keyword;
+        }
+    }
+
+    // Calculate match percentage
+    $matchPercentage = ($totalMatchedWeight / $totalWeight) * 100;
+    $matchPercentage = round($matchPercentage, 2);
+
+    // Determine confidence level
+    if ($matchPercentage >= 80) {
+        $confidence = 'high';
+    } elseif ($matchPercentage >= 50) {
+        $confidence = 'medium';
+    } else {
+        $confidence = 'low';
+    }
+    
+    // Determine eligibility status based on strict percentage
+    if ($matchPercentage >= 90) {
+        $eligibilityStatus = 'Eligible';
+    } elseif ($matchPercentage >= 70) {
+        $eligibilityStatus = 'Almost Eligible';
+    } else {
+        $eligibilityStatus = 'Not Eligible';
+    }
+
+    return [
+        'category_name' => $categoryName,
+        'award_type' => $criteria['award_type'] ?? 'General',
+        'match_percentage' => $matchPercentage,
+        'confidence' => $confidence,
+        'status' => $eligibilityStatus, // Add status for compatibility
+        'matched_keywords' => $matchedKeywords,
+        'missing_keywords' => $missingKeywords,
+        'total_matched_weight' => round($totalMatchedWeight, 2),
+        'total_possible_weight' => $totalWeight,
+        'keyword_match_count' => count($matchedKeywords),
+        'total_keywords' => count($keywords)
+    ];
+}
+
+/**
  * Load award thresholds from awards-rules.json
  */
 function loadAwardThresholds() {
@@ -929,9 +1028,14 @@ function generateAwardRecommendation($award, $matchedCriteria, $score) {
 /**
  * Store analysis results with fallback
  */
-function storeAnalysisResults($awardName, $description, $extractedText, $analysis, $uploadedFile, $isReanalyze = false) {
+function storeAnalysisResults($awardName, $description, $extractedText, $analysis, $uploadedFile, $isReanalyze = false, $documentId = null, $sourcePage = null, $createdBy = 'System', $userId = null) {
     try {
         $pdo = getDatabaseConnection();
+        
+        // If userId is not provided, try to get it from session
+        if ($userId === null && session_status() === PHP_SESSION_ACTIVE && isset($_SESSION['user']['id'])) {
+            $userId = $_SESSION['user']['id'];
+        }
         
         // Handle file storage
         if ($isReanalyze) {
@@ -945,13 +1049,124 @@ function storeAnalysisResults($awardName, $description, $extractedText, $analysi
                 mkdir($uploadDir, 0755, true);
             }
             
+            // Check if this file is already in uploads/other_documents/ (from Documents page upload)
+            // If so, we don't need to move it, but we might want to copy it or symlink it
+            // But usually $uploadedFile['tmp_name'] is a temp file or absolute path
+            
             $fileName = uniqid() . '_' . time() . '_' . basename($uploadedFile['name']);
             $filePath = $uploadDir . $fileName;
             
-            if (!move_uploaded_file($uploadedFile['tmp_name'], $filePath)) {
-                throw new Exception('Failed to save uploaded file');
+            // If source is other_documents, we might want to copy instead of move if we want physical separation
+            // But user said "copy it into that award", implying logical copy or physical copy
+            // Let's physical copy to be safe and independent
+            if (!copy($uploadedFile['tmp_name'], $filePath)) {
+                 // Fallback if copy fails (maybe tmp_name is not a file?)
+                 if (!move_uploaded_file($uploadedFile['tmp_name'], $filePath)) {
+                     // If both fail, maybe it's already there?
+                     if (!file_exists($filePath)) {
+                         // Try reading content and writing
+                         $content = file_get_contents($uploadedFile['tmp_name']);
+                         if ($content) file_put_contents($filePath, $content);
+                     }
+                 }
             }
         }
+        
+        // Determine best match for primary category/title
+        $bestMatch = null;
+        $highestScore = 0;
+        if (is_array($analysis)) {
+            foreach ($analysis as $result) {
+                $score = $result['match_percentage'] ?? $result['score'] ?? 0;
+                if ($score > $highestScore) {
+                    $highestScore = $score;
+                    $bestMatch = $result;
+                }
+            }
+        }
+
+        // Determine smart title
+        // If we have a good match (>50%), append the category name to the title for clarity
+        $finalTitle = $awardName ?: 'Untitled Award Application';
+        if ($bestMatch && $highestScore >= 50) {
+            $categoryName = $bestMatch['category'] ?? $bestMatch['category_name'] ?? $bestMatch['name'] ?? '';
+            if ($categoryName && strpos($finalTitle, $categoryName) === false) {
+                // If title is just a filename (ends with extension), replace it or prepend category
+                if (preg_match('/\.[a-zA-Z0-9]{3,4}$/', $finalTitle)) {
+                    $finalTitle = $categoryName . ' - ' . $finalTitle;
+                } else {
+                    $finalTitle = $categoryName . ' (' . $finalTitle . ')';
+                }
+            }
+        }
+
+        // AUTOMATIC SUBMISSION LOGIC
+        // If we have a valid database connection and this is a document analysis
+        if (!($pdo instanceof FileBasedDatabase)) {
+            // 1. Create Award Entry
+            $stmt = $pdo->prepare("
+                INSERT INTO awards (user_id, title, description, file_name, file_path, ocr_text, status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())
+            ");
+            
+            // Use relative path for storage
+            $relPath = 'uploads/awards/' . basename($filePath);
+            
+            $stmt->execute([
+                $userId ?: 1, // Fallback to admin ID 1 if no user ID
+                $finalTitle,
+                $description,
+                $fileName,
+                $relPath,
+                $extractedText
+            ]);
+            
+            $newAwardId = $pdo->lastInsertId();
+            logActivity("Created new Award record ID: $newAwardId from analysis", 'INFO');
+            
+            // 2. Create Analysis Record linked to this Award
+            // Use correct column names from schema:
+            // predicted_category, match_percentage, confidence, status, detected_text, matched_keywords, all_matches, recommendations, analysis_metadata, document_id, source_page
+            $stmt = $pdo->prepare("
+                INSERT INTO award_analysis 
+                (award_id, predicted_category, match_percentage, confidence, status, detected_text, matched_keywords, all_matches, recommendations, analysis_metadata, document_id, source_page, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ");
+            
+            $matchPercentage = $highestScore;
+            // Determine status based on percentage (consistent with calculateStrictWeightedMatch)
+            $status = 'Not Eligible';
+            if ($matchPercentage >= 90) $status = 'Eligible';
+            else if ($matchPercentage >= 70) $status = 'Almost Eligible';
+            
+            $stmt->execute([
+                $newAwardId,
+                $bestMatch['category'] ?? $bestMatch['category_name'] ?? 'Unknown',
+                $matchPercentage,
+                $bestMatch['confidence'] ?? 'low',
+                $status,
+                $extractedText,
+                json_encode($bestMatch['matched_keywords'] ?? []),
+                json_encode($analysis), // Store full analysis in all_matches
+                $bestMatch['recommendation'] ?? '',
+                json_encode([]), // analysis_metadata
+                $documentId,
+                $sourcePage
+            ]);
+            
+            $analysisId = $pdo->lastInsertId();
+            
+            // 3. Link Document if it exists
+            if ($documentId) {
+                $stmt = $pdo->prepare("UPDATE other_documents SET award_id = ? WHERE id = ?");
+                $stmt->execute([$newAwardId, $documentId]);
+                logActivity("Linked Document ID: $documentId to Award ID: $newAwardId", 'INFO');
+            }
+            
+            return $analysisId;
+        }
+        
+        // ... existing file-based fallback code ...
         
         // Check if we're using file-based fallback
         if ($pdo instanceof FileBasedDatabase) {

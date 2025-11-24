@@ -269,7 +269,7 @@ function getTesseractPath() {
             // Check if in PATH
             $output = shell_exec((PHP_OS_FAMILY === 'Windows' ? 'where' : 'which') . ' ' . escapeshellarg($path) . ' 2>nul 2>/dev/null');
             if (!empty($output)) {
-                $tesseractPath = trim($output);
+                $tesseractPath = trim((string)$output);
                 break;
             }
         } else {
@@ -295,7 +295,7 @@ function isPdftotextAvailable() {
     
     $command = (PHP_OS_FAMILY === 'Windows' ? 'where' : 'which') . ' pdftotext 2>nul 2>/dev/null';
     $output = shell_exec($command);
-    $available = !empty(trim($output));
+    $available = !empty($output) && !empty(trim((string)$output));
     
     return $available;
 }
@@ -321,7 +321,10 @@ function logActivity($message, $level = 'INFO') {
  * Sanitize input data
  */
 function sanitizeInput($data) {
-    return htmlspecialchars(trim($data), ENT_QUOTES, 'UTF-8');
+    if ($data === null) {
+        return '';
+    }
+    return htmlspecialchars(trim((string)$data), ENT_QUOTES, 'UTF-8');
 }
 
 /**
@@ -339,7 +342,7 @@ function generateSafeFileName($originalName, $extension) {
     // Create a secure random filename with timestamp and random component
     $timestamp = time();
     $random = bin2hex(random_bytes(8));
-    $extension = strtolower(trim($extension, '.'));
+    $extension = strtolower(trim((string)$extension, '.'));
     
     // Sanitize extension to prevent path traversal
     $extension = preg_replace('/[^a-z0-9]/', '', $extension);

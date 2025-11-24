@@ -143,6 +143,7 @@ try {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"
         rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <link rel="stylesheet" href="css/award-analyzer.css">
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -157,6 +158,7 @@ try {
         })();
     </script>
     <script src="js/notifications.js"></script>
+    <script src="js/award-analyzer.js"></script>
     <script>
         window.chedRequirementConfig = <?php echo json_encode([
             'canPersist' => $canPersistRequirementTracker,
@@ -1073,6 +1075,29 @@ try {
                                         <div>
                                             <span class="text-sm font-medium text-text-light dark:text-text-dark">Award
                                                 Documentation</span>
+                                            <!-- Document Selection Options -->
+                                            <div class="flex items-center gap-2 mb-4">
+                                                <button type="button" id="selectFromDocumentsBtn" class="flex-1 px-4 py-2 text-sm font-medium rounded-md border border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center justify-center gap-2">
+                                                    <span class="material-symbols-outlined text-sm">folder</span>
+                                                    <span>Select from Documents</span>
+                                                </button>
+                                                <button type="button" id="selectFromEventsBtn" class="flex-1 px-4 py-2 text-sm font-medium rounded-md border border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center justify-center gap-2">
+                                                    <span class="material-symbols-outlined text-sm">event</span>
+                                                    <span>Select from Events</span>
+                                                </button>
+                                            </div>
+                                            <div id="selectedDocumentInfo" class="hidden p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg mb-4">
+                                                <div class="flex items-center justify-between">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
+                                                        <span class="text-sm font-medium text-green-800 dark:text-green-300" id="selectedDocumentName"></span>
+                                                    </div>
+                                                    <button type="button" id="clearSelectedDocument" class="text-red-500 hover:text-red-700">
+                                                        <span class="material-symbols-outlined text-sm">close</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="text-center text-sm text-text-muted-light dark:text-text-muted-dark mb-2">OR</div>
                                             <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-border-light dark:border-border-dark border-dashed rounded-lg bg-card-light dark:bg-card-dark/50 group hover:border-primary dark:hover:border-primary transition-colors duration-300"
                                                 id="drop-zone">
                                                 <div class="space-y-1 text-center">
@@ -1091,8 +1116,7 @@ try {
                                                             for="file-upload">
                                                             <span>Upload a file</span>
                                                             <input class="sr-only" id="file-upload" name="award_file"
-                                                                type="file" accept=".pdf,.docx,.jpg,.jpeg,.png"
-                                                                required />
+                                                                type="file" accept=".pdf,.docx,.jpg,.jpeg,.png" />
                                                         </label>
                                                         <p class="pl-1">or drag and drop</p>
                                                     </div>
@@ -5203,8 +5227,111 @@ try {
             dropZone.addEventListener('dragleave', handleDragLeave);
             dropZone.addEventListener('drop', handleDrop);
 
+            // Document selection buttons
+            const selectFromDocumentsBtn = document.getElementById('selectFromDocumentsBtn');
+            const selectFromEventsBtn = document.getElementById('selectFromEventsBtn');
+            const selectedDocumentInfo = document.getElementById('selectedDocumentInfo');
+            const selectedDocumentName = document.getElementById('selectedDocumentName');
+            const clearSelectedDocument = document.getElementById('clearSelectedDocument');
+            
+            // Store selected document ID globally
+            window.selectedDocumentId = null;
+            window.selectedDocumentPath = null;
+
+            if (selectFromDocumentsBtn) {
+                selectFromDocumentsBtn.addEventListener('click', () => showDocumentSelectionModal('documents'));
+            }
+            if (selectFromEventsBtn) {
+                selectFromEventsBtn.addEventListener('click', () => showDocumentSelectionModal('events'));
+            }
+            if (clearSelectedDocument) {
+                clearSelectedDocument.addEventListener('click', () => {
+                    window.selectedDocumentId = null;
+                    window.selectedDocumentPath = null;
+                    selectedDocumentInfo.classList.add('hidden');
+                    fileInput.required = true;
+                });
+            }
+
             // Note: Click to upload is handled by the label element with for="file-upload"
             // No need for additional click handler on drop zone
+        }
+
+        async function showDocumentSelectionModal(source) {
+            try {
+                const response = await fetch(`api/get-documents.php?source=${source}`);
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to load documents');
+                }
+
+                const documents = result.data || [];
+                const sourceLabel = source === 'events' ? 'Event Attachments' : 'Documents';
+                
+                const modalHTML = `
+                    <div id="documentSelectionModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+                        <div class="bg-white dark:bg-card-dark rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+                            <div class="p-6 border-b border-border-light dark:border-border-dark">
+                                <div class="flex justify-between items-center">
+                                    <h2 class="text-xl font-semibold text-text-light dark:text-text-dark">Select from ${sourceLabel}</h2>
+                                    <button id="closeDocumentModal" class="text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark">
+                                        <span class="material-symbols-outlined">close</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="p-6">
+                                <div id="documentsList" class="space-y-2">
+                                    ${documents.map(doc => `
+                                        <button 
+                                            class="w-full text-left p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors document-item-btn"
+                                            data-document-id="${doc.id}"
+                                            data-document-name="${doc.title || doc.file_name}"
+                                            data-document-path="${doc.file_path}"
+                                        >
+                                            <div class="font-medium text-text-light dark:text-text-dark">${doc.title || doc.file_name}</div>
+                                            ${doc.description ? `<div class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1">${doc.description}</div>` : ''}
+                                            ${doc.event_title ? `<div class="text-xs text-primary mt-1">Event: ${doc.event_title}</div>` : ''}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                                ${documents.length === 0 ? `<p class="text-sm text-text-muted-light dark:text-text-muted-dark">No ${source} available.</p>` : ''}
+                            </div>
+                            <div class="p-6 border-t border-border-light dark:border-border-dark flex justify-end gap-2">
+                                <button id="cancelDocumentModal" class="px-4 py-2 text-sm rounded-md border border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-slate-700">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.body.insertAdjacentHTML('beforeend', modalHTML);
+                const modal = document.getElementById('documentSelectionModal');
+                
+                document.getElementById('closeDocumentModal').addEventListener('click', () => modal.remove());
+                document.getElementById('cancelDocumentModal').addEventListener('click', () => modal.remove());
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) modal.remove();
+                });
+
+                document.querySelectorAll('.document-item-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        window.selectedDocumentId = btn.dataset.documentId;
+                        window.selectedDocumentPath = btn.dataset.documentPath;
+                        const docName = btn.dataset.documentName;
+                        
+                        document.getElementById('selectedDocumentName').textContent = docName;
+                        document.getElementById('selectedDocumentInfo').classList.remove('hidden');
+                        document.getElementById('file-upload').required = false;
+                        
+                        modal.remove();
+                    });
+                });
+            } catch (error) {
+                console.error('Error loading documents:', error);
+                alert('Error loading documents: ' + error.message);
+            }
         }
 
         function handleFormSubmission(e) {
@@ -5231,12 +5358,25 @@ try {
                 showNotification('Please enter a description', 'error');
                 return;
             }
-            if (!file) {
-                showNotification('Please select a file to upload', 'error');
+            
+            // Check if document is selected from existing documents or new file uploaded
+            const selectedDocId = window.selectedDocumentId;
+            const selectedDocPath = window.selectedDocumentPath;
+            
+            if (!file && !selectedDocId) {
+                showNotification('Please select a file to upload or choose from existing documents', 'error');
                 return;
             }
 
             const formData = new FormData(e.target);
+            
+            // If using existing document, add document_id and file_path for re-analysis
+            if (selectedDocId && selectedDocPath) {
+                formData.append('document_id', selectedDocId);
+                formData.append('original_file_path', selectedDocPath);
+                formData.append('reanalyze', 'true');
+                formData.append('source_page', 'awards');
+            }
             // Add cache busting parameters
             formData.append('timestamp', Date.now().toString());
             formData.append('cache_bust', Math.random().toString(36).substring(7));

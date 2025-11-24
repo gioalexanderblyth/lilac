@@ -2041,154 +2041,45 @@ try {
                 }, 1000);
             }
             
-            // Function to load file content with actual image preview
+            // Function to load file content (Simplified version matching documents.php)
             function loadFileContent(filePath, fileName) {
                 const fileExtension = fileName ? fileName.split('.').pop().toLowerCase() : '';
                 
-                // Show loading state first
-                fileViewerContent.innerHTML = `
-                    <div class="text-center">
-                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                        <p class="text-gray-500 dark:text-gray-400">Converting file to image...</p>
-                    </div>
-                `;
-                
-                // Try to load the actual file and convert to image
-                fetch(filePath)
-                    .then(response => response.blob())
-                    .then(blob => {
-                        if (fileExtension === 'pdf') {
-                            convertPdfToImage(blob, fileName);
-                        } else if (fileExtension === 'docx') {
-                            convertDocxToImage(blob, fileName);
-                        } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(fileExtension)) {
-                            showImagePreview(blob, fileName);
-                        } else {
-                            showGenericPreview(fileName);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error loading file:', error);
-                        showGenericPreview(fileName);
-                    });
-            }
-            
-            // Function to convert PDF to image
-            function convertPdfToImage(blob, fileName) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const typedarray = new Uint8Array(e.target.result);
-                    
-                    // Initialize PDF.js
-                    pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
-                        // Get the first page
-                        pdf.getPage(1).then(function(page) {
-                            const scale = 1.5;
-                            const viewport = page.getViewport({scale: scale});
-                            
-                            // Create canvas
-                            const canvas = document.createElement('canvas');
-                            const context = canvas.getContext('2d');
-                            canvas.height = viewport.height;
-                            canvas.width = viewport.width;
-                            
-                            // Render PDF page to canvas
-                            const renderContext = {
-                                canvasContext: context,
-                                viewport: viewport
-                            };
-                            
-                            page.render(renderContext).promise.then(function() {
-                                // Convert canvas to image
-                                const imageData = canvas.toDataURL('image/png');
-                                showImagePreview(imageData, fileName, 'PDF Preview');
-                            });
-                        });
-                    }).catch(function(error) {
-                        console.error('PDF conversion error:', error);
-                        showGenericPreview(fileName);
-                    });
-                };
-                reader.readAsArrayBuffer(blob);
-            }
-            
-            // Function to convert DOCX to image
-            function convertDocxToImage(blob, fileName) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    mammoth.convertToHtml({arrayBuffer: e.target.result})
-                        .then(function(result) {
-                            // Create a temporary div to render the HTML
-                            const tempDiv = document.createElement('div');
-                            tempDiv.innerHTML = result.value;
-                            tempDiv.style.cssText = `
-                                position: absolute;
-                                left: -9999px;
-                                top: -9999px;
-                                width: 800px;
-                                padding: 20px;
-                                background: white;
-                                font-family: Arial, sans-serif;
-                                font-size: 14px;
-                                line-height: 1.5;
-                                color: black;
-                            `;
-                            document.body.appendChild(tempDiv);
-                            
-                            // Convert HTML to canvas
-                            html2canvas(tempDiv, {
-                                width: 800,
-                                height: tempDiv.scrollHeight,
-                                backgroundColor: '#ffffff'
-                            }).then(function(canvas) {
-                                const imageData = canvas.toDataURL('image/png');
-                                showImagePreview(imageData, fileName, 'Document Preview');
-                                document.body.removeChild(tempDiv);
-                            }).catch(function(error) {
-                                console.error('HTML to canvas conversion error:', error);
-                                document.body.removeChild(tempDiv);
-                                showGenericPreview(fileName);
-                            });
-                        })
-                        .catch(function(error) {
-                            console.error('DOCX conversion error:', error);
-                            showGenericPreview(fileName);
-                        });
-                };
-                reader.readAsArrayBuffer(blob);
-            }
-            
-            // Function to show image preview
-            function showImagePreview(imageData, fileName, title = 'Image Preview') {
-                fileViewerContent.innerHTML = `
-                    <div class="w-full h-full flex flex-col">
-                        <div class="flex-1 bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-lg flex items-center justify-center p-4">
-                            <img src="${imageData}" alt="${fileName}" class="max-w-full max-h-full object-contain rounded-lg shadow-lg hover:scale-105 transition-transform duration-200">
+                // Handle different file types
+                if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(fileExtension)) {
+                    // Show image preview
+                    fileViewerContent.innerHTML = `
+                        <div class="w-full h-full flex items-center justify-center p-4">
+                            <img src="${filePath}" alt="${fileName}" class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg" 
+                                 onerror="this.parentElement.innerHTML='<div class=\\'text-center\\'><span class=\\'material-symbols-outlined text-6xl text-gray-400 mb-4\\'>error</span><p class=\\'text-gray-500\\'>Failed to load image</p></div>'">
                         </div>
-                        <div class="mt-4 flex justify-center gap-2">
-                            <button onclick="downloadCurrentFile()" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary bg-primary/10 rounded-lg hover:bg-primary/20">
-                                <span class="material-symbols-outlined text-sm">download</span>
-                                Download ${fileName.split('.').pop().toUpperCase()}
-                            </button>
+                    `;
+                } else if (fileExtension === 'pdf') {
+                    // Show PDF in iframe
+                    fileViewerContent.innerHTML = `
+                        <div class="w-full h-full">
+                            <iframe src="${filePath}" class="w-full h-full min-h-[600px] rounded-lg" frameborder="0"></iframe>
                         </div>
-                    </div>
-                `;
-            }
-            
-            // Function to show generic preview for unsupported files
-            function showGenericPreview(fileName) {
-                fileViewerContent.innerHTML = `
-                    <div class="w-full h-full flex flex-col items-center justify-center">
-                        <div class="text-center max-w-md">
-                            <div class="w-24 h-24 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
-                                <span class="material-symbols-outlined text-4xl text-gray-400 dark:text-gray-600">description</span>
+                    `;
+                } else {
+                    // Show generic preview with download option
+                    fileViewerContent.innerHTML = `
+                        <div class="w-full h-full flex flex-col items-center justify-center p-8">
+                            <div class="text-center max-w-md">
+                                <div class="w-24 h-24 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-4xl text-gray-400 dark:text-gray-600">description</span>
+                                </div>
+                                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">${fileName || 'Document'}</h4>
+                                <p class="text-gray-500 dark:text-gray-400 mb-4">Preview not available for this file type. You can download the file using the button below.</p>
                             </div>
-                            <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">${fileName}</h4>
-                            <p class="text-gray-500 dark:text-gray-400 mb-4">Preview not available for this file type. You can download the file using the button below.</p>
                         </div>
-                    </div>
-                `;
+                    `;
+                }
             }
+            
+            // Remove complex conversion functions as we use iframe/native support now
+            // Legacy functions removed: convertPdfToImage, convertDocxToImage, showImagePreview, showGenericPreview
+
             
             // Function to download current file
             function downloadCurrentFile() {
@@ -2601,10 +2492,10 @@ try {
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
                         <div class="flex items-center justify-center gap-2">
                             ${data.file_name ?
-                                `<a href="api/mou-moa.php?action=download&id=${data.id}" class="view-btn text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200" title="View/Download File">
+                                `<button type="button" class="view-file-btn text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200" data-file-path="${data.file_path}" data-file-name="${data.file_name}" title="View File">
                                     <img src="assets/images/view.png" alt="View" class="w-4 h-4">
-                                </a>` :
-                                `<button class="view-btn text-gray-400 dark:text-gray-500 cursor-not-allowed" disabled title="No file attached">
+                                </button>` :
+                                `<button class="view-file-btn text-gray-400 dark:text-gray-500 cursor-not-allowed" disabled title="No file attached">
                                     <img src="assets/images/view.png" alt="View" class="w-4 h-4 opacity-50">
                                 </button>`
                             }

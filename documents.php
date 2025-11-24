@@ -118,6 +118,49 @@ try {
             ORDER BY created_at DESC
         ");
         $documents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Deduplicate: If an item exists in both tables (based on title and recent creation), prioritize other_documents
+        $uniqueDocs = [];
+        $otherDocTitles = [];
+        
+        // First pass: Collect other_documents
+        foreach ($documents as $doc) {
+            if ($doc['source_table'] === 'other_documents') {
+                // Create a key based on title
+                $key = strtolower(trim($doc['title']));
+                $otherDocTitles[$key] = $doc['created_at'];
+                $uniqueDocs[] = $doc;
+            }
+        }
+        
+        // Second pass: Add mou_moa if not a duplicate
+        foreach ($documents as $doc) {
+            if ($doc['source_table'] === 'mou_moa') {
+                $key = strtolower(trim($doc['title']));
+                
+                // Check if duplicate (same title and created within 60 seconds)
+                $isDuplicate = false;
+                if (isset($otherDocTitles[$key])) {
+                    $t1 = strtotime($otherDocTitles[$key]);
+                    $t2 = strtotime($doc['created_at']);
+                    // If created within 1 minute of each other, assume it's a copy
+                    if (abs($t1 - $t2) < 60) {
+                        $isDuplicate = true;
+                    }
+                }
+                
+                if (!$isDuplicate) {
+                    $uniqueDocs[] = $doc;
+                }
+            }
+        }
+        
+        // Re-sort by date desc
+        usort($uniqueDocs, function($a, $b) {
+            return strtotime($b['created_at']) - strtotime($a['created_at']);
+        });
+        
+        $documents = $uniqueDocs;
     }
 } catch (Exception $e) {
     error_log('Documents load error: ' . $e->getMessage());
@@ -152,11 +195,13 @@ try {
             }
         })();
 </script>
+<link rel="stylesheet" href="css/award-analyzer.css">
 <script src="js/notifications.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="js/award-analyzer.js"></script>
 
 <script>
 
@@ -750,10 +795,10 @@ Add Document
 <table class="w-full min-w-[800px] text-sm text-left">
 <thead class="text-sm text-text-muted-light dark:text-text-muted-dark uppercase border-b border-border-light dark:border-border-dark">
 <tr>
-<th class="py-3 px-4 font-medium" scope="col">Name/Title of the Document</th>
-<th class="py-3 px-4 font-medium" scope="col">Category</th>
-<th class="py-3 px-4 font-medium" scope="col">Date Uploaded</th>
-<th class="py-3 px-4 font-medium" scope="col">Actions</th>
+<th class="py-3 px-4 font-medium text-left" scope="col">Name/Title of the Document</th>
+<th class="py-3 px-4 font-medium text-center" scope="col">Category</th>
+<th class="py-3 px-4 font-medium text-center" scope="col">Date Uploaded</th>
+<th class="py-3 px-4 font-medium text-center" scope="col">Actions</th>
 </tr>
 
 </thead>
@@ -786,6 +831,41 @@ Add Document
 </div>
 
 </main>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+    <div class="w-full max-w-md bg-white dark:bg-card-dark rounded-xl shadow-2xl m-4">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-gray-200 dark:border-gray-800">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+                    <span class="material-symbols-outlined text-red-600 dark:text-red-400 text-xl">warning</span>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Delete Document</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">This action cannot be undone</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Body -->
+        <div class="p-6">
+            <p class="text-gray-700 dark:text-gray-300">
+                Are you sure you want to delete this document? This will permanently remove the file and all associated data.
+            </p>
+        </div>
+        
+        <!-- Modal Footer -->
+        <div class="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-b-xl flex justify-end gap-3">
+            <button id="cancelDelete" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700">
+                Cancel
+            </button>
+            <button id="confirmDelete" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                Delete
+            </button>
+        </div>
+    </div>
+</div>
 
 </div>
 
@@ -912,7 +992,7 @@ Add Document
                         <td class="py-4 px-4 text-text-muted-light dark:text-text-muted-dark text-center">${category}</td>
                         <td class="py-4 px-4 text-text-muted-light dark:text-text-muted-dark text-center">${uploaded}</td>
                         <td class="py-4 px-4">
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center justify-center gap-2">
                                 <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700" aria-label="View" data-action="view" data-id="${id}" data-source="${sourceTable}" data-file="${filePath}">
                                     <span class="material-icons text-base text-text-muted-light dark:text-text-muted-dark">visibility</span>
                                 </button>
@@ -1493,6 +1573,73 @@ Add Document
                 }
             }
 
+            // Delete Modal Logic
+            const deleteModal = document.getElementById('deleteConfirmModal');
+            const cancelDeleteBtn = document.getElementById('cancelDelete');
+            const confirmDeleteBtn = document.getElementById('confirmDelete');
+            let pendingDelete = null;
+
+            function showDeleteModal(id, source) {
+                pendingDelete = { id, source };
+                if (deleteModal) deleteModal.classList.remove('hidden');
+            }
+
+            function hideDeleteModal() {
+                pendingDelete = null;
+                if (deleteModal) deleteModal.classList.add('hidden');
+            }
+
+            if (cancelDeleteBtn) {
+                cancelDeleteBtn.addEventListener('click', hideDeleteModal);
+            }
+            
+            if (deleteModal) {
+                // Close on backdrop click
+                deleteModal.addEventListener('click', (e) => {
+                    if (e.target === deleteModal) hideDeleteModal();
+                });
+            }
+
+            if (confirmDeleteBtn) {
+                confirmDeleteBtn.addEventListener('click', async () => {
+                    if (!pendingDelete) return;
+                    const { id, source } = pendingDelete;
+                    
+                    // Show loading state
+                    const originalText = confirmDeleteBtn.textContent;
+                    confirmDeleteBtn.textContent = 'Deleting...';
+                    confirmDeleteBtn.disabled = true;
+
+                    try {
+                        let apiUrl = '';
+                        if (source === 'mou_moa') {
+                            apiUrl = `api/mou-moa.php?id=${encodeURIComponent(id)}`;
+                        } else if (source === 'other_documents') {
+                            apiUrl = `api/other-documents.php?id=${encodeURIComponent(id)}`;
+                        } else {
+                            // Default to other_documents if unknown
+                            apiUrl = `api/other-documents.php?id=${encodeURIComponent(id)}`;
+                        }
+
+                        const response = await fetch(apiUrl, { method: 'DELETE' });
+                        const result = await response.json();
+
+                        if (result.success) {
+                            // alert('Document deleted successfully');
+                            location.reload(); // Reload page to refresh document list
+                        } else {
+                            alert('Failed to delete: ' + (result.error || 'Unknown error'));
+                        }
+                    } catch (error) {
+                        alert('Error deleting document: ' + error.message);
+                    } finally {
+                        hideDeleteModal();
+                        confirmDeleteBtn.textContent = originalText;
+                        confirmDeleteBtn.disabled = false;
+                    }
+                });
+            }
+
             // Delegated click handling for Actions (View/Edit/Delete)
             if (documentsTableBody) {
                 documentsTableBody.addEventListener('click', async (event) => {
@@ -1531,28 +1678,7 @@ Add Document
                             editOtherDocument(id, doc);
                         }
                     } else if (action === 'delete') {
-                        if (confirm('Are you sure you want to delete this document?')) {
-                            try {
-                                let apiUrl = '';
-                                if (source === 'mou_moa') {
-                                    apiUrl = `api/mou-moa.php?id=${encodeURIComponent(id)}`;
-                                } else if (source === 'other_documents') {
-                                    apiUrl = `api/other-documents.php?id=${encodeURIComponent(id)}`;
-                                }
-
-                                const response = await fetch(apiUrl, { method: 'DELETE' });
-                                const result = await response.json();
-
-                                if (result.success) {
-                                    alert('Document deleted successfully');
-                                    location.reload(); // Reload page to refresh document list
-                                } else {
-                                    alert('Failed to delete: ' + (result.error || 'Unknown error'));
-                                }
-                            } catch (error) {
-                                alert('Error deleting document: ' + error.message);
-                            }
-                        }
+                        showDeleteModal(id, source);
                     }
                 });
             }
@@ -1940,6 +2066,7 @@ Add Document
                 addDocumentModal.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
             });
+
 
             // Close modal functions
             const closeModalFunc = () => {
@@ -2382,7 +2509,7 @@ Add Document
                         // Store document in appropriate locations based on classification
                         await storeDocument(documentData);
                         
-                        closeModalFunc();
+                        // Note: closeModalFunc() is called inside storeDocument after analysis starts
                     }
                     
                 } catch (error) {
@@ -2410,6 +2537,9 @@ Add Document
                 formData.append('description', documentData.description || '');
                 // Use the detected classification instead of hardcoding
                 formData.append('category', category === 'Other' ? 'Other Documents' : category);
+                
+                // Set source_page for all document uploads
+                formData.append('source_page', 'documents');
 
                 const response = await fetch('api/other-documents.php', {
                     method: 'POST',
@@ -2437,8 +2567,106 @@ Add Document
                     throw new Error(result.error || 'Failed to upload document');
                 }
 
-                // Reload page to show new document
-                location.reload();
+                // Automatically analyze ALL uploaded documents
+                if (result.data) {
+                    const uploadedDoc = result.data;
+                    // Explicitly set source_table for newly uploaded documents so delete/edit works immediately
+                    uploadedDoc.source_table = 'other_documents';
+                    
+                    // UPDATE UI: Add to list and re-render without reload
+                    try {
+                        // Check if we have the documents list available
+                        if (typeof allDocuments !== 'undefined') {
+                            const idx = allDocuments.findIndex(d => d.id == uploadedDoc.id);
+                            if (idx !== -1) {
+                                 allDocuments[idx] = uploadedDoc;
+                            } else {
+                                 allDocuments.unshift(uploadedDoc);
+                            }
+                            
+                            // Update counters
+                            if (typeof updateTopCounters === 'function') updateTopCounters(allDocuments);
+                            
+                            // Render (this uses currentFilter automatically inside renderDocuments if passed? No, we pass it)
+                            if (typeof renderDocuments === 'function') {
+                                 renderDocuments(allDocuments, currentFilter);
+                                 // Apply pagination to ensure only first page is shown
+                                 if (typeof applyPagination === 'function') applyPagination();
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error updating UI:', e);
+                        // Fallback to reload if UI update fails
+                        location.reload();
+                        return;
+                    }
+
+                    // Close modal first
+                    closeModalFunc();
+                    
+                    // Automatically analyze the document
+                    await analyzeDocumentFromLibrary(uploadedDoc.id, uploadedDoc.file_path, uploadedDoc.title);
+                } else {
+                    // Reload page to show new document
+                    location.reload();
+                }
+            }
+
+            // Analyze document from library (automatically called)
+            async function analyzeDocumentFromLibrary(docId, filePath, docTitle = '') {
+                if (!window.awardAnalyzer) {
+                    console.error('Award analyzer not loaded');
+                    return;
+                }
+
+                // Show loading notification
+                const loadingNotification = document.createElement('div');
+                loadingNotification.className = 'fixed top-4 right-4 bg-primary text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
+                loadingNotification.innerHTML = `
+                    <span class="material-symbols-outlined animate-spin">hourglass_empty</span>
+                    <span>Analyzing document for awards...</span>
+                `;
+                document.body.appendChild(loadingNotification);
+
+                try {
+                    // Ensure file path is in correct format for API
+                    // API expects path relative to project root (e.g., "uploads/other_documents/file.docx")
+                    let fullFilePath = filePath;
+                    if (!filePath.startsWith('uploads/') && !filePath.includes(':\\') && !filePath.startsWith('/')) {
+                        // If it's just a filename, prepend the uploads directory
+                        fullFilePath = `uploads/other_documents/${filePath}`;
+                    }
+                    
+                    await window.awardAnalyzer.analyzeFile(null, {
+                        filePath: fullFilePath,
+                        document_id: docId,
+                        award_name: docTitle, // Pass the document title as the award name
+                        source_page: 'documents',
+                        targetContainer: document.querySelector('.content-animate') || document.body
+                    });
+                    
+                    // Update notification to success
+                    loadingNotification.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
+                    loadingNotification.innerHTML = `
+                        <span class="material-symbols-outlined">check_circle</span>
+                        <span>Analysis complete! Scroll down to view results.</span>
+                    `;
+                    
+                    // Remove notification after 3 seconds
+                    setTimeout(() => {
+                        loadingNotification.remove();
+                    }, 3000);
+                } catch (error) {
+                    console.error('Analysis error:', error);
+                    loadingNotification.className = 'fixed top-4 right-4 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
+                    loadingNotification.innerHTML = `
+                        <span class="material-symbols-outlined">error</span>
+                        <span>Analysis failed: ${error.message}</span>
+                    `;
+                    setTimeout(() => {
+                        loadingNotification.remove();
+                    }, 5000);
+                }
             }
 
             function getRoutingInfo(category) {

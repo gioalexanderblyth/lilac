@@ -82,8 +82,10 @@ try {
             }
         })();
 </script>
+<link rel="stylesheet" href="css/award-analyzer.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="js/notifications.js"></script>
+<script src="js/award-analyzer.js"></script>
 <script>
         tailwind.config = {
             darkMode: "class",
@@ -493,6 +495,42 @@ No notifications yet
           <div class="py-2">S</div>
           <!-- Calendar days will be generated dynamically -->
         </div>
+        <script>
+          // Immediate update of calendar title and render calendar - runs as soon as this element is parsed
+          (function() {
+            function updateTitleAndRenderCalendar() {
+              const titleEl = document.getElementById('calendarTitleText');
+              if (titleEl && titleEl.textContent === 'Loading...') {
+                const now = new Date();
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                titleEl.textContent = months[now.getMonth()] + ' ' + now.getFullYear();
+              }
+              
+              // Also try to render calendar immediately if functions are available
+              if (typeof window.renderCalendar === 'function' && typeof window.currentDate !== 'undefined') {
+                try {
+                  window.renderCalendar();
+                  console.log('✅ Calendar rendered immediately from inline script');
+                } catch (e) {
+                  console.error('❌ Error rendering calendar from inline script:', e);
+                }
+              }
+            }
+            
+            // Try immediately
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(updateTitleAndRenderCalendar, 200);
+              });
+            } else {
+              setTimeout(updateTitleAndRenderCalendar, 200);
+            }
+            
+            // Also try after delays to catch when functions are defined
+            setTimeout(updateTitleAndRenderCalendar, 500);
+            setTimeout(updateTitleAndRenderCalendar, 1000);
+          })();
+        </script>
         <div class="mt-3 pt-3 border-t border-border-light dark:border-border-dark">
           <div class="flex items-center justify-center gap-4 text-xs text-text-muted-light dark:text-text-muted-dark">
             <div class="flex items-center gap-1">
@@ -601,6 +639,30 @@ No notifications yet
         <div class="flex items-center gap-3">
           <span class="material-symbols-outlined text-text-muted-light dark:text-text-muted-dark">description</span>
           <input id="evDesc" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="flex-1 bg-transparent border-0 border-b border-transparent outline-none focus:outline-none ring-0 focus:ring-0 focus:border-border-light dark:focus:border-border-dark shadow-none focus:shadow-none text-sm transition-colors" placeholder="Add description or a Google Drive attachment" style="box-shadow: none !important;" />
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-text-muted-light dark:text-text-muted-dark">attach_file</span>
+          <div class="flex-1">
+            <button type="button" id="evAttachDocumentBtn" class="text-sm text-primary hover:text-primary/80 flex items-center gap-2">
+              <span class="material-symbols-outlined text-sm">add</span>
+              <span id="evAttachDocumentText">Add Supporting Document</span>
+            </button>
+            <input type="hidden" id="evDocumentId" />
+            <div id="evAttachedDocument" class="hidden mt-2 p-2 bg-gray-50 dark:bg-slate-800 rounded text-sm">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span id="evAttachedDocumentName" class="text-text-light dark:text-text-dark"></span>
+                  <span id="evAnalyzingStatus" class="hidden text-xs text-primary flex items-center gap-1">
+                    <span class="material-symbols-outlined text-xs animate-spin">hourglass_empty</span>
+                    Analyzing...
+                  </span>
+                </div>
+                <button type="button" id="evRemoveDocument" class="text-red-500 hover:text-red-700">
+                  <span class="material-symbols-outlined text-sm">close</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="flex items-center justify-end mt-3">
@@ -892,7 +954,7 @@ No notifications yet
             const openModal = () => {
                 if (addEventModal) { addEventModal.classList.remove('hidden'); addEventModal.classList.add('flex'); }
             };
-            const closeModal = () => {
+            let closeModal = () => {
                 if (addEventModal) { addEventModal.classList.add('hidden'); addEventModal.classList.remove('flex'); }
             };
             addEventBtn && addEventBtn.addEventListener('click', openModal);
@@ -958,6 +1020,148 @@ No notifications yet
 
                 addEventModalHeader.addEventListener('mousedown', onMouseDown);
             }
+
+            // Document attachment handler
+            const evAttachDocumentBtn = document.getElementById('evAttachDocumentBtn');
+            const evDocumentId = document.getElementById('evDocumentId');
+            const evAttachedDocument = document.getElementById('evAttachedDocument');
+            const evAttachedDocumentName = document.getElementById('evAttachedDocumentName');
+            const evRemoveDocument = document.getElementById('evRemoveDocument');
+            const evAttachDocumentText = document.getElementById('evAttachDocumentText');
+
+            if (evAttachDocumentBtn) {
+                evAttachDocumentBtn.addEventListener('click', async () => {
+                    try {
+                        // Fetch available documents
+                        const response = await fetch('api/get-documents.php?source=documents');
+                        const result = await response.json();
+                        
+                        if (!result.success) {
+                            throw new Error(result.error || 'Failed to load documents');
+                        }
+
+                        const documents = result.data || [];
+                        
+                        // Show document selection modal
+                        const modalHTML = `
+                            <div id="documentSelectionModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+                                <div class="bg-white dark:bg-card-dark rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+                                    <div class="p-6 border-b border-border-light dark:border-border-dark">
+                                        <div class="flex justify-between items-center">
+                                            <h2 class="text-xl font-semibold text-text-light dark:text-text-dark">Select Document</h2>
+                                            <button id="closeDocumentModal" class="text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark">
+                                                <span class="material-symbols-outlined">close</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="p-6">
+                                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark mb-4">
+                                            Select a document to attach to this event:
+                                        </p>
+                                        <div id="documentsList" class="space-y-2">
+                                            ${documents.map(doc => `
+                                                <button 
+                                                    class="w-full text-left p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors document-item-btn"
+                                                    data-document-id="${doc.id}"
+                                                    data-document-name="${doc.title || doc.file_name}"
+                                                    data-document-path="${doc.file_path}"
+                                                >
+                                                    <div class="font-medium text-text-light dark:text-text-dark">${doc.title || doc.file_name}</div>
+                                                    ${doc.description ? `<div class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1">${doc.description}</div>` : ''}
+                                                </button>
+                                            `).join('')}
+                                        </div>
+                                        ${documents.length === 0 ? '<p class="text-sm text-text-muted-light dark:text-text-muted-dark">No documents available. Upload a document first.</p>' : ''}
+                                    </div>
+                                    <div class="p-6 border-t border-border-light dark:border-border-dark flex justify-end gap-2">
+                                        <button id="cancelDocumentModal" class="px-4 py-2 text-sm rounded-md border border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-slate-700">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+
+                        document.body.insertAdjacentHTML('beforeend', modalHTML);
+                        const documentModal = document.getElementById('documentSelectionModal');
+                        
+                        // Close handlers
+                        document.getElementById('closeDocumentModal').addEventListener('click', () => documentModal.remove());
+                        document.getElementById('cancelDocumentModal').addEventListener('click', () => documentModal.remove());
+                        documentModal.addEventListener('click', (e) => {
+                            if (e.target === documentModal) documentModal.remove();
+                        });
+
+                        // Document selection
+                        document.querySelectorAll('.document-item-btn').forEach(btn => {
+                            btn.addEventListener('click', async () => {
+                                const docId = btn.dataset.documentId;
+                                const docName = btn.dataset.documentName;
+                                const docPath = btn.dataset.documentPath;
+                                
+                                evDocumentId.value = docId;
+                                evAttachedDocumentName.textContent = docName;
+                                evAttachedDocument.classList.remove('hidden');
+                                evAttachDocumentText.textContent = 'Change Document';
+                                
+                                documentModal.remove();
+                                
+                                // Automatically analyze the attached document
+                                if (docId && docPath && window.awardAnalyzer) {
+                                    const analyzingStatus = document.getElementById('evAnalyzingStatus');
+                                    if (analyzingStatus) {
+                                        analyzingStatus.classList.remove('hidden');
+                                    }
+                                    
+                                    try {
+                                        await window.awardAnalyzer.analyzeFile(null, {
+                                            filePath: docPath,
+                                            document_id: docId,
+                                            source_page: 'events',
+                                            targetContainer: document.querySelector('.p-4') || document.body
+                                        });
+                                        
+                                        if (analyzingStatus) {
+                                            analyzingStatus.innerHTML = '<span class="material-symbols-outlined text-xs text-green-600 dark:text-green-400">check_circle</span> <span class="text-green-600 dark:text-green-400">Analyzed</span>';
+                                            setTimeout(() => {
+                                                analyzingStatus.classList.add('hidden');
+                                            }, 3000);
+                                        }
+                                    } catch (error) {
+                                        console.error('Auto-analysis error:', error);
+                                        if (analyzingStatus) {
+                                            analyzingStatus.innerHTML = '<span class="material-symbols-outlined text-xs text-red-600 dark:text-red-400">error</span> <span class="text-red-600 dark:text-red-400">Analysis failed</span>';
+                                            setTimeout(() => {
+                                                analyzingStatus.classList.add('hidden');
+                                            }, 5000);
+                                        }
+                                    }
+                                }
+                            });
+                        });
+                    } catch (error) {
+                        console.error('Error loading documents:', error);
+                        alert('Error loading documents: ' + error.message);
+                    }
+                });
+            }
+
+            if (evRemoveDocument) {
+                evRemoveDocument.addEventListener('click', () => {
+                    evDocumentId.value = '';
+                    evAttachedDocument.classList.add('hidden');
+                    evAttachDocumentText.textContent = 'Add Supporting Document';
+                });
+            }
+
+            // Clear document attachment when modal closes
+            const originalCloseModal = closeModal;
+            closeModal = () => {
+                if (evDocumentId) evDocumentId.value = '';
+                if (evAttachedDocument) evAttachedDocument.classList.add('hidden');
+                if (evAttachDocumentText) evAttachDocumentText.textContent = 'Add Supporting Document';
+                originalCloseModal();
+            };
 
             saveAddEvent && saveAddEvent.addEventListener('click', async () => {
                 // Get event data from modal
@@ -1032,6 +1236,9 @@ No notifications yet
                         return;
                     }
                     
+                    // Get document ID if attached
+                    const documentId = document.getElementById('evDocumentId').value || null;
+                    
                     // Save to database
                     const eventPayload = {
                         title: eventData.title,
@@ -1040,7 +1247,8 @@ No notifications yet
                         start_time: eventData.start_time,
                         end_time: eventData.end_time,
                         location: eventData.location,
-                        status: 'planned'
+                        status: 'planned',
+                        document_id: documentId
                     };
 
                     const response = await fetch('api/events.php?action=create', {
@@ -1101,6 +1309,9 @@ No notifications yet
                         document.getElementById('evTimeRangeText').textContent = '--:-- -- - --:-- --';
                         document.getElementById('evLocation').value = '';
                         document.getElementById('evDesc').value = '';
+                        if (evDocumentId) evDocumentId.value = '';
+                        if (evAttachedDocument) evAttachedDocument.classList.add('hidden');
+                        if (evAttachDocumentText) evAttachDocumentText.textContent = 'Add Supporting Document';
                         
                         // Close modal
                         closeModal();
@@ -1526,6 +1737,12 @@ No notifications yet
 
             // Function to load today's events (now just calls loadEventsForDate with today's date)
             function loadTodayEvents() {
+                // Use in-memory events if available
+                if (window.currentEvents) {
+                    loadTodayEventsFromData(window.currentEvents);
+                    return;
+                }
+                // Otherwise use the date-based loading
                 const today = new Date();
                 const todayString = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
                 
@@ -1535,6 +1752,24 @@ No notifications yet
                 }
                 
                 // Load events for today
+                loadEventsForDate(todayString);
+            }
+            
+            // Helper function to load today's events from data array
+            function loadTodayEventsFromData(events) {
+                const savedEvents = Array.isArray(events) ? events : [];
+                const today = new Date();
+                const todayString = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+                
+                // Set today as selected if no date is selected yet
+                if (!window.selectedCalendarDate) {
+                    window.selectedCalendarDate = todayString;
+                }
+                
+                // Filter events for today
+                const todayEvents = savedEvents.filter(event => event.date === todayString);
+                
+                // Load events for today using the existing function
                 loadEventsForDate(todayString);
             }
 
@@ -1574,7 +1809,7 @@ No notifications yet
                         const contentType = response.headers.get('content-type') || '';
                         const responseText = await response.text();
                         // Guard against static servers returning raw PHP instead of executing it
-                        if (!contentType.includes('application/json') || responseText.trim().startsWith('<?php')) {
+                        if (responseText.trim().startsWith('<?php')) {
                             throw new Error('Non-JSON response from API (PHP not executing)');
                         }
                         const result = JSON.parse(responseText);
@@ -1583,6 +1818,11 @@ No notifications yet
                         console.log('✅ Raw API response:', result);
                         console.log('✅ Events loaded from database:', dbEvents);
                         console.log('✅ Number of events loaded:', dbEvents.length);
+                        
+                        // Update calendar title immediately after loading (even if empty)
+                        if (typeof window.updateCalendarTitle === 'function') {
+                            window.updateCalendarTitle();
+                        }
 
                         // Convert database events to localStorage format for compatibility
                         let convertedEvents = dbEvents.map(event => ({
@@ -1609,12 +1849,31 @@ No notifications yet
                         loadTodayEventsFromData(convertedEvents);
                         loadCompletedEventsFromData(convertedEvents);
                         
-                        // Populate events table
-                        renderEventsTable(convertedEvents);
+                        // Populate events table - CRITICAL: Must be called to show events
+                        if (typeof renderEventsTable === 'function') {
+                            try {
+                                renderEventsTable(convertedEvents);
+                                console.log('✅ Events table rendered with', convertedEvents.length, 'events');
+                            } catch (error) {
+                                console.error('❌ Error rendering events table:', error);
+                            }
+                        } else {
+                            console.error('❌ renderEventsTable function not found!');
+                        }
                         
-                        // Refresh calendar if function exists
+                        // Update calendar title and render calendar - CRITICAL: Must be called to show date cells
+                        if (typeof window.updateCalendarTitle === 'function') {
+                            window.updateCalendarTitle();
+                        }
                         if (typeof window.renderCalendar === 'function') {
-                            window.renderCalendar();
+                            try {
+                                window.renderCalendar();
+                                console.log('✅ Calendar rendered after events loaded');
+                            } catch (error) {
+                                console.error('❌ Error rendering calendar:', error);
+                            }
+                        } else {
+                            console.error('❌ window.renderCalendar function not found!');
                         }
                         
                         return true;
@@ -1622,6 +1881,13 @@ No notifications yet
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
                 } catch (error) {
+                    console.error('Error loading events:', error);
+                    
+                    // Update calendar title even on error
+                    if (typeof window.updateCalendarTitle === 'function') {
+                        window.updateCalendarTitle();
+                    }
+                    
                     // Silent fallback to localStorage to avoid noisy console errors in non-server environments
                     // Fall back to localStorage
                     loadUpcomingEvents();
@@ -1636,9 +1902,16 @@ No notifications yet
                         renderEventsTable([]);
                     }
                     
-                    // Refresh calendar if function exists
+                    // Initialize calendar even with no events - CRITICAL: Must be called to show date cells
                     if (typeof window.renderCalendar === 'function') {
-                        window.renderCalendar();
+                        try {
+                            window.renderCalendar();
+                            console.log('✅ Calendar rendered (fallback mode)');
+                        } catch (error) {
+                            console.error('❌ Error rendering calendar (fallback):', error);
+                        }
+                    } else {
+                        console.error('❌ window.renderCalendar function not found (fallback)!');
                     }
                     
                     return false;
@@ -1666,8 +1939,11 @@ No notifications yet
                         </td>
                     `;
                     tableBody.appendChild(emptyRow);
+                    console.log('✅ Events table: No events found, showing empty state');
                     return;
                 }
+                
+                console.log('🔵 Rendering', sortedEvents.length, 'events in table');
 
                 // Sort events by date (newest first)
                 const sortedEvents = [...events].sort((a, b) => {
@@ -1774,6 +2050,68 @@ No notifications yet
             
             // Show helpful message about server mode
             document.addEventListener('DOMContentLoaded', () => {
+                // Wait a bit for calendar functions to be defined (they're defined later in the script)
+                setTimeout(() => {
+                    // Initialize calendar immediately (don't wait for events to load)
+                    const calendarTitleText = document.getElementById('calendarTitleText');
+                    if (calendarTitleText && calendarTitleText.textContent === 'Loading...') {
+                        // Initialize window.currentDate if not already set
+                        if (!window.currentDate) {
+                            window.currentDate = new Date();
+                        }
+                        // Initialize monthNames if not already set
+                        if (!window.monthNames) {
+                            window.monthNames = [
+                                'January', 'February', 'March', 'April', 'May', 'June',
+                                'July', 'August', 'September', 'October', 'November', 'December'
+                            ];
+                        }
+                        // Update calendar title immediately
+                        if (typeof window.updateCalendarTitle === 'function') {
+                            window.updateCalendarTitle();
+                        } else {
+                            // Fallback: set title directly
+                            const now = new Date();
+                            const month = window.monthNames ? window.monthNames[now.getMonth()] : now.toLocaleString('default', { month: 'long' });
+                            const year = now.getFullYear();
+                            const shortMonth = month.substring(0, 3);
+                            calendarTitleText.textContent = `${shortMonth} ${year}`;
+                        }
+                        // Initialize calendar grid
+                        if (typeof window.renderCalendar === 'function') {
+                            window.renderCalendar();
+                        }
+                    }
+                }, 100); // Small delay to ensure calendar functions are defined
+                
+                // Fallback: If still loading after 2 seconds, force update
+                setTimeout(() => {
+                    const titleText = document.getElementById('calendarTitleText');
+                    if (titleText && titleText.textContent === 'Loading...') {
+                        if (!window.currentDate) {
+                            window.currentDate = new Date();
+                        }
+                        if (!window.monthNames) {
+                            window.monthNames = [
+                                'January', 'February', 'March', 'April', 'May', 'June',
+                                'July', 'August', 'September', 'October', 'November', 'December'
+                            ];
+                        }
+                        if (typeof window.updateCalendarTitle === 'function') {
+                            window.updateCalendarTitle();
+                        } else {
+                            const now = new Date();
+                            const month = window.monthNames ? window.monthNames[now.getMonth()] : now.toLocaleString('default', { month: 'long' });
+                            const year = now.getFullYear();
+                            const shortMonth = month.substring(0, 3);
+                            titleText.textContent = `${shortMonth} ${year}`;
+                        }
+                        if (typeof window.renderCalendar === 'function') {
+                            window.renderCalendar();
+                        }
+                    }
+                }, 2000);
+                
                 const isFileProtocol = window.location.protocol === 'file:';
                 if (isFileProtocol) {
                     console.log(`
@@ -3012,6 +3350,7 @@ Current mode: localStorage only (events will persist in browser)
             window.selectedCalendarDate = null;
 
             window.renderCalendar = function() {
+                console.log('🔵 renderCalendar() called');
                 const year = window.currentDate.getFullYear();
                 const month = window.currentDate.getMonth();
                 
@@ -3021,15 +3360,24 @@ Current mode: localStorage only (events will persist in browser)
                 const daysInMonth = lastDay.getDate();
                 const startDay = firstDay.getDay(); // 0 = Sunday, 1 = Monday, etc.
 
+                console.log('🔵 Rendering calendar for:', year, month + 1, '- Days in month:', daysInMonth, 'Start day:', startDay);
+
                 // Get the calendar days container
                 const calendarContainer = document.getElementById('calendarGrid');
-                if (!calendarContainer) return;
+                if (!calendarContainer) {
+                    console.error('❌ calendarGrid element not found in renderCalendar!');
+                    return;
+                }
 
                 // Clear existing days (keep the first 7 header days: S M T W T F S)
-                const allDays = calendarContainer.querySelectorAll('.py-2');
-                for (let i = 7; i < allDays.length; i++) {
-                    allDays[i].remove();
+                // Get all child divs, but only remove those after the first 7 (the headers)
+                const allChildren = Array.from(calendarContainer.children);
+                console.log('🔵 Found', allChildren.length, 'children in calendarGrid');
+                // Remove all children except the first 7 (day headers)
+                for (let i = 7; i < allChildren.length; i++) {
+                    allChildren[i].remove();
                 }
+                console.log('✅ Calendar grid cleared, ready to render dates for', year, month + 1);
 
                 // Add empty cells for days before the first day of the month
                 for (let i = 0; i < startDay; i++) {
@@ -3095,6 +3443,8 @@ Current mode: localStorage only (events will persist in browser)
                     
                     calendarContainer.appendChild(dayElement);
                 }
+                
+                console.log('🔵 Added', daysInMonth, 'days for current month. Total children now:', calendarContainer.children.length);
 
                 // Add empty cells for days after the last day of the month
                 const remainingCells = 42 - (startDay + daysInMonth); // 6 rows * 7 days = 42
@@ -3175,15 +3525,150 @@ Current mode: localStorage only (events will persist in browser)
                 });
             }
 
-            // Initialize calendar immediately
-            window.updateCalendarTitle();
-            window.renderCalendar();
-            window.populateMonthYearDropdown();
+            // Initialize calendar when DOM is ready
+            function initializeCalendarOnReady() {
+                // Check if DOM is ready
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', initializeCalendarOnReady);
+                    return;
+                }
+                
+                // Wait a bit to ensure calendar functions are defined
+                setTimeout(() => {
+                    // Initialize calendar variables if not already set
+                    if (!window.currentDate) {
+                        window.currentDate = new Date();
+                    }
+                    if (!window.monthNames) {
+                        window.monthNames = [
+                            'January', 'February', 'March', 'April', 'May', 'June',
+                            'July', 'August', 'September', 'October', 'November', 'December'
+                        ];
+                    }
+                    
+                    // DOM is ready, initialize calendar
+                    const calendarTitleText = document.getElementById('calendarTitleText');
+                    if (calendarTitleText) {
+                        // Update title if still showing "Loading..."
+                        if (calendarTitleText.textContent === 'Loading...') {
+                            if (typeof window.updateCalendarTitle === 'function') {
+                                window.updateCalendarTitle();
+                            } else {
+                                // Fallback: set title directly
+                                const now = new Date();
+                                const month = window.monthNames ? window.monthNames[now.getMonth()] : now.toLocaleString('default', { month: 'long' });
+                                const year = now.getFullYear();
+                                const shortMonth = month.substring(0, 3);
+                                calendarTitleText.textContent = `${shortMonth} ${year}`;
+                            }
+                        }
+                    }
+                    
+                    // Render calendar - CRITICAL: Must be called to show date cells
+                    if (typeof window.renderCalendar === 'function') {
+                        try {
+                            window.renderCalendar();
+                            console.log('✅ Calendar rendered successfully');
+                        } catch (error) {
+                            console.error('❌ Error rendering calendar:', error);
+                        }
+                    } else {
+                        console.error('❌ window.renderCalendar function not found!');
+                    }
+                    
+                    // Populate dropdown
+                    if (typeof window.populateMonthYearDropdown === 'function') {
+                        window.populateMonthYearDropdown();
+                    }
+                    
+                    // Set today as the initial selected date
+                    const today = new Date();
+                    const todayString = today.toISOString().split('T')[0];
+                    window.selectedCalendarDate = todayString;
+                    
+                    // Ensure events table is rendered (even if empty)
+                    const tableBody = document.getElementById('eventsTableBody');
+                    if (tableBody && (!tableBody.innerHTML || tableBody.innerHTML.trim() === '')) {
+                        // If table is empty, render empty state
+                        if (typeof renderEventsTable === 'function') {
+                            renderEventsTable([]);
+                        }
+                    }
+                }, 100); // Increased delay to ensure all functions are defined
+            }
             
-            // Set today as the initial selected date
-            const today = new Date();
-            const todayString = today.toISOString().split('T')[0];
-            window.selectedCalendarDate = todayString;
+            // Start initialization
+            initializeCalendarOnReady();
+            
+            // Also add immediate fallback that runs right away
+            (function() {
+                // This runs immediately when script loads
+                function forceUpdateTitleAndRender() {
+                    const titleEl = document.getElementById('calendarTitleText');
+                    if (titleEl && titleEl.textContent === 'Loading...') {
+                        const now = new Date();
+                        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        const month = months[now.getMonth()];
+                        const year = now.getFullYear();
+                        titleEl.textContent = `${month} ${year}`;
+                    }
+                    
+                    // Force render calendar if function exists
+                    if (typeof window.renderCalendar === 'function') {
+                        if (!window.currentDate) {
+                            window.currentDate = new Date();
+                        }
+                        try {
+                            console.log('🔵 Force rendering calendar from fallback');
+                            window.renderCalendar();
+                        } catch (e) {
+                            console.error('❌ Error in force render:', e);
+                        }
+                    }
+                }
+                
+                // Try immediately if DOM is ready
+                if (document.readyState !== 'loading') {
+                    setTimeout(forceUpdateTitleAndRender, 300);
+                } else {
+                    document.addEventListener('DOMContentLoaded', function() {
+                        setTimeout(forceUpdateTitleAndRender, 300);
+                    });
+                }
+                
+                // Final fallback after 1 second
+                setTimeout(forceUpdateTitleAndRender, 1000);
+                // Another fallback after 2 seconds
+                setTimeout(forceUpdateTitleAndRender, 2000);
+            })();
+            
+            // CRITICAL: Force render calendar after a delay to ensure everything is loaded
+            setTimeout(function() {
+                console.log('🔵 Final fallback: Attempting to render calendar');
+                if (typeof window.renderCalendar === 'function') {
+                    if (!window.currentDate) {
+                        window.currentDate = new Date();
+                    }
+                    try {
+                        window.renderCalendar();
+                        console.log('✅ Calendar rendered from final fallback');
+                    } catch (e) {
+                        console.error('❌ Error in final fallback render:', e);
+                    }
+                } else {
+                    console.error('❌ window.renderCalendar not available in final fallback');
+                }
+                
+                // Also ensure events table is rendered
+                const tableBody = document.getElementById('eventsTableBody');
+                if (tableBody) {
+                    const hasRows = tableBody.querySelectorAll('tr').length > 0;
+                    if (!hasRows && typeof renderEventsTable === 'function') {
+                        console.log('🔵 Final fallback: Rendering empty events table');
+                        renderEventsTable([]);
+                    }
+                }
+            }, 1500);
 
             // Dropdown toggle functionality
             const calendarTitleBtn = document.getElementById('calendarTitle');
@@ -3817,6 +4302,8 @@ document.addEventListener('click', async function(e) {
         });
     })();
 </script>
+    <!-- Award Analysis Results Container -->
+    <div id="award-analysis-results" class="award-analysis-results-container" style="display: none;"></div>
 </body></html>
 
 

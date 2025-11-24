@@ -5,6 +5,8 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
+session_start(); // Start session to access user info
+
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
@@ -43,6 +45,12 @@ try {
     $description = $_POST['description'] ?? '';
     $isReanalyze = isset($_POST['reanalyze']) && $_POST['reanalyze'] === 'true';
     $originalFilePath = $_POST['original_file_path'] ?? '';
+    $documentId = isset($_POST['document_id']) ? (int)$_POST['document_id'] : null;
+    $sourcePage = $_POST['source_page'] ?? null;
+    
+    // Get current user
+    $createdBy = $_SESSION['user']['username'] ?? 'System';
+    $userId = $_SESSION['user']['id'] ?? null;
     
     // Log analysis type
     if ($isReanalyze) {
@@ -56,15 +64,26 @@ try {
         // Re-analysis: use existing file
         error_log("Re-analysis request for file: " . $originalFilePath);
         
+        // Convert relative path to absolute path if needed
+        $absolutePath = $originalFilePath;
+        if (!file_exists($absolutePath)) {
+            // Try relative to project root
+            $projectRoot = dirname(__DIR__);
+            $absolutePath = $projectRoot . '/' . ltrim($originalFilePath, '/');
+            
+            // Normalize path separators
+            $absolutePath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $absolutePath);
+        }
+        
         // Check if the original file exists
-        if (!file_exists($originalFilePath)) {
-            throw new Exception('Original file not found: ' . $originalFilePath);
+        if (!file_exists($absolutePath)) {
+            throw new Exception('Original file not found: ' . $originalFilePath . ' (tried: ' . $absolutePath . ')');
         }
         
         $uploadedFile = [
-            'name' => basename($originalFilePath),
-            'tmp_name' => $originalFilePath,
-            'size' => filesize($originalFilePath),
+            'name' => basename($absolutePath),
+            'tmp_name' => $absolutePath,
+            'size' => filesize($absolutePath),
             'error' => UPLOAD_ERR_OK
         ];
     } else {
@@ -172,27 +191,54 @@ try {
         throw new Exception('Could not extract text from the uploaded file');
     }
 
-    // Load ICONS 2025 awards dataset (updated schema)
-    error_log("Loading ICONS 2025 awards dataset");
-    $criteriaPath = __DIR__ . '/../data/criteria/icons2025_awards.json';
-    if (!file_exists($criteriaPath)) {
-        throw new Exception('ICONS 2025 awards dataset not found');
+    // Load active awards from DATABASE instead of JSON file
+    error_log("Loading active awards from database");
+    $pdo = getDatabaseConnection();
+    
+    $stmt = $pdo->query("SELECT category_name, keywords FROM award_criteria WHERE status = 'active'");
+    $dbAwards = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Perform analysis using strict weighted matching (Same as Awards Page)
+    error_log("Starting Strict Analysis (Awards Page Logic)");
+    $cleanedText = cleanText($extractedText);
+    
+    $analysis = [];
+    foreach ($dbAwards as $dbAward) {
+        // Parse criteria from DB row
+        $criteria = [
+            'category_name' => $dbAward['category_name'],
+            'keywords' => $dbAward['keywords'], // calculateStrictWeightedMatch handles splitting
+            'weight' => $dbAward['weight'] ?? 50,
+            'award_type' => $dbAward['award_type'] ?? 'General'
+        ];
+        
+        $result = calculateStrictWeightedMatch($cleanedText, $criteria);
+        
+        // Map result to frontend expectation
+        $analysis[] = [
+            'title' => $result['category_name'],
+            'category' => $result['category_name'], // for award-analyzer.js
+            'name' => $result['category_name'], // for compatibility
+            'match_percentage' => $result['match_percentage'], // Primary score field for frontend
+            'score' => $result['match_percentage'], // Fallback
+            'status' => $result['status'],
+            'matched_keywords' => $result['matched_keywords'],
+            'missing_keywords' => $result['missing_keywords'],
+            'recommendation' => '', // Let frontend handle it
+            'confidence' => $result['confidence'] // This is the 'high'/'medium'/'low' string
+        ];
     }
     
-    $iconsDataset = json_decode(file_get_contents($criteriaPath), true);
-    if (!$iconsDataset || !is_array($iconsDataset)) {
-        throw new Exception('Invalid ICONS 2025 dataset format');
-    }
-    error_log("ICONS 2025 dataset loaded: " . count($iconsDataset) . " categories");
-
-    // Perform analysis with Jaccard + semantic boost + category weights
-    error_log("Starting ICONS analysis");
-    $analysis = performIconsAnalysis($extractedText, $iconsDataset);
+    // Sort by score descending
+    usort($analysis, function($a, $b) {
+        return $b['score'] <=> $a['score'];
+    });
+    
     error_log("Analysis completed: " . count($analysis) . " results");
 
     // Store the analysis in database (with fallback)
     error_log("Starting to store analysis results");
-    $analysisId = storeAnalysisResults($awardName, $description, $extractedText, $analysis, $uploadedFile, $isReanalyze);
+    $analysisId = storeAnalysisResults($awardName, $description, $extractedText, $analysis, $uploadedFile, $isReanalyze, $documentId, $sourcePage, $createdBy, $userId);
     error_log("Analysis results stored with ID: " . $analysisId);
 
     

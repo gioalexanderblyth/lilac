@@ -131,13 +131,31 @@ try {
                     echo json_encode(['success' => false, 'error' => 'Document not found']);
                 }
             } else {
-                // Get all documents
-                $stmt = $pdo->query("
-                    SELECT od.*, u.username as uploaded_by
-                    FROM other_documents od
-                    LEFT JOIN users u ON od.user_id = u.id
-                    ORDER BY od.created_at DESC
-                ");
+                // Get all documents (optionally filtered by user_id)
+                $userIdFilter = isset($_GET['user_id']) ? (int)$_GET['user_id'] : null;
+                
+                if ($userIdFilter) {
+                    $stmt = $pdo->prepare("
+                        SELECT od.*, u.username as uploaded_by,
+                               a.title as award_title
+                        FROM other_documents od
+                        LEFT JOIN users u ON od.user_id = u.id
+                        LEFT JOIN awards a ON od.award_id = a.id
+                        WHERE od.user_id = ? AND od.status IS NULL OR od.status != 'deleted'
+                        ORDER BY od.created_at DESC
+                    ");
+                    $stmt->execute([$userIdFilter]);
+                } else {
+                    $stmt = $pdo->query("
+                        SELECT od.*, u.username as uploaded_by,
+                               a.title as award_title
+                        FROM other_documents od
+                        LEFT JOIN users u ON od.user_id = u.id
+                        LEFT JOIN awards a ON od.award_id = a.id
+                        WHERE od.status IS NULL OR od.status != 'deleted'
+                        ORDER BY od.created_at DESC
+                    ");
+                }
                 $documents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                 echo json_encode(['success' => true, 'data' => $documents]);
@@ -155,11 +173,13 @@ try {
             $title = $_POST['title'] ?? $fileInfo['original_name'];
             $description = $_POST['description'] ?? null;
             $category = $_POST['category'] ?? 'Other Documents';
+            $awardId = isset($_POST['award_id']) && $_POST['award_id'] !== '' ? (int)$_POST['award_id'] : null;
+            $sourcePage = $_POST['source_page'] ?? null;
 
             $stmt = $pdo->prepare("
                 INSERT INTO other_documents
-                (user_id, title, description, file_name, file_path, category, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+                (user_id, title, description, file_name, file_path, category, award_id, source_page, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             ");
 
             $stmt->execute([
@@ -168,10 +188,60 @@ try {
                 $description,
                 $fileInfo['original_name'],
                 $fileInfo['filepath'],
-                $category
+                $category,
+                $awardId,
+                $sourcePage
             ]);
 
             $newId = $pdo->lastInsertId();
+
+            // Auto-copy to MOU/MOA table if category matches MOU or MOA
+            if (stripos($category, 'MOU') !== false || stripos($category, 'MOA') !== false) {
+                try {
+                    $mouType = stripos($category, 'MOU') !== false ? 'MOU' : 'MOA';
+                    
+                    // Copy file to mou directory
+                    $mouUploadDir = __DIR__ . '/../uploads/mou/';
+                    if (!is_dir($mouUploadDir)) {
+                        mkdir($mouUploadDir, 0755, true);
+                    }
+                    
+                    $fileExtension = pathinfo($fileInfo['original_name'], PATHINFO_EXTENSION);
+                    $mouFileName = uniqid('mou_') . '_' . time() . '.' . $fileExtension;
+                    $mouFilePath = $mouUploadDir . $mouFileName;
+                    
+                    // Use absolute path for source
+                    $sourcePath = __DIR__ . '/../' . $fileInfo['filepath'];
+                    
+                    if (copy($sourcePath, $mouFilePath)) {
+                        $relMouPath = 'uploads/mou/' . $mouFileName;
+                        
+                        $stmtMou = $pdo->prepare("
+                            INSERT INTO mou_moa (
+                                user_id, institution, location, contact_email, term,
+                                sign_date, end_date, status, file_name, file_path,
+                                title, type, description, created_at, updated_at
+                            )
+                            VALUES (?, ?, NULL, NULL, NULL, NULL, NULL, 'Pending', ?, ?, ?, ?, ?, NOW(), NOW())
+                        ");
+                        
+                        $stmtMou->execute([
+                            $userId,
+                            $title, // Use title as institution/title
+                            $fileInfo['original_name'],
+                            $relMouPath,
+                            $title,
+                            $mouType,
+                            $description
+                        ]);
+                        
+                        error_log("Auto-created MOU/MOA entry from Other Documents upload: ID " . $pdo->lastInsertId());
+                    }
+                } catch (Exception $e) {
+                    error_log("Failed to auto-copy to MOU/MOA: " . $e->getMessage());
+                    // Don't fail the request, just log the error
+                }
+            }
 
             // Get the created document
             $stmt = $pdo->prepare("
@@ -285,8 +355,8 @@ try {
 
             $id = $_GET['id'];
 
-            // Get document file path
-            $stmt = $pdo->prepare("SELECT file_path FROM other_documents WHERE id = ?");
+            // Get document file path and details to find linked MOU/MOA
+            $stmt = $pdo->prepare("SELECT * FROM other_documents WHERE id = ?");
             $stmt->execute([$id]);
             $document = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -299,6 +369,39 @@ try {
             $fullPath = __DIR__ . '/../' . $document['file_path'];
             if (file_exists($fullPath)) {
                 unlink($fullPath);
+            }
+
+            // CASCADE DELETE: Check for linked MOU/MOA (created within 60s with same title)
+            // This prevents the "second file" (the MOU copy) from reappearing after deletion
+            try {
+                $title = $document['title'];
+                $createdAt = $document['created_at'];
+                
+                // Find match in mou_moa table
+                $stmtMou = $pdo->prepare("
+                    SELECT id, file_path FROM mou_moa 
+                    WHERE title = ? 
+                    AND created_at BETWEEN DATE_SUB(?, INTERVAL 60 SECOND) AND DATE_ADD(?, INTERVAL 60 SECOND)
+                ");
+                $stmtMou->execute([$title, $createdAt, $createdAt]);
+                $linkedMou = $stmtMou->fetch(PDO::FETCH_ASSOC);
+                
+                if ($linkedMou) {
+                    // Delete linked MOU file if different from main doc
+                    if ($linkedMou['file_path'] !== $document['file_path']) {
+                        $mouPath = __DIR__ . '/../' . $linkedMou['file_path'];
+                        if (file_exists($mouPath)) {
+                            unlink($mouPath);
+                        }
+                    }
+                    
+                    // Delete linked MOU record
+                    $pdo->prepare("DELETE FROM mou_moa WHERE id = ?")->execute([$linkedMou['id']]);
+                    error_log("Cascade deleted linked MOU/MOA ID: " . $linkedMou['id']);
+                }
+            } catch (Exception $e) {
+                error_log("Failed to cascade delete linked MOU: " . $e->getMessage());
+                // Continue with main delete
             }
 
             // Delete database record

@@ -728,7 +728,7 @@ try {
         })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-<script src="js/toast-notifications.js"></script>
+<script src="js/toast-notifications.js?v=<?php echo time(); ?>"></script>
 <script src="js/loading-states.js"></script>
 <script>
         tailwind.config = {
