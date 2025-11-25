@@ -89,9 +89,12 @@ try {
             SELECT
                 e.*,
                 u.username,
-                u.full_name as created_by
+                u.full_name as created_by,
+                od.file_path as document_path,
+                od.title as document_title
             FROM events e
             LEFT JOIN users u ON e.user_id = u.id
+            LEFT JOIN other_documents od ON e.document_id = od.id
             ORDER BY e.event_date ASC, e.start_time ASC
         ");
 
@@ -114,7 +117,9 @@ try {
                 'description' => $event['description'],
                 'status' => $event['status'],
                 'created_by' => $event['created_by'] ?? $event['username'],
-                'createdAt' => $event['created_at']
+                'createdAt' => $event['created_at'],
+                'document_path' => $event['document_path'] ?? null,
+                'document_title' => $event['document_title'] ?? null
             ];
         }, $events);
 

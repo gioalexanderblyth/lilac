@@ -292,18 +292,6 @@ try {
         .dragging * {
             pointer-events: none;
         }
-        
-        #addEventModalHeader {
-            cursor: move;
-        }
-        
-        #addEventModalHeader:hover {
-            background-color: rgba(0, 0, 0, 0.02);
-        }
-        
-        .dark #addEventModalHeader:hover {
-            background-color: rgba(255, 255, 255, 0.02);
-        }
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
@@ -467,9 +455,6 @@ No notifications yet
       </div>
       <div class="bg-card-light dark:bg-card-dark p-4 rounded-xl shadow-soft">
         <div class="flex justify-between items-center mb-4">
-          <button id="prevMonth" class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-background-dark transition-colors">
-            <span class="material-symbols-outlined">chevron_left</span>
-          </button>
           <div class="relative">
             <button id="calendarTitle" type="button" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark hover:bg-gray-50 dark:hover:bg-card-dark transition-colors font-semibold text-text-light dark:text-text-dark cursor-pointer">
               <span id="calendarTitleText">Loading...</span>
@@ -479,9 +464,12 @@ No notifications yet
               <!-- Month/Year options will be generated here -->
             </div>
           </div>
-          <div class="flex items-center gap-2">
-            <button id="nextMonth" class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-background-dark transition-colors">
-            <span class="material-symbols-outlined">chevron_right</span>
+          <div class="flex items-center gap-1">
+            <button id="prevMonth" class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-background-dark transition-colors" title="Previous">
+              <span class="material-symbols-outlined text-lg">keyboard_arrow_up</span>
+            </button>
+            <button id="nextMonth" class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-background-dark transition-colors" title="Next">
+              <span class="material-symbols-outlined text-lg">keyboard_arrow_down</span>
             </button>
           </div>
         </div>
@@ -592,11 +580,8 @@ No notifications yet
 <!-- Add Event Modal -->
 <div id="addEventModal" class="fixed inset-0 bg-black/30 hidden items-center justify-center z-[9999]">
   <div id="addEventModalCard" class="bg-white dark:bg-card-dark rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[85vh] overflow-y-auto border border-border-light dark:border-border-dark relative">
-    <!-- Modal Header with hamburger and close icons -->
-    <div id="addEventModalHeader" class="flex justify-between items-center p-3 border-b border-border-light dark:border-border-dark cursor-move">
-      <button class="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors">
-        <span class="material-symbols-outlined text-text-muted-light dark:text-text-muted-dark">menu</span>
-      </button>
+    <!-- Modal Header with close icon -->
+    <div id="addEventModalHeader" class="flex justify-end items-center p-3 border-b border-border-light dark:border-border-dark">
       <button id="closeAddEvent" class="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors" data-no-drag>
         <span class="material-symbols-outlined text-text-muted-light dark:text-text-muted-dark">close</span>
       </button>
@@ -962,65 +947,14 @@ No notifications yet
             closeAddEvent && closeAddEvent.addEventListener('click', closeModal);
             cancelAddEvent && cancelAddEvent.addEventListener('click', closeModal);
 
-            // Draggable Add Event Modal
+            // Draggable Add Event Modal - Disabled
+            /* 
             const addEventModalHeader = document.getElementById('addEventModalHeader');
             const addEventModalCard = document.getElementById('addEventModalCard');
             if (addEventModalHeader && addEventModalCard && addEventModal) {
-                let isDragging = false;
-                let startX = 0, startY = 0, origLeft = 0, origTop = 0;
-
-                function onMouseDown(e) {
-                    // Ignore drags starting from non-draggable controls
-                    const target = e.target;
-                    if (target.closest('[data-no-drag]') || target.closest('button') || target.closest('input') || target.closest('select') || target.closest('a')) {
-                        return;
-                    }
-                    isDragging = true;
-                    addEventModal.classList.add('dragging');
-                    const rect = addEventModalCard.getBoundingClientRect();
-                    // Switch to absolute positioned card anchored to viewport
-                    addEventModalCard.style.position = 'absolute';
-                    addEventModalCard.style.left = `${rect.left}px`;
-                    addEventModalCard.style.top = `${rect.top + window.scrollY}px`;
-                    addEventModalCard.style.transform = 'none';
-                    startX = e.clientX;
-                    startY = e.clientY;
-                    origLeft = rect.left;
-                    origTop = rect.top + window.scrollY;
-                    document.addEventListener('mousemove', onMouseMove);
-                    document.addEventListener('mouseup', onMouseUp, { once: true });
-                }
-
-                function onMouseMove(e) {
-                    if (!isDragging) return;
-                    const dx = e.clientX - startX;
-                    const dy = e.clientY - startY;
-                    let nextLeft = origLeft + dx;
-                    let nextTop = origTop + dy;
-                    // Constrain within viewport
-                    const vw = window.innerWidth;
-                    const vh = window.innerHeight;
-                    const cr = addEventModalCard.getBoundingClientRect();
-                    const width = cr.width;
-                    const height = cr.height;
-                    nextLeft = Math.max(8, Math.min(nextLeft, vw - width - 8));
-                    nextTop = Math.max(8 + window.scrollY, Math.min(nextTop, window.scrollY + vh - height - 8));
-                    addEventModalCard.style.left = `${nextLeft}px`;
-                    addEventModalCard.style.top = `${nextTop}px`;
-                }
-
-                function onMouseUp() {
-                    isDragging = false;
-                    addEventModal.classList.remove('dragging');
-                    document.removeEventListener('mousemove', onMouseMove);
-                    // Persist final position
-                    const rect = addEventModalCard.getBoundingClientRect();
-                    const saved = { left: rect.left, top: rect.top + window.scrollY };
-                    localStorage.setItem('addEventModalPos', JSON.stringify(saved));
-                }
-
-                addEventModalHeader.addEventListener('mousedown', onMouseDown);
+                // Logic removed
             }
+            */
 
             // Document attachment handler
             const evAttachDocumentBtn = document.getElementById('evAttachDocumentBtn');
@@ -1407,15 +1341,25 @@ No notifications yet
                 return availableImages[Math.floor(Math.random() * availableImages.length)];
             }
 
+            // Helper to check if a file path is an image
+            function isImageFile(path) {
+                if (!path) return false;
+                return /\.(jpg|jpeg|png|gif|webp)$/i.test(path);
+            }
+
             // Function to add event to upcoming events section
             function addEventToUpcomingSection(eventData) {
                 const upcomingEventsContainer = document.getElementById('upcomingEventsContainer');
                 if (!upcomingEventsContainer) return;
                 
-                // FORCE use local images - ignore any stored external URLs
-                let eventImage = getRandomEventImage();
+                // Default to NULL (no image) - User requested to remove random assets
+                let eventImage = null;
                 
-                console.log('Forcing local image for event:', eventData.title, 'Image:', eventImage);
+                // SMART IMAGE: Use attached document if it's an image
+                if (eventData.document_path && isImageFile(eventData.document_path)) {
+                    eventImage = eventData.document_path;
+                    console.log('Using attached document as event image:', eventImage);
+                }
                 
                 // Create event card
                 const eventCard = document.createElement('div');
@@ -1424,13 +1368,15 @@ No notifications yet
                 eventCard.setAttribute('data-event-id', eventData.id);
                 eventCard.innerHTML = `
                     <div class="w-full h-32 bg-gradient-to-br from-primary/20 to-primary/40 rounded-lg overflow-hidden relative">
+                        ${eventImage ? `
                         <img alt="${eventData.title} banner" 
                              class="w-full h-full object-cover rounded-lg transition-opacity duration-300" 
                              src="${eventImage}"
                              onerror="console.error('Failed to load image:', this.src); this.style.display='none'; this.nextElementSibling.style.display='flex';"
                              onload="console.log('Successfully loaded image:', this.src); this.nextElementSibling.style.display='none';"
                              loading="lazy"/>
-                        <div class="hidden absolute inset-0 bg-gradient-to-br from-primary/30 to-primary/50 rounded-lg flex items-center justify-center">
+                        ` : ''}
+                        <div class="${eventImage ? 'hidden' : ''} absolute inset-0 bg-gradient-to-br from-primary/30 to-primary/50 rounded-lg flex items-center justify-center">
                             <div class="text-center text-white">
                                 <span class="material-symbols-outlined text-4xl mb-2">event</span>
                                 <p class="text-sm font-medium">${eventData.title.toUpperCase()}</p>
@@ -1598,19 +1544,32 @@ No notifications yet
                 const completedEventsContainer = document.getElementById('completedEventsContainer');
                 if (!completedEventsContainer) return;
                 
-                // FORCE use local images - ignore any stored external URLs
-                const eventImage = getRandomEventImage();
+                // Default to NULL (no image) - User requested to remove random assets
+                let eventImage = null;
                 
-                console.log('Forcing local image for completed event:', eventData.title, 'Image:', eventImage);
+                // SMART IMAGE: Use attached document if it's an image
+                if (eventData.document_path && isImageFile(eventData.document_path)) {
+                    eventImage = eventData.document_path;
+                    console.log('Using attached document as completed event image:', eventImage);
+                }
                 
                 const eventCard = document.createElement('div');
                 eventCard.className = 'relative rounded-lg overflow-hidden';
-                eventCard.innerHTML = `
-                    <img alt="${eventData.title}" class="w-full h-24 object-cover" src="${eventImage}"/>
-                    <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
-                        <p class="text-white font-bold text-lg">${eventData.title.toUpperCase()}</p>
-                    </div>
-                `;
+                
+                if (eventImage) {
+                    eventCard.innerHTML = `
+                        <img alt="${eventData.title}" class="w-full h-24 object-cover" src="${eventImage}"/>
+                        <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
+                            <p class="text-white font-bold text-lg">${eventData.title.toUpperCase()}</p>
+                        </div>
+                    `;
+                } else {
+                    eventCard.innerHTML = `
+                        <div class="w-full h-24 bg-gradient-to-br from-gray-400 to-gray-600 dark:from-gray-600 dark:to-gray-800 flex items-center justify-center">
+                            <p class="text-white font-bold text-lg">${eventData.title.toUpperCase()}</p>
+                        </div>
+                    `;
+                }
                 
                 completedEventsContainer.appendChild(eventCard);
             }
@@ -3230,6 +3189,7 @@ Current mode: localStorage only (events will persist in browser)
 
             // Calendar Navigation Functionality
             window.currentDate = new Date();
+            window.calendarViewMode = 'days'; // 'days', 'months', 'years'
             
             window.monthNames = [
                 'January', 'February', 'March', 'April', 'May', 'June',
@@ -3237,13 +3197,21 @@ Current mode: localStorage only (events will persist in browser)
             ];
 
             window.updateCalendarTitle = function() {
-                const month = window.monthNames[window.currentDate.getMonth()];
-                const year = window.currentDate.getFullYear();
                 const titleTextElement = document.getElementById('calendarTitleText');
-                if (titleTextElement) {
-                    // Format as "Nov 2025" style
-                    const shortMonth = month.substring(0, 3);
-                    titleTextElement.textContent = `${shortMonth} ${year}`;
+                if (!titleTextElement) return;
+
+                const year = window.currentDate.getFullYear();
+                const month = window.monthNames[window.currentDate.getMonth()];
+                
+                if (window.calendarViewMode === 'days') {
+                    titleTextElement.textContent = `${month} ${year}`;
+                } else if (window.calendarViewMode === 'months') {
+                    titleTextElement.textContent = `${year}`;
+                } else if (window.calendarViewMode === 'years') {
+                    // Show decade range
+                    const startYear = Math.floor(year / 10) * 10;
+                    const endYear = startYear + 9;
+                    titleTextElement.textContent = `${startYear} - ${endYear}`;
                 }
             }
 
@@ -3308,125 +3276,168 @@ Current mode: localStorage only (events will persist in browser)
             // Track selected calendar date
             window.selectedCalendarDate = null;
 
-            window.renderCalendar = function() {
-                console.log('🔵 renderCalendar() called');
+            // Helper to render Months View
+            function renderMonthsView(container) {
+                container.className = 'grid grid-cols-3 gap-2 text-center text-sm p-2';
+                const currentMonth = window.currentDate.getMonth();
+                
+                window.monthNames.forEach((name, index) => {
+                    const el = document.createElement('div');
+                    const isCurrent = index === currentMonth;
+                    el.className = `p-4 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-white/5 transition-colors ${isCurrent ? 'bg-primary/10 text-primary font-bold' : 'text-text-light dark:text-text-dark'}`;
+                    el.textContent = name.substring(0, 3);
+                    el.addEventListener('click', () => {
+                        window.currentDate.setMonth(index);
+                        window.calendarViewMode = 'days';
+                        window.updateCalendarTitle();
+                        window.renderCalendar();
+                    });
+                    container.appendChild(el);
+                });
+            }
+
+            // Helper to render Years View
+            function renderYearsView(container) {
+                // Make scrollable with fixed height to match calendar size
+                container.className = 'grid grid-cols-3 gap-2 text-center text-sm p-2 overflow-y-auto max-h-[280px] scrollbar-thin';
+                const currentYear = window.currentDate.getFullYear();
+                
+                // Show wide range of years (current +/- 50)
+                const startYear = currentYear - 50;
+                const endYear = currentYear + 50;
+                
+                for (let year = startYear; year <= endYear; year++) {
+                    const el = document.createElement('div');
+                    const isCurrent = year === currentYear;
+                    
+                    el.className = `p-4 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-white/5 transition-colors ${isCurrent ? 'bg-primary/10 text-primary font-bold' : 'text-text-light dark:text-text-dark'}`;
+                    el.textContent = year;
+                    el.addEventListener('click', () => {
+                        window.currentDate.setFullYear(year);
+                        window.calendarViewMode = 'months';
+                        window.updateCalendarTitle();
+                        window.renderCalendar();
+                    });
+                    container.appendChild(el);
+                    
+                    // Scroll to center current year
+                    if (isCurrent) {
+                        setTimeout(() => {
+                            el.scrollIntoView({ block: 'center', behavior: 'auto' });
+                        }, 0);
+                    }
+                }
+            }
+
+            // Helper to render Days View
+            function renderDaysView(container) {
+                container.className = 'grid grid-cols-7 text-center text-xs text-text-muted-light dark:text-text-muted-dark';
+                
+                // Headers (S M T W T F S)
+                const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+                days.forEach(d => {
+                    const el = document.createElement('div');
+                    el.className = 'py-2 font-semibold';
+                    el.textContent = d;
+                    container.appendChild(el);
+                });
+
                 const year = window.currentDate.getFullYear();
                 const month = window.currentDate.getMonth();
-                
-                // Get first day of month and number of days
                 const firstDay = new Date(year, month, 1);
-                const lastDay = new Date(year, month + 1, 0);
-                const daysInMonth = lastDay.getDate();
-                const startDay = firstDay.getDay(); // 0 = Sunday, 1 = Monday, etc.
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const startDay = firstDay.getDay();
 
-                console.log('🔵 Rendering calendar for:', year, month + 1, '- Days in month:', daysInMonth, 'Start day:', startDay);
-
-                // Get the calendar days container
-                const calendarContainer = document.getElementById('calendarGrid');
-                if (!calendarContainer) {
-                    console.error('❌ calendarGrid element not found in renderCalendar!');
-                    return;
-                }
-
-                // Clear existing days (keep the first 7 header days: S M T W T F S)
-                // Get all child divs, but only remove those after the first 7 (the headers)
-                const allChildren = Array.from(calendarContainer.children);
-                console.log('🔵 Found', allChildren.length, 'children in calendarGrid');
-                // Remove all children except the first 7 (day headers)
-                for (let i = 7; i < allChildren.length; i++) {
-                    allChildren[i].remove();
-                }
-                console.log('✅ Calendar grid cleared, ready to render dates for', year, month + 1);
-
-                // Add empty cells for days before the first day of the month
-                for (let i = 0; i < startDay; i++) {
-                    const prevMonth = new Date(year, month, -startDay + i + 1);
+                // Function to render a single day cell
+                const renderDayCell = (dateObj, isCurrentMonth) => {
                     const dayElement = document.createElement('div');
-                    dayElement.className = 'py-2 text-gray-400 dark:text-gray-600 relative';
+                    dayElement.className = 'py-2 relative cursor-pointer';
                     
-                    // Check if this previous month day has events
-                    const hasEvent = checkForEvents(prevMonth.getFullYear(), prevMonth.getMonth(), prevMonth.getDate());
+                    const y = dateObj.getFullYear();
+                    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const d = String(dateObj.getDate()).padStart(2, '0');
+                    const dateString = `${y}-${m}-${d}`;
                     
-                    if (hasEvent) {
-                        dayElement.innerHTML = `
-                            <div class="relative inline-block w-full text-center">
-                                <span class="text-gray-400 dark:text-gray-600">${prevMonth.getDate()}</span>
-                                <div class="absolute top-0 right-0 w-1.5 h-1.5 bg-primary rounded-full transform translate-x-0.5 -translate-y-0.5 border-0 outline-none" style="border-radius: 50%; min-width: 6px; min-height: 6px; max-width: 6px; max-height: 6px;"></div>
-                            </div>
-                        `;
-                    } else {
-                        dayElement.textContent = prevMonth.getDate();
-                    }
+                    // Check if today
+                    const isTodayBool = isCurrentDay(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
                     
-                    calendarContainer.appendChild(dayElement);
-                }
-
-                // Add days of the current month
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const dayElement = document.createElement('div');
-                    dayElement.className = 'py-2 relative cursor-pointer transition-colors';
-                    
-                    // Create date string for this day
-                    const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    
-                    // Check if this day has events
-                    const hasEvent = checkForEvents(year, month, day);
-                    const isToday = isCurrentDay(year, month, day);
                     const isSelected = window.selectedCalendarDate === dateString;
+                    const hasEvent = checkForEvents(y, dateObj.getMonth(), dateObj.getDate());
+
+                    // Base classes for the number circle
+                    let spanClasses = 'inline-flex items-center justify-center w-6 h-6 mx-auto font-medium rounded-full transition-colors';
                     
-                    // Determine styling based on state (use fixed circle size for alignment)
-                    let dayClasses = 'inline-flex items-center justify-center w-6 h-6 mx-auto font-medium';
-                    if (isToday) {
-                        dayClasses += ' text-white bg-primary rounded-full';
+                    if (isTodayBool) {
+                        spanClasses += ' text-white bg-primary';
+                    } else if (isSelected) {
+                        spanClasses += ' text-white bg-primary/70';
                     } else {
-                        dayClasses += ' text-text-light dark:text-text-dark';
+                        // Text color
+                        if (isCurrentMonth) {
+                            spanClasses += ' text-text-light dark:text-text-dark hover:bg-gray-100 dark:hover:bg-white/10';
+                        } else {
+                            spanClasses += ' text-gray-400 dark:text-gray-600 hover:bg-gray-100 dark:hover:bg-white/5';
+                        }
                     }
+
+                    // Content HTML
+                    let contentHTML = `<span class="${spanClasses}">${dateObj.getDate()}</span>`;
                     
                     if (hasEvent) {
-                        // Show day number with a dot indicator in upper right
                         dayElement.innerHTML = `
                             <div class="relative inline-block w-full text-center">
-                                <span class="${dayClasses}">${day}</span>
+                                ${contentHTML}
                                 <div class="absolute top-0 right-0 w-1.5 h-1.5 bg-primary rounded-full transform translate-x-0.5 -translate-y-0.5 border-0 outline-none" style="border-radius: 50%; min-width: 6px; min-height: 6px; max-width: 6px; max-height: 6px;"></div>
                             </div>
                         `;
                     } else {
-                        // Regular day without events
-                        dayElement.innerHTML = `<span class="${dayClasses}">${day}</span>`;
+                        dayElement.innerHTML = contentHTML;
                     }
-                    
-                    // Add click listener
+
                     dayElement.addEventListener('click', () => {
                         selectCalendarDate(dateString);
                     });
                     
-                    calendarContainer.appendChild(dayElement);
+                    container.appendChild(dayElement);
+                };
+
+                // Prev Month Days
+                for (let i = 0; i < startDay; i++) {
+                    const d = new Date(year, month, -startDay + i + 1);
+                    renderDayCell(d, false);
+                }
+
+                // Current Month Days
+                for (let i = 1; i <= daysInMonth; i++) {
+                    const d = new Date(year, month, i);
+                    renderDayCell(d, true);
+                }
+
+                // Next Month Days
+                const remainingCells = 42 - (startDay + daysInMonth);
+                for (let i = 1; i <= remainingCells; i++) {
+                    const d = new Date(year, month + 1, i);
+                    renderDayCell(d, false);
+                }
+            }
+
+            window.renderCalendar = function() {
+                console.log('🔵 renderCalendar() called. Mode:', window.calendarViewMode);
+                const container = document.getElementById('calendarGrid');
+                if (!container) {
+                    console.error('❌ calendarGrid element not found in renderCalendar!');
+                    return;
                 }
                 
-                console.log('🔵 Added', daysInMonth, 'days for current month. Total children now:', calendarContainer.children.length);
-
-                // Add empty cells for days after the last day of the month
-                const remainingCells = 42 - (startDay + daysInMonth); // 6 rows * 7 days = 42
-                for (let i = 1; i <= remainingCells; i++) {
-                    const nextMonth = new Date(year, month + 1, i);
-                    const dayElement = document.createElement('div');
-                    dayElement.className = 'py-2 text-gray-400 dark:text-gray-600 relative';
-                    
-                    // Check if this next month day has events
-                    const hasEvent = checkForEvents(nextMonth.getFullYear(), nextMonth.getMonth(), nextMonth.getDate());
-                    
-                    if (hasEvent) {
-                        dayElement.innerHTML = `
-                            <div class="relative inline-block w-full text-center">
-                                <span class="text-gray-400 dark:text-gray-600">${nextMonth.getDate()}</span>
-                                <div class="absolute top-0 right-0 w-1.5 h-1.5 bg-primary rounded-full transform translate-x-0.5 -translate-y-0.5 border-0 outline-none" style="border-radius: 50%; min-width: 6px; min-height: 6px; max-width: 6px; max-height: 6px;"></div>
-                            </div>
-                        `;
-                    } else {
-                        dayElement.textContent = nextMonth.getDate();
-                    }
-                    
-                    calendarContainer.appendChild(dayElement);
+                // Clear container content
+                container.innerHTML = '';
+                
+                if (window.calendarViewMode === 'months') {
+                    renderMonthsView(container);
+                } else if (window.calendarViewMode === 'years') {
+                    renderYearsView(container);
+                } else {
+                    renderDaysView(container);
                 }
             }
 
@@ -3630,22 +3641,34 @@ Current mode: localStorage only (events will persist in browser)
             }, 1500);
 
             // Dropdown toggle functionality
+            // Calendar Title Click - Switch Views (Day -> Month -> Year)
             const calendarTitleBtn = document.getElementById('calendarTitle');
             const monthYearDropdown = document.getElementById('monthYearDropdown');
             
-            if (calendarTitleBtn && monthYearDropdown) {
+            // Hide the old dropdown container since we are using in-place navigation
+            if (monthYearDropdown) monthYearDropdown.classList.add('hidden');
+
+            if (calendarTitleBtn) {
+                // Clone button to remove old listeners if any, or just add new one and rely on e.stopPropagation logic?
+                // Better to replace the listener logic.
+                
+                // We'll use a new listener that handles the view switching
+                // Note: If there are existing listeners, they might still run. 
+                // But since we are editing the source file, we are REPLACING the old listener block.
+                
                 calendarTitleBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    // Regenerate dropdown each time it opens to ensure it's always current
-                    window.populateMonthYearDropdown();
-                    monthYearDropdown.classList.toggle('hidden');
-                });
-
-                // Close dropdown when clicking outside
-                document.addEventListener('click', (e) => {
-                    if (!calendarTitleBtn.contains(e.target) && !monthYearDropdown.contains(e.target)) {
-                        monthYearDropdown.classList.add('hidden');
-                    }
+                    
+                    if (window.calendarViewMode === 'days') {
+                        window.calendarViewMode = 'months';
+                    } else if (window.calendarViewMode === 'months') {
+                        window.calendarViewMode = 'years';
+                    } 
+                    // If years, stay on years (or switch to decades if we implemented that)
+                    
+                    console.log('Switching view to:', window.calendarViewMode);
+                    window.updateCalendarTitle();
+                    window.renderCalendar();
                 });
             }
             
