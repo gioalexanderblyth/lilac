@@ -647,6 +647,7 @@ No notifications yet
               <span class="material-symbols-outlined text-sm">add</span>
               <span id="evAttachDocumentText">Add Supporting Document</span>
             </button>
+            <input type="file" id="evDocumentFileInput" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png" class="hidden" />
             <input type="hidden" id="evDocumentId" />
             <div id="evAttachedDocument" class="hidden mt-2 p-2 bg-gray-50 dark:bg-slate-800 rounded text-sm">
               <div class="flex items-center justify-between">
@@ -1023,125 +1024,81 @@ No notifications yet
 
             // Document attachment handler
             const evAttachDocumentBtn = document.getElementById('evAttachDocumentBtn');
+            const evDocumentFileInput = document.getElementById('evDocumentFileInput');
             const evDocumentId = document.getElementById('evDocumentId');
             const evAttachedDocument = document.getElementById('evAttachedDocument');
             const evAttachedDocumentName = document.getElementById('evAttachedDocumentName');
             const evRemoveDocument = document.getElementById('evRemoveDocument');
             const evAttachDocumentText = document.getElementById('evAttachDocumentText');
 
-            if (evAttachDocumentBtn) {
-                evAttachDocumentBtn.addEventListener('click', async () => {
+            // Trigger file picker when button is clicked
+            if (evAttachDocumentBtn && evDocumentFileInput) {
+                evAttachDocumentBtn.addEventListener('click', () => {
+                    evDocumentFileInput.click();
+                });
+            }
+
+            // Handle file selection and upload
+            if (evDocumentFileInput) {
+                evDocumentFileInput.addEventListener('change', async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    // Validate file size (max 10MB)
+                    const maxSize = 10 * 1024 * 1024;
+                    if (file.size > maxSize) {
+                        alert('File size exceeds 10MB limit');
+                        evDocumentFileInput.value = '';
+                        return;
+                    }
+
+                    // Show uploading state
+                    evAttachedDocumentName.textContent = 'Uploading...';
+                    evAttachedDocument.classList.remove('hidden');
+                    evAttachDocumentText.textContent = 'Change Document';
+                    evAttachDocumentBtn.disabled = true;
+
                     try {
-                        // Fetch available documents
-                        const response = await fetch('api/get-documents.php?source=documents');
-                        const result = await response.json();
-                        
-                        if (!result.success) {
-                            throw new Error(result.error || 'Failed to load documents');
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
+                        formData.append('description', '');
+                        formData.append('category', 'Other Documents');
+                        formData.append('source_page', 'events');
+
+                        const uploadResponse = await fetch('api/other-documents.php', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (!uploadResponse.ok) {
+                            const text = await uploadResponse.text();
+                            throw new Error(`Upload failed: ${text}`);
                         }
 
-                        const documents = result.data || [];
-                        
-                        // Show document selection modal
-                        const modalHTML = `
-                            <div id="documentSelectionModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
-                                <div class="bg-white dark:bg-card-dark rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
-                                    <div class="p-6 border-b border-border-light dark:border-border-dark">
-                                        <div class="flex justify-between items-center">
-                                            <h2 class="text-xl font-semibold text-text-light dark:text-text-dark">Select Document</h2>
-                                            <button id="closeDocumentModal" class="text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark">
-                                                <span class="material-symbols-outlined">close</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="p-6">
-                                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark mb-4">
-                                            Select a document to attach to this event:
-                                        </p>
-                                        <div id="documentsList" class="space-y-2">
-                                            ${documents.map(doc => `
-                                                <button 
-                                                    class="w-full text-left p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors document-item-btn"
-                                                    data-document-id="${doc.id}"
-                                                    data-document-name="${doc.title || doc.file_name}"
-                                                    data-document-path="${doc.file_path}"
-                                                >
-                                                    <div class="font-medium text-text-light dark:text-text-dark">${doc.title || doc.file_name}</div>
-                                                    ${doc.description ? `<div class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1">${doc.description}</div>` : ''}
-                                                </button>
-                                            `).join('')}
-                                        </div>
-                                        ${documents.length === 0 ? '<p class="text-sm text-text-muted-light dark:text-text-muted-dark">No documents available. Upload a document first.</p>' : ''}
-                                    </div>
-                                    <div class="p-6 border-t border-border-light dark:border-border-dark flex justify-end gap-2">
-                                        <button id="cancelDocumentModal" class="px-4 py-2 text-sm rounded-md border border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-slate-700">
-                                            Cancel
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
+                        const uploadResult = await uploadResponse.json();
 
-                        document.body.insertAdjacentHTML('beforeend', modalHTML);
-                        const documentModal = document.getElementById('documentSelectionModal');
-                        
-                        // Close handlers
-                        document.getElementById('closeDocumentModal').addEventListener('click', () => documentModal.remove());
-                        document.getElementById('cancelDocumentModal').addEventListener('click', () => documentModal.remove());
-                        documentModal.addEventListener('click', (e) => {
-                            if (e.target === documentModal) documentModal.remove();
-                        });
+                        if (!uploadResult.success) {
+                            throw new Error(uploadResult.error || 'Upload failed');
+                        }
 
-                        // Document selection
-                        document.querySelectorAll('.document-item-btn').forEach(btn => {
-                            btn.addEventListener('click', async () => {
-                                const docId = btn.dataset.documentId;
-                                const docName = btn.dataset.documentName;
-                                const docPath = btn.dataset.documentPath;
-                                
-                                evDocumentId.value = docId;
-                                evAttachedDocumentName.textContent = docName;
-                                evAttachedDocument.classList.remove('hidden');
-                                evAttachDocumentText.textContent = 'Change Document';
-                                
-                                documentModal.remove();
-                                
-                                // Automatically analyze the attached document
-                                if (docId && docPath && window.awardAnalyzer) {
-                                    const analyzingStatus = document.getElementById('evAnalyzingStatus');
-                                    if (analyzingStatus) {
-                                        analyzingStatus.classList.remove('hidden');
-                                    }
-                                    
-                                    try {
-                                        await window.awardAnalyzer.analyzeFile(null, {
-                                            filePath: docPath,
-                                            document_id: docId,
-                                            source_page: 'events',
-                                            targetContainer: document.querySelector('.p-4') || document.body
-                                        });
-                                        
-                                        if (analyzingStatus) {
-                                            analyzingStatus.innerHTML = '<span class="material-symbols-outlined text-xs text-green-600 dark:text-green-400">check_circle</span> <span class="text-green-600 dark:text-green-400">Analyzed</span>';
-                                            setTimeout(() => {
-                                                analyzingStatus.classList.add('hidden');
-                                            }, 3000);
-                                        }
-                                    } catch (error) {
-                                        console.error('Auto-analysis error:', error);
-                                        if (analyzingStatus) {
-                                            analyzingStatus.innerHTML = '<span class="material-symbols-outlined text-xs text-red-600 dark:text-red-400">error</span> <span class="text-red-600 dark:text-red-400">Analysis failed</span>';
-                                            setTimeout(() => {
-                                                analyzingStatus.classList.add('hidden');
-                                            }, 5000);
-                                        }
-                                    }
-                                }
-                            });
-                        });
+                        // Attach the uploaded document to the event
+                        const docId = uploadResult.data.id;
+                        const docName = uploadResult.data.title || uploadResult.data.file_name;
+                        const docPath = uploadResult.data.file_path;
+
+                        evDocumentId.value = docId;
+                        evAttachedDocumentName.textContent = docName;
+                        evAttachedDocument.classList.remove('hidden');
+                        evAttachDocumentText.textContent = 'Change Document';
+                        evAttachDocumentBtn.disabled = false;
                     } catch (error) {
-                        console.error('Error loading documents:', error);
-                        alert('Error loading documents: ' + error.message);
+                        console.error('Upload error:', error);
+                        alert('Error uploading document: ' + error.message);
+                        evAttachedDocument.classList.add('hidden');
+                        evAttachDocumentText.textContent = 'Add Supporting Document';
+                        evAttachDocumentBtn.disabled = false;
+                        evDocumentFileInput.value = '';
                     }
                 });
             }
@@ -1827,13 +1784,15 @@ No notifications yet
                         // Convert database events to localStorage format for compatibility
                         let convertedEvents = dbEvents.map(event => ({
                             id: event.id,
-                            title: event.title,
-                            date: event.date,
-                            timeRange: event.timeRange,
-                            location: event.location,
-                            description: event.description,
+                            title: event.title || 'Untitled Event',
+                            date: event.date || event.event_date,
+                            timeRange: event.timeRange || (event.start_time && event.end_time ? 
+                                `${event.start_time.substring(0, 5)} - ${event.end_time.substring(0, 5)}` : 'N/A'),
+                            location: event.location || '',
+                            description: event.description || '',
                             imageUrl: getRandomEventImage(),
-                            createdAt: event.createdAt || event.created_at
+                            createdAt: event.createdAt || event.created_at,
+                            status: event.status || 'planned'
                         }));
 
                         console.log('✅ Converted events:', convertedEvents);
@@ -1943,14 +1902,14 @@ No notifications yet
                     return;
                 }
                 
-                console.log('🔵 Rendering', sortedEvents.length, 'events in table');
-
                 // Sort events by date (newest first)
                 const sortedEvents = [...events].sort((a, b) => {
                     const dateA = new Date(a.date || a.event_date || 0);
                     const dateB = new Date(b.date || b.event_date || 0);
                     return dateB - dateA;
                 });
+
+                console.log('🔵 Rendering', sortedEvents.length, 'events in table');
 
                 // Add rows for each event
                 sortedEvents.forEach(event => {
