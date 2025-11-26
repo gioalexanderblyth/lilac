@@ -1028,7 +1028,7 @@ function generateAwardRecommendation($award, $matchedCriteria, $score) {
 /**
  * Store analysis results with fallback
  */
-function storeAnalysisResults($awardName, $description, $extractedText, $analysis, $uploadedFile, $isReanalyze = false, $documentId = null, $sourcePage = null, $createdBy = 'System', $userId = null) {
+function storeAnalysisResults($awardName, $description, $extractedText, $analysis, $uploadedFile, $isReanalyze = false, $documentId = null, $sourcePage = null, $createdBy = 'System', $userId = null, $eventId = null) {
     try {
         $pdo = getDatabaseConnection();
         
@@ -1129,8 +1129,8 @@ function storeAnalysisResults($awardName, $description, $extractedText, $analysi
             // predicted_category, match_percentage, confidence, status, detected_text, matched_keywords, all_matches, recommendations, analysis_metadata, document_id, source_page
             $stmt = $pdo->prepare("
                 INSERT INTO award_analysis 
-                (award_id, predicted_category, match_percentage, confidence, status, detected_text, matched_keywords, all_matches, recommendations, analysis_metadata, document_id, source_page, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                (award_id, predicted_category, match_percentage, confidence, status, detected_text, matched_keywords, all_matches, recommendations, analysis_metadata, document_id, source_page, event_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
             
             $matchPercentage = $highestScore;
@@ -1151,7 +1151,8 @@ function storeAnalysisResults($awardName, $description, $extractedText, $analysi
                 $bestMatch['recommendation'] ?? '',
                 json_encode([]), // analysis_metadata
                 $documentId,
-                $sourcePage
+                $sourcePage,
+                $eventId
             ]);
             
             $analysisId = $pdo->lastInsertId();

@@ -146,15 +146,15 @@ try {
                     ");
                     $stmt->execute([$userIdFilter]);
                 } else {
-                    $stmt = $pdo->query("
+                $stmt = $pdo->query("
                         SELECT od.*, u.username as uploaded_by,
                                a.title as award_title
-                        FROM other_documents od
-                        LEFT JOIN users u ON od.user_id = u.id
+                    FROM other_documents od
+                    LEFT JOIN users u ON od.user_id = u.id
                         LEFT JOIN awards a ON od.award_id = a.id
                         WHERE od.status IS NULL OR od.status != 'deleted'
-                        ORDER BY od.created_at DESC
-                    ");
+                    ORDER BY od.created_at DESC
+                ");
                 }
                 $documents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

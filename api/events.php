@@ -47,7 +47,7 @@ try {
     }
 
     // GET: List all events (admin sees all, user sees only their own)
-    if ($method === 'GET' && $action === 'list') {
+    if ($method === 'GET' && $action === 'list' && $id === 0) {
         if ($isAdmin) {
         $stmt = $pdo->query("
             SELECT
@@ -119,7 +119,8 @@ try {
                 'created_by' => $event['created_by'] ?? $event['username'],
                 'createdAt' => $event['created_at'],
                 'document_path' => $event['document_path'] ?? null,
-                'document_title' => $event['document_title'] ?? null
+                'document_title' => $event['document_title'] ?? null,
+                'image_path' => $event['image_path'] ?? null
             ];
         }, $events);
 
@@ -182,13 +183,14 @@ try {
         $location = $data['location'] ?? '';
         $status = $data['status'] ?? 'planned';
         $documentId = isset($data['document_id']) && $data['document_id'] !== '' ? (int)$data['document_id'] : null;
+        $imagePath = $data['image_path'] ?? null;
 
         // Insert event
         $stmt = $pdo->prepare("
             INSERT INTO events (
                 user_id, title, description, event_date,
-                start_time, end_time, location, status, document_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                start_time, end_time, location, status, document_id, image_path
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $stmt->execute([
@@ -200,7 +202,8 @@ try {
             $endTime,
             $location,
             $status,
-            $documentId
+            $documentId,
+            $imagePath
         ]);
 
         $newId = $pdo->lastInsertId();
@@ -315,6 +318,10 @@ try {
         if (isset($data['document_id'])) {
             $updateFields[] = "document_id = ?";
             $updateValues[] = $data['document_id'] !== '' ? (int)$data['document_id'] : null;
+        }
+        if (isset($data['image_path'])) {
+            $updateFields[] = "image_path = ?";
+            $updateValues[] = $data['image_path'];
         }
 
         if (empty($updateFields)) {

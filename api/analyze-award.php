@@ -47,10 +47,38 @@ try {
     $originalFilePath = $_POST['original_file_path'] ?? '';
     $documentId = isset($_POST['document_id']) ? (int)$_POST['document_id'] : null;
     $sourcePage = $_POST['source_page'] ?? null;
+    $eventId = isset($_POST['event_id']) ? (int)$_POST['event_id'] : null;
     
     // Get current user
     $createdBy = $_SESSION['user']['username'] ?? 'System';
     $userId = $_SESSION['user']['id'] ?? null;
+    
+    // If document_id provided but no file, try to fetch from database
+    if ($documentId && !$uploadedFile) {
+        try {
+            $pdo = getDatabaseConnection();
+            $stmt = $pdo->prepare("SELECT file_path, title, file_name FROM other_documents WHERE id = ?");
+            $stmt->execute([$documentId]);
+            $doc = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($doc) {
+                $fullPath = __DIR__ . '/../' . $doc['file_path'];
+                if (file_exists($fullPath)) {
+                    $uploadedFile = [
+                        'name' => $doc['file_name'] ?: basename($doc['file_path']),
+                        'tmp_name' => $fullPath,
+                        'error' => UPLOAD_ERR_OK,
+                        'size' => filesize($fullPath)
+                    ];
+                    error_log("Using existing document for analysis: " . $fullPath);
+                } else {
+                    error_log("Document file not found at: " . $fullPath);
+                }
+            }
+        } catch (Exception $e) {
+            error_log("Error fetching document: " . $e->getMessage());
+        }
+    }
     
     // Log analysis type
     if ($isReanalyze) {
@@ -131,39 +159,52 @@ try {
         }
     } else {
         // For new uploads, need all fields
-        if (empty($awardName) || empty($description) || !$uploadedFile) {
-            throw new Exception('Missing required fields: award name, description, and file upload are required');
+        // If eventId is present, file is optional (we can analyze title/description)
+        if (empty($awardName)) {
+             throw new Exception('Missing required fields: award name is required');
+        }
+        if (!$uploadedFile && !$eventId) {
+            throw new Exception('Missing required fields: file upload or event reference is required');
         }
     }
 
     // Load functions and config
     require_once 'award-analysis-functions.php';
     
-    // Validate file upload
-    error_log("Starting file upload validation");
-    validateFileUpload($uploadedFile);
-    error_log("File upload validation passed");
+    $extractedText = '';
     
-    // Get file type with fallback
-    if (function_exists('mime_content_type')) {
-        $fileType = mime_content_type($uploadedFile['tmp_name']);
-    } else {
-        // Fallback: use file extension
-        $extension = strtolower(pathinfo($uploadedFile['name'], PATHINFO_EXTENSION));
-        $extensionMap = [
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'png' => 'image/png',
-            'pdf' => 'application/pdf',
-            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        ];
-        $fileType = $extensionMap[$extension] ?? 'application/octet-stream';
-    }
-    error_log("File type detected: " . $fileType);
+    if ($uploadedFile) {
+        // Validate file upload
+        error_log("Starting file upload validation");
+        validateFileUpload($uploadedFile);
+        error_log("File upload validation passed");
+        
+        // Get file type with fallback
+        if (function_exists('mime_content_type')) {
+            $fileType = mime_content_type($uploadedFile['tmp_name']);
+        } else {
+            // Fallback: use file extension
+            $extension = strtolower(pathinfo($uploadedFile['name'], PATHINFO_EXTENSION));
+            $extensionMap = [
+                'jpg' => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'pdf' => 'application/pdf',
+                'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            ];
+            $fileType = $extensionMap[$extension] ?? 'application/octet-stream';
+        }
+        error_log("File type detected: " . $fileType);
 
-    // Extract text from uploaded file
-    error_log("Starting text extraction for file: " . $uploadedFile['name']);
-    $extractedText = extractTextFromFile($uploadedFile['tmp_name'], $fileType);
+        // Extract text from uploaded file
+        error_log("Starting text extraction for file: " . $uploadedFile['name']);
+        $extractedText = extractTextFromFile($uploadedFile['tmp_name'], $fileType);
+    } else {
+        // No file - use Title and Description
+        $extractedText = $awardName . "\n\n" . $description;
+        error_log("Using Event Title/Description for analysis (No File)");
+    }
+    
     error_log("Text extraction completed, length: " . strlen($extractedText));
     error_log("Extracted text preview: " . substr($extractedText, 0, 100) . "...");
     
@@ -238,7 +279,7 @@ try {
 
     // Store the analysis in database (with fallback)
     error_log("Starting to store analysis results");
-    $analysisId = storeAnalysisResults($awardName, $description, $extractedText, $analysis, $uploadedFile, $isReanalyze, $documentId, $sourcePage, $createdBy, $userId);
+    $analysisId = storeAnalysisResults($awardName, $description, $extractedText, $analysis, $uploadedFile, $isReanalyze, $documentId, $sourcePage, $createdBy, $userId, $eventId);
     error_log("Analysis results stored with ID: " . $analysisId);
 
     

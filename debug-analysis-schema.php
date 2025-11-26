@@ -1,15 +1,13 @@
 <?php
-require_once 'api/config.php';
+require_once __DIR__ . '/api/config.php';
 
 try {
     $pdo = getDatabaseConnection();
-    
-    echo "--- other_documents Table ---\n";
-    $stmt = $pdo->query("DESCRIBE other_documents");
+    $stmt = $pdo->query("DESCRIBE award_analysis");
     $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    print_r($columns);
-
+    echo "Columns: " . implode(", ", $columns) . "\n";
 } catch (Exception $e) {
     echo "Error: " . $e->getMessage() . "\n";
 }
 ?>
+

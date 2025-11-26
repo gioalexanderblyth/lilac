@@ -587,7 +587,12 @@ No notifications yet
       </button>
     </div>
     <div class="p-3">
-      <input id="evTitle" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="w-full text-xl font-medium bg-transparent border-0 border-b border-border-light dark:border-border-dark focus:border-primary focus:ring-0 focus:outline-none pb-1.5 mb-2 placeholder:text-text-muted-light dark:placeholder:text-text-muted-dark" placeholder="Add title" />
+      <div class="flex items-center gap-2 mb-2">
+        <input id="evTitle" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="flex-1 text-xl font-medium bg-transparent border-0 border-b border-border-light dark:border-border-dark focus:border-primary focus:ring-0 focus:outline-none pb-1.5 placeholder:text-text-muted-light dark:placeholder:text-text-muted-dark" placeholder="Add title" />
+        <button type="button" id="evAddImageIcon" class="p-2 text-text-muted-light dark:text-text-muted-dark hover:text-primary hover:bg-primary/10 rounded-full transition-colors" title="Add Image">
+          <span class="material-symbols-outlined">image</span>
+        </button>
+      </div>
       <div class="space-y-3">
         <div class="flex items-start gap-3">
           <span class="material-symbols-outlined text-text-muted-light dark:text-text-muted-dark mt-1">schedule</span>
@@ -634,6 +639,9 @@ No notifications yet
             </button>
             <input type="file" id="evDocumentFileInput" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png" class="hidden" />
             <input type="hidden" id="evDocumentId" />
+            <!-- Separate Image Upload -->
+            <input type="file" id="evImageFileInput" accept="image/*" class="hidden" />
+            <input type="hidden" id="evImagePath" />
             <div id="evAttachedDocument" class="hidden mt-2 p-2 bg-gray-50 dark:bg-slate-800 rounded text-sm">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
@@ -938,7 +946,125 @@ No notifications yet
             const saveAddEvent = document.getElementById('saveAddEvent');
 
             const openModal = () => {
-                if (addEventModal) { addEventModal.classList.remove('hidden'); addEventModal.classList.add('flex'); }
+                if (addEventModal) { 
+                    addEventModal.classList.remove('hidden'); 
+                    addEventModal.classList.add('flex'); 
+                    
+                    // Reset to Create Mode
+                    addEventModal.dataset.mode = 'create';
+                    delete addEventModal.dataset.eventId;
+                    const saveBtn = document.getElementById('saveAddEvent');
+                    if (saveBtn) saveBtn.textContent = 'Save';
+                    
+                    // Clear form
+                    if(document.getElementById('evTitle')) document.getElementById('evTitle').value = '';
+                    if(document.getElementById('evDate')) document.getElementById('evDate').value = '';
+                    if(document.getElementById('evLocation')) document.getElementById('evLocation').value = '';
+                    if(document.getElementById('evDesc')) document.getElementById('evDesc').value = '';
+                    if(document.getElementById('evTimeRangeText')) document.getElementById('evTimeRangeText').textContent = '--:-- -- - --:-- --';
+                    
+                    // Reset Image
+                    if(document.getElementById('evImagePath')) document.getElementById('evImagePath').value = '';
+                    const imgIcon = document.getElementById('evAddImageIcon');
+                    if(imgIcon) {
+                         imgIcon.classList.remove('text-green-500');
+                         const sp = imgIcon.querySelector('span');
+                         if(sp) { sp.textContent = 'image'; sp.classList.remove('animate-spin'); }
+                    }
+                    
+                    // Reset Doc
+                    if(document.getElementById('evDocumentId')) document.getElementById('evDocumentId').value = '';
+                    if(document.getElementById('evAttachedDocument')) document.getElementById('evAttachedDocument').classList.add('hidden');
+                    if(document.getElementById('evAttachDocumentText')) document.getElementById('evAttachDocumentText').textContent = 'Add Supporting Document';
+                    const attachBtn = document.getElementById('evAttachDocumentBtn');
+                    if(attachBtn) attachBtn.disabled = false;
+                }
+            };
+
+            // Open Edit Event Modal
+            window.openEditEventModal = async (eventId) => {
+                try {
+                    const response = await fetch(`api/events.php?id=${eventId}`);
+                    const result = await response.json();
+                    
+                    if (!result.success || !result.event) {
+                        throw new Error(result.error || 'Failed to fetch event details');
+                    }
+                    
+                    const event = result.event;
+                    const addEventModal = document.getElementById('addEventModal');
+                    
+                    if (addEventModal) {
+                        // Set Mode
+                        addEventModal.dataset.mode = 'edit';
+                        addEventModal.dataset.eventId = eventId;
+                        
+                        const saveBtn = document.getElementById('saveAddEvent');
+                        if (saveBtn) saveBtn.textContent = 'Update Event';
+                        
+                        // Populate Fields
+                        document.getElementById('evTitle').value = event.title || '';
+                        document.getElementById('evDate').value = event.event_date || event.date || '';
+                        document.getElementById('evLocation').value = event.location || '';
+                        document.getElementById('evDesc').value = event.description || '';
+                        
+                        // Time Range
+                        if (event.start_time && event.end_time) {
+                            const formatTime = (t) => {
+                                const [h, m] = t.split(':');
+                                let hours = parseInt(h);
+                                const ampm = hours >= 12 ? 'PM' : 'AM';
+                                hours = hours % 12;
+                                hours = hours ? hours : 12;
+                                return `${hours}:${m} ${ampm}`;
+                            };
+                            document.getElementById('evTimeRangeText').textContent = `${formatTime(event.start_time)} - ${formatTime(event.end_time)}`;
+                        } else {
+                            document.getElementById('evTimeRangeText').textContent = '--:-- -- - --:-- --';
+                        }
+                        
+                        // Image
+                        const evImagePath = document.getElementById('evImagePath');
+                        if (evImagePath) evImagePath.value = event.image_path || '';
+                        const evAddImageIcon = document.getElementById('evAddImageIcon');
+                        if (evAddImageIcon) {
+                            const span = evAddImageIcon.querySelector('span');
+                            if (event.image_path) {
+                                if (span) span.textContent = 'check_circle';
+                                evAddImageIcon.classList.add('text-green-500');
+                            } else {
+                                if (span) span.textContent = 'image';
+                                evAddImageIcon.classList.remove('text-green-500');
+                            }
+                        }
+
+                        // Document
+                        const evDocumentId = document.getElementById('evDocumentId');
+                        const evAttachedDocument = document.getElementById('evAttachedDocument');
+                        const evAttachedDocumentName = document.getElementById('evAttachedDocumentName');
+                        const evAttachDocumentText = document.getElementById('evAttachDocumentText');
+                        const evAttachDocumentBtn = document.getElementById('evAttachDocumentBtn');
+                        
+                        if (evDocumentId) evDocumentId.value = event.document_id || '';
+                        if (event.document_id) {
+                            evAttachedDocument.classList.remove('hidden');
+                            evAttachedDocumentName.textContent = event.document_title || 'Attached Document';
+                            evAttachDocumentText.textContent = 'Change Document';
+                            if(evAttachDocumentBtn) evAttachDocumentBtn.disabled = false;
+                        } else {
+                            evAttachedDocument.classList.add('hidden');
+                            evAttachDocumentText.textContent = 'Add Supporting Document';
+                            if(evAttachDocumentBtn) evAttachDocumentBtn.disabled = false;
+                        }
+
+                        // Show Modal
+                        addEventModal.classList.remove('hidden');
+                        addEventModal.classList.add('flex');
+                    }
+                } catch (error) {
+                    console.error('Edit error:', error);
+                    showToast('Error loading event: ' + error.message, 'error');
+                }
             };
             let closeModal = () => {
                 if (addEventModal) { addEventModal.classList.add('hidden'); addEventModal.classList.remove('flex'); }
@@ -969,6 +1095,69 @@ No notifications yet
             if (evAttachDocumentBtn && evDocumentFileInput) {
                 evAttachDocumentBtn.addEventListener('click', () => {
                     evDocumentFileInput.click();
+                });
+            }
+
+            // Trigger file picker from image icon
+            const evAddImageIcon = document.getElementById('evAddImageIcon');
+            const evImageFileInput = document.getElementById('evImageFileInput');
+            const evImagePath = document.getElementById('evImagePath');
+
+            if (evAddImageIcon && evImageFileInput) {
+                evAddImageIcon.addEventListener('click', () => {
+                    evImageFileInput.click();
+                });
+            }
+
+            // Handle Image Upload
+            if (evImageFileInput) {
+                evImageFileInput.addEventListener('change', async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    // Visual feedback
+                    const iconSpan = evAddImageIcon.querySelector('span');
+                    const originalIcon = 'image'; // default
+                    
+                    iconSpan.textContent = 'hourglass_empty';
+                    iconSpan.classList.add('animate-spin');
+
+                    const formData = new FormData();
+                    formData.append('image', file);
+
+                    try {
+                        const response = await fetch('api/upload-event-image.php', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            evImagePath.value = result.image_path;
+                            // Success state
+                            iconSpan.textContent = 'check_circle';
+                            iconSpan.classList.remove('animate-spin');
+                            evAddImageIcon.classList.add('text-green-500');
+                            evAddImageIcon.classList.remove('text-text-muted-light', 'dark:text-text-muted-dark');
+                        } else {
+                            throw new Error(result.error || 'Upload failed');
+                        }
+                    } catch (error) {
+                        console.error('Image upload error:', error);
+                        alert('Failed to upload image: ' + error.message);
+                        iconSpan.textContent = originalIcon;
+                        iconSpan.classList.remove('animate-spin');
+                    }
+                });
+            }
+
+            // Auto-open date picker on click
+            const evDateInput = document.getElementById('evDate');
+            if (evDateInput) {
+                evDateInput.addEventListener('click', function() {
+                    if (typeof this.showPicker === 'function') {
+                        this.showPicker();
+                    }
                 });
             }
 
@@ -1127,8 +1316,9 @@ No notifications yet
                         return;
                     }
                     
-                    // Get document ID if attached
+                    // Get document ID and Image Path if attached
                     const documentId = document.getElementById('evDocumentId').value || null;
+                    const imagePath = document.getElementById('evImagePath').value || null;
                     
                     // Save to database
                     const eventPayload = {
@@ -1139,11 +1329,19 @@ No notifications yet
                         end_time: eventData.end_time,
                         location: eventData.location,
                         status: 'planned',
-                        document_id: documentId
+                        document_id: documentId,
+                        image_path: imagePath
                     };
 
-                    const response = await fetch('api/events.php?action=create', {
-                        method: 'POST',
+                    const modal = document.getElementById('addEventModal');
+                    const isEdit = modal && modal.dataset.mode === 'edit';
+                    const editId = modal ? modal.dataset.eventId : null;
+                    
+                    const url = isEdit ? `api/events.php?id=${editId}` : 'api/events.php?action=create';
+                    const method = isEdit ? 'PUT' : 'POST';
+
+                    const response = await fetch(url, {
+                        method: method,
                         headers: {
                             'Content-Type': 'application/json',
                             'Accept': 'application/json'
@@ -1169,6 +1367,16 @@ No notifications yet
                     if (response.ok && result.success) {
                         // Database save successful
                         console.log('Event saved to database:', result);
+                        
+                        // Trigger auto-analysis
+                        const finalEventId = isEdit ? editId : result.id;
+                        analyzeEvent({
+                            event_id: finalEventId,
+                            title: eventPayload.title,
+                            description: eventPayload.description,
+                            document_id: eventPayload.document_id
+                        });
+
                         // Optimistic local update to reflect immediately
                         try {
                             const savedEvents = JSON.parse(localStorage.getItem('upcomingEvents') || '[]');
@@ -1203,6 +1411,19 @@ No notifications yet
                         if (evDocumentId) evDocumentId.value = '';
                         if (evAttachedDocument) evAttachedDocument.classList.add('hidden');
                         if (evAttachDocumentText) evAttachDocumentText.textContent = 'Add Supporting Document';
+                        
+                        // Reset Image Upload
+                        const evImagePath = document.getElementById('evImagePath');
+                        const evAddImageIcon = document.getElementById('evAddImageIcon');
+                        if (evImagePath) evImagePath.value = '';
+                        if (evAddImageIcon) {
+                            const span = evAddImageIcon.querySelector('span');
+                            if (span) {
+                                span.textContent = 'image';
+                                span.classList.remove('animate-spin');
+                            }
+                            evAddImageIcon.classList.remove('text-green-500');
+                        }
                         
                         // Close modal
                         closeModal();
@@ -1353,10 +1574,10 @@ No notifications yet
                 if (!upcomingEventsContainer) return;
                 
                 // Default to NULL (no image) - User requested to remove random assets
-                let eventImage = null;
+                let eventImage = eventData.image_path || null;
                 
-                // SMART IMAGE: Use attached document if it's an image
-                if (eventData.document_path && isImageFile(eventData.document_path)) {
+                // Fallback: Use attached document if it's an image
+                if (!eventImage && eventData.document_path && isImageFile(eventData.document_path)) {
                     eventImage = eventData.document_path;
                     console.log('Using attached document as event image:', eventImage);
                 }
@@ -1545,10 +1766,10 @@ No notifications yet
                 if (!completedEventsContainer) return;
                 
                 // Default to NULL (no image) - User requested to remove random assets
-                let eventImage = null;
+                let eventImage = eventData.image_path || null;
                 
-                // SMART IMAGE: Use attached document if it's an image
-                if (eventData.document_path && isImageFile(eventData.document_path)) {
+                // Fallback: Use attached document if it's an image
+                if (!eventImage && eventData.document_path && isImageFile(eventData.document_path)) {
                     eventImage = eventData.document_path;
                     console.log('Using attached document as completed event image:', eventImage);
                 }
@@ -1690,6 +1911,33 @@ No notifications yet
             }
 
             // Function to load events from database
+            // Auto-analyze event for awards
+            const analyzeEvent = async (data) => {
+                const formData = new FormData();
+                formData.append('award_name', data.title || '');
+                formData.append('description', data.description || '');
+                formData.append('event_id', data.event_id);
+                formData.append('source_page', 'events');
+                if (data.document_id) {
+                    formData.append('document_id', data.document_id);
+                }
+                
+                try {
+                    console.log('Analyzing event for awards...');
+                    const response = await fetch('api/analyze-award.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    console.log('Event Analysis Complete:', result);
+                    if (result.success && result.eligible_count > 0) {
+                        showToast(`Event matched ${result.eligible_count} award criteria!`, 'success');
+                    }
+                } catch (error) {
+                    console.error('Event analysis failed:', error);
+                }
+            };
+
             async function loadEventsFromDatabase() {
                 try {
                     // Determine if we're likely running a PHP-capable local server
@@ -1713,7 +1961,7 @@ No notifications yet
 
                     console.log('Loading events from database...');
                     
-                    const response = await fetch('api/events.php?action=calendar', {
+                    const response = await fetch(`api/events.php?action=calendar&_t=${Date.now()}`, {
                         method: 'GET',
                         headers: {
                             'Accept': 'application/json',
@@ -1749,7 +1997,9 @@ No notifications yet
                                 `${event.start_time.substring(0, 5)} - ${event.end_time.substring(0, 5)}` : 'N/A'),
                             location: event.location || '',
                             description: event.description || '',
-                            imageUrl: getRandomEventImage(),
+                            imageUrl: event.image_path || (event.document_path && isImageFile(event.document_path) ? event.document_path : getRandomEventImage()),
+                            image_path: event.image_path,
+                            document_path: event.document_path,
                             createdAt: event.createdAt || event.created_at,
                             status: event.status || 'planned'
                         }));
@@ -2678,20 +2928,33 @@ Current mode: localStorage only (events will persist in browser)
                     
                     console.log('Event details loaded:', { result, itm, eventId });
                     
+                    // Determine image URL
+                    const imageUrl = itm.image_path || (itm.document_path && isImageFile(itm.document_path) ? itm.document_path : (itm.image_url || 'https://via.placeholder.com/120x80?text=img'));
+
                     body.innerHTML = `
-                      <div class="flex items-start gap-4">
-                        <img src="${itm.image_url || itm.thumbnail_url || 'https://via.placeholder.com/120x80?text=img'}" class="w-28 h-20 object-cover rounded" alt="Event image"/>
+                      <div class="mb-4">
+                        <img src="${imageUrl}" class="w-full h-48 object-cover rounded-lg shadow-sm" alt="Event image" onerror="this.src='https://via.placeholder.com/400x200?text=No+Image'"/>
+                      </div>
+                      <div class="mb-4">
+                        <h4 class="text-xl font-bold text-text-light dark:text-text-dark mb-1">${(itm.title || '').toUpperCase()}</h4>
+                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark flex items-center gap-1"><span class="material-symbols-outlined text-sm">location_on</span> ${itm.location || 'No location specified'}</p>
+                      </div>
+                      <div class="mb-4">
+                        <p class="text-sm text-text-light dark:text-text-dark whitespace-pre-wrap">${itm.description || 'No description provided.'}</p>
+                      </div>
+                      <div class="grid grid-cols-2 gap-4 text-sm border-t border-border-light dark:border-border-dark pt-4">
+                        <div><span class="block text-xs text-text-muted-light dark:text-text-muted-dark">Date</span><p class="font-medium text-text-light dark:text-text-dark">${itm.event_date || itm.date ? new Date(itm.event_date || itm.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}</p></div>
+                        <div><span class="block text-xs text-text-muted-light dark:text-text-muted-dark">Time</span><p class="font-medium text-text-light dark:text-text-dark">${itm.start_time ? itm.start_time.substring(0,5) : ''} - ${itm.end_time ? itm.end_time.substring(0,5) : ''}</p></div>
+                        <div><span class="block text-xs text-text-muted-light dark:text-text-muted-dark">Status</span><p class="font-medium text-text-light dark:text-text-dark capitalize">${itm.status || 'Planned'}</p></div>
+                        <div><span class="block text-xs text-text-muted-light dark:text-text-muted-dark">Eligible for Awards</span><p class="font-medium text-text-light dark:text-text-dark">${itm.eligible_for_awards ? 'Yes' : 'No'}</p></div>
+                      </div>
+                      ${itm.document_path ? `<div class="mt-4 p-3 bg-gray-50 dark:bg-white/5 rounded-lg border border-border-light dark:border-border-dark flex items-center gap-3">
+                        <span class="material-symbols-outlined text-primary">description</span>
                         <div>
-                          <h4 class="text-lg font-bold text-text-light dark:text-text-dark">${(itm.title || '').toUpperCase()}</h4>
-                          <p class="text-xs text-text-muted-light dark:text-text-muted-dark"><span class="material-symbols-outlined text-xs align-middle">location_on</span> ${itm.location || ''}</p>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Attachment</p>
+                            <a href="${itm.document_path}" target="_blank" class="text-sm font-medium text-primary hover:underline">${itm.document_title || 'View Attached Document'}</a>
                         </div>
-                      </div>
-                      <div class="grid grid-cols-2 gap-3">
-                        <div><span class="text-text-muted-light dark:text-text-muted-dark">Start</span><p class="font-semibold text-text-light dark:text-text-dark">${itm.start_time || ''}</p></div>
-                        <div><span class="text-text-muted-light dark:text-text-muted-dark">End</span><p class="font-semibold text-text-light dark:text-text-dark">${itm.end_time || ''}</p></div>
-                        <div><span class="text-text-muted-light dark:text-text-muted-dark">Date</span><p class="font-semibold text-text-light dark:text-text-dark">${itm.event_date || itm.date ? new Date(itm.event_date || itm.date).toLocaleDateString() : ''}</p></div>
-                        <div><span class="text-text-muted-light dark:text-text-muted-dark">Eligible</span><p class="font-semibold text-text-light dark:text-text-dark">${itm.eligible_for_awards ? 'Yes' : 'No'}</p></div>
-                      </div>
+                      </div>` : ''}
                       <div class="mt-2 text-xs text-text-muted-light dark:text-text-muted-dark">Awards eligibility details will appear on the Awards page.</div>`;
                     // Wire delete
                     if (delBtn) {
@@ -2769,17 +3032,28 @@ Current mode: localStorage only (events will persist in browser)
                 const delBtn = document.getElementById('deleteEventBtn');
                 modal.classList.remove('hidden'); modal.classList.add('flex');
                 body.innerHTML = `
-                  <div class="flex items-start gap-4">
-                    <img src="${itm.imageUrl || itm.thumbnail_url || 'https://via.placeholder.com/120x80?text=img'}" class="w-28 h-20 object-cover rounded" alt="Event image"/>
-                    <div>
-                      <h4 class="text-lg font-bold text-text-light dark:text-text-dark">${itm.title.toUpperCase()}</h4>
-                      <p class="text-xs text-text-muted-light dark:text-text-muted-dark"><span class="material-symbols-outlined text-xs align-middle">location_on</span> ${itm.location || ''}</p>
-                    </div>
-                  </div>
-                  <div class="grid grid-cols-2 gap-3">
-                    <div><span class="text-text-muted-light dark:text-text-muted-dark">Time</span><p class="font-semibold text-text-light dark:text-text-dark">${itm.timeRange || ''}</p></div>
-                    <div><span class="text-text-muted-light dark:text-text-muted-dark">Date</span><p class="font-semibold text-text-light dark:text-text-dark">${itm.date ? new Date(itm.date).toLocaleDateString() : ''}</p></div>
-                  </div>`;
+                      <div class="mb-4">
+                        <img src="${itm.imageUrl || itm.thumbnail_url || 'https://via.placeholder.com/400x200?text=No+Image'}" class="w-full h-48 object-cover rounded-lg shadow-sm" alt="Event image" onerror="this.src='https://via.placeholder.com/400x200?text=No+Image'"/>
+                      </div>
+                      <div class="mb-4">
+                        <h4 class="text-xl font-bold text-text-light dark:text-text-dark mb-1">${(itm.title || '').toUpperCase()}</h4>
+                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark flex items-center gap-1"><span class="material-symbols-outlined text-sm">location_on</span> ${itm.location || 'No location specified'}</p>
+                      </div>
+                      <div class="mb-4">
+                        <p class="text-sm text-text-light dark:text-text-dark whitespace-pre-wrap">${itm.description || 'No description provided.'}</p>
+                      </div>
+                      <div class="grid grid-cols-2 gap-4 text-sm border-t border-border-light dark:border-border-dark pt-4">
+                        <div><span class="block text-xs text-text-muted-light dark:text-text-muted-dark">Time</span><p class="font-medium text-text-light dark:text-text-dark">${itm.timeRange || ''}</p></div>
+                        <div><span class="block text-xs text-text-muted-light dark:text-text-muted-dark">Date</span><p class="font-medium text-text-light dark:text-text-dark">${itm.date ? new Date(itm.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}</p></div>
+                        <div><span class="block text-xs text-text-muted-light dark:text-text-muted-dark">Status</span><p class="font-medium text-text-light dark:text-text-dark capitalize">${itm.status || 'Planned'}</p></div>
+                      </div>
+                      ${itm.document_path ? `<div class="mt-4 p-3 bg-gray-50 dark:bg-white/5 rounded-lg border border-border-light dark:border-border-dark flex items-center gap-3">
+                        <span class="material-symbols-outlined text-primary">description</span>
+                        <div>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Attachment</p>
+                            <a href="${itm.document_path}" target="_blank" class="text-sm font-medium text-primary hover:underline">View Attached Document</a>
+                        </div>
+                      </div>` : ''}`;
                 if (delBtn) {
                     // Always allow local deletion here; hide only if no local data
                     delBtn.style.display = '';
@@ -3298,34 +3572,27 @@ Current mode: localStorage only (events will persist in browser)
 
             // Helper to render Years View
             function renderYearsView(container) {
-                // Make scrollable with fixed height to match calendar size
-                container.className = 'grid grid-cols-3 gap-2 text-center text-sm p-2 overflow-y-auto max-h-[280px] scrollbar-thin';
+                container.className = 'grid grid-cols-3 gap-2 text-center text-sm p-2';
                 const currentYear = window.currentDate.getFullYear();
+                const startYear = Math.floor(currentYear / 10) * 10;
                 
-                // Show wide range of years (current +/- 50)
-                const startYear = currentYear - 50;
-                const endYear = currentYear + 50;
-                
-                for (let year = startYear; year <= endYear; year++) {
+                // Show 12 years: startYear - 1 to startYear + 10
+                for (let i = -1; i <= 10; i++) {
+                    const year = startYear + i;
                     const el = document.createElement('div');
                     const isCurrent = year === currentYear;
+                    const isOut = i === -1 || i === 10;
                     
-                    el.className = `p-4 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-white/5 transition-colors ${isCurrent ? 'bg-primary/10 text-primary font-bold' : 'text-text-light dark:text-text-dark'}`;
+                    el.className = `p-4 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-white/5 transition-colors ${isCurrent ? 'bg-primary/10 text-primary font-bold' : 'text-text-light dark:text-text-dark'} ${isOut ? 'text-gray-400' : ''}`;
                     el.textContent = year;
-                    el.addEventListener('click', () => {
+                    el.addEventListener('click', (e) => {
+                        e.stopPropagation();
                         window.currentDate.setFullYear(year);
                         window.calendarViewMode = 'months';
                         window.updateCalendarTitle();
                         window.renderCalendar();
                     });
                     container.appendChild(el);
-                    
-                    // Scroll to center current year
-                    if (isCurrent) {
-                        setTimeout(() => {
-                            el.scrollIntoView({ block: 'center', behavior: 'auto' });
-                        }, 0);
-                    }
                 }
             }
 
@@ -3481,7 +3748,13 @@ Current mode: localStorage only (events will persist in browser)
             
             if (prevBtn) {
                 prevBtn.addEventListener('click', () => {
-                    window.currentDate.setMonth(window.currentDate.getMonth() - 1);
+                    if (window.calendarViewMode === 'months') {
+                        window.currentDate.setFullYear(window.currentDate.getFullYear() - 1);
+                    } else if (window.calendarViewMode === 'years') {
+                        window.currentDate.setFullYear(window.currentDate.getFullYear() - 10);
+                    } else {
+                        window.currentDate.setMonth(window.currentDate.getMonth() - 1);
+                    }
                     window.updateCalendarTitle();
                     window.renderCalendar();
                 });
@@ -3489,7 +3762,13 @@ Current mode: localStorage only (events will persist in browser)
 
             if (nextBtn) {
                 nextBtn.addEventListener('click', () => {
-                    window.currentDate.setMonth(window.currentDate.getMonth() + 1);
+                    if (window.calendarViewMode === 'months') {
+                        window.currentDate.setFullYear(window.currentDate.getFullYear() + 1);
+                    } else if (window.calendarViewMode === 'years') {
+                        window.currentDate.setFullYear(window.currentDate.getFullYear() + 10);
+                    } else {
+                        window.currentDate.setMonth(window.currentDate.getMonth() + 1);
+                    }
                     window.updateCalendarTitle();
                     window.renderCalendar();
                 });
@@ -3895,8 +4174,9 @@ document.addEventListener('click', async function(e) {
     // Update Event
     if (target.classList.contains('update-event-btn')) {
         const eventId = target.dataset.eventId;
-        // TODO: Implement update modal
-        showToast(`Update event ${eventId} - Feature coming soon`, 'info');
+        if (typeof window.openEditEventModal === 'function') {
+            window.openEditEventModal(eventId);
+        }
     }
 
     // Cancel Event (update status to cancelled)
