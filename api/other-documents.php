@@ -136,23 +136,18 @@ try {
                 
                 if ($userIdFilter) {
                     $stmt = $pdo->prepare("
-                        SELECT od.*, u.username as uploaded_by,
-                               a.title as award_title
+                        SELECT od.*, u.username as uploaded_by
                         FROM other_documents od
                         LEFT JOIN users u ON od.user_id = u.id
-                        LEFT JOIN awards a ON od.award_id = a.id
-                        WHERE od.user_id = ? AND od.status IS NULL OR od.status != 'deleted'
+                        WHERE od.user_id = ?
                         ORDER BY od.created_at DESC
                     ");
                     $stmt->execute([$userIdFilter]);
                 } else {
                     $stmt = $pdo->query("
-                        SELECT od.*, u.username as uploaded_by,
-                               a.title as award_title
+                        SELECT od.*, u.username as uploaded_by
                         FROM other_documents od
                         LEFT JOIN users u ON od.user_id = u.id
-                        LEFT JOIN awards a ON od.award_id = a.id
-                        WHERE od.status IS NULL OR od.status != 'deleted'
                         ORDER BY od.created_at DESC
                     ");
                 }
@@ -173,13 +168,11 @@ try {
             $title = $_POST['title'] ?? $fileInfo['original_name'];
             $description = $_POST['description'] ?? null;
             $category = $_POST['category'] ?? 'Other Documents';
-            $awardId = isset($_POST['award_id']) && $_POST['award_id'] !== '' ? (int)$_POST['award_id'] : null;
-            $sourcePage = $_POST['source_page'] ?? null;
 
             $stmt = $pdo->prepare("
                 INSERT INTO other_documents
-                (user_id, title, description, file_name, file_path, category, award_id, source_page, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                (user_id, title, description, file_name, file_path, category, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
             ");
 
             $stmt->execute([
@@ -188,9 +181,7 @@ try {
                 $description,
                 $fileInfo['original_name'],
                 $fileInfo['filepath'],
-                $category,
-                $awardId,
-                $sourcePage
+                $category
             ]);
 
             $newId = $pdo->lastInsertId();
