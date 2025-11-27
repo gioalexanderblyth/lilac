@@ -4,18 +4,21 @@
  * Automatically analyzes events, documents, and other items for ICONS 2025 award eligibility
  */
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// Only execute headers and main logic if called directly
+if (basename($_SERVER['SCRIPT_FILENAME']) === basename(__FILE__)) {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+    header('Content-Type: application/json');
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        http_response_code(200);
+        exit();
+    }
 }
 
 require_once __DIR__ . '/config.php';
@@ -185,67 +188,69 @@ $AWARDS_CONFIG = [
     ]
 ];
 
-$action = $_GET['action'] ?? $_POST['action'] ?? '';
+if (basename($_SERVER['SCRIPT_FILENAME']) === basename(__FILE__)) {
+    $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
-try {
-    $pdo = getDatabaseConnection();
-    
-    switch ($action) {
-        case 'analyze_event':
-            $eventId = $_GET['event_id'] ?? $_POST['event_id'] ?? '';
-            if (empty($eventId)) {
-                throw new Exception('Event ID is required');
-            }
-            echo json_encode(analyzeEvent($pdo, $eventId));
-            break;
-            
-        case 'analyze_mou':
-            $mouId = $_GET['mou_id'] ?? $_POST['mou_id'] ?? '';
-            if (empty($mouId)) {
-                throw new Exception('MOU ID is required');
-            }
-            echo json_encode(analyzeMOU($pdo, $mouId));
-            break;
-            
-        case 'analyze_document':
-            $docId = $_GET['doc_id'] ?? $_POST['doc_id'] ?? '';
-            if (empty($docId)) {
-                throw new Exception('Document ID is required');
-            }
-            echo json_encode(analyzeDocument($pdo, $docId));
-            break;
-            
-        case 'analyze_text':
-            $text = $_POST['text'] ?? '';
-            if (empty($text)) {
-                throw new Exception('Text is required');
-            }
-            echo json_encode(analyzeText($text));
-            break;
-            
-        case 'get_awards':
-            echo json_encode([
-                'success' => true,
-                'awards' => array_map(function($award) {
-                    return [
-                        'id' => $award['id'],
-                        'title' => $award['title'],
-                        'category' => $award['category']
-                    ];
-                }, array_values($AWARDS_CONFIG))
-            ]);
-            break;
-            
-        default:
-            throw new Exception('Invalid action. Use: analyze_event, analyze_mou, analyze_document, analyze_text, or get_awards');
+    try {
+        $pdo = getDatabaseConnection();
+        
+        switch ($action) {
+            case 'analyze_event':
+                $eventId = $_GET['event_id'] ?? $_POST['event_id'] ?? '';
+                if (empty($eventId)) {
+                    throw new Exception('Event ID is required');
+                }
+                echo json_encode(analyzeEvent($pdo, $eventId));
+                break;
+                
+            case 'analyze_mou':
+                $mouId = $_GET['mou_id'] ?? $_POST['mou_id'] ?? '';
+                if (empty($mouId)) {
+                    throw new Exception('MOU ID is required');
+                }
+                echo json_encode(analyzeMOU($pdo, $mouId));
+                break;
+                
+            case 'analyze_document':
+                $docId = $_GET['doc_id'] ?? $_POST['doc_id'] ?? '';
+                if (empty($docId)) {
+                    throw new Exception('Document ID is required');
+                }
+                echo json_encode(analyzeDocument($pdo, $docId));
+                break;
+                
+            case 'analyze_text':
+                $text = $_POST['text'] ?? '';
+                if (empty($text)) {
+                    throw new Exception('Text is required');
+                }
+                echo json_encode(analyzeText($text));
+                break;
+                
+            case 'get_awards':
+                echo json_encode([
+                    'success' => true,
+                    'awards' => array_map(function($award) {
+                        return [
+                            'id' => $award['id'],
+                            'title' => $award['title'],
+                            'category' => $award['category']
+                        ];
+                    }, array_values($AWARDS_CONFIG))
+                ]);
+                break;
+                
+            default:
+                throw new Exception('Invalid action. Use: analyze_event, analyze_mou, analyze_document, analyze_text, or get_awards');
+        }
+        
+    } catch (Exception $e) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
     }
-    
-} catch (Exception $e) {
-    http_response_code(400);
-    echo json_encode([
-        'success' => false,
-        'error' => $e->getMessage()
-    ]);
 }
 
 /**

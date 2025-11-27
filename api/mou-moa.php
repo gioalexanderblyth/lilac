@@ -9,7 +9,7 @@ session_start();
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, RESTORE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 // Handle preflight requests
@@ -308,7 +308,7 @@ function updateEntry($pdo, $id, $data) {
 }
 
 // Delete MOU/MOA entry
-function deleteEntry($pdo, $id) {
+function deleteEntry($pdo, $id, $permanent = false) {
     try {
         // Get file path before deleting
         $stmt = $pdo->prepare("SELECT file_path FROM mou_moa WHERE id = ?");
@@ -319,13 +319,25 @@ function deleteEntry($pdo, $id) {
             throw new Exception('Entry not found');
         }
 
-        // Delete the entry
-        $stmt = $pdo->prepare("DELETE FROM mou_moa WHERE id = ?");
-        $stmt->execute([$id]);
+        if ($permanent) {
+            // Permanent delete - remove file and database record
+            $stmt = $pdo->prepare("DELETE FROM mou_moa WHERE id = ?");
+            $stmt->execute([$id]);
 
-        // Delete the file if it exists
-        if (!empty($entry['file_path'])) {
-            deleteFile($entry['file_path']);
+            // Delete the file if it exists
+            if (!empty($entry['file_path'])) {
+                deleteFile($entry['file_path']);
+            }
+        } else {
+            // Soft delete - move to trash (set deleted_at)
+            // First, ensure deleted_at column exists
+            try {
+                $pdo->exec("ALTER TABLE mou_moa ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+            } catch (PDOException $e) {
+                // Column might already exist, ignore
+            }
+            $stmt = $pdo->prepare("UPDATE mou_moa SET deleted_at = NOW() WHERE id = ?");
+            $stmt->execute([$id]);
         }
 
         return $stmt->rowCount() > 0;
@@ -392,7 +404,33 @@ try {
 
     switch ($method) {
         case 'GET':
-            if ($action === 'list' || $action === '') {
+            // Check if it's a restore action
+            if ($action === 'restore') {
+                $id = $_GET['id'] ?? null;
+                if (!$id) {
+                    throw new Exception('ID is required for restoration');
+                }
+                
+                try {
+                    // Ensure deleted_at column exists
+                    try {
+                        $pdo->exec("ALTER TABLE mou_moa ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+                    } catch (PDOException $e) {
+                        // Column might already exist, ignore
+                    }
+                    
+                    $stmt = $pdo->prepare("UPDATE mou_moa SET deleted_at = NULL WHERE id = ?");
+                    $stmt->execute([$id]);
+                    
+                    if ($stmt->rowCount() > 0) {
+                        echo json_encode(['success' => true, 'message' => 'Entry restored successfully']);
+                    } else {
+                        throw new Exception('Entry not found');
+                    }
+                } catch (PDOException $e) {
+                    throw new Exception('Failed to restore entry: ' . $e->getMessage());
+                }
+            } elseif ($action === 'list' || $action === '') {
                 // Get all entries - all authenticated users have full access
                 $entries = getAllEntries($pdo, $userId, true);
                 echo json_encode(['success' => true, 'data' => $entries]);
@@ -547,9 +585,13 @@ try {
                 throw new Exception('ID is required for deletion');
             }
 
-            $success = deleteEntry($pdo, $id);
+            // Check if permanent delete is requested
+            $permanent = isset($_GET['permanent']) && $_GET['permanent'] === 'true';
+            
+            $success = deleteEntry($pdo, $id, $permanent);
             if ($success) {
-                echo json_encode(['success' => true, 'message' => 'Entry deleted successfully']);
+                $message = $permanent ? 'Entry permanently deleted' : 'Entry moved to trash';
+                echo json_encode(['success' => true, 'message' => $message]);
             } else {
                 throw new Exception('Entry not found');
             }

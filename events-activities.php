@@ -69,7 +69,7 @@ try {
 <link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
-<link rel="icon" href="assets/images/cpu-logo.svg.png">
+<link rel="icon" href="assets/images/cpu-logo.png">
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script>
         // Apply theme immediately to prevent flash
@@ -333,6 +333,10 @@ try {
 <a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="documents.php" title="Documents">
 <span class="material-symbols-outlined">description</span>
 <span class="sidebar-text hidden">Documents</span>
+</a>
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="trash.php" title="Trash">
+<span class="material-symbols-outlined">delete</span>
+<span class="sidebar-text hidden">Trash</span>
 </a>
 </nav>
 <div class="px-4 py-4 border-t border-border-light dark:border-border-dark">
@@ -1289,15 +1293,16 @@ No notifications yet
                     // Decide if API calls are allowed (same rules as loaders)
                     const serverEnabled = (localStorage.getItem('enableServerAPI') === '1');
                     const isFileProtocol = window.location.protocol === 'file:';
-                    const isPhpServer = window.location.protocol === 'http:' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+                    // Allow any HTTP/HTTPS connection to attempt server API calls
+                    const isPhpServer = window.location.protocol.startsWith('http');
                     
-                    // Auto-enable server API if running on localhost/127.0.0.1
+                    // Auto-enable server API if running on HTTP/HTTPS
                     if (isPhpServer && !serverEnabled) {
                         localStorage.setItem('enableServerAPI', '1');
-                        console.log('Auto-enabled server API for localhost/127.0.0.1');
+                        console.log('Auto-enabled server API for ' + window.location.hostname);
                     }
                     
-                    if (isFileProtocol || !isPhpServer) {
+                    if (isFileProtocol) {
                         console.warn('Server API unavailable. Saving event locally to browser storage.');
                         // Fallback: save to localStorage in the same shape used by renderers
                         const savedEvents = JSON.parse(localStorage.getItem('upcomingEvents') || '[]');
@@ -1438,6 +1443,7 @@ No notifications yet
                     
                 } catch (error) {
                     console.error('Database save failed, saving locally instead:', error);
+                    showToast('Server save failed: ' + error.message, 'error');
                     // Fallback: save to localStorage so the UI still updates
                     try {
                         const savedEvents = JSON.parse(localStorage.getItem('upcomingEvents') || '[]');
@@ -1927,6 +1933,7 @@ No notifications yet
                 }
                 
                 try {
+                    showToast('Analyzing event eligibility...', 'info');
                     console.log('Analyzing event for awards...');
                     const response = await fetch('api/analyze-award.php', {
                         method: 'POST',
@@ -1934,11 +1941,24 @@ No notifications yet
                     });
                     const result = await response.json();
                     console.log('Event Analysis Complete:', result);
-                    if (result.success && result.eligible_count > 0) {
-                        showToast(`Event matched ${result.eligible_count} award criteria!`, 'success');
+                    
+                    if (result.success) {
+                        if (result.eligible_count > 0) {
+                            showToast(`Event matched ${result.eligible_count} award criteria!`, 'success');
+                        } else if (result.total_count > 0) {
+                            showToast(`Analysis found ${result.total_count} potential matches (Low Score).`, 'info');
+                        } else {
+                            showToast('Analysis complete: No matches found.', 'info');
+                        }
+                    } else {
+                        console.error('Analysis returned error:', result);
+                        showToast('Analysis warning: ' + (result.error || 'Unknown issue'), 'warning');
                     }
                 } catch (error) {
                     console.error('Event analysis failed:', error);
+                    // Don't show toast on network error to avoid annoyance, or show debug?
+                    // Let's show it for now since user says "not working"
+                    showToast('Analysis error: ' + error.message, 'error');
                 }
             };
 
@@ -1946,20 +1966,13 @@ No notifications yet
                 try {
                     // Determine if we're likely running a PHP-capable local server
                     const isFileProtocol = window.location.protocol === 'file:';
-                    const isPhpServer = window.location.protocol === 'http:' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+                    // Allow any HTTP/HTTPS connection to attempt server API calls
+                    const isPhpServer = window.location.protocol.startsWith('http');
 
                     if (isFileProtocol) {
                         console.log('Running in file mode - skipping database load, using localStorage only');
                         loadUpcomingEvents();
                         loadTodayEvents();
-                        return false;
-                    }
-                    if (!isPhpServer) {
-                        console.log('Not on localhost - using localStorage fallback');
-                        loadUpcomingEvents();
-                        loadTodayEvents();
-                        loadCompletedEvents();
-                        if (typeof window.renderCalendar === 'function') { window.renderCalendar(); }
                         return false;
                     }
 
@@ -2610,7 +2623,7 @@ Current mode: localStorage only (events will persist in browser)
                     
                     const notification = new Notification(`Event Reminder: ${reminder.eventTitle}`, {
                         body: `Your event is coming up on ${formatEventDate(reminder.eventDate)} at ${reminder.eventTime}`,
-                        icon: 'assets/images/cpu-logo.svg.png',
+                        icon: 'assets/images/cpu-logo.png',
                         tag: notificationTag, // Browser will replace any existing notification with same tag
                         requireInteraction: true
                     });

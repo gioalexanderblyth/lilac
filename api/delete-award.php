@@ -35,7 +35,10 @@ try {
         // Database-based deletion
         $awardIdInt = (int)$awardId;
         
-        // First, get the award details to delete associated files
+        // Check if permanent delete is requested
+        $permanent = isset($_GET['permanent']) && $_GET['permanent'] === 'true';
+        
+        // First, get the award details
         $stmt = $pdo->prepare('SELECT file_path, file_name, created_at FROM awards WHERE id = ?');
         $stmt->execute([$awardIdInt]);
         $award = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -46,71 +49,96 @@ try {
             exit();
         }
         
-        $deletedFiles = [];
+        if ($permanent) {
+            // Permanent delete - remove files and database records
+            $deletedFiles = [];
 
-        // 1. Find and delete linked OTHER DOCUMENTS (Documents Page)
-        $stmtDocs = $pdo->prepare("SELECT id, title, file_path, created_at FROM other_documents WHERE award_id = ?");
-        $stmtDocs->execute([$awardIdInt]);
-        $linkedDocs = $stmtDocs->fetchAll(PDO::FETCH_ASSOC);
+            // 1. Find and delete linked OTHER DOCUMENTS (Documents Page)
+            $stmtDocs = $pdo->prepare("SELECT id, title, file_path, created_at FROM other_documents WHERE award_id = ?");
+            $stmtDocs->execute([$awardIdInt]);
+            $linkedDocs = $stmtDocs->fetchAll(PDO::FETCH_ASSOC);
 
-        foreach ($linkedDocs as $doc) {
-            // Delete physical file from Documents folder
-            if ($doc['file_path'] && file_exists(__DIR__ . '/../' . $doc['file_path'])) {
-                if (unlink(__DIR__ . '/../' . $doc['file_path'])) {
-                    $deletedFiles[] = basename($doc['file_path']);
-                }
-            }
-
-            // Delete the record
-            $stmtDel = $pdo->prepare("DELETE FROM other_documents WHERE id = ?");
-            $stmtDel->execute([$doc['id']]);
-
-            // CASCADE: Delete linked MOU/MOA entries if they match (auto-copied ones)
-            if ($doc['title']) {
-                // Find potential MOU/MOA duplicate created around the same time
-                $stmtMou = $pdo->prepare("
-                    SELECT id, file_path FROM mou_moa 
-                    WHERE title = ? AND ABS(UNIX_TIMESTAMP(created_at) - UNIX_TIMESTAMP(?)) < 60
-                ");
-                $stmtMou->execute([$doc['title'], $doc['created_at']]);
-                $linkedMou = $stmtMou->fetch(PDO::FETCH_ASSOC);
-
-                if ($linkedMou) {
-                    // Delete MOU file
-                    if ($linkedMou['file_path'] && file_exists(__DIR__ . '/../' . $linkedMou['file_path'])) {
-                        unlink(__DIR__ . '/../' . $linkedMou['file_path']);
+            foreach ($linkedDocs as $doc) {
+                // Delete physical file from Documents folder
+                if ($doc['file_path'] && file_exists(__DIR__ . '/../' . $doc['file_path'])) {
+                    if (unlink(__DIR__ . '/../' . $doc['file_path'])) {
+                        $deletedFiles[] = basename($doc['file_path']);
                     }
-                    // Delete MOU record
-                    $pdo->prepare("DELETE FROM mou_moa WHERE id = ?")->execute([$linkedMou['id']]);
+                }
+
+                // Delete the record
+                $stmtDel = $pdo->prepare("DELETE FROM other_documents WHERE id = ?");
+                $stmtDel->execute([$doc['id']]);
+
+                // CASCADE: Delete linked MOU/MOA entries if they match (auto-copied ones)
+                if ($doc['title']) {
+                    // Find potential MOU/MOA duplicate created around the same time
+                    $stmtMou = $pdo->prepare("
+                        SELECT id, file_path FROM mou_moa 
+                        WHERE title = ? AND ABS(UNIX_TIMESTAMP(created_at) - UNIX_TIMESTAMP(?)) < 60
+                    ");
+                    $stmtMou->execute([$doc['title'], $doc['created_at']]);
+                    $linkedMou = $stmtMou->fetch(PDO::FETCH_ASSOC);
+
+                    if ($linkedMou) {
+                        // Delete MOU file
+                        if ($linkedMou['file_path'] && file_exists(__DIR__ . '/../' . $linkedMou['file_path'])) {
+                            unlink(__DIR__ . '/../' . $linkedMou['file_path']);
+                        }
+                        // Delete MOU record
+                        $pdo->prepare("DELETE FROM mou_moa WHERE id = ?")->execute([$linkedMou['id']]);
+                    }
                 }
             }
-        }
-        
-        // Delete associated analysis records explicitly
-        $stmt = $pdo->prepare('DELETE FROM award_analysis WHERE award_id = ?');
-        $stmt->execute([$awardIdInt]);
-        
-        // Delete the uploaded file if it exists
-        if ($award['file_path'] && file_exists($award['file_path'])) {
-            if (unlink($award['file_path'])) {
-                $deletedFiles[] = basename($award['file_path']);
+            
+            // Delete associated analysis records explicitly
+            $stmt = $pdo->prepare('DELETE FROM award_analysis WHERE award_id = ?');
+            $stmt->execute([$awardIdInt]);
+            
+            // Delete the uploaded file if it exists
+            if ($award['file_path'] && file_exists($award['file_path'])) {
+                if (unlink($award['file_path'])) {
+                    $deletedFiles[] = basename($award['file_path']);
+                }
             }
-        }
-        
-        // Delete from database
-        $stmt = $pdo->prepare('DELETE FROM awards WHERE id = ?');
-        $stmt->execute([$awardIdInt]);
-        
-        if ($stmt->rowCount() > 0) {
-            logActivity('Award deleted successfully (ID: ' . $awardIdInt . ')', 'INFO');
-            echo json_encode([
-                'success' => true,
-                'message' => 'Award deleted successfully',
-                'deleted_files' => $deletedFiles
-            ]);
+            
+            // Delete from database
+            $stmt = $pdo->prepare('DELETE FROM awards WHERE id = ?');
+            $stmt->execute([$awardIdInt]);
+            
+            if ($stmt->rowCount() > 0) {
+                logActivity('Award permanently deleted (ID: ' . $awardIdInt . ')', 'INFO');
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Award permanently deleted',
+                    'deleted_files' => $deletedFiles
+                ]);
+            } else {
+                http_response_code(404);
+                echo json_encode(['error' => 'Award not found']);
+            }
         } else {
-            http_response_code(404);
-            echo json_encode(['error' => 'Award not found']);
+            // Soft delete - move to trash (set deleted_at)
+            try {
+                // Ensure deleted_at column exists
+                $pdo->exec("ALTER TABLE awards ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+            } catch (PDOException $e) {
+                // Column might already exist, ignore
+            }
+            
+            $stmt = $pdo->prepare('UPDATE awards SET deleted_at = NOW() WHERE id = ?');
+            $stmt->execute([$awardIdInt]);
+            
+            if ($stmt->rowCount() > 0) {
+                logActivity('Award moved to trash (ID: ' . $awardIdInt . ')', 'INFO');
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Award moved to trash'
+                ]);
+            } else {
+                http_response_code(404);
+                echo json_encode(['error' => 'Award not found']);
+            }
         }
         return;
     }

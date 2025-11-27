@@ -12,7 +12,7 @@ session_start();
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, RESTORE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 // Handle preflight requests
@@ -112,8 +112,33 @@ $method = $_SERVER['REQUEST_METHOD'];
 try {
     switch ($method) {
         case 'GET':
-            // Get all other documents
-            if (isset($_GET['id'])) {
+            // Check if it's a restore action
+            if (isset($_GET['action']) && $_GET['action'] === 'restore') {
+                $id = $_GET['id'] ?? null;
+                if (!$id) {
+                    throw new Exception('Document ID required for restoration');
+                }
+                
+                try {
+                    // Ensure deleted_at column exists
+                    try {
+                        $pdo->exec("ALTER TABLE other_documents ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+                    } catch (PDOException $e) {
+                        // Column might already exist, ignore
+                    }
+                    
+                    $stmt = $pdo->prepare("UPDATE other_documents SET deleted_at = NULL WHERE id = ?");
+                    $stmt->execute([$id]);
+                    
+                    if ($stmt->rowCount() > 0) {
+                        echo json_encode(['success' => true, 'message' => 'Document restored successfully']);
+                    } else {
+                        throw new Exception('Document not found');
+                    }
+                } catch (PDOException $e) {
+                    throw new Exception('Failed to restore document: ' . $e->getMessage());
+                }
+            } elseif (isset($_GET['id'])) {
                 // Get single document
                 $stmt = $pdo->prepare("
                     SELECT od.*, u.username as uploaded_by
@@ -339,14 +364,15 @@ try {
             break;
 
         case 'DELETE':
-            // Delete document
+            // Move document to trash (soft delete)
             if (!isset($_GET['id'])) {
                 throw new Exception('Document ID required');
             }
 
             $id = $_GET['id'];
+            $permanent = isset($_GET['permanent']) && $_GET['permanent'] === 'true';
 
-            // Get document file path and details to find linked MOU/MOA
+            // Get document file path and details
             $stmt = $pdo->prepare("SELECT * FROM other_documents WHERE id = ?");
             $stmt->execute([$id]);
             $document = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -356,53 +382,70 @@ try {
                 throw new Exception('Document not found');
             }
 
-            // Delete file
-            $fullPath = __DIR__ . '/../' . $document['file_path'];
-            if (file_exists($fullPath)) {
-                unlink($fullPath);
-            }
-
-            // CASCADE DELETE: Check for linked MOU/MOA (created within 60s with same title)
-            // This prevents the "second file" (the MOU copy) from reappearing after deletion
-            try {
-                $title = $document['title'];
-                $createdAt = $document['created_at'];
-                
-                // Find match in mou_moa table
-                $stmtMou = $pdo->prepare("
-                    SELECT id, file_path FROM mou_moa 
-                    WHERE title = ? 
-                    AND created_at BETWEEN DATE_SUB(?, INTERVAL 60 SECOND) AND DATE_ADD(?, INTERVAL 60 SECOND)
-                ");
-                $stmtMou->execute([$title, $createdAt, $createdAt]);
-                $linkedMou = $stmtMou->fetch(PDO::FETCH_ASSOC);
-                
-                if ($linkedMou) {
-                    // Delete linked MOU file if different from main doc
-                    if ($linkedMou['file_path'] !== $document['file_path']) {
-                        $mouPath = __DIR__ . '/../' . $linkedMou['file_path'];
-                        if (file_exists($mouPath)) {
-                            unlink($mouPath);
-                        }
-                    }
-                    
-                    // Delete linked MOU record
-                    $pdo->prepare("DELETE FROM mou_moa WHERE id = ?")->execute([$linkedMou['id']]);
-                    error_log("Cascade deleted linked MOU/MOA ID: " . $linkedMou['id']);
+            if ($permanent) {
+                // Permanent delete - remove file and database record
+                $fullPath = __DIR__ . '/../' . $document['file_path'];
+                if (file_exists($fullPath)) {
+                    unlink($fullPath);
                 }
-            } catch (Exception $e) {
-                error_log("Failed to cascade delete linked MOU: " . $e->getMessage());
-                // Continue with main delete
+
+                // CASCADE DELETE: Check for linked MOU/MOA (created within 60s with same title)
+                try {
+                    $title = $document['title'];
+                    $createdAt = $document['created_at'];
+                    
+                    // Find match in mou_moa table
+                    $stmtMou = $pdo->prepare("
+                        SELECT id, file_path FROM mou_moa 
+                        WHERE title = ? 
+                        AND created_at BETWEEN DATE_SUB(?, INTERVAL 60 SECOND) AND DATE_ADD(?, INTERVAL 60 SECOND)
+                        AND deleted_at IS NULL
+                    ");
+                    $stmtMou->execute([$title, $createdAt, $createdAt]);
+                    $linkedMou = $stmtMou->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($linkedMou) {
+                        // Delete linked MOU file if different from main doc
+                        if ($linkedMou['file_path'] !== $document['file_path']) {
+                            $mouPath = __DIR__ . '/../' . $linkedMou['file_path'];
+                            if (file_exists($mouPath)) {
+                                unlink($mouPath);
+                            }
+                        }
+                        
+                        // Permanently delete linked MOU record
+                        $pdo->prepare("DELETE FROM mou_moa WHERE id = ?")->execute([$linkedMou['id']]);
+                        error_log("Cascade permanently deleted linked MOU/MOA ID: " . $linkedMou['id']);
+                    }
+                } catch (Exception $e) {
+                    error_log("Failed to cascade delete linked MOU: " . $e->getMessage());
+                }
+
+                // Delete database record
+                $stmt = $pdo->prepare("DELETE FROM other_documents WHERE id = ?");
+                $stmt->execute([$id]);
+
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Document permanently deleted'
+                ]);
+            } else {
+                // Soft delete - move to trash (set deleted_at)
+                try {
+                    // Ensure deleted_at column exists
+                    $pdo->exec("ALTER TABLE other_documents ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+                } catch (PDOException $e) {
+                    // Column might already exist, ignore
+                }
+                
+                $stmt = $pdo->prepare("UPDATE other_documents SET deleted_at = NOW() WHERE id = ?");
+                $stmt->execute([$id]);
+
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Document moved to trash'
+                ]);
             }
-
-            // Delete database record
-            $stmt = $pdo->prepare("DELETE FROM other_documents WHERE id = ?");
-            $stmt->execute([$id]);
-
-            echo json_encode([
-                'success' => true,
-                'message' => 'Document deleted successfully'
-            ]);
             break;
 
         default:

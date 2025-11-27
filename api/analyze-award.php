@@ -5,12 +5,23 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
+// DEBUG: Log everything to a debug file
+$debugFile = __DIR__ . '/../logs/debug_analysis.log';
+function debugLog($message) {
+    global $debugFile;
+    file_put_contents($debugFile, date('[Y-m-d H:i:s] ') . $message . "\n", FILE_APPEND);
+}
+
 session_start(); // Start session to access user info
 
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
+
+debugLog("Request received: " . $_SERVER['REQUEST_METHOD']);
+debugLog("POST Data: " . print_r($_POST, true));
+debugLog("FILES Data: " . print_r($_FILES, true));
 
 // Only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -32,6 +43,7 @@ ob_start();
 
 // Set error handler to catch any PHP errors
 set_error_handler(function($severity, $message, $file, $line) {
+    debugLog("PHP Error: $message in $file:$line");
     throw new ErrorException($message, 0, $severity, $file, $line);
 });
 
@@ -49,13 +61,19 @@ try {
     $sourcePage = $_POST['source_page'] ?? null;
     $eventId = isset($_POST['event_id']) ? (int)$_POST['event_id'] : null;
     
+    debugLog("Parsed IDs - Event: $eventId, Document: $documentId");
+
     // Get current user
     $createdBy = $_SESSION['user']['username'] ?? 'System';
     $userId = $_SESSION['user']['id'] ?? null;
     
     // If document_id provided but no file, try to fetch from database
+    $uploadedFile = $_FILES['award_file'] ?? null;
+    
     if ($documentId && !$uploadedFile) {
+        debugLog("Attempting to fetch existing document ID: $documentId");
         try {
+            require_once 'config.php'; // Ensure we have DB access early
             $pdo = getDatabaseConnection();
             $stmt = $pdo->prepare("SELECT file_path, title, file_name FROM other_documents WHERE id = ?");
             $stmt->execute([$documentId]);
@@ -63,6 +81,11 @@ try {
             
             if ($doc) {
                 $fullPath = __DIR__ . '/../' . $doc['file_path'];
+                // Normalize path
+                $fullPath = realpath($fullPath) ?: $fullPath;
+                
+                debugLog("Found document in DB. Path: $fullPath");
+                
                 if (file_exists($fullPath)) {
                     $uploadedFile = [
                         'name' => $doc['file_name'] ?: basename($doc['file_path']),
@@ -70,13 +93,15 @@ try {
                         'error' => UPLOAD_ERR_OK,
                         'size' => filesize($fullPath)
                     ];
-                    error_log("Using existing document for analysis: " . $fullPath);
+                    debugLog("Using existing document for analysis: " . $fullPath);
                 } else {
-                    error_log("Document file not found at: " . $fullPath);
+                    debugLog("Document file not found at: " . $fullPath);
                 }
+            } else {
+                debugLog("Document ID $documentId not found in database");
             }
         } catch (Exception $e) {
-            error_log("Error fetching document: " . $e->getMessage());
+            debugLog("Error fetching document: " . $e->getMessage());
         }
     }
     
@@ -114,9 +139,6 @@ try {
             'size' => filesize($absolutePath),
             'error' => UPLOAD_ERR_OK
         ];
-    } else {
-        // Normal upload: get uploaded file
-        $uploadedFile = $_FILES['award_file'] ?? null;
     }
     
     error_log("Form data - Award name: '$awardName', Description: '$description', File: " . ($uploadedFile ? $uploadedFile['name'] : 'none') . ", Reanalyze: " . ($isReanalyze ? 'yes' : 'no'));
@@ -176,6 +198,7 @@ try {
     if ($uploadedFile) {
         // Validate file upload
         error_log("Starting file upload validation");
+        debugLog("Validating file upload...");
         validateFileUpload($uploadedFile);
         error_log("File upload validation passed");
         
@@ -195,6 +218,7 @@ try {
             $fileType = $extensionMap[$extension] ?? 'application/octet-stream';
         }
         error_log("File type detected: " . $fileType);
+        debugLog("File type: $fileType");
 
         // Extract text from uploaded file
         error_log("Starting text extraction for file: " . $uploadedFile['name']);
@@ -203,10 +227,12 @@ try {
         // No file - use Title and Description
         $extractedText = $awardName . "\n\n" . $description;
         error_log("Using Event Title/Description for analysis (No File)");
+        debugLog("Using text content only (Title+Desc)");
     }
     
     error_log("Text extraction completed, length: " . strlen($extractedText));
     error_log("Extracted text preview: " . substr($extractedText, 0, 100) . "...");
+    debugLog("Text extraction complete. Length: " . strlen($extractedText));
     
     // Check if the extraction returned a JSON error response (e.g., missing OCR)
     $jsonError = json_decode($extractedText, true);
@@ -219,7 +245,7 @@ try {
             'success' => false,
             'error' => $jsonError['user_message'] ?? $jsonError['message'],
             'error_type' => $jsonError['error'],
-            'file_type' => $fileType,
+            'file_type' => $fileType ?? 'unknown',
             'instructions' => $jsonError['instructions'] ?? null
         ];
         
@@ -276,11 +302,13 @@ try {
     });
     
     error_log("Analysis completed: " . count($analysis) . " results");
+    debugLog("Analysis completed. Found " . count($analysis) . " matches.");
 
     // Store the analysis in database (with fallback)
     error_log("Starting to store analysis results");
     $analysisId = storeAnalysisResults($awardName, $description, $extractedText, $analysis, $uploadedFile, $isReanalyze, $documentId, $sourcePage, $createdBy, $userId, $eventId);
     error_log("Analysis results stored with ID: " . $analysisId);
+    debugLog("Stored analysis results. ID: " . $analysisId);
 
     
     // Build counts for eligibility
@@ -338,7 +366,9 @@ try {
 
 } catch (Exception $e) {
     // Log the error
-    error_log("Analyze award error: " . $e->getMessage() . " in " . $e->getFile() . " line " . $e->getLine());
+    $errorMsg = $e->getMessage() . " in " . $e->getFile() . " line " . $e->getLine();
+    error_log("Analyze award error: " . $errorMsg);
+    debugLog("EXCEPTION: " . $errorMsg);
     
     http_response_code(400);
     $response = [
@@ -352,7 +382,9 @@ try {
     exit;
 } catch (Error $e) {
     // Catch PHP 7+ errors
-    error_log("Analyze award PHP error: " . $e->getMessage() . " in " . $e->getFile() . " line " . $e->getLine());
+    $errorMsg = $e->getMessage() . " in " . $e->getFile() . " line " . $e->getLine();
+    error_log("Analyze award PHP error: " . $errorMsg);
+    debugLog("FATAL ERROR: " . $errorMsg);
     
     http_response_code(500);
     $response = [
@@ -365,5 +397,4 @@ try {
     echo json_encode($response);
     exit;
 }
-
 ?>

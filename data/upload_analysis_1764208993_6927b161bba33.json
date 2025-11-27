@@ -1,0 +1,9 @@
+{
+    "title": "test b",
+    "description": "",
+    "file_name": "Test_Award_2.docx",
+    "file_path": "C:\\xampp\\htdocs\\lilac\\uploads\\other_documents\\doc_6927b16011752_1764208992.docx",
+    "detected_text": "Central Philippine University has successfully launched an international partnership initiative with ASEAN universities focusing on academic collaboration, student mobility, and research innovation. The program established Memoranda of Understanding (MOUs) with four partner universities in Thailand and Malaysia. Through this initiative, CPU promotes cross-border collaboration and enhances global citizenship awareness among students and faculty. The activities include exchange programs, international seminars, and collaborative projects that foster intercultural understanding and strengthen regional solidarity.",
+    "analysis_results": "[{\"title\":\"Global Citizenship Award\",\"category\":\"Global Citizenship Award\",\"name\":\"Global Citizenship Award\",\"match_percentage\":50,\"score\":50,\"status\":\"Not Eligible\",\"matched_keywords\":[\"global\",\"citizenship\",\"innovation\",\"international\"],\"missing_keywords\":[\"equity\",\"poverty\",\"community\",\"sustainability.\"],\"recommendation\":\"\",\"confidence\":\"medium\"},{\"title\":\"Emerging Leadership Award\",\"category\":\"Emerging Leadership Award\",\"name\":\"Emerging Leadership Award\",\"match_percentage\":0,\"score\":0,\"status\":\"Not Eligible\",\"matched_keywords\":[],\"missing_keywords\":[\"leadership\",\"leadership accessibility institution\"],\"recommendation\":\"\",\"confidence\":\"low\"}]",
+    "created_at": "2025-11-27 03:03:13"
+}

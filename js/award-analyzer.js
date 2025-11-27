@@ -7,6 +7,44 @@ class AwardAnalyzer {
         this.resultsContainerId = options.resultsContainerId || 'award-analysis-results';
         this.apiEndpoint = options.apiEndpoint || 'api/analyze-award.php';
         this.onAnalysisComplete = options.onAnalysisComplete || null;
+        this.detectedText = '';
+        this.injectEvidenceModal();
+    }
+
+    injectEvidenceModal() {
+        if (document.getElementById('analyzerEvidenceModal')) return;
+        
+        // Wait for DOM to be ready
+        if (!document.body) {
+            // If body doesn't exist yet, wait for DOMContentLoaded
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => this.injectEvidenceModal());
+                return;
+            }
+            // If still no body, return early
+            return;
+        }
+        
+        const html = `
+            <div id="analyzerEvidenceModal" class="fixed inset-0 bg-black bg-opacity-50 z-[80] hidden flex items-center justify-center p-4">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+                    <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-green-600 dark:text-green-400">find_in_page</span>
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white">Matched Evidence</h3>
+                        </div>
+                        <button onclick="document.getElementById('analyzerEvidenceModal').classList.add('hidden')" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-500">✕</button>
+                    </div>
+                    <div class="p-6 overflow-y-auto">
+                        <div class="mb-2 text-xs text-gray-500">Context for: <span id="analyzerEvidenceKeyword" class="font-bold text-primary"></span></div>
+                        <div class="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700">
+                            <div id="analyzerEvidenceText" class="text-sm text-gray-700 dark:text-gray-300 font-mono whitespace-pre-wrap leading-relaxed"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', html);
     }
 
     /**
@@ -47,6 +85,8 @@ class AwardAnalyzer {
             if (result.success || result.analysis) {
                 // Handle different response formats
                 const analysisData = result.analysis || result.data || result;
+                // Pass detected text for context highlighting
+                if (result.detected_text) options.detected_text = result.detected_text;
                 this.displayResults(analysisData, options);
                 
                 if (this.onAnalysisComplete) {
@@ -67,6 +107,11 @@ class AwardAnalyzer {
      * @param {Object} options - Display options
      */
     displayResults(analysisData, options = {}) {
+        if (options.detected_text) {
+            this.detectedText = options.detected_text;
+        }
+        // Ensure window.awardAnalyzer is set for onclick handlers
+        window.awardAnalyzer = this;
         let container = document.getElementById(this.resultsContainerId);
         
         if (!container) {
@@ -195,13 +240,14 @@ class AwardAnalyzer {
                                 </div>
                                 <div class="keywords-list">
                                     ${keywords.map(kw => `
-                                        <div class="keyword-item cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-1 rounded" 
-                                             onclick="window.awardAnalyzer.toggleKeyword(${index}, '${kw.name.replace(/'/g, "\\'")}')"
-                                             title="Click to toggle match status">
-                                            <span class="icon ${kw.matched ? 'text-green-600' : 'text-gray-400'}">
+                                        <div class="keyword-item p-1 rounded flex items-center gap-2">
+                                            <span class="icon cursor-pointer ${kw.matched ? 'text-green-600' : 'text-gray-400'}" 
+                                                  onclick="window.awardAnalyzer.toggleKeyword(${index}, '${kw.name.replace(/'/g, "\\'")}')"
+                                                  title="Click to toggle match status">
                                                 ${kw.matched ? '✅' : '⚪'}
                                             </span>
-                                            <span class="text-gray-800 dark:text-gray-200 ${!kw.matched ? 'text-gray-500 dark:text-gray-400' : ''}">
+                                            <span class="text-gray-800 dark:text-gray-200 ${!kw.matched ? 'text-gray-500 dark:text-gray-400' : 'cursor-pointer hover:text-blue-600 hover:underline'}"
+                                                  ${kw.matched ? `onclick="window.awardAnalyzer.showContext('${kw.name.replace(/'/g, "\\'")}')" title="Click to see evidence context"` : ''}>
                                                 ${kw.name}
                                                 ${!kw.matched ? ' (missing)' : ''}
                                             </span>
@@ -297,6 +343,51 @@ class AwardAnalyzer {
             // Update recommendation text
             award.recommendation = this.getDefaultRecommendation(award.status, award.category || award.name, newPercentage);
         }
+    }
+
+    /**
+     * Show evidence context for a keyword
+     */
+    showContext(keyword) {
+        const modal = document.getElementById('analyzerEvidenceModal');
+        const keywordEl = document.getElementById('analyzerEvidenceKeyword');
+        const textEl = document.getElementById('analyzerEvidenceText');
+        
+        if (!modal || !keywordEl || !textEl) return;
+        
+        keywordEl.textContent = keyword;
+        
+        const text = this.detectedText || '';
+        if (!text) {
+            textEl.textContent = 'Evidence text not available in this context.';
+            modal.classList.remove('hidden');
+            return;
+        }
+        
+        // Find snippets
+        // Escape keyword
+        const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${escapedKeyword})`, 'gi');
+        
+        const matches = [...text.matchAll(regex)];
+        
+        if (matches.length > 0) {
+            const snippets = matches.slice(0, 5).map(match => {
+                const start = Math.max(0, match.index - 100);
+                const end = Math.min(text.length, match.index + keyword.length + 100);
+                let snippet = text.substring(start, end);
+                
+                // Highlight
+                snippet = snippet.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-900/50 text-gray-900 dark:text-white rounded px-1 font-bold">$1</mark>');
+                return `...${snippet}...`;
+            });
+            
+            textEl.innerHTML = snippets.join('<hr class="my-4 border-gray-200 dark:border-gray-700 border-dashed">');
+        } else {
+            textEl.textContent = 'Keyword matched in analysis but not found in current text (possibly partial/fuzzy match).';
+        }
+        
+        modal.classList.remove('hidden');
     }
 
     /**
@@ -422,6 +513,14 @@ class AwardAnalyzer {
 // Create global instance
 if (typeof window !== 'undefined') {
     window.AwardAnalyzer = AwardAnalyzer;
-    window.awardAnalyzer = new AwardAnalyzer();
+    // Wait for DOM to be ready before creating instance
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            window.awardAnalyzer = new AwardAnalyzer();
+        });
+    } else {
+        // DOM is already ready
+        window.awardAnalyzer = new AwardAnalyzer();
+    }
 }
 

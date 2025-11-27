@@ -141,8 +141,9 @@ function uploadAward($pdo) {
 }
 
 function listAwards($pdo) {
-    // Check if we're using file-based fallback
-    if ($pdo instanceof FileBasedDatabase) {
+    try {
+        // Check if we're using file-based fallback
+        if ($pdo instanceof FileBasedDatabase) {
         // Read from actual stored analysis files
         $dataDir = __DIR__ . '/../data/';
         $awards = [];
@@ -262,22 +263,42 @@ function listAwards($pdo) {
     }
     
     // Normal database query for SQLite/MySQL
-    $stmt = $pdo->query("
-        SELECT 
-            a.*, 
-            aa.predicted_category, 
-            aa.confidence, 
-            aa.matched_categories_json, 
-            aa.status as analysis_status,
-            aa.analysis_results,
-            od.id as document_id,
-            od.title as document_title
-        FROM awards a 
-        LEFT JOIN award_analysis aa ON a.id = aa.award_id 
-        LEFT JOIN other_documents od ON a.id = od.award_id
-        ORDER BY a.created_at DESC
-    ");
-    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Check if awards table exists
+    try {
+        $checkStmt = $pdo->query("SELECT 1 FROM awards LIMIT 1");
+    } catch (Exception $e) {
+        error_log("Awards table check failed: " . $e->getMessage());
+        // Table doesn't exist, return empty array
+        echo json_encode([]);
+        return;
+    }
+    
+    try {
+        // Ensure deleted_at column exists
+        try {
+            $pdo->exec("ALTER TABLE awards ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore
+        }
+        
+        $stmt = $pdo->query("
+            SELECT 
+                a.*, 
+                aa.predicted_category, 
+                aa.confidence, 
+                aa.matched_categories_json, 
+                aa.status as analysis_status
+            FROM awards a 
+            LEFT JOIN award_analysis aa ON a.id = aa.award_id 
+            WHERE a.deleted_at IS NULL
+            ORDER BY a.created_at DESC
+        ");
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        error_log("Awards list query error: " . $e->getMessage());
+        // Return empty array instead of throwing
+        $results = [];
+    }
     
     // Transform for frontend
     $awards = array_map(function($row) {
@@ -291,7 +312,6 @@ function listAwards($pdo) {
             'ocr_text' => $row['ocr_text'],
             'created_by' => $row['created_by'] ?? 'admin',
             'created_at' => $row['created_at'],
-            'document_id' => $row['document_id'] ?? null,
             'analysis' => [
                 'confidence' => (float)($row['confidence'] ?? 0),
                 'predicted_category' => $row['predicted_category'] ?? 'Not Analyzed',
@@ -302,6 +322,12 @@ function listAwards($pdo) {
     }, $results);
     
     echo json_encode($awards);
+    } catch (Exception $e) {
+        error_log("listAwards error: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to load awards: ' . $e->getMessage()]);
+    }
 }
 
 function detail($pdo, $id) {
@@ -665,6 +691,32 @@ try {
     if ($method === 'GET' && $action === 'stats') { 
         stats($pdo); 
         return; 
+    }
+    if ($method === 'GET' && $action === 'restore' && isset($_GET['id'])) {
+        // Restore award from trash
+        try {
+            // Ensure deleted_at column exists
+            try {
+                $pdo->exec("ALTER TABLE awards ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+            } catch (PDOException $e) {
+                // Column might already exist, ignore
+            }
+            
+            $id = (int)$_GET['id'];
+            $stmt = $pdo->prepare("UPDATE awards SET deleted_at = NULL WHERE id = ?");
+            $stmt->execute([$id]);
+            
+            if ($stmt->rowCount() > 0) {
+                echo json_encode(['success' => true, 'message' => 'Award restored successfully']);
+            } else {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'error' => 'Award not found']);
+            }
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'Failed to restore award: ' . $e->getMessage()]);
+        }
+        return;
     }
 
     // UPDATE: PUT with action=update

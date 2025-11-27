@@ -297,6 +297,10 @@ try {
 <span class="material-symbols-outlined">description</span>
 <span class="sidebar-text hidden">Documents</span>
 </a>
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="trash.php" title="Trash">
+<span class="material-symbols-outlined">delete</span>
+<span class="sidebar-text hidden">Trash</span>
+</a>
 </nav>
 <div class="px-4 py-4 border-t border-border-light dark:border-border-dark">
 <div class="flex items-center justify-between profile-container">

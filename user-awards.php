@@ -88,11 +88,18 @@ try {
             }
         }
     } else {
+        // Ensure deleted_at column exists
+        try {
+            $pdo->exec("ALTER TABLE awards ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore
+        }
+        
         if ($isAdmin) {
-            $stmt = $pdo->query('SELECT a.*, aa.predicted_category, aa.match_percentage, aa.status FROM awards a LEFT JOIN award_analysis aa ON aa.award_id = a.id ORDER BY a.created_at DESC');
+            $stmt = $pdo->query('SELECT a.*, aa.predicted_category, aa.match_percentage, aa.status FROM awards a LEFT JOIN award_analysis aa ON aa.award_id = a.id WHERE a.deleted_at IS NULL ORDER BY a.created_at DESC');
             $awards = $stmt->fetchAll(PDO::FETCH_ASSOC);
         } else {
-            $stmt = $pdo->prepare('SELECT a.*, aa.predicted_category, aa.match_percentage, aa.status FROM awards a LEFT JOIN award_analysis aa ON aa.award_id = a.id WHERE a.user_id = ? ORDER BY a.created_at DESC');
+            $stmt = $pdo->prepare('SELECT a.*, aa.predicted_category, aa.match_percentage, aa.status FROM awards a LEFT JOIN award_analysis aa ON aa.award_id = a.id WHERE a.user_id = ? AND a.deleted_at IS NULL ORDER BY a.created_at DESC');
             $stmt->execute([$user['id']]);
             $awards = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
@@ -718,6 +725,10 @@ try {
                     href="documents.php">
                     <span class="material-symbols-outlined">description</span>
                     <span class="sidebar-text hidden">Documents</span>
+                </a>
+                <a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="trash.php" title="Trash">
+                    <span class="material-symbols-outlined">delete</span>
+                    <span class="sidebar-text hidden">Trash</span>
                 </a>
             </nav>
             <div class="px-4 py-4 border-t border-border-light dark:border-border-dark">
@@ -1631,7 +1642,7 @@ try {
                                     class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors"
                                     onclick="bulkDeleteSelected()">
                                     <span class="material-symbols-outlined text-sm mr-1">delete</span>
-                                    Delete Selected
+                                    Move to Trash
                                 </button>
                             </div>
                         </div>
@@ -1716,13 +1727,12 @@ try {
 
                     <!-- Modal Title -->
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white text-center mb-2">
-                        Delete Award
+                        Move to Trash
                     </h3>
 
                     <!-- Modal Message -->
                     <p class="text-sm text-gray-600 dark:text-gray-300 text-center mb-6">
-                        Are you sure you want to delete this award? This action cannot be undone and will permanently
-                        remove the award and its associated files.
+                        Are you sure you want to move this award to trash? You can restore it later from the Trash page.
                     </p>
 
                     <!-- Modal Actions -->
@@ -1732,8 +1742,9 @@ try {
                             Cancel
                         </button>
                         <button id="deleteConfirmBtn"
-                            class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200">
-                            Delete Award
+                            class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-base">delete</span>
+                            Move to Trash
                         </button>
                     </div>
                 </div>
@@ -1760,13 +1771,12 @@ try {
 
                     <!-- Modal Title -->
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white text-center mb-2">
-                        Delete Selected Awards
+                        Move Selected to Trash
                     </h3>
 
                     <!-- Modal Message -->
                     <p class="text-sm text-gray-600 dark:text-gray-300 text-center mb-6" id="bulkDeleteMessage">
-                        Are you sure you want to delete the selected awards? This action cannot be undone and will
-                        permanently remove the awards and their associated files.
+                        Are you sure you want to move the selected awards to trash? You can restore them later from the Trash page.
                     </p>
 
                     <!-- Modal Actions -->
@@ -1776,8 +1786,9 @@ try {
                             Cancel
                         </button>
                         <button id="bulkDeleteConfirmBtn"
-                            class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200">
-                            Delete Awards
+                            class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-base">delete</span>
+                            Move to Trash
                         </button>
                     </div>
                 </div>
@@ -2219,7 +2230,7 @@ try {
                 if (response.ok) {
                     const result = await response.json();
                     console.log('Delete successful:', result);
-                    showNotification('Award deleted successfully!', 'success');
+                    showNotification('Award moved to trash successfully!', 'success');
                     // Refresh the awards list
                     await window.loadProcessAwardData();
                 } else {
@@ -4112,7 +4123,7 @@ try {
                                     <button class="p-2 rounded-md hover:bg-primary/10 text-text-muted-light dark:text-text-muted-dark" onclick="reanalyzeAward('${award.id}')" title="Re-analyze">
                                         <span class="material-symbols-outlined text-lg">refresh</span>
                                     </button>
-                                    <button class="p-2 rounded-md hover:bg-red-500/10 text-red-500" onclick="deleteAward('${award.id}')" title="Delete">
+                                    <button class="p-2 rounded-md hover:bg-red-500/10 text-red-500" onclick="deleteAward('${award.id}')" title="Move to Trash">
                                         <span class="material-symbols-outlined text-lg">delete</span>
                                     </button>
                                 </div>
@@ -4844,7 +4855,7 @@ try {
                     const successCount = results.length - failedCount;
 
                     if (successCount > 0) {
-                        showNotification(`Successfully deleted ${successCount} award(s)`, 'success');
+                        showNotification(`Successfully moved ${successCount} award(s) to trash`, 'success');
 
                         // Refresh the award list
                         await loadAwardListData();
@@ -5772,9 +5783,21 @@ try {
                     console.log('Analysis data sample:', JSON.stringify(matchesToDisplay.slice(0, 2), null, 2));
 
                     // Filter and limit results based on match_percentage
-                    const eligibleAwards = matchesToDisplay.filter(award => award.match_percentage >= 90);
-                    const almostEligibleAwards = matchesToDisplay.filter(award => award.match_percentage >= 70 && award.match_percentage < 90);
-                    const notEligibleAwards = matchesToDisplay.filter(award => award.match_percentage < 70);
+                    // Ensure we parse match_percentage as a number for comparison
+                    const parseMatchPct = (award) => {
+                        let pct = award.match_percentage || award.score || 0;
+                        if (typeof pct === 'string') {
+                            pct = parseFloat(pct.replace('%', '').trim());
+                        }
+                        return Number(pct) || 0;
+                    };
+                    
+                    const eligibleAwards = matchesToDisplay.filter(award => parseMatchPct(award) >= 90);
+                    const almostEligibleAwards = matchesToDisplay.filter(award => {
+                        const pct = parseMatchPct(award);
+                        return pct >= 70 && pct < 90;
+                    });
+                    const notEligibleAwards = matchesToDisplay.filter(award => parseMatchPct(award) < 70);
 
                     console.log('Filtering results:', {
                         eligible: eligibleAwards.length,
@@ -5833,11 +5856,31 @@ try {
         function createAwardAnalysisCard(award) {
             const card = document.createElement('div');
             card.className = 'bg-card-light dark:bg-card-dark/50 rounded-xl p-6 border border-border-light dark:border-border-dark';
+            // Add data attribute for award ID to help with toggle functionality
+            if (window.currentAnalysisId) {
+                card.setAttribute('data-award-card-id', window.currentAnalysisId);
+            }
 
             // Determine status based on match_percentage
-            const matchPct = award.match_percentage || award.score || 0;
+            // Ensure we parse the value as a number (handle string "100.0" -> 100.0)
+            let matchPct = award.match_percentage || award.score || 0;
+            
+            // Handle different formats: string "100.0", number 100, or string "100.0%"
+            if (typeof matchPct === 'string') {
+                // Remove % sign if present
+                matchPct = matchPct.replace('%', '').trim();
+                matchPct = parseFloat(matchPct);
+            }
+            matchPct = Number(matchPct);
+            
+            // Ensure it's a valid number between 0-100
+            if (isNaN(matchPct) || matchPct < 0) matchPct = 0;
+            if (matchPct > 100) matchPct = 100;
+            
+            // If award has a status field, use it, but recalculate if match_percentage suggests different
             let statusColor, statusIcon, statusMessage, eligibilityStatus;
-
+            
+            // Recalculate status based on match_percentage (override any existing status if percentage is high enough)
             if (matchPct >= 90) {
                 statusColor = 'green';
                 statusIcon = 'check_circle';
@@ -5854,10 +5897,43 @@ try {
                 eligibilityStatus = 'Not Eligible';
                 statusMessage = `Your document doesn't currently meet the criteria for the ${award.category_name || award.title}. Consider revising to better align with the award requirements.`;
             }
-
+            
+            // Debug log to help identify the issue
+            console.log('Award status calculation:', {
+                category: award.category_name || award.title,
+                match_percentage: matchPct,
+                match_percentage_type: typeof matchPct,
+                calculated_status: eligibilityStatus,
+                calculated_color: statusColor,
+                calculated_icon: statusIcon,
+                award_status: award.status,
+                award_score: award.score,
+                award_object_keys: Object.keys(award)
+            });
+            
+            // IMPORTANT: Always use the calculated status based on match_percentage, ignore award.status
+            // The award.status from API might be outdated if user toggled criteria
+            // Even if award.status exists, we recalculate it to ensure accuracy
+            
+            // Final verification - if matchPct is 100, status MUST be Eligible
+            if (matchPct >= 100 && eligibilityStatus !== 'Eligible') {
+                console.error('STATUS MISMATCH DETECTED!', {
+                    matchPct,
+                    calculatedStatus: eligibilityStatus,
+                    forcingToEligible: true
+                });
+                eligibilityStatus = 'Eligible';
+                statusColor = 'green';
+                statusIcon = 'check_circle';
+                statusMessage = `🎉 Excellent! Your document qualifies for the ${award.category_name || award.title}. You should apply for this award!`;
+            }
+            
             // Score is already in percent 0..100
             const displayScore = Number(matchPct).toFixed(1);
             const widthScore = Math.min(Number(matchPct), 100);
+            
+            // Force recalculation - don't trust award.status, always calculate from match_percentage
+            // This ensures that even if the API returns wrong status, we show the correct one
 
             // Build keyword checklist from matched_keywords and missing_keywords
             const matchedKeywords = award.matched_keywords || [];
@@ -5876,13 +5952,27 @@ try {
                             <div class="mt-2 space-y-1">
                                 ${matchedKeywords.map(keyword => `
                                     <div class="flex items-start gap-2 text-sm">
-                                        <span class="mt-0.5 text-green-600">✅</span>
+                                        <button type="button" 
+                                                class="toggle-criteria-btn mt-0.5 text-green-600 hover:text-green-700 cursor-pointer transition-colors" 
+                                                data-award-id="${window.currentAnalysisId || ''}"
+                                                data-criteria="${keyword.replace(/"/g, '&quot;')}"
+                                                data-move-to-matched="false"
+                                                title="Click to mark as unmatched">
+                                            ✅
+                                        </button>
                                         <span class="text-gray-800 dark:text-gray-200">${keyword}</span>
                                     </div>
                                 `).join('')}
                                 ${missingKeywords.map(keyword => `
                                     <div class="flex items-start gap-2 text-sm">
-                                        <span class="mt-0.5 text-gray-400">⚪</span>
+                                        <button type="button" 
+                                                class="toggle-criteria-btn mt-0.5 text-gray-400 hover:text-green-600 cursor-pointer transition-colors" 
+                                                data-award-id="${window.currentAnalysisId || ''}"
+                                                data-criteria="${keyword.replace(/"/g, '&quot;')}"
+                                                data-move-to-matched="true"
+                                                title="Click to mark as matched">
+                                            ⚪
+                                        </button>
                                         <span class="text-gray-500 dark:text-gray-400">${keyword} (missing)</span>
                                     </div>
                                 `).join('')}
@@ -6001,6 +6091,386 @@ try {
                     button.disabled = false;
                 });
         }
+
+        /**
+         * Toggle criteria between matched and unmatched
+         * Similar to award-applicants.php implementation
+         */
+        function toggleCriteria(awardId, criteria, moveToMatched, event) {
+            if (event) {
+                event.stopPropagation(); // Prevent triggering parent onclick
+            }
+
+            if (!awardId) {
+                console.error('No award ID available for toggle');
+                if (typeof showNotification !== 'undefined') {
+                    showNotification('Award ID not found. Please re-analyze the document.', 'error');
+                } else {
+                    alert('Award ID not found. Please re-analyze the document.');
+                }
+                return;
+            }
+
+            // Find the card element to preserve expanded state
+            const cardElement = document.querySelector(`[data-award-card-id="${awardId}"]`);
+            const isExpanded = cardElement?.querySelector('details[open]') !== null;
+
+            // Update UI optimistically
+            const btn = event?.target?.closest('.toggle-criteria-btn');
+            let wasMatched = false; // Declare outside if block for error handling
+            let originalBtnState = null; // Store original state for error recovery
+            let originalKeywordSpanState = null; // Store original keyword span state
+            
+            if (btn) {
+                wasMatched = btn.dataset.moveToMatched === 'false';
+                const newIsMatched = moveToMatched;
+                
+                // Store original state for error recovery
+                originalBtnState = {
+                    wasMatched: wasMatched,
+                    classes: btn.className,
+                    innerHTML: btn.innerHTML,
+                    dataset: { ...btn.dataset }
+                };
+                
+                // Store original keyword span state
+                const keywordSpan = btn.nextElementSibling;
+                if (keywordSpan) {
+                    originalKeywordSpanState = {
+                        classes: keywordSpan.className,
+                        textContent: keywordSpan.textContent
+                    };
+                }
+                
+                // Update button appearance
+                if (newIsMatched) {
+                    btn.classList.remove('text-gray-400');
+                    btn.classList.add('text-green-600');
+                    btn.innerHTML = '✅';
+                    btn.dataset.moveToMatched = 'false';
+                    btn.title = 'Click to mark as unmatched';
+                    
+                    // Update the keyword text styling
+                    const keywordSpan = btn.nextElementSibling;
+                    if (keywordSpan) {
+                        keywordSpan.classList.remove('text-gray-500', 'dark:text-gray-400');
+                        keywordSpan.classList.add('text-gray-800', 'dark:text-gray-200');
+                        keywordSpan.textContent = keywordSpan.textContent.replace(' (missing)', '');
+                    }
+                } else {
+                    btn.classList.remove('text-green-600');
+                    btn.classList.add('text-gray-400');
+                    btn.innerHTML = '⚪';
+                    btn.dataset.moveToMatched = 'true';
+                    btn.title = 'Click to mark as matched';
+                    
+                    // Update the keyword text styling
+                    const keywordSpan = btn.nextElementSibling;
+                    if (keywordSpan) {
+                        keywordSpan.classList.remove('text-gray-800', 'dark:text-gray-200');
+                        keywordSpan.classList.add('text-gray-500', 'dark:text-gray-400');
+                        if (!keywordSpan.textContent.includes('(missing)')) {
+                            keywordSpan.textContent += ' (missing)';
+                        }
+                    }
+                }
+            }
+
+            // Save to database in the background (non-blocking)
+            // Get AUTH_TOKEN from global scope (defined elsewhere in the page)
+            const authToken = typeof AUTH_TOKEN !== 'undefined' ? AUTH_TOKEN : '';
+            if (!authToken) {
+                console.error('AUTH_TOKEN not found');
+                if (typeof showNotification !== 'undefined') {
+                    showNotification('Authentication token not found. Please refresh the page.', 'error');
+                } else {
+                    alert('Authentication token not found. Please refresh the page.');
+                }
+                // Revert UI changes
+                if (btn) {
+                    if (wasMatched) {
+                        btn.classList.remove('text-gray-400');
+                        btn.classList.add('text-green-600');
+                        btn.innerHTML = '✅';
+                        btn.dataset.moveToMatched = 'false';
+                    } else {
+                        btn.classList.remove('text-green-600');
+                        btn.classList.add('text-gray-400');
+                        btn.innerHTML = '⚪';
+                        btn.dataset.moveToMatched = 'true';
+                    }
+                }
+                return;
+            }
+
+            fetch(`api/award-applicants.php?action=toggle_criteria`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + authToken
+                },
+                body: JSON.stringify({
+                    award_id: awardId,
+                    criteria: criteria,
+                    move_to_matched: moveToMatched
+                })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // Recalculate and update the match percentage display
+                    const matchCount = result.match_count || 0;
+                    const totalKeywords = result.total_keywords || 1;
+                    // Calculate as number first, then format for display
+                    const calculatedPercentage = totalKeywords > 0 ? (matchCount / totalKeywords) * 100 : 0;
+                    const newMatchPercentage = parseFloat(calculatedPercentage.toFixed(1)); // Ensure it's a number
+                    const displayPercentage = calculatedPercentage.toFixed(1); // String for display
+                    
+                    console.log('Toggle result:', {
+                        matchCount,
+                        totalKeywords,
+                        calculatedPercentage,
+                        newMatchPercentage,
+                        displayPercentage,
+                        isNumber: typeof newMatchPercentage,
+                        comparison: newMatchPercentage >= 90
+                    });
+                    
+                    // Update the match percentage in the card
+                    if (cardElement) {
+                        // Find percentage badge - the span with the percentage display
+                        const percentageBadge = cardElement.querySelector('.inline-flex.items-center.px-2.py-1.rounded-full');
+                        if (percentageBadge) {
+                            percentageBadge.textContent = `${displayPercentage}%`;
+                        }
+                        
+                        // Find progress bar container and the inner progress bar
+                        const progressContainer = cardElement.querySelector('.mb-4 .w-full.bg-gray-200, .mb-4 .w-full.bg-gray-700');
+                        if (progressContainer) {
+                            // Find the inner div that represents the progress (has h-2 and rounded-full)
+                            const progressBar = progressContainer.querySelector('div.h-2.rounded-full');
+                            if (progressBar) {
+                                progressBar.style.width = `${Math.min(newMatchPercentage, 100)}%`;
+                                // Update progress bar color based on status
+                                const progressColor = newMatchPercentage >= 90 ? 'green' : newMatchPercentage >= 70 ? 'yellow' : 'red';
+                                progressBar.className = progressBar.className.replace(/bg-(red|green|yellow)-500/g, '');
+                                progressBar.className += ' bg-' + progressColor + '-500';
+                            }
+                        }
+                        
+                        // Calculate status and colors FIRST (before using them)
+                        let newStatus = 'Not Eligible';
+                        let statusColorClass = 'text-red-600';
+                        let statusIcon = 'cancel';
+                        let statusIconColor = 'red';
+                        let newStatusMessage = '';
+                        const awardName = cardElement.querySelector('h4')?.textContent || 'the award';
+                        
+                        if (newMatchPercentage >= 90) {
+                            newStatus = 'Eligible';
+                            statusColorClass = 'text-green-600';
+                            statusIcon = 'check_circle';
+                            statusIconColor = 'green';
+                            newStatusMessage = `🎉 Excellent! Your document qualifies for ${awardName}. You should apply for this award!`;
+                        } else if (newMatchPercentage >= 70) {
+                            newStatus = 'Almost Eligible';
+                            statusColorClass = 'text-yellow-600';
+                            statusIcon = 'warning';
+                            statusIconColor = 'yellow';
+                            newStatusMessage = `👍 Good potential for ${awardName}. With some refinements, you could be eligible for this award.`;
+                        } else {
+                            newStatusMessage = `Your document doesn't currently meet the criteria for ${awardName}. Consider revising to better align with the award requirements.`;
+                        }
+                        
+                        // Find percentage text - the span showing the percentage and confidence
+                        const confidenceSection = cardElement.querySelector('.mb-4 .flex.justify-between');
+                        if (confidenceSection) {
+                            const percentageText = confidenceSection.querySelector('.font-medium');
+                            if (percentageText) {
+                                // Calculate confidence level based on percentage
+                                let confidenceLevel = 'low';
+                                if (newMatchPercentage >= 80) {
+                                    confidenceLevel = 'high';
+                                } else if (newMatchPercentage >= 50) {
+                                    confidenceLevel = 'medium';
+                                }
+                                
+                                // Update text and color
+                                percentageText.textContent = `${displayPercentage}% (${confidenceLevel})`;
+                                
+                                // Update color based on status
+                                percentageText.className = percentageText.className.replace(/text-(red|green|yellow)-600/g, '');
+                                percentageText.className = percentageText.className.trim();
+                                percentageText.className += ' ' + statusColorClass;
+                            }
+                        }
+                        
+                        // Update status badge and icon if needed
+                        // Note: statusColorClass, newStatus, etc. are already declared above
+                        
+                        console.log('Updating status display:', {
+                            newMatchPercentage,
+                            newStatus,
+                            statusColorClass,
+                            statusIcon,
+                            statusIconColor
+                        });
+                        
+                        // Find and update the status icon and badge
+                        // The status is in the right side of the header
+                        const headerRow = cardElement.querySelector('.flex.items-start.justify-between.mb-4');
+                        if (!headerRow) {
+                            console.error('Header row not found');
+                            return;
+                        }
+                        
+                        // Find all children of headerRow - the status container should be the last direct child
+                        const headerChildren = Array.from(headerRow.children);
+                        const statusContainer = headerChildren[headerChildren.length - 1]; // Last child should be the status container
+                        
+                        if (statusContainer && statusContainer.classList.contains('flex') && statusContainer.classList.contains('items-center')) {
+                            // Find the material-symbols-outlined icon
+                            const statusIconElement = statusContainer.querySelector('span.material-symbols-outlined');
+                            if (statusIconElement) {
+                                statusIconElement.textContent = statusIcon;
+                                // Update icon color - remove ALL color classes first, then add new one
+                                statusIconElement.className = 'material-symbols-outlined text-' + statusIconColor + '-500';
+                                console.log('Updated icon:', statusIconElement.className, statusIconElement.textContent);
+                            } else {
+                                console.error('Status icon element not found. Container children:', Array.from(statusContainer.children).map(c => c.tagName + '.' + c.className));
+                            }
+                            
+                            // Find the status badge - it's a span with text-sm and font-bold classes
+                            const statusBadge = statusContainer.querySelector('span.text-sm.font-bold');
+                            if (statusBadge) {
+                                statusBadge.textContent = newStatus;
+                                // Update badge color - replace the color class
+                                statusBadge.className = 'text-sm font-bold ' + statusColorClass;
+                                console.log('Updated badge:', statusBadge.textContent, statusBadge.className);
+                            } else {
+                                // Fallback: find any span that contains "Eligible" text
+                                const allSpans = statusContainer.querySelectorAll('span');
+                                for (let span of allSpans) {
+                                    if (span.textContent.includes('Eligible') || span.textContent.includes('Not Eligible')) {
+                                        span.textContent = newStatus;
+                                        span.className = 'text-sm font-bold ' + statusColorClass;
+                                        console.log('Updated badge (fallback):', span.textContent, span.className);
+                                        break;
+                                    }
+                                }
+                            }
+                        } else {
+                            console.error('Status container not found or wrong structure. Header children:', headerChildren.map(c => c.tagName + '.' + c.className));
+                        }
+                        
+                        // Update the recommendation message box
+                        const recommendationBox = cardElement.querySelector('.mb-4.p-3.rounded-lg');
+                        if (recommendationBox) {
+                            // Update the message text
+                            const messageText = recommendationBox.querySelector('p');
+                            if (messageText) {
+                                messageText.textContent = newStatusMessage;
+                            }
+                            
+                            // Update the box colors based on status
+                            recommendationBox.className = recommendationBox.className.replace(/bg-(red|green|yellow)-50/g, '');
+                            recommendationBox.className = recommendationBox.className.replace(/dark:bg-(red|green|yellow)-900/g, '');
+                            recommendationBox.className = recommendationBox.className.replace(/border-(red|green|yellow)-200/g, '');
+                            recommendationBox.className = recommendationBox.className.replace(/dark:border-(red|green|yellow)-800/g, '');
+                            recommendationBox.className = recommendationBox.className.trim();
+                            
+                            const boxColor = newMatchPercentage >= 90 ? 'green' : newMatchPercentage >= 70 ? 'yellow' : 'red';
+                            recommendationBox.className += ` bg-${boxColor}-50 dark:bg-${boxColor}-900/20 border border-${boxColor}-200 dark:border-${boxColor}-800`;
+                            
+                            // Update the icon in the recommendation box
+                            const recIcon = recommendationBox.querySelector('.material-symbols-outlined');
+                            if (recIcon) {
+                                recIcon.textContent = newMatchPercentage >= 90 ? 'check_circle' : newMatchPercentage >= 70 ? 'warning' : 'cancel';
+                                recIcon.className = `material-symbols-outlined text-${boxColor}-600 text-lg mt-0.5`;
+                            }
+                            
+                            // Update text color in recommendation box
+                            const recText = recommendationBox.querySelector('p');
+                            if (recText) {
+                                recText.className = recText.className.replace(/text-(red|green|yellow)-800/g, '');
+                                recText.className = recText.className.replace(/dark:text-(red|green|yellow)-200/g, '');
+                                recText.className = recText.className.trim();
+                                recText.className += ` text-${boxColor}-800 dark:text-${boxColor}-200`;
+                            }
+                            
+                            console.log('Updated recommendation box');
+                        } else {
+                            console.error('Recommendation box not found');
+                        }
+                        
+                        // Update keyword count in summary
+                        const summary = cardElement.querySelector('summary');
+                        if (summary) {
+                            summary.textContent = `Keyword Analysis (${matchCount} of ${totalKeywords} keywords matched)`;
+                        }
+                    }
+                    
+                    console.log('Criteria toggled successfully:', result);
+                } else {
+                    console.error('Failed to save toggle to database:', result.error);
+                    // Revert UI changes on error
+                    if (btn && originalBtnState) {
+                        btn.className = originalBtnState.classes;
+                        btn.innerHTML = originalBtnState.innerHTML;
+                        Object.assign(btn.dataset, originalBtnState.dataset);
+                        
+                        // Also revert the keyword text styling
+                        const keywordSpan = btn.nextElementSibling;
+                        if (keywordSpan && originalKeywordSpanState) {
+                            keywordSpan.className = originalKeywordSpanState.classes;
+                            keywordSpan.textContent = originalKeywordSpanState.textContent;
+                        }
+                    }
+                    if (typeof showNotification !== 'undefined') {
+                        showNotification('Failed to save changes: ' + (result.error || 'Unknown error'), 'error');
+                    } else {
+                        alert('Failed to save changes: ' + (result.error || 'Unknown error'));
+                    }
+                }
+            })
+            .catch(e => {
+                console.error('Error saving toggle to database:', e);
+                // Revert UI changes on error
+                if (btn && originalBtnState) {
+                    btn.className = originalBtnState.classes;
+                    btn.innerHTML = originalBtnState.innerHTML;
+                    Object.assign(btn.dataset, originalBtnState.dataset);
+                    
+                    // Also revert the keyword text styling
+                    const keywordSpan = btn.nextElementSibling;
+                    if (keywordSpan && originalKeywordSpanState) {
+                        keywordSpan.className = originalKeywordSpanState.classes;
+                        keywordSpan.textContent = originalKeywordSpanState.textContent;
+                    }
+                }
+                if (typeof showNotification !== 'undefined') {
+                    showNotification('Error saving changes: ' + e.message, 'error');
+                } else {
+                    alert('Error saving changes: ' + e.message);
+                }
+            });
+        }
+
+        // Event delegation for toggle criteria buttons (works after re-rendering)
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.toggle-criteria-btn');
+            if (btn) {
+                const awardId = btn.dataset.awardId;
+                const criteria = btn.dataset.criteria;
+                const moveToMatched = btn.dataset.moveToMatched === 'true';
+                
+                if (awardId && criteria) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    toggleCriteria(awardId, criteria, moveToMatched, e);
+                }
+            }
+        });
     </script>
 
     <!-- OCR and PDF libs -->

@@ -93,6 +93,17 @@ try {
 
     foreach ($allCriteria as $criteria) {
         $result = calculateWeightedMatch($cleanedText, $criteria);
+        
+        // Add status field to each result based on match_percentage
+        $matchPct = $result['match_percentage'];
+        if ($matchPct >= 90) {
+            $result['status'] = 'Eligible';
+        } elseif ($matchPct >= 70) {
+            $result['status'] = 'Almost Eligible';
+        } else {
+            $result['status'] = 'Not Eligible';
+        }
+        
         $matchResults[] = $result;
     }
 

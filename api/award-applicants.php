@@ -96,6 +96,117 @@ try {
         ]);
         exit();
 
+    } elseif ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'get_details') {
+        // Get details (detected text) for a specific award analysis
+        $awardId = $_GET['award_id'] ?? 0;
+        if (!$awardId) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Award ID required']);
+            exit();
+        }
+
+        $stmt = $pdo->prepare("SELECT detected_text FROM award_analysis WHERE award_id = ?");
+        $stmt->execute([$awardId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($result) {
+            echo json_encode(['success' => true, 'detected_text' => $result['detected_text']]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Analysis not found']);
+        }
+        exit();
+
+    } elseif (($method === 'POST' || $method === 'PUT') && isset($_GET['action']) && $_GET['action'] === 'toggle_criteria') {
+        // Toggle a criteria between matched and unmatched
+        $data = json_decode(file_get_contents('php://input'), true);
+        $awardId = $data['award_id'] ?? 0;
+        $criteria = $data['criteria'] ?? '';
+        $moveToMatched = $data['move_to_matched'] ?? true; // true = move to matched, false = move to unmatched
+
+        if (!$awardId || !$criteria) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Award ID and criteria required']);
+            exit();
+        }
+
+        // Get current analysis data
+        $stmt = $pdo->prepare("SELECT all_matches FROM award_analysis WHERE award_id = ?");
+        $stmt->execute([$awardId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$result || !$result['all_matches']) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'error' => 'Analysis not found']);
+            exit();
+        }
+
+        $matches = json_decode($result['all_matches'], true);
+        if (!$matches) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Invalid analysis data']);
+            exit();
+        }
+
+        // Handle both new and old formats
+        $matched = [];
+        $missing = [];
+        $totalKeywords = 0;
+
+        if (isset($matches['matched'])) {
+            // New format
+            $matched = $matches['matched'] ?? [];
+            $missing = $matches['missing'] ?? [];
+            $totalKeywords = $matches['total_keywords'] ?? (count($matched) + count($missing));
+        } elseif (isset($matches[0])) {
+            // Old format
+            $firstMatch = $matches[0];
+            $matched = $firstMatch['met_criteria'] ?? [];
+            $missing = $firstMatch['unmet_criteria'] ?? [];
+            $totalKeywords = $firstMatch['criteria_total'] ?? (count($matched) + count($missing));
+        }
+
+        // Remove from both arrays first (in case it exists in both)
+        $matched = array_values(array_filter($matched, function($c) use ($criteria) {
+            return $c !== $criteria;
+        }));
+        $missing = array_values(array_filter($missing, function($c) use ($criteria) {
+            return $c !== $criteria;
+        }));
+
+        // Add to the appropriate array
+        if ($moveToMatched) {
+            $matched[] = $criteria;
+        } else {
+            $missing[] = $criteria;
+        }
+
+        // Recalculate match percentage
+        $matchCount = count($matched);
+        $newMatchPercentage = $totalKeywords > 0 ? round(($matchCount / $totalKeywords) * 100, 2) : 0;
+
+        // Update the matches structure (use new format)
+        $updatedMatches = [
+            'matched' => $matched,
+            'missing' => $missing,
+            'match_count' => $matchCount,
+            'total_keywords' => $totalKeywords
+        ];
+
+        // Update database
+        $stmt = $pdo->prepare("UPDATE award_analysis SET all_matches = ?, match_percentage = ? WHERE award_id = ?");
+        $stmt->execute([json_encode($updatedMatches), $newMatchPercentage, $awardId]);
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Criteria toggled successfully',
+            'matched' => $matched,
+            'missing' => $missing,
+            'match_count' => $matchCount,
+            'total_keywords' => $totalKeywords,
+            'match_percentage' => $newMatchPercentage
+        ]);
+        exit();
+
     } elseif ($method === 'GET' && $awardCategory) {
         // Get all users who applied for this award category
         $stmt = $pdo->prepare("
@@ -114,7 +225,8 @@ try {
                 aa.predicted_category,
                 aa.match_percentage,
                 aa.all_matches,
-                aa.status as analysis_status
+                aa.status as analysis_status,
+                aa.event_id
             FROM awards a
             LEFT JOIN users u ON a.user_id = u.id
             LEFT JOIN award_analysis aa ON a.id = aa.award_id
@@ -217,9 +329,10 @@ try {
         ]);
 
     } elseif ($method === 'DELETE') {
-        // Bulk delete awards
+        // Bulk move awards to trash (soft delete)
         $data = json_decode(file_get_contents('php://input'), true);
         $awardIds = $data['award_ids'] ?? [];
+        $permanent = isset($data['permanent']) && $data['permanent'] === true;
 
         if (empty($awardIds) || !is_array($awardIds)) {
             http_response_code(400);
@@ -238,33 +351,55 @@ try {
         // Prepare placeholders for IN clause
         $placeholders = str_repeat('?,', count($awardIds) - 1) . '?';
         
-        // Get file paths before deleting (to clean up files)
-        $stmt = $pdo->prepare("SELECT file_path FROM awards WHERE id IN ($placeholders)");
-        $stmt->execute($awardIds);
-        $filesToDelete = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        if ($permanent) {
+            // Permanent delete - remove files and database records
+            // Get file paths before deleting (to clean up files)
+            $stmt = $pdo->prepare("SELECT file_path FROM awards WHERE id IN ($placeholders)");
+            $stmt->execute($awardIds);
+            $filesToDelete = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // Delete award analysis records first (foreign key constraint)
-        $stmt = $pdo->prepare("DELETE FROM award_analysis WHERE award_id IN ($placeholders)");
-        $stmt->execute($awardIds);
+            // Delete award analysis records first (foreign key constraint)
+            $stmt = $pdo->prepare("DELETE FROM award_analysis WHERE award_id IN ($placeholders)");
+            $stmt->execute($awardIds);
 
-        // Delete awards
-        $stmt = $pdo->prepare("DELETE FROM awards WHERE id IN ($placeholders)");
-        $stmt->execute($awardIds);
-        
-        $deletedCount = $stmt->rowCount();
+            // Delete awards
+            $stmt = $pdo->prepare("DELETE FROM awards WHERE id IN ($placeholders)");
+            $stmt->execute($awardIds);
+            
+            $deletedCount = $stmt->rowCount();
 
-        // Clean up files
-        foreach ($filesToDelete as $filePath) {
-            if ($filePath && file_exists($filePath)) {
-                @unlink($filePath);
+            // Clean up files
+            foreach ($filesToDelete as $filePath) {
+                if ($filePath && file_exists($filePath)) {
+                    @unlink($filePath);
+                }
             }
-        }
 
-        echo json_encode([
-            'success' => true,
-            'message' => "Successfully deleted $deletedCount award(s)",
-            'deleted_count' => $deletedCount
-        ]);
+            echo json_encode([
+                'success' => true,
+                'message' => "Successfully permanently deleted $deletedCount award(s)",
+                'deleted_count' => $deletedCount
+            ]);
+        } else {
+            // Soft delete - move to trash (set deleted_at)
+            try {
+                // Ensure deleted_at column exists
+                $pdo->exec("ALTER TABLE awards ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+            } catch (PDOException $e) {
+                // Column might already exist, ignore
+            }
+            
+            $stmt = $pdo->prepare("UPDATE awards SET deleted_at = NOW() WHERE id IN ($placeholders)");
+            $stmt->execute($awardIds);
+            
+            $deletedCount = $stmt->rowCount();
+
+            echo json_encode([
+                'success' => true,
+                'message' => "Successfully moved $deletedCount award(s) to trash",
+                'deleted_count' => $deletedCount
+            ]);
+        }
 
     } else {
         http_response_code(400);

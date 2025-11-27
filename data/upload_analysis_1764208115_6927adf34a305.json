@@ -1,0 +1,9 @@
+{
+    "title": "test",
+    "description": "",
+    "file_name": "Test_Award_1.docx",
+    "file_path": "C:\\xampp\\htdocs\\lilac\\uploads\\other_documents\\doc_6927adf24c71b_1764208114.docx",
+    "detected_text": "Commission on Higher Education (CHED) \u2013 International Affairs Staff Award Description \/ Citation: This award is presented to Central Philippine University (CPU) for its outstanding commitment to advancing international education through global partnerships, student exchange programs, and cross-border academic initiatives. CPU has demonstrated excellence in fostering international collaboration and cultural exchange, positioning itself as a leading institution for global academic engagement in the Philippines.",
+    "analysis_results": "[{\"title\":\"Global Citizenship Award\",\"category\":\"Global Citizenship Award\",\"name\":\"Global Citizenship Award\",\"match_percentage\":25,\"score\":25,\"status\":\"Not Eligible\",\"matched_keywords\":[\"global\",\"international\"],\"missing_keywords\":[\"citizenship\",\"equity\",\"poverty\",\"innovation\",\"community\",\"sustainability.\"],\"recommendation\":\"\",\"confidence\":\"low\"},{\"title\":\"Emerging Leadership Award\",\"category\":\"Emerging Leadership Award\",\"name\":\"Emerging Leadership Award\",\"match_percentage\":0,\"score\":0,\"status\":\"Not Eligible\",\"matched_keywords\":[],\"missing_keywords\":[\"leadership\",\"leadership accessibility institution\"],\"recommendation\":\"\",\"confidence\":\"low\"}]",
+    "created_at": "2025-11-27 02:48:35"
+}

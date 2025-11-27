@@ -174,7 +174,7 @@ if (!$awardCategory) {
                 </div>
                 <button id="bulk-delete-btn" class="px-4 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200 flex items-center gap-2">
                     <span class="material-symbols-outlined text-base">delete</span>
-                    Delete Selected
+                    Move to Trash
                 </button>
             </div>
             
@@ -255,6 +255,59 @@ if (!$awardCategory) {
         </div>
     </div>
 
+    <!-- Office Document Warning Modal -->
+    <div id="officeDocWarningModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full overflow-hidden animate-scale-in">
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-4 text-yellow-600 dark:text-yellow-500">
+                    <span class="material-symbols-outlined text-3xl">warning</span>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Preview Not Available</h3>
+                </div>
+                <p class="text-gray-600 dark:text-gray-300 mb-4 text-sm">
+                    Previewing Office documents (DOCX, PPTX) requires a public server for Google Docs Viewer.
+                </p>
+                <p class="text-gray-600 dark:text-gray-300 mb-6 text-sm">
+                    Because you are on <strong>Localhost</strong>, external viewers cannot access your file. Would you like to download it instead?
+                </p>
+                <div class="flex justify-end gap-3">
+                    <button onclick="document.getElementById('officeDocWarningModal').classList.add('hidden')" 
+                        class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors text-sm">
+                        Cancel
+                    </button>
+                    <button id="confirmDownloadBtn" 
+                        class="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg font-medium transition-colors flex items-center gap-2 text-sm shadow-md">
+                        <span class="material-symbols-outlined text-sm">download</span>
+                        Download File
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Evidence Context Modal -->
+    <div id="evidenceModal" class="fixed inset-0 bg-black bg-opacity-50 z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col animate-scale-in">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-green-600 dark:text-green-400">find_in_page</span>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Evidence Context</h3>
+                </div>
+                <button onclick="document.getElementById('evidenceModal').classList.add('hidden')" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+                    <span class="material-symbols-outlined text-gray-500">close</span>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto">
+                <div class="mb-4">
+                    <span class="text-sm text-gray-500 dark:text-gray-400">Found keyword:</span>
+                    <span id="evidenceKeyword" class="ml-2 px-2 py-1 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded text-sm font-bold"></span>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                    <div id="evidenceText" class="text-sm text-gray-700 dark:text-gray-300 font-mono whitespace-pre-wrap leading-relaxed"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Delete Confirmation Modal -->
     <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="deleteModalContent">
@@ -266,12 +319,12 @@ if (!$awardCategory) {
 
                 <!-- Modal Title -->
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white text-center mb-2">
-                    Delete Award
+                    Move to Trash
                 </h3>
 
                 <!-- Modal Message -->
                 <p class="text-sm text-gray-600 dark:text-gray-300 text-center mb-6">
-                    Are you sure you want to delete this award? This action cannot be undone and will permanently remove the award and its associated files.
+                    Are you sure you want to move this award to trash? You can restore it later from the Trash page.
                 </p>
 
                 <!-- Modal Actions -->
@@ -281,8 +334,44 @@ if (!$awardCategory) {
                         Cancel
                     </button>
                     <button id="deleteConfirmBtn"
-                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200">
-                        Delete Award
+                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-base">delete</span>
+                        Move to Trash
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Delete Confirmation Modal -->
+    <div id="bulkDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="bulkDeleteModalContent">
+            <div class="p-6">
+                <!-- Modal Header -->
+                <div class="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 dark:bg-red-900/20 rounded-full">
+                    <span class="material-symbols-outlined text-red-600 dark:text-red-400 text-2xl">warning</span>
+                </div>
+
+                <!-- Modal Title -->
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white text-center mb-2">
+                    Move Selected to Trash
+                </h3>
+
+                <!-- Modal Message -->
+                <p id="bulkDeleteMessage" class="text-sm text-gray-600 dark:text-gray-300 text-center mb-6">
+                    Are you sure you want to move the selected applicants to trash? You can restore them later from the Trash page.
+                </p>
+
+                <!-- Modal Actions -->
+                <div class="flex gap-3 justify-center">
+                    <button id="bulkDeleteCancelBtn"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors duration-200">
+                        Cancel
+                    </button>
+                    <button id="bulkDeleteConfirmBtn"
+                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-base">delete</span>
+                        Move to Trash
                     </button>
                 </div>
             </div>
@@ -654,11 +743,14 @@ if (!$awardCategory) {
                                                 <span class="text-xs font-medium text-green-600 dark:text-green-400">${app.criteria_met || matchedList.length}/${app.criteria_total || matchedList.length + unmatchedList.length}</span>
                                             </div>
                                             <div class="flex flex-wrap gap-2">
-                                                ${matchedList.map(c => `
-                                                    <span class="px-3 py-1.5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">
-                                                        ✓ ${escapeHtml(c)}
+                                                ${matchedList.map(c => {
+                                                    return `
+                                                    <span class="px-3 py-1.5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded-full text-xs font-medium flex items-center gap-1.5">
+                                                        <span class="cursor-pointer text-green-600 dark:text-green-400 toggle-criteria-btn" data-award-id="${app.award_id}" data-criteria="${escapeHtml(c)}" data-move-to-matched="false" title="Click to toggle to unmatched">✅</span>
+                                                        <span class="cursor-pointer hover:text-blue-600 hover:underline" onclick="showEvidence('${app.award_id}', ${JSON.stringify(c)})" title="Click to see evidence context">${escapeHtml(c)}</span>
                                                     </span>
-                                                `).join('')}
+                                                `;
+                                                }).join('')}
                                             </div>
                                         </div>
                                     ` : '<div></div>'}
@@ -671,11 +763,14 @@ if (!$awardCategory) {
                                                 Unmatched Criteria
                                             </h4>
                                             <div class="flex flex-wrap gap-2">
-                                                ${unmatchedList.map(c => `
-                                                    <span class="px-3 py-1.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 rounded-full text-xs font-medium">
-                                                        ✗ ${escapeHtml(c)}
+                                                ${unmatchedList.map(c => {
+                                                    return `
+                                                    <span class="px-3 py-1.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 rounded-full text-xs font-medium flex items-center gap-1.5">
+                                                        <span class="cursor-pointer text-gray-400 dark:text-gray-500 toggle-criteria-btn" data-award-id="${app.award_id}" data-criteria="${escapeHtml(c)}" data-move-to-matched="true" title="Click to toggle to matched">⚪</span>
+                                                        <span>${escapeHtml(c)} (missing)</span>
                                                     </span>
-                                                `).join('')}
+                                                `;
+                                                }).join('')}
                                             </div>
                                         </div>
                                     ` : '<div></div>'}
@@ -684,11 +779,39 @@ if (!$awardCategory) {
                                 </div>
                             </div>
 
-                            <!-- Uploaded File Section -->
-                            ${app.file_path && app.file_name ? `
+                            <!-- Evidence Section (Event or File) -->
+                            ${app.event_id ? `
+                                <div class="mb-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                                    <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Linked Event</h4>
+                                    <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                                        <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                                            <span class="material-symbols-outlined">event</span>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-medium text-gray-900 dark:text-white truncate">${escapeHtml(app.submission_title)}</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">Event-based Evidence</p>
+                                        </div>
+                                        <div class="flex gap-2 flex-shrink-0">
+                                            <a href="events-activities.php?highlight=${app.event_id}" target="_blank" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-full transition-all hover:scale-105 flex items-center gap-1.5 shadow-sm">
+                                                <span class="material-symbols-outlined text-sm">open_in_new</span>
+                                                <span>View Event</span>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    ${app.file_path && app.file_name ? `
+                                        <div class="mt-3 pl-2 border-l-2 border-gray-200 dark:border-gray-700">
+                                            <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                                <span class="material-symbols-outlined text-sm">attachment</span>
+                                                <span>Includes attachment:</span>
+                                                <a href="${escapeHtml(app.file_path)}" target="_blank" class="font-medium text-blue-600 hover:underline truncate max-w-[200px]">${escapeHtml(app.file_name)}</a>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            ` : app.file_path && app.file_name ? `
                                 <div class="mb-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                                     <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Uploaded File</h4>
-                                    <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg">
+                                    <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
                                         ${(() => {
                                             const fileName = app.file_name || '';
                                             const fileExt = fileName.toLowerCase().split('.').pop() || '';
@@ -753,7 +876,7 @@ if (!$awardCategory) {
                                     <button onclick="deleteAward('${app.award_id}')"
                                         class="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-full text-[10px] font-medium hover:opacity-90 transition-all hover:scale-105 flex items-center gap-1 shadow-sm">
                                         <span class="material-symbols-outlined text-xs">delete</span>
-                                        <span>Delete</span>
+                                        <span>Move to Trash</span>
                                     </button>
                                 </div>
                             </div>
@@ -839,16 +962,16 @@ if (!$awardCategory) {
 
                 if (response.ok) {
                     const result = await response.json();
-                    showToast('Award deleted successfully!', 'success');
+                    showToast('Award moved to trash successfully!', 'success');
                     // Reload applicants
                     await loadApplicants();
                 } else {
-                    const errorData = await response.json().catch(() => ({ error: 'Failed to delete award' }));
-                    throw new Error(errorData.error || 'Failed to delete award');
+                    const errorData = await response.json().catch(() => ({ error: 'Failed to move award to trash' }));
+                    throw new Error(errorData.error || 'Failed to move award to trash');
                 }
             } catch (error) {
-                console.error('Error deleting award:', error);
-                showToast('Failed to delete award: ' + error.message, 'error');
+                console.error('Error moving award to trash:', error);
+                showToast('Failed to move award to trash: ' + error.message, 'error');
             }
         }
 
@@ -894,11 +1017,42 @@ if (!$awardCategory) {
                 image.classList.remove('hidden');
                 iframe.classList.add('hidden');
             } else {
-                // For documents, try to display in iframe or download
-                if (filePath.endsWith('.pdf') || filePath.endsWith('.docx') || filePath.endsWith('.doc')) {
+                // For documents
+                const lowerPath = filePath.toLowerCase();
+                const isOfficeDoc = lowerPath.endsWith('.docx') || lowerPath.endsWith('.doc') || lowerPath.endsWith('.ppt') || lowerPath.endsWith('.pptx');
+                const isPdf = lowerPath.endsWith('.pdf');
+
+                if (isPdf) {
+                    // PDF can be viewed natively
                     iframe.src = filePath;
                     iframe.classList.remove('hidden');
                     image.classList.add('hidden');
+                } else if (isOfficeDoc) {
+                    // Office docs need a viewer (Google Docs Viewer)
+                    // NOTE: Google Viewer requires a publicly accessible URL. It won't work on localhost.
+                    
+                    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.startsWith('192.168.');
+                    
+                    if (isLocalhost) {
+                        // On localhost, show custom warning modal
+                        const warningModal = document.getElementById('officeDocWarningModal');
+                        const downloadBtn = document.getElementById('confirmDownloadBtn');
+                        
+                        // Setup download action
+                        downloadBtn.onclick = function() {
+                            window.open(filePath, '_blank');
+                            warningModal.classList.add('hidden');
+                        };
+                        
+                        warningModal.classList.remove('hidden');
+                        return; 
+                    } else {
+                        // On public server, use Google Viewer
+                        const absoluteUrl = new URL(filePath, window.location.href).href;
+                        iframe.src = `https://docs.google.com/viewer?url=${encodeURIComponent(absoluteUrl)}&embedded=true`;
+                        iframe.classList.remove('hidden');
+                        image.classList.add('hidden');
+                    }
                 } else {
                     // For other file types, just download
                     window.open(filePath, '_blank');
@@ -907,6 +1061,140 @@ if (!$awardCategory) {
             }
             
             modal.classList.remove('hidden');
+        }
+
+        async function showEvidence(awardId, keyword) {
+            const modal = document.getElementById('evidenceModal');
+            const keywordEl = document.getElementById('evidenceKeyword');
+            const textEl = document.getElementById('evidenceText');
+            
+            if (!modal || !keywordEl || !textEl) return;
+            
+            keywordEl.textContent = keyword;
+            textEl.innerHTML = '<div class="flex items-center gap-2 text-gray-500"><span class="material-symbols-outlined animate-spin">progress_activity</span> Loading evidence context...</div>';
+            modal.classList.remove('hidden');
+            
+            try {
+                const response = await fetch(`api/award-applicants.php?action=get_details&award_id=${awardId}`, {
+                    headers: { 'Authorization': 'Bearer ' + AUTH_TOKEN }
+                });
+                const result = await response.json();
+                
+                if (result.success && result.detected_text) {
+                    const text = result.detected_text;
+                    // Escape keyword for regex
+                    const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const regex = new RegExp(`(${escapedKeyword})`, 'gi');
+                    
+                    const matches = [...text.matchAll(regex)];
+                    if (matches.length > 0) {
+                        const snippets = matches.slice(0, 5).map(match => {
+                            const start = Math.max(0, match.index - 100);
+                            const end = Math.min(text.length, match.index + keyword.length + 100);
+                            let snippet = text.substring(start, end);
+                            
+                            // Highlight
+                            snippet = snippet.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-900/50 text-gray-900 dark:text-white rounded px-1 font-bold">$1</mark>');
+                            return `...${snippet}...`;
+                        });
+                        
+                        textEl.innerHTML = snippets.join('<hr class="my-4 border-gray-200 dark:border-gray-700 border-dashed">');
+                    } else {
+                        textEl.textContent = 'Keyword found in analysis metadata but not located in current text text (possibly modified).';
+                    }
+                } else {
+                    textEl.textContent = 'Could not load evidence text. ' + (result.error || '');
+                }
+            } catch (e) {
+                textEl.textContent = 'Error loading evidence: ' + e.message;
+            }
+        }
+
+        function toggleCriteria(awardId, criteria, moveToMatched, event) {
+            if (event) {
+                event.stopPropagation(); // Prevent triggering parent onclick
+            }
+
+            // Preserve expanded state
+            const cardElement = document.querySelector(`[data-award-id="${awardId}"]`);
+            const isExpanded = cardElement?.querySelector('.expanded-view')?.classList.contains('hidden') === false;
+
+            // Find the applicant in local data (like docs page does)
+            const applicant = allApplicants.find(app => app.award_id == awardId);
+            if (!applicant) {
+                showToast('Applicant not found', 'error');
+                return;
+            }
+
+            // Normalize criteria lists (ensure they're arrays)
+            let matchedList = normalizeCriteriaList(applicant.matched_criteria || []);
+            let unmatchedList = normalizeCriteriaList(applicant.unmatched_criteria || []);
+
+            // Remove from both arrays first
+            matchedList = matchedList.filter(c => c !== criteria);
+            unmatchedList = unmatchedList.filter(c => c !== criteria);
+
+            // Add to the appropriate array
+            if (moveToMatched) {
+                matchedList.push(criteria);
+            } else {
+                unmatchedList.push(criteria);
+            }
+
+            // Update local data
+            applicant.matched_criteria = matchedList;
+            applicant.unmatched_criteria = unmatchedList;
+
+            // Recalculate similarity score (like docs page)
+            const totalKeywords = matchedList.length + unmatchedList.length;
+            const matchCount = matchedList.length;
+            const newMatchPercentage = totalKeywords > 0 ? (matchCount / totalKeywords) * 100 : 0;
+            applicant.match_percentage = newMatchPercentage;
+            applicant.similarity_score = newMatchPercentage / 100;
+            applicant.criteria_met = matchCount;
+            applicant.criteria_total = totalKeywords;
+
+            // Update filtered list too
+            const filteredIndex = filteredApplicants.findIndex(app => app.award_id == awardId);
+            if (filteredIndex !== -1) {
+                filteredApplicants[filteredIndex] = { ...applicant };
+            }
+
+            // Re-render immediately (like docs page)
+            renderApplicants();
+
+            // Restore expanded state if it was expanded
+            if (isExpanded) {
+                setTimeout(() => {
+                    const newCard = document.querySelector(`[data-award-id="${awardId}"]`);
+                    if (newCard) {
+                        toggleAwardDetails(awardId);
+                    }
+                }, 10);
+            }
+
+            // Save to database in the background (non-blocking)
+            fetch(`api/award-applicants.php?action=toggle_criteria`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + AUTH_TOKEN
+                },
+                body: JSON.stringify({
+                    award_id: awardId,
+                    criteria: criteria,
+                    move_to_matched: moveToMatched
+                })
+            }).then(response => response.json())
+              .then(result => {
+                  if (!result.success) {
+                      console.error('Failed to save toggle to database:', result.error);
+                      // Optionally show a warning, but don't revert since UI already updated
+                  }
+              })
+              .catch(e => {
+                  console.error('Error saving toggle to database:', e);
+              });
         }
 
         function closeFileViewer() {
@@ -968,6 +1256,10 @@ if (!$awardCategory) {
             document.getElementById('deleteCancelBtn')?.addEventListener('click', hideDeleteModal);
             document.getElementById('deleteConfirmBtn')?.addEventListener('click', confirmDelete);
             
+            // Bulk delete modal event listeners
+            document.getElementById('bulkDeleteCancelBtn')?.addEventListener('click', hideBulkDeleteModal);
+            document.getElementById('bulkDeleteConfirmBtn')?.addEventListener('click', confirmBulkDelete);
+            
             // Close modal when clicking outside
             document.getElementById('deleteModal')?.addEventListener('click', function(e) {
                 if (e.target === this) {
@@ -975,12 +1267,39 @@ if (!$awardCategory) {
                 }
             });
 
-            // Close modal on Escape key
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape' && !document.getElementById('deleteModal').classList.contains('hidden')) {
-                    hideDeleteModal();
+            document.getElementById('bulkDeleteModal')?.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    hideBulkDeleteModal();
                 }
             });
+
+            // Close modal on Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    if (!document.getElementById('deleteModal').classList.contains('hidden')) {
+                        hideDeleteModal();
+                    }
+                    if (!document.getElementById('bulkDeleteModal').classList.contains('hidden')) {
+                        hideBulkDeleteModal();
+                    }
+                }
+            });
+        });
+
+        // Event delegation for toggle criteria buttons (works after re-rendering)
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.toggle-criteria-btn');
+            if (btn) {
+                const awardId = btn.dataset.awardId;
+                const criteria = btn.dataset.criteria;
+                const moveToMatched = btn.dataset.moveToMatched === 'true';
+                
+                if (awardId && criteria) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    toggleCriteria(awardId, criteria, moveToMatched, e);
+                }
+            }
         });
 
         // Filter and search
@@ -1127,6 +1446,43 @@ if (!$awardCategory) {
             }
         }
 
+        // Store pending bulk delete IDs
+        let pendingBulkDeleteIds = [];
+
+        // Show bulk delete confirmation modal
+        function showBulkDeleteModal(awardIds) {
+            pendingBulkDeleteIds = awardIds;
+            const count = awardIds.length;
+            const modal = document.getElementById('bulkDeleteModal');
+            const modalContent = document.getElementById('bulkDeleteModalContent');
+            const messageElement = document.getElementById('bulkDeleteMessage');
+
+            // Update the message with the count
+                messageElement.textContent = `Are you sure you want to move ${count} selected applicant${count > 1 ? 's' : ''} to trash? You can restore them later from the Trash page.`;
+
+            modal.classList.remove('hidden');
+
+            // Trigger animation
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        // Hide bulk delete modal
+        function hideBulkDeleteModal() {
+            const modal = document.getElementById('bulkDeleteModal');
+            const modalContent = document.getElementById('bulkDeleteModalContent');
+
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            modalContent.classList.add('scale-95', 'opacity-0');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                pendingBulkDeleteIds = [];
+            }, 300);
+        }
+
         // Bulk delete function
         async function bulkDeleteApplicants() {
             if (selectedApplicantIds.size === 0) {
@@ -1135,11 +1491,20 @@ if (!$awardCategory) {
             }
 
             const awardIds = Array.from(selectedApplicantIds);
-            const count = awardIds.length;
+            
+            // Show modal instead of browser confirm
+            showBulkDeleteModal(awardIds);
+        }
 
-            if (!confirm(`Are you sure you want to delete ${count} applicant${count > 1 ? 's' : ''}? This action cannot be undone.`)) {
+        // Confirm bulk delete (called from modal)
+        async function confirmBulkDelete() {
+            if (pendingBulkDeleteIds.length === 0) {
+                hideBulkDeleteModal();
                 return;
             }
+
+            const awardIds = [...pendingBulkDeleteIds];
+            const count = awardIds.length;
 
             try {
                 const response = await fetch('api/award-applicants.php', {
@@ -1156,7 +1521,7 @@ if (!$awardCategory) {
                 const result = await response.json();
 
                 if (result.success) {
-                    showToast(`Successfully deleted ${count} applicant${count > 1 ? 's' : ''}`, 'success');
+                    showToast(`Successfully moved ${count} applicant${count > 1 ? 's' : ''} to trash`, 'success');
                     // Clear selections after successful delete
                     selectedApplicantIds.clear();
                     // Reload applicants
@@ -1165,11 +1530,13 @@ if (!$awardCategory) {
                     document.getElementById('bulk-actions-bar').classList.add('hidden');
                     document.getElementById('select-all-visible-checkbox').checked = false;
                 } else {
-                    showToast('Error: ' + (result.error || 'Failed to delete applicants'), 'error');
+                    showToast('Error: ' + (result.error || 'Failed to move applicants to trash'), 'error');
                 }
             } catch (error) {
                 console.error('Bulk delete error:', error);
                 showToast('Error: ' + error.message, 'error');
+            } finally {
+                hideBulkDeleteModal();
             }
         }
 

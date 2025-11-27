@@ -82,6 +82,19 @@ try {
         }
     } else {
         // Load all documents from MOU, MOA, and Other Documents tables using UNION
+        // Exclude deleted items (where deleted_at IS NULL)
+        // First, ensure deleted_at columns exist
+        try {
+            $pdo->exec("ALTER TABLE mou_moa ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore
+        }
+        try {
+            $pdo->exec("ALTER TABLE other_documents ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore
+        }
+        
         $stmt = $pdo->query("
             SELECT
                 m.id,
@@ -97,6 +110,7 @@ try {
                 'mou_moa' as source_table
             FROM mou_moa m
             LEFT JOIN users u ON m.user_id = u.id
+            WHERE m.deleted_at IS NULL
 
             UNION ALL
 
@@ -114,6 +128,7 @@ try {
                 'other_documents' as source_table
             FROM other_documents od
             LEFT JOIN users u ON od.user_id = u.id
+            WHERE od.deleted_at IS NULL
 
             ORDER BY created_at DESC
         ");
@@ -584,6 +599,11 @@ try {
 <span class="sidebar-text hidden">Documents</span>
 </a>
 
+<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="trash.php" title="Trash">
+<span class="material-symbols-outlined">delete</span>
+<span class="sidebar-text hidden">Trash</span>
+</a>
+
 </nav>
 
 <div class="px-4 py-4 border-t border-border-light dark:border-border-dark">
@@ -792,10 +812,34 @@ Add Document
 </div>
 </div>
 <div class="mt-2 bg-card-light dark:bg-card-dark p-4 rounded-lg shadow-sm border border-border-light dark:border-border-dark">
+<!-- Bulk Actions Bar -->
+<div id="bulk-actions-bar" class="hidden mb-3 pb-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+    <div class="flex items-center gap-4">
+        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <span id="selected-count">0</span> selected
+        </span>
+    </div>
+                <button id="bulk-delete-btn" class="px-4 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-base">delete</span>
+                    Move to Trash
+                </button>
+</div>
+
+<!-- Select All Option -->
+<div class="mb-2 flex items-center justify-end">
+    <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors">
+        <input type="checkbox" id="select-all-visible-checkbox" class="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary">
+        <span>Select All Visible</span>
+    </label>
+</div>
+
 <div class="overflow-x-auto">
 <table class="w-full min-w-[800px] text-sm text-left">
 <thead class="text-sm text-text-muted-light dark:text-text-muted-dark uppercase border-b border-border-light dark:border-border-dark">
 <tr>
+<th class="py-3 px-4 font-medium text-left" scope="col" style="width: 40px;">
+    <input type="checkbox" id="select-all-header" class="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary">
+</th>
 <th class="py-3 px-4 font-medium text-left" scope="col">Name/Title of the Document</th>
 <th class="py-3 px-4 font-medium text-center" scope="col">Category</th>
 <th class="py-3 px-4 font-medium text-center" scope="col">Date Uploaded</th>
@@ -807,7 +851,7 @@ Add Document
 <tbody id="documents-table-body">
 
 <tr id="no-documents-row">
-<td class="py-6 px-4 text-center text-text-muted-light dark:text-text-muted-dark" colspan="4">No documents yet</td>
+<td class="py-6 px-4 text-center text-text-muted-light dark:text-text-muted-dark" colspan="5">No documents yet</td>
 </tr>
 
 </tbody>
@@ -843,8 +887,8 @@ Add Document
                     <span class="material-symbols-outlined text-red-600 dark:text-red-400 text-xl">warning</span>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Delete Document</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">This action cannot be undone</p>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Move to Trash</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">This will move the document to trash</p>
                 </div>
             </div>
         </div>
@@ -852,7 +896,7 @@ Add Document
         <!-- Modal Body -->
         <div class="p-6">
             <p class="text-gray-700 dark:text-gray-300">
-                Are you sure you want to delete this document? This will permanently remove the file and all associated data.
+                Are you sure you want to move this document to trash? You can restore it later from the Trash page.
             </p>
         </div>
         
@@ -862,8 +906,42 @@ Add Document
                 Cancel
             </button>
             <button id="confirmDelete" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
-                Delete
+                Move to Trash
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Delete Confirmation Modal -->
+<div id="bulkDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="bulkDeleteModalContent">
+        <div class="p-6">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 dark:bg-red-900/20 rounded-full">
+                <span class="material-symbols-outlined text-red-600 dark:text-red-400 text-2xl">warning</span>
+            </div>
+
+            <!-- Modal Title -->
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white text-center mb-2">
+                Move Selected to Trash
+            </h3>
+
+            <!-- Modal Message -->
+            <p id="bulkDeleteMessage" class="text-sm text-gray-600 dark:text-gray-300 text-center mb-6">
+                Are you sure you want to move the selected documents to trash? You can restore them later from the Trash page.
+            </p>
+
+            <!-- Modal Actions -->
+            <div class="flex gap-3 justify-center">
+                <button id="bulkDeleteCancelBtn"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors duration-200">
+                    Cancel
+                </button>
+                <button id="bulkDeleteConfirmBtn"
+                    class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200">
+                    Move to Trash
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -949,7 +1027,7 @@ Add Document
                     if (noDocumentsRow) {
                         noDocumentsRow.style.display = '';
                         noDocumentsRow.innerHTML = `
-                            <td colspan="4" class="px-6 py-12 text-center">
+                            <td colspan="5" class="px-6 py-12 text-center">
                                 <div class="flex flex-col items-center justify-center">
                                     <span class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-500 mb-4">description</span>
                                     <p class="text-lg font-medium text-text-muted-light dark:text-text-muted-dark mb-2">No documents found</p>
@@ -969,6 +1047,10 @@ Add Document
                 // Remove existing document rows first
                 const existingRows = documentsTableBody.querySelectorAll('tr:not(#no-documents-row)');
                 existingRows.forEach(row => row.remove());
+                
+                // Clear selections when re-rendering
+                selectedDocumentIds.clear();
+                updateBulkActionsBar();
 
                 // Reset to page 1 when filtering
                 currentPage = 1;
@@ -989,6 +1071,9 @@ Add Document
                     const row = document.createElement('tr');
                     row.className = 'border-b border-border-light dark:border-border-dark';
                     row.innerHTML = `
+                        <td class="py-4 px-4">
+                            <input type="checkbox" class="document-checkbox w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary" data-id="${id}" data-source="${sourceTable}">
+                        </td>
                         <td class="py-4 px-4 font-medium text-text-light dark:text-text-dark">${name}</td>
                         <td class="py-4 px-4 text-text-muted-light dark:text-text-muted-dark text-center">${category}</td>
                         <td class="py-4 px-4 text-text-muted-light dark:text-text-muted-dark text-center">${uploaded}</td>
@@ -1000,7 +1085,7 @@ Add Document
                                 <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700" aria-label="Edit" data-action="edit" data-id="${id}" data-source="${sourceTable}">
                                     <span class="material-icons text-base text-text-muted-light dark:text-text-muted-dark">edit</span>
                                 </button>
-                                <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400" aria-label="Delete" data-action="delete" data-id="${id}" data-source="${sourceTable}">
+                                <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400" aria-label="Move to Trash" data-action="delete" data-id="${id}" data-source="${sourceTable}" title="Move to Trash">
                                     <span class="material-icons text-base">delete</span>
                                 </button>
                             </div>
@@ -1339,6 +1424,13 @@ Add Document
             // Load documents when page loads
             loadDocuments();
 
+            // Setup bulk delete functionality
+            setupCheckboxListeners();
+            setupSelectAllVisibleListener();
+            setupSelectAllHeaderListener();
+            setupBulkDeleteButton();
+            setupBulkDeleteModalListeners();
+
             // Expose for future integration (e.g., API fetch -> renderDocuments(data))
             window.renderDocuments = renderDocuments;
             
@@ -1574,6 +1666,234 @@ Add Document
                 }
             }
 
+            // Bulk selection tracking
+            const selectedDocumentIds = new Set();
+            let pendingBulkDeleteItems = [];
+
+            // Update bulk actions bar
+            function updateBulkActionsBar() {
+                const bulkActionsBar = document.getElementById('bulk-actions-bar');
+                const selectedCount = document.getElementById('selected-count');
+                const totalSelected = selectedDocumentIds.size;
+                
+                if (totalSelected > 0) {
+                    bulkActionsBar.classList.remove('hidden');
+                    selectedCount.textContent = totalSelected;
+                } else {
+                    bulkActionsBar.classList.add('hidden');
+                }
+                
+                // Update select all visible checkbox state
+                const selectAllVisibleCheckbox = document.getElementById('select-all-visible-checkbox');
+                const selectAllHeaderCheckbox = document.getElementById('select-all-header');
+                const visibleCheckboxes = document.querySelectorAll('.document-checkbox');
+                const visibleChecked = Array.from(visibleCheckboxes).filter(cb => cb.checked).length;
+                
+                if (selectAllVisibleCheckbox && visibleCheckboxes.length > 0) {
+                    selectAllVisibleCheckbox.checked = visibleChecked === visibleCheckboxes.length;
+                    selectAllVisibleCheckbox.indeterminate = visibleChecked > 0 && visibleChecked < visibleCheckboxes.length;
+                }
+                
+                if (selectAllHeaderCheckbox && visibleCheckboxes.length > 0) {
+                    selectAllHeaderCheckbox.checked = visibleChecked === visibleCheckboxes.length;
+                    selectAllHeaderCheckbox.indeterminate = visibleChecked > 0 && visibleChecked < visibleCheckboxes.length;
+                }
+            }
+
+            // Handle select all visible checkbox
+            function setupSelectAllVisibleListener() {
+                const selectAllVisibleCheckbox = document.getElementById('select-all-visible-checkbox');
+                if (selectAllVisibleCheckbox) {
+                    selectAllVisibleCheckbox.addEventListener('change', function() {
+                        const visibleCheckboxes = document.querySelectorAll('.document-checkbox');
+                        visibleCheckboxes.forEach(checkbox => {
+                            checkbox.checked = selectAllVisibleCheckbox.checked;
+                            const id = checkbox.dataset.id;
+                            const source = checkbox.dataset.source;
+                            if (selectAllVisibleCheckbox.checked) {
+                                selectedDocumentIds.add(`${id}_${source}`);
+                            } else {
+                                selectedDocumentIds.delete(`${id}_${source}`);
+                            }
+                        });
+                        updateBulkActionsBar();
+                    });
+                }
+            }
+
+            // Handle select all header checkbox
+            function setupSelectAllHeaderListener() {
+                const selectAllHeaderCheckbox = document.getElementById('select-all-header');
+                if (selectAllHeaderCheckbox) {
+                    selectAllHeaderCheckbox.addEventListener('change', function() {
+                        const visibleCheckboxes = document.querySelectorAll('.document-checkbox');
+                        visibleCheckboxes.forEach(checkbox => {
+                            checkbox.checked = selectAllHeaderCheckbox.checked;
+                            const id = checkbox.dataset.id;
+                            const source = checkbox.dataset.source;
+                            if (selectAllHeaderCheckbox.checked) {
+                                selectedDocumentIds.add(`${id}_${source}`);
+                            } else {
+                                selectedDocumentIds.delete(`${id}_${source}`);
+                            }
+                        });
+                        updateBulkActionsBar();
+                    });
+                }
+            }
+
+            // Handle individual checkbox changes
+            function setupCheckboxListeners() {
+                if (documentsTableBody) {
+                    documentsTableBody.addEventListener('change', function(e) {
+                        if (e.target.classList.contains('document-checkbox')) {
+                            const checkbox = e.target;
+                            const id = checkbox.dataset.id;
+                            const source = checkbox.dataset.source;
+                            const key = `${id}_${source}`;
+                            
+                            if (checkbox.checked) {
+                                selectedDocumentIds.add(key);
+                            } else {
+                                selectedDocumentIds.delete(key);
+                            }
+                            updateBulkActionsBar();
+                        }
+                    });
+                }
+            }
+
+            // Show bulk delete confirmation modal
+            function showBulkDeleteModal(items) {
+                pendingBulkDeleteItems = items;
+                const count = items.length;
+                const modal = document.getElementById('bulkDeleteModal');
+                const modalContent = document.getElementById('bulkDeleteModalContent');
+                const messageElement = document.getElementById('bulkDeleteMessage');
+
+                messageElement.textContent = `Are you sure you want to move ${count} selected document${count > 1 ? 's' : ''} to trash? You can restore them later from the Trash page.`;
+
+                modal.classList.remove('hidden');
+
+                setTimeout(() => {
+                    modalContent.classList.remove('scale-95', 'opacity-0');
+                    modalContent.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            }
+
+            // Hide bulk delete modal
+            function hideBulkDeleteModal() {
+                const modal = document.getElementById('bulkDeleteModal');
+                const modalContent = document.getElementById('bulkDeleteModalContent');
+
+                modalContent.classList.remove('scale-100', 'opacity-100');
+                modalContent.classList.add('scale-95', 'opacity-0');
+
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    pendingBulkDeleteItems = [];
+                }, 300);
+            }
+
+            // Bulk delete function
+            async function bulkDeleteDocuments() {
+                if (selectedDocumentIds.size === 0) {
+                    alert('Please select at least one document to move to trash');
+                    return;
+                }
+
+                // Prepare items for deletion
+                const items = Array.from(selectedDocumentIds).map(key => {
+                    const [id, source] = key.split('_');
+                    return { id, source };
+                });
+                
+                showBulkDeleteModal(items);
+            }
+
+            // Confirm bulk delete
+            async function confirmBulkDelete() {
+                if (pendingBulkDeleteItems.length === 0) {
+                    hideBulkDeleteModal();
+                    return;
+                }
+
+                const items = [...pendingBulkDeleteItems];
+                const count = items.length;
+
+                try {
+                    // Delete items one by one (since they might be from different tables)
+                    let successCount = 0;
+                    let failCount = 0;
+
+                    for (const item of items) {
+                        try {
+                            let apiUrl = '';
+                            if (item.source === 'mou_moa') {
+                                apiUrl = `api/mou-moa.php?id=${encodeURIComponent(item.id)}`;
+                            } else if (item.source === 'other_documents') {
+                                apiUrl = `api/other-documents.php?id=${encodeURIComponent(item.id)}`;
+                            } else {
+                                apiUrl = `api/other-documents.php?id=${encodeURIComponent(item.id)}`;
+                            }
+
+                            const response = await fetch(apiUrl, { method: 'DELETE' });
+                            const result = await response.json();
+
+                            if (result.success) {
+                                successCount++;
+                            } else {
+                                failCount++;
+                            }
+                        } catch (error) {
+                            console.error('Error deleting document:', error);
+                            failCount++;
+                        }
+                    }
+
+                    if (successCount > 0) {
+                        alert(`Successfully moved ${successCount} document${successCount > 1 ? 's' : ''} to trash${failCount > 0 ? `. ${failCount} failed.` : ''}`);
+                        location.reload(); // Reload page to refresh document list
+                    } else {
+                        alert('Failed to move documents to trash. Please try again.');
+                    }
+                } catch (error) {
+                    console.error('Bulk delete error:', error);
+                    alert('Error deleting documents: ' + error.message);
+                } finally {
+                    hideBulkDeleteModal();
+                }
+            }
+
+            // Setup bulk delete button
+            function setupBulkDeleteButton() {
+                const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
+                if (bulkDeleteBtn) {
+                    bulkDeleteBtn.addEventListener('click', bulkDeleteDocuments);
+                }
+            }
+
+            // Setup bulk delete modal event listeners
+            function setupBulkDeleteModalListeners() {
+                document.getElementById('bulkDeleteCancelBtn')?.addEventListener('click', hideBulkDeleteModal);
+                document.getElementById('bulkDeleteConfirmBtn')?.addEventListener('click', confirmBulkDelete);
+
+                const bulkDeleteModal = document.getElementById('bulkDeleteModal');
+                if (bulkDeleteModal) {
+                    bulkDeleteModal.addEventListener('click', function(e) {
+                        if (e.target === bulkDeleteModal) {
+                            hideBulkDeleteModal();
+                        }
+                    });
+                }
+
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && !document.getElementById('bulkDeleteModal').classList.contains('hidden')) {
+                        hideBulkDeleteModal();
+                    }
+                });
+            }
+
             // Delete Modal Logic
             const deleteModal = document.getElementById('deleteConfirmModal');
             const cancelDeleteBtn = document.getElementById('cancelDelete');
@@ -1626,10 +1946,10 @@ Add Document
                         const result = await response.json();
 
                         if (result.success) {
-                            // alert('Document deleted successfully');
+                            // alert('Document moved to trash successfully');
                             location.reload(); // Reload page to refresh document list
                         } else {
-                            alert('Failed to delete: ' + (result.error || 'Unknown error'));
+                            alert('Failed to move to trash: ' + (result.error || 'Unknown error'));
                         }
                     } catch (error) {
                         alert('Error deleting document: ' + error.message);

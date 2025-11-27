@@ -1,0 +1,175 @@
+<!-- 
+    REUSABLE BULK DELETE MODAL TEMPLATE
+    ===================================
+    Copy this modal HTML and JavaScript functions to any award list page that needs bulk delete functionality.
+    
+    USAGE:
+    1. Add the HTML modal below before the closing </body> tag
+    2. Copy the JavaScript functions (showBulkDeleteModal, hideBulkDeleteModal, confirmBulkDelete)
+    3. Update the bulkDeleteApplicants function to call showBulkDeleteModal instead of confirm()
+    4. Add event listeners in DOMContentLoaded
+    5. Update the API endpoint and request body as needed for your specific page
+-->
+
+<!-- Bulk Delete Confirmation Modal -->
+<div id="bulkDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="bulkDeleteModalContent">
+        <div class="p-6">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 dark:bg-red-900/20 rounded-full">
+                <span class="material-symbols-outlined text-red-600 dark:text-red-400 text-2xl">warning</span>
+            </div>
+
+            <!-- Modal Title -->
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white text-center mb-2">
+                Delete Selected Items
+            </h3>
+
+            <!-- Modal Message -->
+            <p id="bulkDeleteMessage" class="text-sm text-gray-600 dark:text-gray-300 text-center mb-6">
+                Are you sure you want to delete the selected items? This action cannot be undone and will permanently remove the items and their associated files.
+            </p>
+
+            <!-- Modal Actions -->
+            <div class="flex gap-3 justify-center">
+                <button id="bulkDeleteCancelBtn"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors duration-200">
+                    Cancel
+                </button>
+                <button id="bulkDeleteConfirmBtn"
+                    class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200">
+                    Delete Selected
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Store pending bulk delete IDs
+    let pendingBulkDeleteIds = [];
+
+    // Show bulk delete confirmation modal
+    function showBulkDeleteModal(itemIds) {
+        pendingBulkDeleteIds = itemIds;
+        const count = itemIds.length;
+        const modal = document.getElementById('bulkDeleteModal');
+        const modalContent = document.getElementById('bulkDeleteModalContent');
+        const messageElement = document.getElementById('bulkDeleteMessage');
+
+        // Update the message with the count
+        // CUSTOMIZE: Update the text to match your page's terminology (e.g., "applicants", "awards", "documents")
+        messageElement.textContent = `Are you sure you want to delete ${count} selected item${count > 1 ? 's' : ''}? This action cannot be undone and will permanently remove the items and their associated files.`;
+
+        modal.classList.remove('hidden');
+
+        // Trigger animation
+        setTimeout(() => {
+            modalContent.classList.remove('scale-95', 'opacity-0');
+            modalContent.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    // Hide bulk delete modal
+    function hideBulkDeleteModal() {
+        const modal = document.getElementById('bulkDeleteModal');
+        const modalContent = document.getElementById('bulkDeleteModalContent');
+
+        modalContent.classList.remove('scale-100', 'opacity-100');
+        modalContent.classList.add('scale-95', 'opacity-0');
+
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            pendingBulkDeleteIds = [];
+        }, 300);
+    }
+
+    // Confirm bulk delete (called from modal)
+    async function confirmBulkDelete() {
+        if (pendingBulkDeleteIds.length === 0) {
+            hideBulkDeleteModal();
+            return;
+        }
+
+        const itemIds = [...pendingBulkDeleteIds];
+        const count = itemIds.length;
+
+        try {
+            // CUSTOMIZE: Update the API endpoint and request body to match your page's API
+            const response = await fetch('api/your-endpoint.php', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + AUTH_TOKEN // Make sure AUTH_TOKEN is defined
+                },
+                body: JSON.stringify({
+                    // CUSTOMIZE: Update the property name to match your API (e.g., award_ids, document_ids, etc.)
+                    item_ids: itemIds
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // CUSTOMIZE: Update the success message and terminology
+                showToast(`Successfully deleted ${count} item${count > 1 ? 's' : ''}`, 'success');
+                
+                // Clear selections after successful delete
+                // CUSTOMIZE: Update to match your selection tracking mechanism
+                selectedItemIds.clear();
+                
+                // Reload items
+                // CUSTOMIZE: Update to match your load function
+                await loadItems();
+                
+                // Reset bulk actions
+                // CUSTOMIZE: Update to match your UI elements
+                document.getElementById('bulk-actions-bar').classList.add('hidden');
+                document.getElementById('select-all-visible-checkbox').checked = false;
+            } else {
+                showToast('Error: ' + (result.error || 'Failed to delete items'), 'error');
+            }
+        } catch (error) {
+            console.error('Bulk delete error:', error);
+            showToast('Error: ' + error.message, 'error');
+        } finally {
+            hideBulkDeleteModal();
+        }
+    }
+
+    // Update your bulk delete function to use the modal instead of confirm()
+    async function bulkDeleteItems() {
+        // CUSTOMIZE: Update to match your selection tracking
+        if (selectedItemIds.size === 0) {
+            showToast('Please select at least one item to delete', 'error');
+            return;
+        }
+
+        const itemIds = Array.from(selectedItemIds);
+        
+        // Show modal instead of browser confirm
+        showBulkDeleteModal(itemIds);
+    }
+
+    // Add event listeners in your DOMContentLoaded or initialization function
+    document.addEventListener('DOMContentLoaded', function() {
+        // Bulk delete modal event listeners
+        document.getElementById('bulkDeleteCancelBtn')?.addEventListener('click', hideBulkDeleteModal);
+        document.getElementById('bulkDeleteConfirmBtn')?.addEventListener('click', confirmBulkDelete);
+
+        // Close modal when clicking outside
+        document.getElementById('bulkDeleteModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideBulkDeleteModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && !document.getElementById('bulkDeleteModal').classList.contains('hidden')) {
+                hideBulkDeleteModal();
+            }
+        });
+    });
+</script>
+
