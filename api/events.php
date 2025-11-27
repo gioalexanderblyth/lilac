@@ -208,10 +208,32 @@ try {
 
         $newId = $pdo->lastInsertId();
 
+        // Trigger AI analysis for ICONS 2025 award matching
+        $aiAnalysis = null;
+        try {
+            require_once __DIR__ . '/ai-award-analyzer.php';
+            // The analyzer functions are already defined, call directly
+            $text = implode(' ', [$title, $description, $location]);
+            $matches = analyzeTextAgainstAwards($text);
+            if (!empty($matches)) {
+                saveEventMatches($pdo, $newId, $matches);
+                $aiAnalysis = [
+                    'analyzed' => true,
+                    'matches' => count($matches),
+                    'top_match' => $matches[0]['award_title'] ?? null,
+                    'top_score' => $matches[0]['match_score'] ?? 0
+                ];
+            }
+        } catch (Exception $e) {
+            // Log error but don't fail the request
+            error_log("AI analysis error: " . $e->getMessage());
+        }
+
         echo json_encode([
             'success' => true,
             'message' => 'Event created successfully',
-            'id' => $newId
+            'id' => $newId,
+            'ai_analysis' => $aiAnalysis
         ]);
         exit();
     }

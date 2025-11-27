@@ -689,6 +689,10 @@ try {
                     <span class="material-symbols-outlined">dashboard</span>
                     <span class="sidebar-text hidden">Dashboard</span>
                 </a>
+                <a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards-hub.php" title="ICONS 2025 Hub">
+                    <span class="material-symbols-outlined">military_tech</span>
+                    <span class="sidebar-text hidden">ICONS 2025</span>
+                </a>
                 <a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-primary-50 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 font-semibold sidebar-nav-link"
                     href="user-awards.php">
                     <span class="material-symbols-outlined filled">emoji_events</span>
