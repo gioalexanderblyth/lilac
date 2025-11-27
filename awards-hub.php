@@ -253,33 +253,33 @@ require_once __DIR__ . '/api/config.php';
                 <div class="bg-card-light dark:bg-card-dark rounded-xl p-5 border border-border-light dark:border-border-dark">
                     <div class="flex items-center gap-3">
                         <div class="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                            <span class="material-symbols-outlined text-blue-600 dark:text-blue-400">folder_open</span>
+                            <span class="material-symbols-outlined text-blue-600 dark:text-blue-400">rocket_launch</span>
                         </div>
                         <div>
-                            <p class="text-2xl font-bold text-text-light dark:text-text-dark" id="stat-total-evidence">0</p>
-                            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Total Evidence</p>
+                            <p class="text-2xl font-bold text-text-light dark:text-text-dark" id="stat-ready-to-apply">0</p>
+                            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Awards Ready to Apply</p>
                         </div>
                     </div>
                 </div>
                 <div class="bg-card-light dark:bg-card-dark rounded-xl p-5 border border-border-light dark:border-border-dark">
                     <div class="flex items-center gap-3">
                         <div class="w-12 h-12 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                            <span class="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
+                            <span class="material-symbols-outlined text-green-600 dark:text-green-400">work</span>
                         </div>
                         <div>
-                            <p class="text-2xl font-bold text-text-light dark:text-text-dark" id="stat-eligible">0</p>
-                            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Eligible Items</p>
+                            <p class="text-2xl font-bold text-text-light dark:text-text-dark" id="stat-in-progress">0</p>
+                            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Awards In Progress</p>
                         </div>
                     </div>
                 </div>
                 <div class="bg-card-light dark:bg-card-dark rounded-xl p-5 border border-border-light dark:border-border-dark">
                     <div class="flex items-center gap-3">
                         <div class="w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                            <span class="material-symbols-outlined text-purple-600 dark:text-purple-400">smart_toy</span>
+                            <span class="material-symbols-outlined text-purple-600 dark:text-purple-400">folder</span>
                         </div>
                         <div>
-                            <p class="text-2xl font-bold text-text-light dark:text-text-dark" id="stat-ai-detected">0</p>
-                            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">AI Detected</p>
+                            <p class="text-2xl font-bold text-text-light dark:text-text-dark" id="stat-total-awards">0</p>
+                            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Total Awards</p>
                         </div>
                     </div>
                 </div>
@@ -918,23 +918,80 @@ function calculateMatchScore(text, keywords) {
     return Math.round((matches / keywords.length) * 100);
 }
 
+// Check if an award has fully completed all requirements and criteria
+function isAwardFullyCompleted(awardId) {
+    const requirements = AWARDS_REQUIREMENTS[awardId];
+    const stats = awardStats[awardId] || { total: 0 };
+    const state = getChecklistState(awardId);
+    
+    if (!requirements) return false;
+    
+    // Check all documentary requirements are completed
+    const docRequirements = requirements.documentaryRequirements;
+    let allDocsCompleted = true;
+    
+    docRequirements.forEach(req => {
+        const isChecked = state[req.id] || false;
+        const autoChecked = req.id === 'supporting-docs' && stats.total > 0;
+        if (!isChecked && !autoChecked) {
+            allDocsCompleted = false;
+        }
+    });
+    
+    if (!allDocsCompleted) return false;
+    
+    // Check all eligibility criteria have matching evidence
+    const criteriaCount = requirements.eligibilityCriteria.length;
+    if (criteriaCount === 0) return false;
+    
+    let allCriteriaMet = true;
+    requirements.eligibilityCriteria.forEach(criteria => {
+        const matchCount = countCriteriaMatches(criteria.id, stats);
+        if (matchCount === 0) {
+            allCriteriaMet = false;
+        }
+    });
+    
+    return allCriteriaMet;
+}
+
 // Update overview stats
 function updateOverviewStats() {
     let totalEvidence = 0;
-    let totalEligible = 0;
-    let totalAiDetected = 0;
     let totalReadiness = 0;
+    let fullyCompleted = 0;
+    let inProgress = 0;
     
-    Object.values(awardStats).forEach(stats => {
+    AWARDS_CONFIG.forEach(award => {
+        const stats = awardStats[award.id] || { total: 0, eligible: 0, aiDetected: 0, readiness: 0 };
         totalEvidence += stats.total;
-        totalEligible += stats.eligible;
-        totalAiDetected += stats.aiDetected;
         totalReadiness += stats.readiness;
+        
+        // Count awards that have fully completed all requirements and criteria
+        if (isAwardFullyCompleted(award.id)) {
+            fullyCompleted++;
+        } else {
+            // Count awards in progress (have some evidence or requirements started but not fully completed)
+            const requirements = AWARDS_REQUIREMENTS[award.id];
+            const state = getChecklistState(award.id);
+            
+            if (requirements) {
+                // Check if award has any progress (evidence or requirements started)
+                const hasEvidence = stats.total > 0;
+                const hasRequirementsStarted = requirements.documentaryRequirements.some(req => {
+                    return state[req.id] || (req.id === 'supporting-docs' && stats.total > 0);
+                });
+                
+                if (hasEvidence || hasRequirementsStarted) {
+                    inProgress++;
+                }
+            }
+        }
     });
     
-    document.getElementById('stat-total-evidence').textContent = totalEvidence;
-    document.getElementById('stat-eligible').textContent = totalEligible;
-    document.getElementById('stat-ai-detected').textContent = totalAiDetected;
+    document.getElementById('stat-ready-to-apply').textContent = fullyCompleted;
+    document.getElementById('stat-in-progress').textContent = inProgress;
+    document.getElementById('stat-total-awards').textContent = AWARDS_CONFIG.length;
     document.getElementById('stat-avg-readiness').textContent = Math.round(totalReadiness / AWARDS_CONFIG.length) + '%';
 }
 
