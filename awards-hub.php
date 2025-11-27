@@ -235,12 +235,14 @@ require_once __DIR__ . '/api/config.php';
                     </div>
                 </div>
             </div>
-            <div class="flex items-center gap-3">
-                <button onclick="refreshData()" class="px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm">refresh</span>
-                    Refresh
+            <div class="flex items-center gap-2">
+                <button onclick="openReportModal()" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors" title="Generate Report">
+                    <span class="material-symbols-outlined">description</span>
                 </button>
-                <button id="theme-toggle" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors">
+                <button onclick="refreshData()" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors" title="Refresh">
+                    <span class="material-symbols-outlined">refresh</span>
+                </button>
+                <button id="theme-toggle" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors" title="Toggle Theme">
                     <span class="material-symbols-outlined dark:hidden">dark_mode</span>
                     <span class="material-symbols-outlined hidden dark:block">light_mode</span>
                 </button>
@@ -434,6 +436,117 @@ require_once __DIR__ . '/api/config.php';
         </div>
     </div>
 </div>
+
+<!-- Report Selection Modal -->
+<div id="report-selection-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 hidden">
+    <div class="bg-card-light dark:bg-card-dark rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+        <div class="p-6 border-b border-border-light dark:border-border-dark">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-lg bg-amber-500 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-white text-xl">description</span>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-text-light dark:text-text-dark">Generate Awards Report</h2>
+                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Select awards to include in the report</p>
+                    </div>
+                </div>
+                <button onclick="closeReportSelectionModal()" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="p-6 overflow-y-auto flex-1">
+            <div class="mb-4 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <button onclick="selectAllAwards()" class="px-3 py-1.5 text-sm bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors">
+                        Select All
+                    </button>
+                    <button onclick="deselectAllAwards()" class="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-text-light dark:text-text-dark rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                        Deselect All
+                    </button>
+                </div>
+                <p class="text-sm text-text-muted-light dark:text-text-muted-dark">
+                    <span id="selected-count">0</span> selected
+                </p>
+            </div>
+            
+            <div id="award-selection-list" class="space-y-2">
+                <!-- Award checkboxes will be populated here -->
+            </div>
+        </div>
+        
+        <div class="p-6 border-t border-border-light dark:border-border-dark flex items-center justify-end gap-3">
+            <button onclick="closeReportSelectionModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-text-light dark:text-text-dark rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                Cancel
+            </button>
+            <button onclick="generateReport()" class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm">print</span>
+                Generate Report
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Report View -->
+<div id="report-view" class="hidden">
+    <div class="min-h-screen bg-white p-8">
+        <div class="max-w-5xl mx-auto">
+            <!-- Report Header -->
+            <div class="mb-8 text-center border-b-2 border-gray-300 pb-6">
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">ICONS 2025 Awards Report</h1>
+                <p class="text-lg text-gray-600">Internationalization Awards Evidence Management</p>
+                <p class="text-sm text-gray-500 mt-2">Generated on: <span id="report-date"></span></p>
+            </div>
+            
+            <!-- Report Content -->
+            <div id="report-content">
+                <!-- Award reports will be populated here -->
+            </div>
+            
+            <!-- Report Footer -->
+            <div class="mt-12 pt-6 border-t border-gray-300 text-center text-sm text-gray-500">
+                <p>This report was generated from the LILAC Awards System</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Report Controls (Hidden when printing) -->
+    <div class="fixed bottom-6 right-6 flex gap-3 no-print">
+        <button onclick="window.print()" class="px-6 py-3 bg-amber-500 text-white rounded-lg shadow-lg hover:bg-amber-600 transition-colors flex items-center gap-2">
+            <span class="material-symbols-outlined">print</span>
+            Print Report
+        </button>
+        <button onclick="closeReportView()" class="px-6 py-3 bg-gray-600 text-white rounded-lg shadow-lg hover:bg-gray-700 transition-colors flex items-center gap-2">
+            <span class="material-symbols-outlined">close</span>
+            Close
+        </button>
+    </div>
+</div>
+
+<style>
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #report-view, #report-view * {
+        visibility: visible;
+    }
+    #report-view {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+    .no-print {
+        display: none !important;
+    }
+    @page {
+        margin: 1.5cm;
+    }
+}
+</style>
 
 <script>
 // Award definitions with metadata
@@ -1641,6 +1754,299 @@ document.addEventListener('keydown', (e) => {
 document.getElementById('award-detail-modal')?.addEventListener('click', (e) => {
     if (e.target.id === 'award-detail-modal') {
         closeAwardModal();
+    }
+});
+
+// Report Generation Functions
+let selectedAwardIds = new Set();
+
+function openReportModal() {
+    const modal = document.getElementById('report-selection-modal');
+    const list = document.getElementById('award-selection-list');
+    
+    // Populate award checkboxes
+    list.innerHTML = AWARDS_CONFIG.map(award => {
+        const stats = awardStats[award.id] || { total: 0, readiness: 0 };
+        const requirements = AWARDS_REQUIREMENTS[award.id];
+        const isFullyCompleted = isAwardFullyCompleted(award.id);
+        
+        return `
+            <label class="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-border-light dark:border-border-dark cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <input type="checkbox" 
+                       class="mt-1 w-5 h-5 text-amber-500 rounded focus:ring-amber-500" 
+                       value="${award.id}"
+                       onchange="updateSelectedCount()"
+                       ${selectedAwardIds.has(award.id) ? 'checked' : ''}>
+                <div class="flex-1">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-text-light dark:text-text-dark">${award.title}</h3>
+                            <p class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1">${award.description}</p>
+                            <div class="flex items-center gap-3 mt-2">
+                                <span class="text-xs px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">${award.category.toUpperCase()}</span>
+                                <span class="text-xs text-text-muted-light dark:text-text-muted-dark">${stats.total} evidence items</span>
+                                <span class="text-xs text-text-muted-light dark:text-text-muted-dark">${stats.readiness}% readiness</span>
+                                ${isFullyCompleted ? '<span class="text-xs px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">Ready to Apply</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </label>
+        `;
+    }).join('');
+    
+    updateSelectedCount();
+    modal.classList.remove('hidden');
+}
+
+function closeReportSelectionModal() {
+    const modal = document.getElementById('report-selection-modal');
+    modal.classList.add('hidden');
+}
+
+function selectAllAwards() {
+    AWARDS_CONFIG.forEach(award => {
+        selectedAwardIds.add(award.id);
+    });
+    document.querySelectorAll('#award-selection-list input[type="checkbox"]').forEach(cb => {
+        cb.checked = true;
+    });
+    updateSelectedCount();
+}
+
+function deselectAllAwards() {
+    selectedAwardIds.clear();
+    document.querySelectorAll('#award-selection-list input[type="checkbox"]').forEach(cb => {
+        cb.checked = false;
+    });
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    selectedAwardIds.clear();
+    document.querySelectorAll('#award-selection-list input[type="checkbox"]:checked').forEach(cb => {
+        selectedAwardIds.add(cb.value);
+    });
+    document.getElementById('selected-count').textContent = selectedAwardIds.size;
+}
+
+function generateReport() {
+    if (selectedAwardIds.size === 0) {
+        alert('Please select at least one award to generate a report.');
+        return;
+    }
+    
+    const reportContent = document.getElementById('report-content');
+    const reportDate = document.getElementById('report-date');
+    const reportView = document.getElementById('report-view');
+    
+    // Set report date
+    reportDate.textContent = new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    // Generate report content
+    let html = '';
+    Array.from(selectedAwardIds).forEach((awardId, index) => {
+        const award = AWARDS_CONFIG.find(a => a.id === awardId);
+        const stats = awardStats[awardId] || { total: 0, eligible: 0, readiness: 0, certificates: [], mous: [], events: [], documents: [] };
+        const requirements = AWARDS_REQUIREMENTS[awardId];
+        
+        if (!award) return;
+        
+        const isFullyCompleted = isAwardFullyCompleted(awardId);
+        
+        html += `
+            <div class="mb-12 ${index > 0 ? 'page-break-before' : ''}">
+                <!-- Award Header -->
+                <div class="mb-6 pb-4 border-b-2 border-gray-300">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">${award.title}</h2>
+                    <p class="text-lg text-gray-600">${award.description}</p>
+                    <div class="flex items-center gap-4 mt-3">
+                        <span class="px-3 py-1 bg-gray-200 text-gray-900 rounded-full text-sm font-medium border border-gray-400">${award.category.toUpperCase()}</span>
+                        ${isFullyCompleted ? '<span class="px-3 py-1 bg-gray-300 text-gray-900 rounded-full text-sm font-medium border border-gray-500">Ready to Apply</span>' : ''}
+                    </div>
+                </div>
+                
+                <!-- Award Statistics -->
+                <div class="mb-6 grid grid-cols-4 gap-4">
+                    <div class="p-4 bg-white rounded-lg border-2 border-gray-400">
+                        <p class="text-sm text-gray-700 mb-1 font-medium">Total Evidence</p>
+                        <p class="text-2xl font-bold text-gray-900">${stats.total || 0}</p>
+                    </div>
+                    <div class="p-4 bg-white rounded-lg border-2 border-gray-400">
+                        <p class="text-sm text-gray-700 mb-1 font-medium">Readiness</p>
+                        <p class="text-2xl font-bold text-gray-900">${stats.readiness || 0}%</p>
+                    </div>
+                    <div class="p-4 bg-white rounded-lg border-2 border-gray-400">
+                        <p class="text-sm text-gray-700 mb-1 font-medium">Certificates</p>
+                        <p class="text-2xl font-bold text-gray-900">${stats.certificates?.length || 0}</p>
+                    </div>
+                    <div class="p-4 bg-white rounded-lg border-2 border-gray-400">
+                        <p class="text-sm text-gray-700 mb-1 font-medium">Documents</p>
+                        <p class="text-2xl font-bold text-gray-900">${(stats.mous?.length || 0) + (stats.documents?.length || 0)}</p>
+                    </div>
+                </div>
+        `;
+        
+        if (requirements) {
+            // Documentary Requirements
+            html += `
+                <div class="mb-6">
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Documentary Requirements</h3>
+                    <ul class="list-disc list-inside space-y-2 ml-4">
+            `;
+            requirements.documentaryRequirements.forEach(req => {
+                const state = getChecklistState(awardId);
+                const isChecked = state[req.id] || (req.id === 'supporting-docs' && stats.total > 0);
+                html += `
+                    <li class="text-gray-700">
+                        ${isChecked ? '✓' : '○'} ${req.label} ${req.required ? '<span class="font-bold">(Required)</span>' : ''}
+                    </li>
+                `;
+            });
+            html += `
+                    </ul>
+                    <p class="text-sm text-gray-600 mt-2"><strong>Implementation Period:</strong> ${requirements.implementationPeriod}</p>
+                </div>
+            `;
+            
+            // Video Guide Questions
+            html += `
+                <div class="mb-6">
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Video Guide Questions (${requirements.videoDuration})</h3>
+                    <ol class="list-decimal list-inside space-y-3 ml-4">
+            `;
+            requirements.guideQuestions.forEach(question => {
+                html += `<li class="text-gray-700">${question}</li>`;
+            });
+            html += `
+                    </ol>
+                </div>
+            `;
+            
+            // Eligibility Criteria
+            html += `
+                <div class="mb-6">
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Eligibility Criteria</h3>
+                    <div class="space-y-3">
+            `;
+            requirements.eligibilityCriteria.forEach(criteria => {
+                const matchCount = countCriteriaMatches(criteria.id, stats);
+                html += `
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-300">
+                        <h4 class="font-semibold text-gray-900 mb-1">${criteria.label}</h4>
+                        <p class="text-gray-700 text-sm mb-2">${criteria.description}</p>
+                        <p class="text-sm text-gray-700">
+                            ${matchCount > 0 ? `✓ ${matchCount} evidence item(s) matched` : '○ No evidence matched yet'}
+                        </p>
+                    </div>
+                `;
+            });
+            html += `
+                    </div>
+                </div>
+            `;
+            
+            // Special Notes
+            if (requirements.notes && requirements.notes.length > 0) {
+                html += `
+                    <div class="mb-6">
+                        <h3 class="text-xl font-bold text-gray-900 mb-3">Special Notes</h3>
+                        <ul class="list-disc list-inside space-y-2 ml-4">
+                `;
+                requirements.notes.forEach(note => {
+                    html += `<li class="text-gray-700">${note}</li>`;
+                });
+                html += `
+                        </ul>
+                    </div>
+                `;
+            }
+        }
+        
+        html += `</div>`;
+    });
+    
+    reportContent.innerHTML = html;
+    reportView.classList.remove('hidden');
+    closeReportSelectionModal();
+    
+    // Scroll to top
+    window.scrollTo(0, 0);
+}
+
+function closeReportView() {
+    const reportView = document.getElementById('report-view');
+    reportView.classList.add('hidden');
+}
+
+// Add CSS for page breaks and remove colors from print
+const style = document.createElement('style');
+style.textContent = `
+    #report-view {
+        color: black !important;
+    }
+    #report-view * {
+        color: inherit !important;
+        background-color: white !important;
+    }
+    #report-view .bg-gray-50,
+    #report-view .bg-gray-100,
+    #report-view .bg-gray-200,
+    #report-view .bg-gray-300 {
+        background-color: white !important;
+    }
+    #report-view .border-gray-200,
+    #report-view .border-gray-300,
+    #report-view .border-gray-400,
+    #report-view .border-gray-500 {
+        border-color: #000000 !important;
+    }
+    @media print {
+        .page-break-before {
+            page-break-before: always;
+        }
+        #report-view * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color: black !important;
+            background: white !important;
+        }
+        #report-view .bg-gray-50,
+        #report-view .bg-gray-100,
+        #report-view .bg-gray-200,
+        #report-view .bg-gray-300,
+        #report-view .bg-blue-100,
+        #report-view .bg-green-100 {
+            background: white !important;
+        }
+        #report-view .border-gray-200,
+        #report-view .border-gray-300,
+        #report-view .border-gray-400,
+        #report-view .border-gray-500,
+        #report-view .border-blue-500,
+        #report-view .border-green-500 {
+            border-color: black !important;
+        }
+        #report-view .text-blue-800,
+        #report-view .text-green-800,
+        #report-view .text-red-600,
+        #report-view .text-green-600 {
+            color: black !important;
+        }
+    }
+`;
+document.head.appendChild(style);
+
+// Close report selection modal on backdrop click
+document.getElementById('report-selection-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'report-selection-modal') {
+        closeReportSelectionModal();
     }
 });
 </script>
