@@ -493,6 +493,28 @@ require_once __DIR__ . '/api/config.php';
     </div>
 </div>
 
+<!-- Notification Modal -->
+<div id="notification-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4 hidden">
+    <div class="bg-card-light dark:bg-card-dark rounded-2xl max-w-md w-full shadow-2xl transform transition-all">
+        <div class="p-6">
+            <div class="flex items-start gap-4">
+                <div id="notification-icon" class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span class="material-symbols-outlined text-white text-xl"></span>
+                </div>
+                <div class="flex-1">
+                    <h3 id="notification-title" class="text-lg font-bold text-text-light dark:text-text-dark mb-1"></h3>
+                    <p id="notification-message" class="text-sm text-text-muted-light dark:text-text-muted-dark"></p>
+                </div>
+            </div>
+        </div>
+        <div class="px-6 pb-6">
+            <button onclick="closeNotificationModal()" class="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium">
+                OK
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Report View -->
 <div id="report-view" class="hidden">
     <div class="min-h-screen bg-white p-8">
@@ -514,18 +536,6 @@ require_once __DIR__ . '/api/config.php';
                 <p>This report was generated from the LILAC Awards System</p>
             </div>
         </div>
-    </div>
-    
-    <!-- Report Controls (Hidden when printing) -->
-    <div class="fixed bottom-6 right-6 flex gap-3 no-print">
-        <button onclick="window.print()" class="px-6 py-3 bg-amber-500 text-white rounded-lg shadow-lg hover:bg-amber-600 transition-colors flex items-center gap-2">
-            <span class="material-symbols-outlined">print</span>
-            Print Report
-        </button>
-        <button onclick="closeReportView()" class="px-6 py-3 bg-gray-600 text-white rounded-lg shadow-lg hover:bg-gray-700 transition-colors flex items-center gap-2">
-            <span class="material-symbols-outlined">close</span>
-            Close
-        </button>
     </div>
 </div>
 
@@ -647,9 +657,10 @@ const AWARDS_REQUIREMENTS = {
         videoDuration: '3 minutes',
         implementationPeriod: 'CY 2023-2024',
         documentaryRequirements: [
-            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true },
-            { id: 'video', label: '3-Minute Video (answering guide questions)', required: true },
-            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10 }
+            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true, autoDetect: 'form' },
+            { id: 'video', label: '3-Minute Video (answering guide questions)', required: true, autoDetect: 'video' },
+            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10, autoDetect: 'documents' },
+            { id: 'mou-agreement', label: 'Signed MOU/MOA or Partnership Agreement (if applicable)', required: false, autoDetect: 'mou' }
         ],
         guideQuestions: [
             'How did your institution, through this initiative, demonstrate a strong commitment to fostering global citizenship among students, faculty, and staff?',
@@ -668,9 +679,10 @@ const AWARDS_REQUIREMENTS = {
         videoDuration: '3 minutes',
         implementationPeriod: 'CY 2023-2024',
         documentaryRequirements: [
-            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true },
-            { id: 'video', label: '3-Minute Video (answering guide questions)', required: true },
-            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10 }
+            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true, autoDetect: 'form' },
+            { id: 'video', label: '3-Minute Video (answering guide questions)', required: true, autoDetect: 'video' },
+            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10, autoDetect: 'documents' },
+            { id: 'mou-agreement', label: 'Signed MOU/MOA or Partnership Agreement (if applicable)', required: false, autoDetect: 'mou' }
         ],
         guideQuestions: [
             'How did this initiative showcase your institution\'s priority towards inclusive internationalization efforts?',
@@ -689,9 +701,10 @@ const AWARDS_REQUIREMENTS = {
         videoDuration: '3 minutes',
         implementationPeriod: 'CY 2023-2024',
         documentaryRequirements: [
-            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true },
-            { id: 'video', label: '3-Minute Video (answering guide questions)', required: true },
-            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10 }
+            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true, autoDetect: 'form' },
+            { id: 'video', label: '3-Minute Video (answering guide questions)', required: true, autoDetect: 'video' },
+            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10, autoDetect: 'documents' },
+            { id: 'mou-agreement', label: 'Signed MOU/MOA or Partnership Agreement (if applicable)', required: false, autoDetect: 'mou' }
         ],
         guideQuestions: [
             'What specific SDG/SDGs are being addressed by this initiative? Describe the project/initiative and what measurable results or outcomes it has achieved in key areas (e.g., energy saved, waste diverted, community members reached).',
@@ -709,9 +722,10 @@ const AWARDS_REQUIREMENTS = {
         videoDuration: '3 minutes',
         implementationPeriod: 'August 2025 (ASEAN Month)',
         documentaryRequirements: [
-            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true },
-            { id: 'video', label: '3-Minute Video (answering guide questions)', required: true },
-            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10 }
+            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true, autoDetect: 'form' },
+            { id: 'video', label: '3-Minute Video (answering guide questions)', required: true, autoDetect: 'video' },
+            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10, autoDetect: 'documents' },
+            { id: 'mou-agreement', label: 'Signed MOU/MOA or Partnership Agreement (if applicable)', required: false, autoDetect: 'mou' }
         ],
         guideQuestions: [
             'How did the initiative creatively advance ASEAN awareness and solidarity? Describe the specific activities (e.g., cultural events, curriculum changes, youth dialogues) used to cultivate a sense of shared ASEAN identity.',
@@ -730,9 +744,10 @@ const AWARDS_REQUIREMENTS = {
         videoDuration: '3 minutes',
         implementationPeriod: 'At least 2 academic years in position',
         documentaryRequirements: [
-            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true },
-            { id: 'video', label: '3-Minute Video (interview format)', required: true },
-            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10 }
+            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true, autoDetect: 'form' },
+            { id: 'video', label: '3-Minute Video (interview format)', required: true, autoDetect: 'video' },
+            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10, autoDetect: 'documents' },
+            { id: 'mou-agreement', label: 'Signed MOU/MOA or Partnership Agreement (if applicable)', required: false, autoDetect: 'mou' }
         ],
         guideQuestions: [
             'Describe a specific initiative you spearheaded that demonstrates a creative approach to internationalization. How did it foster global collaboration and enrich the student experience at your institution?',
@@ -756,9 +771,10 @@ const AWARDS_REQUIREMENTS = {
         videoDuration: '5 minutes',
         implementationPeriod: 'At least 3 academic years in executive position',
         documentaryRequirements: [
-            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true },
-            { id: 'video', label: '5-Minute Video (interview format)', required: true },
-            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10 }
+            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true, autoDetect: 'form' },
+            { id: 'video', label: '5-Minute Video (interview format)', required: true, autoDetect: 'video' },
+            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10, autoDetect: 'documents' },
+            { id: 'mou-agreement', label: 'Signed MOU/MOA or Partnership Agreement (if applicable)', required: false, autoDetect: 'mou' }
         ],
         guideQuestions: [
             'Describe the institutional strategy you spearheaded to comprehensively integrate international and intercultural dimensions. Provide a concrete example and explain how it transformed your institution\'s approach.',
@@ -782,9 +798,10 @@ const AWARDS_REQUIREMENTS = {
         videoDuration: '3 minutes',
         implementationPeriod: 'July 2024 to July 2025',
         documentaryRequirements: [
-            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true },
-            { id: 'video', label: '3-Minute Video (any format)', required: true },
-            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10 }
+            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true, autoDetect: 'form' },
+            { id: 'video', label: '3-Minute Video (any format)', required: true, autoDetect: 'video' },
+            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10, autoDetect: 'documents' },
+            { id: 'mou-agreement', label: 'Signed MOU/MOA or Partnership Agreement (if applicable)', required: false, autoDetect: 'mou' }
         ],
         guideQuestions: [
             'Provide specific examples of how your office\'s internationalization initiatives have demonstrably increased access and participation for students and faculty from underrepresented groups and fostered intercultural understanding.',
@@ -804,9 +821,10 @@ const AWARDS_REQUIREMENTS = {
         videoDuration: '3 minutes',
         implementationPeriod: 'Current evaluation period',
         documentaryRequirements: [
-            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true },
-            { id: 'video', label: '3-Minute Video (any format)', required: true },
-            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10 }
+            { id: 'nomination-form', label: 'Accomplished Nomination Form', required: true, autoDetect: 'form' },
+            { id: 'video', label: '3-Minute Video (any format)', required: true, autoDetect: 'video' },
+            { id: 'supporting-docs', label: 'Supporting Documents (max 10)', required: true, maxCount: 10, autoDetect: 'documents' },
+            { id: 'mou-agreement', label: 'Signed MOU/MOA or Partnership Agreement (if applicable)', required: false, autoDetect: 'mou' }
         ],
         guideQuestions: [
             'Describe the core vision and organizational structure of your Regional IRO Community. What specific regional challenges or needs in internationalization does your community aim to address?',
@@ -829,6 +847,24 @@ let allEvidence = {
     documents: []
 };
 let awardStats = {};
+
+function ensureStatsStructure(rawStats) {
+    const stats = rawStats || {};
+    stats.total = stats.total || 0;
+    stats.eligible = stats.eligible || 0;
+    stats.readiness = stats.readiness || 0;
+    stats.aiDetected = stats.aiDetected || 0;
+    stats.certificates = Array.isArray(stats.certificates) ? stats.certificates : [];
+    stats.documents = Array.isArray(stats.documents) ? stats.documents : [];
+    stats.events = Array.isArray(stats.events) ? stats.events : [];
+    stats.mous = Array.isArray(stats.mous) ? stats.mous : [];
+    return stats;
+}
+
+function getAwardStatsById(awardId) {
+    awardStats[awardId] = ensureStatsStructure(awardStats[awardId]);
+    return awardStats[awardId];
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async function() {
@@ -1017,8 +1053,8 @@ function calculateAwardStats() {
             }
         });
         
-        // Calculate readiness percentage
-        stats.readiness = Math.min(100, Math.round((stats.total / 5) * 100)); // 5 items = 100%
+        // Calculate readiness percentage based on requirements and criteria
+        stats.readiness = calculateAwardReadiness(award.id, stats);
         
         awardStats[award.id] = stats;
     });
@@ -1035,10 +1071,141 @@ function calculateMatchScore(text, keywords) {
     return Math.round((matches / keywords.length) * 100);
 }
 
+// ============================
+// Requirement Auto-detection Helpers
+// ============================
+const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.wmv', '.avi', '.mkv', '.webm', '.m4v'];
+
+function getCombinedEvidenceList(stats, key) {
+    const fromStats = (stats && stats[key]) ? stats[key] : [];
+    const fromAll = (allEvidence && allEvidence[key]) ? allEvidence[key] : [];
+    return [...fromStats, ...fromAll];
+}
+
+function hasDocumentKeywords(doc, keywords) {
+    const text = `${doc.title || ''} ${doc.description || ''} ${doc.category || ''}`.toLowerCase();
+    return keywords.some(keyword => text.includes(keyword));
+}
+
+function eventHasVideoAttachment(event) {
+    const path = (event?.document_path || event?.file_path || event?.video_url || event?.image_path || '').toLowerCase();
+    if (!path) return false;
+    return VIDEO_EXTENSIONS.some(ext => path.endsWith(ext));
+}
+
+function getRequirementAutoStatus(req, stats) {
+    const normalizedStats = ensureStatsStructure(stats);
+    const detectType = (req.autoDetect || req.id || '').toLowerCase();
+    const status = { autoChecked: false, detail: '' };
+    
+    const documentSources = [
+        ...(normalizedStats.documents || []),
+        ...(normalizedStats.certificates || [])
+    ];
+    const mouSources = normalizedStats.mous || [];
+    const eventSources = normalizedStats.events || [];
+    
+    if (detectType.includes('supporting') || detectType === 'documents' || detectType === 'supporting-docs') {
+        status.autoChecked = documentSources.length > 0;
+        if (status.autoChecked) {
+            status.detail = `${documentSources.length} document(s) found`;
+        }
+        return status;
+    }
+    
+    if (detectType.includes('video')) {
+        const videoEvents = eventSources.filter(eventHasVideoAttachment);
+        if (videoEvents.length > 0) {
+            status.autoChecked = true;
+            status.detail = `${videoEvents.length} video event(s) detected`;
+        } else if (eventSources.length > 0) {
+            status.autoChecked = true;
+            status.detail = `${eventSources.length} event(s) available`;
+        }
+        return status;
+    }
+    
+    if (detectType.includes('mou') || detectType.includes('moa') || detectType.includes('partnership')) {
+        status.autoChecked = mouSources.length > 0;
+        if (status.autoChecked) {
+            status.detail = `${mouSources.length} MOU/MOA record(s) found`;
+        }
+        return status;
+    }
+    
+    if (detectType.includes('form') || detectType.includes('nomination')) {
+        const formDocs = documentSources.filter(doc => hasDocumentKeywords(doc, ['nomination', 'form', 'application']));
+        status.autoChecked = formDocs.length > 0;
+        if (status.autoChecked) {
+            status.detail = `${formDocs.length} nomination form(s) detected`;
+        }
+        return status;
+    }
+    
+    return status;
+}
+
+function isRequirementAutoMet(req, stats) {
+    return getRequirementAutoStatus(req, stats).autoChecked;
+}
+
+// Check if a requirement is automatically met based on available data
+// Calculate award readiness percentage based on requirements and criteria
+function calculateAwardReadiness(awardId, stats) {
+    const requirements = AWARDS_REQUIREMENTS[awardId];
+    const normalizedStats = ensureStatsStructure(stats);
+    const state = getChecklistState(awardId);
+    
+    if (!requirements) {
+        // Fallback to evidence-based calculation if no requirements
+        return Math.min(100, Math.round((normalizedStats.total / 5) * 100));
+    }
+    
+    // Calculate documentary requirements completion (60% weight)
+    let docScore = 0;
+    let docPossible = 0;
+    const docRequirements = requirements.documentaryRequirements;
+    docRequirements.forEach(req => {
+        const isRequired = req.required !== false;
+        if (!isRequired) {
+            return;
+        }
+        docPossible += 1;
+        const isChecked = state[req.id] || false;
+        const autoChecked = isRequirementAutoMet(req, normalizedStats);
+        if (isChecked || autoChecked) {
+            docScore += 1;
+        }
+    });
+    const docPercentage = docPossible > 0 ? (docScore / docPossible) * 60 : 0;
+    
+    // Calculate evidence matching (40% weight)
+    // Check both manual selection and automatic matching
+    let evidenceScore = 0;
+    const criteriaCount = requirements.eligibilityCriteria.length;
+    if (criteriaCount > 0) {
+        requirements.eligibilityCriteria.forEach(criteria => {
+            const criteriaKey = `criteria-${criteria.id}`;
+            const isManuallyChecked = state[criteriaKey] || false;
+            const matchCount = countCriteriaMatches(criteria.id, normalizedStats);
+            const hasAutoMatch = matchCount > 0;
+            
+            // Criteria is met if manually checked OR automatically matched
+            if (isManuallyChecked || hasAutoMatch) {
+                evidenceScore += 1;
+            }
+        });
+    }
+    const evidencePercentage = criteriaCount > 0 ? (evidenceScore / criteriaCount) * 40 : 0;
+    
+    // Total readiness
+    return Math.round(docPercentage + evidencePercentage);
+}
+
 // Check if an award has fully completed all requirements and criteria
 function isAwardFullyCompleted(awardId) {
     const requirements = AWARDS_REQUIREMENTS[awardId];
-    const stats = awardStats[awardId] || { total: 0 };
+    const stats = awardStats[awardId] || { total: 0, certificates: [], documents: [], events: [], mous: [] };
     const state = getChecklistState(awardId);
     
     if (!requirements) return false;
@@ -1048,8 +1215,11 @@ function isAwardFullyCompleted(awardId) {
     let allDocsCompleted = true;
     
     docRequirements.forEach(req => {
+        if (req.required === false) {
+            return;
+        }
         const isChecked = state[req.id] || false;
-        const autoChecked = req.id === 'supporting-docs' && stats.total > 0;
+        const autoChecked = isRequirementAutoMet(req, stats);
         if (!isChecked && !autoChecked) {
             allDocsCompleted = false;
         }
@@ -1080,7 +1250,7 @@ function updateOverviewStats() {
     let inProgress = 0;
     
     AWARDS_CONFIG.forEach(award => {
-        const stats = awardStats[award.id] || { total: 0, eligible: 0, aiDetected: 0, readiness: 0 };
+    const stats = getAwardStatsById(award.id);
         totalEvidence += stats.total;
         totalReadiness += stats.readiness;
         
@@ -1095,9 +1265,9 @@ function updateOverviewStats() {
             if (requirements) {
                 // Check if award has any progress (evidence or requirements started)
                 const hasEvidence = stats.total > 0;
-                const hasRequirementsStarted = requirements.documentaryRequirements.some(req => {
-                    return state[req.id] || (req.id === 'supporting-docs' && stats.total > 0);
-                });
+                const hasRequirementsStarted = requirements.documentaryRequirements
+                    .filter(req => req.required !== false)
+                    .some(req => state[req.id] || isRequirementAutoMet(req, stats));
                 
                 if (hasEvidence || hasRequirementsStarted) {
                     inProgress++;
@@ -1130,7 +1300,7 @@ function renderAwardsGrid(category) {
     }
     
     grid.innerHTML = filteredAwards.map(award => {
-        const stats = awardStats[award.id] || { total: 0, eligible: 0, readiness: 0 };
+        const stats = awardStats[award.id] || { total: 0, eligible: 0, readiness: 0, certificates: [], documents: [], events: [], mous: [] };
         const readinessColor = stats.readiness >= 70 ? 'text-green-600' : stats.readiness >= 40 ? 'text-amber-600' : 'text-red-600';
         
         return `
@@ -1194,7 +1364,7 @@ function renderAwardsGrid(category) {
 function openAwardModal(awardId) {
     currentAwardId = awardId;
     const award = AWARDS_CONFIG.find(a => a.id === awardId);
-    const stats = awardStats[awardId] || { total: 0, eligible: 0, readiness: 0 };
+    const stats = getAwardStatsById(awardId);
     
     if (!award) return;
     
@@ -1204,9 +1374,12 @@ function openAwardModal(awardId) {
     document.getElementById('modal-icon').className = `w-14 h-14 rounded-xl ${award.gradient} flex items-center justify-center`;
     document.getElementById('modal-icon').innerHTML = `<span class="material-symbols-outlined text-white text-2xl">${award.icon}</span>`;
     
-    // Update readiness
-    document.getElementById('modal-readiness-percent').textContent = stats.readiness + '%';
-    document.getElementById('modal-readiness-bar').style.width = stats.readiness + '%';
+    // Update readiness (recalculate to ensure it's accurate)
+    stats.readiness = calculateAwardReadiness(awardId, stats);
+    awardStats[awardId].readiness = stats.readiness;
+    
+    // Calculate and update Application Readiness based on saved state
+    setTimeout(() => updateApplicationReadiness(), 100);
     
     // Update tab counts
     document.getElementById('tab-count-all').textContent = stats.total;
@@ -1245,7 +1418,7 @@ function closeAwardModal() {
 // Render modal content based on tab
 function renderModalContent(tab) {
     const content = document.getElementById('modal-content');
-    const stats = awardStats[currentAwardId];
+    const stats = getAwardStatsById(currentAwardId);
     const requirements = AWARDS_REQUIREMENTS[currentAwardId];
     
     // Handle Requirements tab
@@ -1312,8 +1485,9 @@ function renderModalContent(tab) {
 
 // Render Requirements Tab content
 function renderRequirementsTab(requirements, stats) {
-    const totalEvidence = stats ? stats.total : 0;
-    const supportingDocsCount = Math.min(totalEvidence, 10);
+    const statsSafe = ensureStatsStructure(stats);
+    const totalEvidence = statsSafe.total || 0;
+    const supportingDocsCount = Math.min((statsSafe.documents.length + statsSafe.certificates.length), requirements.documentaryRequirements.find(req => req.id === 'supporting-docs')?.maxCount || 10);
     
     // Load saved checklist state from localStorage
     const savedState = getChecklistState(currentAwardId);
@@ -1338,9 +1512,14 @@ function renderRequirementsTab(requirements, stats) {
                 </div>
                 <div class="space-y-3">
                     ${requirements.documentaryRequirements.map(req => {
+                        const autoStatus = getRequirementAutoStatus(req, statsSafe);
                         const isChecked = savedState[req.id] || false;
-                        const autoChecked = req.id === 'supporting-docs' && supportingDocsCount > 0;
+                        const autoChecked = autoStatus.autoChecked;
                         const checked = isChecked || autoChecked;
+                        
+                        const autoDetectInfo = autoChecked
+                            ? `<p class="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-xs">check_circle</span>Auto-detected${autoStatus.detail ? `: ${autoStatus.detail}` : ''}</p>`
+                            : '';
                         
                         return `
                         <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border ${checked ? 'border-green-300 dark:border-green-700' : 'border-gray-200 dark:border-gray-700'} cursor-pointer hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
@@ -1351,8 +1530,9 @@ function renderRequirementsTab(requirements, stats) {
                             <div class="flex-1">
                                 <p class="text-sm font-medium text-text-light dark:text-text-dark">${req.label}</p>
                                 ${req.maxCount ? `<p class="text-xs text-text-muted-light dark:text-text-muted-dark">${supportingDocsCount}/${req.maxCount} documents uploaded</p>` : ''}
+                                ${autoDetectInfo}
                             </div>
-                            ${req.required ? '<span class="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs rounded-full">Required</span>' : ''}
+                            ${req.required !== false ? '<span class="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs rounded-full">Required</span>' : '<span class="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs rounded-full">Optional</span>'}
                         </div>
                     `}).join('')}
                 </div>
@@ -1405,25 +1585,37 @@ function renderRequirementsTab(requirements, stats) {
                 <div class="space-y-3">
                     ${requirements.eligibilityCriteria.map(criteria => {
                         // Check if any evidence matches this criteria
-                        const matchCount = stats ? countCriteriaMatches(criteria.id, stats) : 0;
+                        const matchCount = countCriteriaMatches(criteria.id, statsSafe);
                         const hasMatch = matchCount > 0;
                         
+                        // Check if manually marked as complete
+                        const criteriaState = getChecklistState(currentAwardId);
+                        const criteriaKey = `criteria-${criteria.id}`;
+                        const isManuallyChecked = criteriaState[criteriaKey] || false;
+                        const isCompleted = isManuallyChecked || hasMatch;
+                        
                         return `
-                            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg border ${hasMatch ? 'border-green-300 dark:border-green-700' : 'border-gray-200 dark:border-gray-700'}">
+                            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg border ${isCompleted ? 'border-green-300 dark:border-green-700' : 'border-gray-200 dark:border-gray-700'} cursor-pointer hover:border-green-400 dark:hover:border-green-600 transition-colors"
+                                 onclick="toggleCriteria('${criteria.id}', this)">
                                 <div class="flex items-start gap-3">
-                                    <div class="w-6 h-6 rounded-full ${hasMatch ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'} flex items-center justify-center flex-shrink-0">
-                                        ${hasMatch ? '<span class="material-symbols-outlined text-white text-sm">check</span>' : '<span class="material-symbols-outlined text-gray-400 text-sm">radio_button_unchecked</span>'}
+                                    <div id="criteria-check-${criteria.id}" class="w-6 h-6 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'} flex items-center justify-center flex-shrink-0 transition-all">
+                                        ${isCompleted ? '<span class="material-symbols-outlined text-white text-sm">check</span>' : '<span class="material-symbols-outlined text-gray-400 text-sm">radio_button_unchecked</span>'}
                                     </div>
                                     <div class="flex-1">
                                         <p class="text-sm font-semibold text-text-light dark:text-text-dark">${criteria.label}</p>
                                         <p class="text-xs text-text-muted-light dark:text-text-muted-dark mt-1">${criteria.description}</p>
-                                        ${hasMatch ? `<p class="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1"><span class="material-symbols-outlined text-xs">check_circle</span>${matchCount} evidence item(s) matched</p>` : ''}
+                                        ${hasMatch && !isManuallyChecked ? `<p class="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1"><span class="material-symbols-outlined text-xs">check_circle</span>${matchCount} evidence item(s) matched (auto-detected)</p>` : ''}
+                                        ${isManuallyChecked ? `<p class="text-xs text-blue-600 dark:text-blue-400 mt-2 flex items-center gap-1"><span class="material-symbols-outlined text-xs">edit</span>Manually marked as complete</p>` : ''}
                                     </div>
                                 </div>
                             </div>
                         `;
                     }).join('')}
                 </div>
+                <p class="text-xs text-green-600 dark:text-green-400 mt-3 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-xs">info</span>
+                    Click on criteria to manually mark as complete. Auto-detection is based on evidence matching.
+                </p>
             </div>
 
             ${requirements.notes ? `
@@ -1604,6 +1796,52 @@ function saveChecklistState(awardId, state) {
     }
 }
 
+// Toggle eligibility criteria checkbox
+function toggleCriteria(criteriaId, element) {
+    const state = getChecklistState(currentAwardId);
+    const criteriaKey = `criteria-${criteriaId}`;
+    const isCurrentlyChecked = state[criteriaKey] || false;
+    
+    // Toggle the state
+    state[criteriaKey] = !isCurrentlyChecked;
+    saveChecklistState(currentAwardId, state);
+    
+    // Update the UI
+    const checkDiv = element.querySelector(`#criteria-check-${criteriaId}`);
+    if (checkDiv) {
+        if (state[criteriaKey]) {
+            // Mark as checked
+            checkDiv.classList.remove('bg-gray-200', 'dark:bg-gray-700');
+            checkDiv.classList.add('bg-green-500');
+            checkDiv.innerHTML = '<span class="material-symbols-outlined text-white text-sm">check</span>';
+            element.classList.remove('border-gray-200', 'dark:border-gray-700');
+            element.classList.add('border-green-300', 'dark:border-green-700');
+        } else {
+            // Mark as unchecked
+            checkDiv.classList.remove('bg-green-500');
+            checkDiv.classList.add('bg-gray-200', 'dark:bg-gray-700');
+            checkDiv.innerHTML = '<span class="material-symbols-outlined text-gray-400 text-sm">radio_button_unchecked</span>';
+            element.classList.remove('border-green-300', 'dark:border-green-700');
+            element.classList.add('border-gray-200', 'dark:border-gray-700');
+        }
+    }
+    
+    // Update Application Readiness in modal
+    updateApplicationReadiness();
+    
+    // Update readiness in award stats and refresh grid
+    if (awardStats[currentAwardId]) {
+        awardStats[currentAwardId].readiness = calculateAwardReadiness(currentAwardId, awardStats[currentAwardId]);
+        // Refresh the grid to update the card
+        const currentCategory = document.querySelector('.category-tab.active')?.dataset.category || 'all';
+        renderAwardsGrid(currentCategory);
+        updateOverviewStats();
+    }
+    
+    // Show toast notification
+    showChecklistToast(state[criteriaKey] ? 'Criteria marked as complete!' : 'Criteria marked as incomplete');
+}
+
 // Toggle requirement checkbox
 function toggleRequirement(reqId, element) {
     const state = getChecklistState(currentAwardId);
@@ -1633,8 +1871,17 @@ function toggleRequirement(reqId, element) {
         }
     }
     
-    // Update Application Readiness
+    // Update Application Readiness in modal
     updateApplicationReadiness();
+    
+    // Update readiness in award stats and refresh grid
+    if (awardStats[currentAwardId]) {
+        awardStats[currentAwardId].readiness = calculateAwardReadiness(currentAwardId, awardStats[currentAwardId]);
+        // Refresh the grid to update the card
+        const currentCategory = document.querySelector('.category-tab.active')?.dataset.category || 'all';
+        renderAwardsGrid(currentCategory);
+        updateOverviewStats();
+    }
     
     // Show toast notification
     showChecklistToast(state[reqId] ? 'Marked as complete!' : 'Marked as incomplete');
@@ -1643,35 +1890,53 @@ function toggleRequirement(reqId, element) {
 // Calculate and update Application Readiness
 function updateApplicationReadiness() {
     const requirements = AWARDS_REQUIREMENTS[currentAwardId];
-    const stats = awardStats[currentAwardId] || { total: 0 };
+    const stats = awardStats[currentAwardId] || { total: 0, certificates: [], documents: [], events: [], mous: [] };
     const state = getChecklistState(currentAwardId);
     
     if (!requirements) return;
     
     // Calculate documentary requirements completion (60% weight)
     let docScore = 0;
+    let docPossible = 0;
     const docRequirements = requirements.documentaryRequirements;
     docRequirements.forEach(req => {
-        if (state[req.id]) {
+        const isRequired = req.required !== false;
+        if (!isRequired) {
+            return;
+        }
+        docPossible += 1;
+        const isChecked = state[req.id] || false;
+        const autoChecked = isRequirementAutoMet(req, stats);
+        if (isChecked || autoChecked) {
             docScore += 1;
-        } else if (req.id === 'supporting-docs' && stats.total > 0) {
-            // Auto-check if there's evidence
-            docScore += Math.min(stats.total / 5, 1); // Partial credit based on evidence count
         }
     });
-    const docPercentage = (docScore / docRequirements.length) * 60;
+    const docPercentage = docPossible > 0 ? (docScore / docPossible) * 60 : 0;
     
     // Calculate evidence matching (40% weight)
+    // Check both manual selection and automatic matching
     let evidenceScore = 0;
     const criteriaCount = requirements.eligibilityCriteria.length;
     requirements.eligibilityCriteria.forEach(criteria => {
+        const criteriaKey = `criteria-${criteria.id}`;
+        const isManuallyChecked = state[criteriaKey] || false;
         const matchCount = countCriteriaMatches(criteria.id, stats);
-        if (matchCount > 0) evidenceScore += 1;
+        const hasAutoMatch = matchCount > 0;
+        
+        // Criteria is met if manually checked OR automatically matched
+        if (isManuallyChecked || hasAutoMatch) {
+            evidenceScore += 1;
+        }
     });
     const evidencePercentage = criteriaCount > 0 ? (evidenceScore / criteriaCount) * 40 : 0;
     
     // Total readiness
     const totalReadiness = Math.round(docPercentage + evidencePercentage);
+    
+    // Update award stats with new readiness
+    if (awardStats[currentAwardId]) {
+        awardStats[currentAwardId].readiness = totalReadiness;
+    }
     
     // Update the UI
     const readinessPercent = document.getElementById('modal-readiness-percent');
@@ -1700,9 +1965,14 @@ function updateApplicationReadiness() {
     // Show missing items hint
     if (missingHint) {
         const missing = [];
-        if (!state['nomination-form']) missing.push('Nomination Form');
-        if (!state['video']) missing.push('Video');
-        if (!state['supporting-docs'] && stats.total === 0) missing.push('Supporting Documents');
+        requirements.documentaryRequirements.forEach(req => {
+            if (!req.required) return;
+            const isChecked = state[req.id] || false;
+            const autoChecked = isRequirementAutoMet(req, stats);
+            if (!isChecked && !autoChecked) {
+                missing.push(req.label);
+            }
+        });
         
         if (missing.length > 0) {
             missingHint.innerHTML = `
@@ -1720,6 +1990,68 @@ function updateApplicationReadiness() {
         awardStats[currentAwardId].readiness = totalReadiness;
     }
 }
+
+// Show notification modal
+function showNotificationModal(message, type = 'info') {
+    const modal = document.getElementById('notification-modal');
+    const icon = document.getElementById('notification-icon');
+    const title = document.getElementById('notification-title');
+    const messageEl = document.getElementById('notification-message');
+    
+    const config = {
+        warning: {
+            bg: 'bg-amber-500',
+            icon: 'warning',
+            titleText: 'Warning'
+        },
+        error: {
+            bg: 'bg-red-500',
+            icon: 'error',
+            titleText: 'Error'
+        },
+        success: {
+            bg: 'bg-green-500',
+            icon: 'check_circle',
+            titleText: 'Success'
+        },
+        info: {
+            bg: 'bg-blue-500',
+            icon: 'info',
+            titleText: 'Information'
+        }
+    };
+    
+    const settings = config[type] || config.info;
+    
+    icon.className = `w-12 h-12 rounded-full ${settings.bg} flex items-center justify-center flex-shrink-0`;
+    icon.innerHTML = `<span class="material-symbols-outlined text-white text-xl">${settings.icon}</span>`;
+    title.textContent = settings.titleText;
+    messageEl.textContent = message;
+    
+    modal.classList.remove('hidden');
+}
+
+function closeNotificationModal() {
+    const modal = document.getElementById('notification-modal');
+    modal.classList.add('hidden');
+}
+
+// Close notification modal on backdrop click
+document.getElementById('notification-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'notification-modal') {
+        closeNotificationModal();
+    }
+});
+
+// Close notification modal on Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('notification-modal');
+        if (!modal.classList.contains('hidden')) {
+            closeNotificationModal();
+        }
+    }
+});
 
 // Show toast notification
 function showChecklistToast(message) {
@@ -1770,7 +2102,7 @@ function openReportModal() {
     
     // Populate award checkboxes
     list.innerHTML = AWARDS_CONFIG.map(award => {
-        const stats = awardStats[award.id] || { total: 0, readiness: 0 };
+        const stats = getAwardStatsById(award.id);
         const requirements = AWARDS_REQUIREMENTS[award.id];
         const isFullyCompleted = isAwardFullyCompleted(award.id);
         
@@ -1836,7 +2168,7 @@ function updateSelectedCount() {
 
 function generateReport() {
     if (selectedAwardIds.size === 0) {
-        alert('Please select at least one award to generate a report.');
+        showNotificationModal('Please select at least one award to generate a report.', 'warning');
         return;
     }
     
@@ -1857,7 +2189,7 @@ function generateReport() {
     let html = '';
     Array.from(selectedAwardIds).forEach((awardId, index) => {
         const award = AWARDS_CONFIG.find(a => a.id === awardId);
-        const stats = awardStats[awardId] || { total: 0, eligible: 0, readiness: 0, certificates: [], mous: [], events: [], documents: [] };
+        const stats = getAwardStatsById(awardId);
         const requirements = AWARDS_REQUIREMENTS[awardId];
         
         if (!award) return;
@@ -1982,6 +2314,11 @@ function generateReport() {
     
     // Scroll to top
     window.scrollTo(0, 0);
+    
+    // Automatically open print dialog after a short delay to ensure content is rendered
+    setTimeout(() => {
+        window.print();
+    }, 300);
 }
 
 function closeReportView() {
