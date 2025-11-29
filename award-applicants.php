@@ -956,18 +956,28 @@ if (!$awardCategory) {
             try {
                 // Use the award ID directly (database ID)
                 const deleteUrl = `api/delete-award.php?id=${encodeURIComponent(awardId)}`;
+                console.log('Deleting award with ID:', awardId, 'URL:', deleteUrl);
+                
                 const response = await fetch(deleteUrl, {
                     method: 'DELETE'
                 });
 
-                if (response.ok) {
-                    const result = await response.json();
+                console.log('Delete response status:', response.status);
+                
+                const result = await response.json().catch(() => {
+                    throw new Error('Invalid response from server');
+                });
+                
+                console.log('Delete response:', result);
+
+                if (response.ok && result.success) {
                     showToast('Award moved to trash successfully!', 'success');
-                    // Reload applicants
-                    await loadApplicants();
+                    // Reload applicants after a short delay to ensure database is updated
+                    setTimeout(async () => {
+                        await loadApplicants();
+                    }, 500);
                 } else {
-                    const errorData = await response.json().catch(() => ({ error: 'Failed to move award to trash' }));
-                    throw new Error(errorData.error || 'Failed to move award to trash');
+                    throw new Error(result.error || result.message || 'Failed to move award to trash');
                 }
             } catch (error) {
                 console.error('Error moving award to trash:', error);

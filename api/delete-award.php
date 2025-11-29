@@ -16,6 +16,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') {
     exit();
 }
 
+session_start();
+
+// Check if user is authenticated
+if (!isset($_SESSION['user_id'])) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Unauthorized. Please login.']);
+    exit();
+}
+
 require_once 'config.php';
 
 try {
@@ -96,9 +105,12 @@ try {
             $stmt->execute([$awardIdInt]);
             
             // Delete the uploaded file if it exists
-            if ($award['file_path'] && file_exists($award['file_path'])) {
-                if (unlink($award['file_path'])) {
-                    $deletedFiles[] = basename($award['file_path']);
+            if ($award['file_path']) {
+                $fullPath = __DIR__ . '/../' . $award['file_path'];
+                if (file_exists($fullPath)) {
+                    if (unlink($fullPath)) {
+                        $deletedFiles[] = basename($award['file_path']);
+                    }
                 }
             }
             

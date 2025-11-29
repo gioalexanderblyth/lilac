@@ -55,7 +55,14 @@ try {
     }
 
     if ($method === 'GET' && $listAll === 'true') {
-        // Get all award criteria with applicant counts
+        // Ensure deleted_at column exists
+        try {
+            $pdo->exec("ALTER TABLE awards ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore
+        }
+        
+        // Get all award criteria with applicant counts (excluding deleted awards)
         $stmt = $pdo->query("
             SELECT
                 ac.id,
@@ -65,10 +72,10 @@ try {
                 ac.requirements,
                 ac.keywords,
                 ac.status,
-                COUNT(DISTINCT aa.award_id) as total_applicants,
-                SUM(CASE WHEN a.status = 'pending' THEN 1 ELSE 0 END) as pending_count,
-                SUM(CASE WHEN a.status = 'approved' THEN 1 ELSE 0 END) as recognized_count,
-                SUM(CASE WHEN a.status = 'analyzed' THEN 1 ELSE 0 END) as processed_count
+                COUNT(DISTINCT CASE WHEN a.deleted_at IS NULL THEN aa.award_id END) as total_applicants,
+                SUM(CASE WHEN a.deleted_at IS NULL AND a.status = 'pending' THEN 1 ELSE 0 END) as pending_count,
+                SUM(CASE WHEN a.deleted_at IS NULL AND a.status = 'approved' THEN 1 ELSE 0 END) as recognized_count,
+                SUM(CASE WHEN a.deleted_at IS NULL AND a.status = 'analyzed' THEN 1 ELSE 0 END) as processed_count
             FROM award_criteria ac
             LEFT JOIN award_analysis aa ON ac.category_name = aa.predicted_category
             LEFT JOIN awards a ON aa.award_id = a.id
@@ -209,32 +216,108 @@ try {
 
     } elseif ($method === 'GET' && $awardCategory) {
         // Get all users who applied for this award category
-        $stmt = $pdo->prepare("
-            SELECT
-                a.id as award_id,
-                a.user_id,
-                a.title as submission_title,
-                a.description,
-                a.file_name,
-                a.file_path,
-                a.file_type,
-                a.status as award_status,
-                a.created_at,
-                u.username,
-                u.email,
-                aa.predicted_category,
-                aa.match_percentage,
-                aa.all_matches,
-                aa.status as analysis_status,
-                aa.event_id
-            FROM awards a
-            LEFT JOIN users u ON a.user_id = u.id
-            LEFT JOIN award_analysis aa ON a.id = aa.award_id
-            WHERE aa.predicted_category = ?
-            ORDER BY aa.match_percentage DESC, a.created_at DESC
-        ");
-        $stmt->execute([$awardCategory]);
-        $applicants = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Handle NULL values and use case-insensitive matching
+        try {
+            // Check if event_id column exists in award_analysis table
+            $checkColumn = $pdo->query("SHOW COLUMNS FROM award_analysis LIKE 'event_id'");
+            $eventIdExists = $checkColumn->rowCount() > 0;
+            
+            // Build query with optional event_id column
+            $eventIdSelect = $eventIdExists ? ', aa.event_id' : ', NULL as event_id';
+            
+            // First, try with exact match (case-insensitive)
+            // Ensure deleted_at column exists and filter out deleted awards
+            try {
+                $pdo->exec("ALTER TABLE awards ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+            } catch (PDOException $e) {
+                // Column might already exist, ignore
+            }
+            
+            $sql = "
+                SELECT
+                    a.id as award_id,
+                    a.user_id,
+                    a.title as submission_title,
+                    a.description,
+                    a.file_name,
+                    a.file_path,
+                    a.file_type,
+                    a.status as award_status,
+                    a.created_at,
+                    u.username,
+                    u.email,
+                    aa.predicted_category,
+                    aa.match_percentage,
+                    aa.all_matches,
+                    aa.status as analysis_status
+                    $eventIdSelect
+                FROM awards a
+                LEFT JOIN users u ON a.user_id = u.id
+                INNER JOIN award_analysis aa ON a.id = aa.award_id
+                WHERE aa.predicted_category IS NOT NULL 
+                AND LOWER(aa.predicted_category) = LOWER(?)
+                AND (a.deleted_at IS NULL)
+                ORDER BY COALESCE(aa.match_percentage, 0) DESC, a.created_at DESC
+            ";
+            
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([trim($awardCategory)]);
+            $applicants = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+        } catch (PDOException $e) {
+            error_log("Error fetching applicants for category '$awardCategory': " . $e->getMessage());
+            error_log("SQL Error Code: " . $e->getCode());
+            if ($e instanceof PDOException) {
+                $errorInfo = $e->errorInfo ?? [];
+                error_log("SQL Error Info: " . print_r($errorInfo, true));
+            }
+            
+            // If exact match fails, try partial match
+            try {
+                $checkColumn = $pdo->query("SHOW COLUMNS FROM award_analysis LIKE 'event_id'");
+                $eventIdExists = $checkColumn->rowCount() > 0;
+                $eventIdSelect = $eventIdExists ? ', aa.event_id' : ', NULL as event_id';
+                
+                $sql = "
+                    SELECT
+                        a.id as award_id,
+                        a.user_id,
+                        a.title as submission_title,
+                        a.description,
+                        a.file_name,
+                        a.file_path,
+                        a.file_type,
+                        a.status as award_status,
+                        a.created_at,
+                        u.username,
+                        u.email,
+                        aa.predicted_category,
+                        aa.match_percentage,
+                        aa.all_matches,
+                        aa.status as analysis_status
+                        $eventIdSelect
+                    FROM awards a
+                    LEFT JOIN users u ON a.user_id = u.id
+                    INNER JOIN award_analysis aa ON a.id = aa.award_id
+                    WHERE aa.predicted_category IS NOT NULL 
+                    AND LOWER(aa.predicted_category) LIKE LOWER(?)
+                    AND (a.deleted_at IS NULL)
+                    ORDER BY COALESCE(aa.match_percentage, 0) DESC, a.created_at DESC
+                ";
+                
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute(['%' . trim($awardCategory) . '%']);
+                $applicants = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $e2) {
+                error_log("Alternative query also failed: " . $e2->getMessage());
+                error_log("SQL Error Code: " . $e2->getCode());
+                if ($e2 instanceof PDOException) {
+                    $errorInfo = $e2->errorInfo ?? [];
+                    error_log("SQL Error Info: " . print_r($errorInfo, true));
+                }
+                throw new Exception("Failed to fetch applicants: " . $e2->getMessage());
+            }
+        }
 
         // Process each applicant
         $processedApplicants = [];
@@ -408,9 +491,16 @@ try {
 
 } catch (Exception $e) {
     http_response_code(500);
+    error_log("Award Applicants API Error: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
     echo json_encode([
         'success' => false,
-        'error' => $e->getMessage()
+        'error' => $e->getMessage(),
+        'debug' => [
+            'category' => $awardCategory ?? null,
+            'award_id' => $awardId ?? null,
+            'method' => $method ?? null
+        ]
     ]);
 }
 ?>

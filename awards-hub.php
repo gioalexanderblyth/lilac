@@ -933,7 +933,8 @@ function initModalTabs() {
 // Load all data
 async function loadAllData() {
     try {
-        // Load certificates/awards
+        // Load certificates/awards - from awards page
+        // These are files uploaded from the awards page and eligibility is determined by match score
         try {
             const awardsRes = await fetch('api/awards.php?action=list');
             if (awardsRes.ok) {
@@ -945,7 +946,8 @@ async function loadAllData() {
             allEvidence.certificates = [];
         }
         
-        // Load MOUs/MOAs
+        // Load MOUs/MOAs - from MOU/MOA page
+        // These are files uploaded from the MOU/MOA page
         try {
             const mouRes = await fetch('api/mou-moa.php?action=list');
             if (mouRes.ok) {
@@ -957,7 +959,8 @@ async function loadAllData() {
             allEvidence.mous = [];
         }
         
-        // Load Events
+        // Load Events - from events page
+        // These are events created from the events/activities page
         try {
             const eventsRes = await fetch('api/events.php?action=list');
             if (eventsRes.ok) {
@@ -970,12 +973,24 @@ async function loadAllData() {
             allEvidence.events = [];
         }
         
-        // Load Other Documents
+        // Load Other Documents - from documents page
+        // Exclude MOU/MOA documents (they should only appear in MOU/MOA tab)
+        // Check category, title, and file_name for MOU/MOA indicators
         try {
             const docsRes = await fetch('api/other-documents.php?action=list');
             if (docsRes.ok) {
                 const docsData = await docsRes.json();
-                allEvidence.documents = docsData.data || (Array.isArray(docsData) ? docsData : []);
+                const allDocs = docsData.data || (Array.isArray(docsData) ? docsData : []);
+                // Filter out MOU/MOA documents - check category, title, and file_name
+                allEvidence.documents = allDocs.filter(doc => {
+                    const category = (doc.category || '').toUpperCase();
+                    const title = (doc.title || '').toUpperCase();
+                    const fileName = (doc.file_name || '').toUpperCase();
+                    // Exclude if MOU or MOA appears in category, title, or file_name
+                    return !category.includes('MOU') && !category.includes('MOA') &&
+                           !title.includes('MOU') && !title.includes('MOA') &&
+                           !fileName.includes('MOU') && !fileName.includes('MOA');
+                });
             }
         } catch (e) {
             console.warn('Failed to load documents:', e);
@@ -1004,52 +1019,52 @@ function calculateAwardStats() {
             documents: []
         };
         
-        // Match certificates
+        // Process certificates - from awards page
+        // Include ALL files, calculate match score to determine eligibility for this award
         allEvidence.certificates.forEach(cert => {
             const text = `${cert.title || ''} ${cert.description || ''}`.toLowerCase();
             const matchScore = calculateMatchScore(text, award.keywords);
-            if (matchScore >= 30) {
-                stats.certificates.push({ ...cert, matchScore, aiDetected: true });
-                stats.total++;
-                stats.aiDetected++;
-                if (matchScore >= 70) stats.eligible++;
-            }
+            // Include all files, but still calculate match score for display and eligibility
+            stats.certificates.push({ ...cert, matchScore, aiDetected: matchScore >= 30 });
+            stats.total++;
+            if (matchScore >= 30) stats.aiDetected++;
+            if (matchScore >= 70) stats.eligible++;
         });
         
-        // Match MOUs
+        // Process MOUs - from MOU/MOA page
+        // Include ALL files regardless of match score
         allEvidence.mous.forEach(mou => {
             const text = `${mou.title || ''} ${mou.institution || ''} ${mou.description || ''}`.toLowerCase();
             const matchScore = calculateMatchScore(text, award.keywords);
-            if (matchScore >= 30) {
-                stats.mous.push({ ...mou, matchScore, aiDetected: true });
-                stats.total++;
-                stats.aiDetected++;
-                if (matchScore >= 70) stats.eligible++;
-            }
+            // Include all files, but still calculate match score for display
+            stats.mous.push({ ...mou, matchScore, aiDetected: matchScore >= 30 });
+            stats.total++;
+            if (matchScore >= 30) stats.aiDetected++;
+            if (matchScore >= 70) stats.eligible++;
         });
         
-        // Match Events
+        // Process Events - from events page
+        // Include ALL files regardless of match score
         allEvidence.events.forEach(event => {
             const text = `${event.title || ''} ${event.description || ''} ${event.location || ''}`.toLowerCase();
             const matchScore = calculateMatchScore(text, award.keywords);
-            if (matchScore >= 30) {
-                stats.events.push({ ...event, matchScore, aiDetected: true });
-                stats.total++;
-                stats.aiDetected++;
-                if (matchScore >= 70) stats.eligible++;
-            }
+            // Include all files, but still calculate match score for display
+            stats.events.push({ ...event, matchScore, aiDetected: matchScore >= 30 });
+            stats.total++;
+            if (matchScore >= 30) stats.aiDetected++;
+            if (matchScore >= 70) stats.eligible++;
         });
         
-        // Match Documents
+        // Process Documents - from documents page (excluding MOU/MOA)
+        // Include ALL files regardless of match score
         allEvidence.documents.forEach(doc => {
             const text = `${doc.title || ''} ${doc.description || ''} ${doc.category || ''}`.toLowerCase();
             const matchScore = calculateMatchScore(text, award.keywords);
-            if (matchScore >= 30) {
-                stats.documents.push({ ...doc, matchScore, aiDetected: true });
-                stats.total++;
-                stats.aiDetected++;
-                if (matchScore >= 70) stats.eligible++;
-            }
+            // Include all files, but still calculate match score for display
+            stats.documents.push({ ...doc, matchScore, aiDetected: matchScore >= 30 });
+            stats.total++;
+            if (matchScore >= 30) stats.aiDetected++;
+            if (matchScore >= 70) stats.eligible++;
         });
         
         // Calculate readiness percentage based on requirements and criteria

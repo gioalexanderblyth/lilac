@@ -219,7 +219,8 @@ function getCombinedEvidence($pdo) {
         'documents' => []
     ];
     
-    // Get certificates/awards
+    // Get certificates/awards - from awards page (awards table)
+    // These are files uploaded from the awards page and eligibility is determined by match score
     try {
         $stmt = $pdo->query("SELECT id, user_id, title, description, file_name, file_path, status, created_at FROM awards ORDER BY created_at DESC");
         $evidence['certificates'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -227,7 +228,8 @@ function getCombinedEvidence($pdo) {
         error_log("Error fetching awards: " . $e->getMessage());
     }
     
-    // Get MOUs/MOAs
+    // Get MOUs/MOAs - from MOU/MOA page (mou_moa table)
+    // These are files uploaded from the MOU/MOA page
     try {
         $stmt = $pdo->query("SELECT id, user_id, title, institution, location, description, file_name, file_path, status, sign_date, end_date, created_at FROM mou_moa ORDER BY created_at DESC");
         $evidence['mous'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -235,7 +237,8 @@ function getCombinedEvidence($pdo) {
         error_log("Error fetching MOUs: " . $e->getMessage());
     }
     
-    // Get Events
+    // Get Events - from events page (events table)
+    // These are events created from the events/activities page
     try {
         $stmt = $pdo->query("SELECT id, user_id, title, description, event_date, location, status, created_at FROM events ORDER BY event_date DESC");
         $evidence['events'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -243,9 +246,20 @@ function getCombinedEvidence($pdo) {
         error_log("Error fetching events: " . $e->getMessage());
     }
     
-    // Get Other Documents
+    // Get Other Documents - from documents page (other_documents table)
+    // Exclude MOU/MOA documents (they should only appear in MOU/MOA tab)
+    // Check category, title, and file_name for MOU/MOA indicators (case-insensitive)
     try {
-        $stmt = $pdo->query("SELECT id, user_id, title, description, file_name, file_path, category, created_at FROM other_documents ORDER BY created_at DESC");
+        $stmt = $pdo->query("
+            SELECT id, user_id, title, description, file_name, file_path, category, created_at 
+            FROM other_documents 
+            WHERE (
+                (category IS NULL OR (LOWER(category) NOT LIKE '%mou%' AND LOWER(category) NOT LIKE '%moa%'))
+                AND (title IS NULL OR (LOWER(title) NOT LIKE '%mou%' AND LOWER(title) NOT LIKE '%moa%'))
+                AND (file_name IS NULL OR (LOWER(file_name) NOT LIKE '%mou%' AND LOWER(file_name) NOT LIKE '%moa%'))
+            )
+            ORDER BY created_at DESC
+        ");
         $evidence['documents'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         error_log("Error fetching documents: " . $e->getMessage());
@@ -272,60 +286,60 @@ function calculateAwardStats($award, $evidence) {
     $keywords = $award['keywords'];
     $weights = $award['weight'] ?? [];
     
-    // Process certificates
+    // Process certificates - from awards page
+    // Include ALL files, calculate match score to determine eligibility for this award
     foreach ($evidence['certificates'] as $item) {
         $text = strtolower(($item['title'] ?? '') . ' ' . ($item['description'] ?? ''));
         $score = calculateMatchScore($text, $keywords, $weights);
-        if ($score >= 30) {
-            $item['matchScore'] = $score;
-            $item['aiDetected'] = true;
-            $stats['certificates'][] = $item;
-            $stats['total']++;
-            $stats['aiDetected']++;
-            if ($score >= 70) $stats['eligible']++;
-        }
+        // Include all files, but still calculate match score for display and eligibility
+        $item['matchScore'] = $score;
+        $item['aiDetected'] = $score >= 30; // Mark as AI-detected if score is >= 30
+        $stats['certificates'][] = $item;
+        $stats['total']++;
+        if ($score >= 30) $stats['aiDetected']++;
+        if ($score >= 70) $stats['eligible']++;
     }
     
-    // Process MOUs
+    // Process MOUs - from MOU/MOA page
+    // Include ALL files regardless of match score
     foreach ($evidence['mous'] as $item) {
         $text = strtolower(($item['title'] ?? '') . ' ' . ($item['institution'] ?? '') . ' ' . ($item['description'] ?? ''));
         $score = calculateMatchScore($text, $keywords, $weights);
-        if ($score >= 30) {
-            $item['matchScore'] = $score;
-            $item['aiDetected'] = true;
-            $stats['mous'][] = $item;
-            $stats['total']++;
-            $stats['aiDetected']++;
-            if ($score >= 70) $stats['eligible']++;
-        }
+        // Include all files, but still calculate match score for display
+        $item['matchScore'] = $score;
+        $item['aiDetected'] = $score >= 30; // Mark as AI-detected if score is >= 30
+        $stats['mous'][] = $item;
+        $stats['total']++;
+        if ($score >= 30) $stats['aiDetected']++;
+        if ($score >= 70) $stats['eligible']++;
     }
     
-    // Process events
+    // Process events - from events page
+    // Include ALL files regardless of match score
     foreach ($evidence['events'] as $item) {
         $text = strtolower(($item['title'] ?? '') . ' ' . ($item['description'] ?? '') . ' ' . ($item['location'] ?? ''));
         $score = calculateMatchScore($text, $keywords, $weights);
-        if ($score >= 30) {
-            $item['matchScore'] = $score;
-            $item['aiDetected'] = true;
-            $stats['events'][] = $item;
-            $stats['total']++;
-            $stats['aiDetected']++;
-            if ($score >= 70) $stats['eligible']++;
-        }
+        // Include all files, but still calculate match score for display
+        $item['matchScore'] = $score;
+        $item['aiDetected'] = $score >= 30; // Mark as AI-detected if score is >= 30
+        $stats['events'][] = $item;
+        $stats['total']++;
+        if ($score >= 30) $stats['aiDetected']++;
+        if ($score >= 70) $stats['eligible']++;
     }
     
-    // Process documents
+    // Process documents - from documents page (excluding MOU/MOA)
+    // Include ALL files regardless of match score
     foreach ($evidence['documents'] as $item) {
         $text = strtolower(($item['title'] ?? '') . ' ' . ($item['description'] ?? '') . ' ' . ($item['category'] ?? ''));
         $score = calculateMatchScore($text, $keywords, $weights);
-        if ($score >= 30) {
-            $item['matchScore'] = $score;
-            $item['aiDetected'] = true;
-            $stats['documents'][] = $item;
-            $stats['total']++;
-            $stats['aiDetected']++;
-            if ($score >= 70) $stats['eligible']++;
-        }
+        // Include all files, but still calculate match score for display
+        $item['matchScore'] = $score;
+        $item['aiDetected'] = $score >= 30; // Mark as AI-detected if score is >= 30
+        $stats['documents'][] = $item;
+        $stats['total']++;
+        if ($score >= 30) $stats['aiDetected']++;
+        if ($score >= 70) $stats['eligible']++;
     }
     
     // Calculate readiness (5 items = 100%)
