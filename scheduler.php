@@ -206,6 +206,24 @@ try {
         .sidebar-collapsed .profile-container {
             justify-content: center;
         }
+        .sidebar {
+            width: 16rem;
+            min-width: 16rem;
+            max-width: 16rem;
+            flex-shrink: 0;
+            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
+        }
+        .sidebar-collapsed .sidebar {
+            width: 5rem;
+            min-width: 5rem;
+            max-width: 5rem;
+        }
+        .sidebar-collapsed .sidebar-profile-info {
+            display: none;
+        }
+        .sidebar-collapsed .sidebar-profile-picture {
+            display: none;
+        }
 
         /* Page Animation Effects */
         @keyframes fadeInUp {
@@ -323,8 +341,16 @@ try {
 </div>
 </aside>
 <main class="flex-1 overflow-y-auto">
-<header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible header-animate">
-<h1 class="text-2xl font-bold text-text-light dark:text-text-dark">Calendar</h1>
+<header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-0 lg:px-2 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible header-animate">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-white">calendar_today</span>
+</div>
+<div>
+<h1 class="text-2xl font-bold text-text-light dark:text-text-dark">Scheduler</h1>
+<p class="text-sm text-text-muted-light dark:text-text-muted-dark">Manage and view scheduled events and important dates</p>
+</div>
+</div>
 <div class="flex items-center gap-2">
 					<div class="relative z-[9999]">
                         <button id="notificationBtn" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors duration-200 relative">
@@ -359,7 +385,7 @@ try {
 </button>
 </div>
 </header>
-<div class="pl-2 lg:pl-1 pr-1 pb-6 lg:pb-8 main-content content-animate">
+<div class="p-2 content-animate">
 <div class="max-w-none">
 <!-- Preserve existing schedulerTest main content below -->
 <div class="flex-1 flex p-3 space-x-2">

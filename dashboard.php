@@ -1110,12 +1110,14 @@ try {
 <main class="flex-1 overflow-y-auto">
 <div class="p-8">
 <header class="flex justify-between items-center mb-8 header-animate relative" style="z-index: 50;">
-<div class="relative w-full max-w-sm" style="z-index: 10000;">
-<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">search</span>
-<input id="globalSearchInput" class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition" placeholder="Search awards, events, documents..." type="text" autocomplete="off"/>
-<div id="searchResultsDropdown" class="hidden absolute left-0 top-full mt-2 w-full bg-white dark:bg-slate-800 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700" style="z-index: 10001; max-height: 24rem; overflow-y: auto;">
-<div id="searchResultsContent" class="p-2">
-<!-- Search results will be populated here -->
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-white">dashboard</span>
+</div>
+<div>
+<h1 class="text-2xl font-bold text-text-light dark:text-text-dark">LILAC Dashboard</h1>
+<p class="text-sm text-text-muted-light dark:text-text-muted-dark">Overview of awards, events, documents, and recent activity</p>
 </div>
 </div>
 </div>
@@ -1162,10 +1164,6 @@ echo htmlspecialchars($firstName);
 </div>
 </header>
 <div class="space-y-8 content-animate relative" style="z-index: 1;">
-<div class="page-animate">
-<h2 class="text-3xl font-bold text-slate-900 dark:text-white">Dashboard</h2>
-<p class="mt-1 text-slate-500 dark:text-slate-400">Overview of your lilac system.</p>
-</div>
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
 <a href="user-awards.php" class="bg-primary text-white p-6 rounded-lg flex flex-col justify-between cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 page-animate-delay-1">
 <div class="flex justify-between items-start">

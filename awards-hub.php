@@ -306,9 +306,15 @@ require_once __DIR__ . '/api/config.php';
             <div class="mb-8">
                 <div class="flex items-center justify-between mb-6">
                     <h2 class="text-xl font-bold text-text-light dark:text-text-dark">Award Categories</h2>
-                    <div class="flex items-center gap-2 text-sm text-text-muted-light dark:text-text-muted-dark">
-                        <span class="material-symbols-outlined text-purple-500 text-sm">smart_toy</span>
-                        <span>AI-powered evidence detection</span>
+                    <div class="relative group">
+                        <button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-text-muted-light dark:text-text-muted-dark transition-colors" title="Award Categories Information">
+                            <span class="material-symbols-outlined text-lg">help</span>
+                        </button>
+                        <div class="absolute right-full top-0 mr-2 w-64 p-3 bg-card-light dark:bg-card-dark rounded-lg shadow-lg border border-border-light dark:border-border-dark opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                            <p class="text-xs text-text-light dark:text-text-dark">
+                                Browse and explore available awards by category. Click on any award card to view detailed requirements and track your application progress.
+                            </p>
+                        </div>
                     </div>
                 </div>
                 
@@ -375,15 +381,18 @@ require_once __DIR__ . '/api/config.php';
                 <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div id="modal-readiness-bar" class="h-full bg-gradient-to-r from-primary to-blue-400 rounded-full transition-all duration-500" style="width: 0%"></div>
                 </div>
-                <p id="modal-missing-hint" class="text-xs text-amber-600 dark:text-amber-400 mt-2 hidden">
-                    <span class="material-symbols-outlined text-xs align-middle">info</span>
-                    Missing: Video (3-min)
-                </p>
+                <div id="modal-missing-hint" class="text-xs text-amber-600 dark:text-amber-400 mt-2 hidden flex items-center gap-2">
+                    <span class="material-symbols-outlined text-xs align-middle">warning</span>
+                    <span class="flex-1">Missing: Video (3-min)</span>
+                    <button onclick="toggleTabsVisibility()" class="p-1 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-600 dark:text-amber-400 transition-colors" title="Show/Hide tabs">
+                        <span id="tabs-toggle-icon" class="material-symbols-outlined text-sm">visibility_off</span>
+                    </button>
+                </div>
             </div>
         </div>
         
         <!-- Modal Tabs -->
-        <div class="border-b border-border-light dark:border-border-dark bg-gray-50 dark:bg-gray-800/50">
+        <div id="modal-tabs-container" class="border-b border-border-light dark:border-border-dark bg-gray-50 dark:bg-gray-800/50 hidden">
             <div class="flex overflow-x-auto">
                 <button class="tab-btn active px-4 py-3 text-sm font-medium border-b-2 border-primary text-primary flex items-center gap-2 whitespace-nowrap" data-tab="requirements">
                     <span class="material-symbols-outlined text-sm">checklist</span>
@@ -423,20 +432,10 @@ require_once __DIR__ . '/api/config.php';
         </div>
         
         <!-- Modal Footer -->
-        <div class="p-4 border-t border-border-light dark:border-border-dark flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
-            <div class="flex items-center gap-2 text-sm text-text-muted-light dark:text-text-muted-dark">
-                <span class="material-symbols-outlined text-purple-500 text-sm ai-badge rounded-full p-0.5">smart_toy</span>
-                <span>AI-detected evidence shown with purple badge</span>
-            </div>
-            <div class="flex gap-3">
-                <button onclick="exportEvidence()" class="px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm">download</span>
-                    Export Package
-                </button>
-                <button onclick="closeAwardModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-text-light dark:text-text-dark rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-                    Close
-                </button>
-            </div>
+        <div class="p-4 border-t border-border-light dark:border-border-dark flex justify-end items-center bg-gray-50 dark:bg-gray-800/50">
+            <button onclick="closeAwardModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-text-light dark:text-text-dark rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                Close
+            </button>
         </div>
     </div>
 </div>
@@ -1415,6 +1414,20 @@ function closeAwardModal() {
     currentAwardId = null;
 }
 
+// Toggle tabs visibility
+function toggleTabsVisibility() {
+    const tabsContainer = document.getElementById('modal-tabs-container');
+    const toggleIcon = document.getElementById('tabs-toggle-icon');
+    
+    if (tabsContainer.classList.contains('hidden')) {
+        tabsContainer.classList.remove('hidden');
+        toggleIcon.textContent = 'visibility';
+    } else {
+        tabsContainer.classList.add('hidden');
+        toggleIcon.textContent = 'visibility_off';
+    }
+}
+
 // Render modal content based on tab
 function renderModalContent(tab) {
     const content = document.getElementById('modal-content');
@@ -1542,35 +1555,6 @@ function renderRequirementsTab(requirements, stats) {
                 </p>
             </div>
 
-            <!-- Video Guide Questions Section -->
-            <div class="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-5 border border-purple-200 dark:border-purple-800">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center">
-                        <span class="material-symbols-outlined text-white">videocam</span>
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-text-light dark:text-text-dark">Video Guide Questions</h3>
-                        <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Must address all questions in your ${requirements.videoDuration} video</p>
-                    </div>
-                </div>
-                <div class="space-y-3">
-                    ${requirements.guideQuestions.map((question, index) => `
-                        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                            <div class="flex items-start gap-3">
-                                <span class="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 flex items-center justify-center text-sm font-bold flex-shrink-0">${index + 1}</span>
-                                <p class="text-sm text-text-light dark:text-text-dark leading-relaxed">${question}</p>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="mt-4 p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                    <p class="text-xs text-purple-700 dark:text-purple-300 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-sm">tips_and_updates</span>
-                        <strong>Video Format:</strong> ${requirements.videoDuration} max • HD Resolution • 16:9 Landscape • .mp4 format • Include 5-second campus montage
-                    </p>
-                </div>
-            </div>
-
             <!-- Eligibility Criteria Section -->
             <div class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-5 border border-green-200 dark:border-green-800">
                 <div class="flex items-center gap-3 mb-4">
@@ -1616,6 +1600,35 @@ function renderRequirementsTab(requirements, stats) {
                     <span class="material-symbols-outlined text-xs">info</span>
                     Click on criteria to manually mark as complete. Auto-detection is based on evidence matching.
                 </p>
+            </div>
+
+            <!-- Video Guide Questions Section -->
+            <div class="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-5 border border-purple-200 dark:border-purple-800">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-white">videocam</span>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-text-light dark:text-text-dark">Video Guide Questions</h3>
+                        <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Must address all questions in your ${requirements.videoDuration} video</p>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    ${requirements.guideQuestions.map((question, index) => `
+                        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <div class="flex items-start gap-3">
+                                <span class="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 flex items-center justify-center text-sm font-bold flex-shrink-0">${index + 1}</span>
+                                <p class="text-sm text-text-light dark:text-text-dark leading-relaxed">${question}</p>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="mt-4 p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                    <p class="text-xs text-purple-700 dark:text-purple-300 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm">tips_and_updates</span>
+                        <strong>Video Format:</strong> ${requirements.videoDuration} max • HD Resolution • 16:9 Landscape • .mp4 format • Include 5-second campus montage
+                    </p>
+                </div>
             </div>
 
             ${requirements.notes ? `
@@ -1975,10 +1988,34 @@ function updateApplicationReadiness() {
         });
         
         if (missing.length > 0) {
-            missingHint.innerHTML = `
-                <span class="material-symbols-outlined text-xs align-middle">warning</span>
-                Missing: ${missing.join(', ')}
-            `;
+            // Update only the text content, preserving the button
+            const textSpan = missingHint.querySelector('span.flex-1');
+            if (textSpan) {
+                textSpan.textContent = `Missing: ${missing.join(', ')}`;
+            } else {
+                // Fallback if structure is different
+                const warningIcon = missingHint.querySelector('.material-symbols-outlined.text-xs');
+                if (warningIcon && warningIcon.nextSibling && warningIcon.nextSibling.nodeType === 3) {
+                    warningIcon.nextSibling.textContent = ` Missing: ${missing.join(', ')}`;
+                } else {
+                    // If structure doesn't match, update innerHTML but preserve button
+                    const existingButton = missingHint.querySelector('button');
+                    missingHint.innerHTML = `
+                        <span class="material-symbols-outlined text-xs align-middle">warning</span>
+                        <span class="flex-1">Missing: ${missing.join(', ')}</span>
+                    `;
+                    if (existingButton) {
+                        missingHint.appendChild(existingButton);
+                    } else {
+                        const toggleButton = document.createElement('button');
+                        toggleButton.onclick = toggleTabsVisibility;
+                        toggleButton.className = 'p-1 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-600 dark:text-amber-400 transition-colors';
+                        toggleButton.title = 'Show/Hide tabs';
+                        toggleButton.innerHTML = '<span id="tabs-toggle-icon" class="material-symbols-outlined text-sm">visibility_off</span>';
+                        missingHint.appendChild(toggleButton);
+                    }
+                }
+            }
             missingHint.classList.remove('hidden');
         } else {
             missingHint.classList.add('hidden');
@@ -2251,20 +2288,6 @@ function generateReport() {
                 </div>
             `;
             
-            // Video Guide Questions
-            html += `
-                <div class="mb-6">
-                    <h3 class="text-xl font-bold text-gray-900 mb-3">Video Guide Questions (${requirements.videoDuration})</h3>
-                    <ol class="list-decimal list-inside space-y-3 ml-4">
-            `;
-            requirements.guideQuestions.forEach(question => {
-                html += `<li class="text-gray-700">${question}</li>`;
-            });
-            html += `
-                    </ol>
-                </div>
-            `;
-            
             // Eligibility Criteria
             html += `
                 <div class="mb-6">
@@ -2285,6 +2308,20 @@ function generateReport() {
             });
             html += `
                     </div>
+                </div>
+            `;
+            
+            // Video Guide Questions
+            html += `
+                <div class="mb-6">
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Video Guide Questions (${requirements.videoDuration})</h3>
+                    <ol class="list-decimal list-inside space-y-3 ml-4">
+            `;
+            requirements.guideQuestions.forEach(question => {
+                html += `<li class="text-gray-700">${question}</li>`;
+            });
+            html += `
+                    </ol>
                 </div>
             `;
             

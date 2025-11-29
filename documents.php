@@ -645,7 +645,15 @@ try {
 
 <header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible header-animate">
 
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-sky-500 flex items-center justify-center">
+<span class="material-symbols-outlined text-white">description</span>
+</div>
+<div>
 <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">Documents</h1>
+<p class="text-sm text-text-muted-light dark:text-text-muted-dark">Organize and manage supporting documents for awards and partnerships</p>
+</div>
+</div>
 <div class="flex items-center gap-2">
 
 <div class="relative z-[9999]">

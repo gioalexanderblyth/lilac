@@ -315,7 +315,15 @@ try {
 </aside>
 <main class="flex-1 overflow-y-auto">
 <header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-white">delete</span>
+</div>
+<div>
 <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">Trash</h1>
+<p class="text-sm text-text-muted-light dark:text-text-muted-dark">Review, restore, or permanently delete removed items</p>
+</div>
+</div>
 <div class="flex items-center gap-2">
 <button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors duration-200" id="theme-toggle">
 <span class="material-symbols-outlined dark:hidden">light_mode</span>
