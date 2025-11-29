@@ -76,6 +76,13 @@ try {
         ]
     ];
 
+    // Ensure deleted_at column exists
+    try {
+        $pdo->exec("ALTER TABLE awards ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+    } catch (PDOException $e) {
+        // Column might already exist, ignore
+    }
+    
     // Get user's eligibility status distribution (for pie chart)
     $statusQuery = "
         SELECT
@@ -87,7 +94,7 @@ try {
             COUNT(*) as count
         FROM awards a
         LEFT JOIN award_analysis aa ON aa.award_id = a.id
-        WHERE a.user_id = ? AND aa.match_percentage IS NOT NULL
+        WHERE a.user_id = ? AND aa.match_percentage IS NOT NULL AND (a.deleted_at IS NULL)
         GROUP BY eligibility_status
     ";
 
@@ -107,7 +114,7 @@ try {
             a.status as status_value,
             COUNT(*) as count
         FROM awards a
-        WHERE a.user_id = ?
+        WHERE a.user_id = ? AND (a.deleted_at IS NULL)
         GROUP BY a.status, status_label
     ";
 
@@ -124,7 +131,7 @@ try {
             SUM(CASE WHEN aa.match_percentage >= 70 AND aa.match_percentage < 90 THEN 1 ELSE 0 END) as almost_eligible_submissions
         FROM awards a
         LEFT JOIN award_analysis aa ON aa.award_id = a.id
-        WHERE a.user_id = ? AND a.created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+        WHERE a.user_id = ? AND a.created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) AND (a.deleted_at IS NULL)
         GROUP BY month
         ORDER BY month ASC
     ";
@@ -181,7 +188,7 @@ try {
         FROM awards a
         LEFT JOIN award_analysis aa ON aa.award_id = a.id
         LEFT JOIN award_criteria ac ON ac.category_name = aa.predicted_category
-        WHERE a.user_id = ?
+        WHERE a.user_id = ? AND (a.deleted_at IS NULL)
         ORDER BY aa.match_percentage DESC, a.created_at DESC
     ";
 
@@ -199,7 +206,7 @@ try {
             COUNT(DISTINCT a.id) as orc_data_analyzed
         FROM awards a
         LEFT JOIN award_analysis aa ON aa.award_id = a.id
-        WHERE a.user_id = ?
+        WHERE a.user_id = ? AND (a.deleted_at IS NULL)
     ";
 
     $kpiStmt = $pdo->prepare($kpiQuery);

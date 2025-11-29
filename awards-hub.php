@@ -423,6 +423,10 @@ require_once __DIR__ . '/api/config.php';
                     Documents
                     <span id="tab-count-documents" class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded-full text-xs">0</span>
                 </button>
+                <button class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-text-muted-light dark:text-text-muted-dark hover:text-text-light dark:hover:text-text-dark flex items-center gap-2 whitespace-nowrap" data-tab="ched-guidelines">
+                    <span class="material-symbols-outlined text-sm">menu_book</span>
+                    CHED Guidelines
+                </button>
             </div>
         </div>
         
@@ -1460,6 +1464,12 @@ function renderModalContent(tab) {
         return;
     }
     
+    // Handle CHED Guidelines tab
+    if (tab === 'ched-guidelines') {
+        content.innerHTML = renderCHEDGuidelinesTab();
+        return;
+    }
+    
     if (!stats) {
         content.innerHTML = '<p class="text-center text-text-muted-light dark:text-text-muted-dark py-8">No data available</p>';
         return;
@@ -1668,6 +1678,232 @@ function renderRequirementsTab(requirements, stats) {
                     </ul>
                 </div>
             ` : ''}
+        </div>
+    `;
+}
+
+// Render CHED Guidelines Tab content
+function renderCHEDGuidelinesTab() {
+    return `
+        <div class="space-y-6">
+            <!-- ICONS 2025 Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-6 text-white">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-16 h-16 rounded-lg bg-white/20 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-4xl">military_tech</span>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold">ICONS Awards 2025</h2>
+                        <p class="text-blue-100">Internationalization Awards for Philippine Higher Education Institutions</p>
+                    </div>
+                </div>
+                <p class="text-sm text-blue-100 leading-relaxed">
+                    The <strong>Commission on Higher Education (CHED)</strong> will hold its annual <strong>ICONS Awards</strong> to celebrate Philippine <strong>Higher Education Institutions (HEIs)</strong> for their role in championing the Philippine higher education sector on the international stage.
+                </p>
+            </div>
+
+            <!-- About ICONS 2025 -->
+            <div class="bg-card-light dark:bg-card-dark rounded-xl p-6 border border-border-light dark:border-border-dark">
+                <h3 class="text-lg font-bold text-text-light dark:text-text-dark mb-4 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">info</span>
+                    About ICONS 2025
+                </h3>
+                <p class="text-sm text-text-muted-light dark:text-text-muted-dark leading-relaxed mb-4">
+                    The <strong>ICONS Awards 2025</strong> will continue to recognize the exemplary performance of Philippine HEIs as their presence grows in renowned international ranking tables. This ceremony is a vital avenue for acknowledging the high-impact initiatives of Philippine HEIs toward <strong>sustainability</strong>, <strong>ASEAN awareness</strong>, and <strong>internationalization</strong>, along with the leaders whose vision transformed these goals into concrete achievements and milestones.
+                </p>
+                <p class="text-sm text-text-muted-light dark:text-text-muted-dark leading-relaxed">
+                    The <strong>Internationalization (IZN) Awards</strong> will serve as the highlight of the night, honoring exemplar Philippine HEIs and their leaders who have championed the internationalization of Philippine higher education.
+                </p>
+            </div>
+
+            <!-- Award Categories -->
+            <div class="space-y-4">
+                <h3 class="text-lg font-bold text-text-light dark:text-text-dark flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">category</span>
+                    Award Categories
+                </h3>
+
+                <!-- Institutional Awards -->
+                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+                    <h4 class="text-md font-bold text-text-light dark:text-text-dark mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-blue-600">business</span>
+                        I. Institutional Awards
+                    </h4>
+                    <p class="text-xs text-text-muted-light dark:text-text-muted-dark mb-4">
+                        This award category recognizes <strong>Higher Education Institutions (HEIs)</strong> and their core units for exceptional strategy and results. These awards highlight programs that successfully embed <strong>internationalization, sustainability, and regional solidarity</strong> into their operations and academics.
+                    </p>
+                    
+                    <div class="space-y-3">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                            <h5 class="font-semibold text-text-light dark:text-text-dark mb-2">Global Citizenship Awards</h5>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark mb-2">
+                                <strong>Category A:</strong> For Private Higher Education Institutions<br>
+                                <strong>Category B:</strong> For State Universities and Colleges (SUCs) and Local Universities and Colleges (LUCs)
+                            </p>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">
+                                The Global Citizenship Awards celebrate higher education institutions at the forefront of fostering responsible global leaders. We recognize institutions with exceptional programs that ignite intercultural understanding, empower changemakers, and cultivate active engagement.
+                            </p>
+                        </div>
+
+                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                            <h5 class="font-semibold text-text-light dark:text-text-dark mb-2">Outstanding International Education Program Awards</h5>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark mb-2">
+                                <strong>Category A:</strong> For Private Higher Education Institutions<br>
+                                <strong>Category B:</strong> For State Universities and Colleges (SUCs) and Local Universities and Colleges (LUCs)
+                            </p>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">
+                                The Outstanding International Education Program Awards honor higher education institutions that champion inclusive internationalization. We recognize programs that expand access to global opportunities, foster collaborative innovation, and embrace inclusivity and beyond.
+                            </p>
+                        </div>
+
+                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                            <h5 class="font-semibold text-text-light dark:text-text-dark mb-2">Sustainability Awards</h5>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark mb-2">
+                                <strong>Category A:</strong> For Private Higher Education Institutions<br>
+                                <strong>Category B:</strong> For State Universities and Colleges (SUCs)<br>
+                                <strong>Category C:</strong> For Local Universities and Colleges (LUCs)
+                            </p>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">
+                                The Sustainability Award recognizes and honors higher education institutions that demonstrate outstanding commitment to sustainability. We seek to highlight programs and initiatives that exemplify pioneering integration, impactful projects, and long-term commitment.
+                            </p>
+                        </div>
+
+                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                            <h5 class="font-semibold text-text-light dark:text-text-dark mb-2">Best ASEAN Awareness Initiative Awards</h5>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark mb-2">
+                                <strong>Category A:</strong> For Private Higher Education Institutions<br>
+                                <strong>Category B:</strong> For State Universities and Colleges (SUCs) and Local Universities and Colleges (LUCs)
+                            </p>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">
+                                The Best ASEAN Awareness Initiative Award honors higher education institutions that have implemented initiatives that boost understanding and awareness of the Association of Southeast Asian Nations (ASEAN). We recognize programs that promote regional identity and solidarity, cross-cultural initiative programs, and measurable outreach and sustained commitment.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Individual Awards -->
+                <div class="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-6 border border-purple-200 dark:border-purple-800">
+                    <h4 class="text-md font-bold text-text-light dark:text-text-dark mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-purple-600">person</span>
+                        II. Individual Awards
+                    </h4>
+                    <p class="text-xs text-text-muted-light dark:text-text-muted-dark mb-4">
+                        This category honors <strong>transformative leaders</strong> who personally drive global excellence. These awards celebrate the <strong>vision, integrity, and ethical governance</strong> required to shape the future of Philippine higher education.
+                    </p>
+                    
+                    <div class="space-y-3">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                            <h5 class="font-semibold text-text-light dark:text-text-dark mb-2">Emerging Leadership Award</h5>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark mb-2">
+                                <strong>For:</strong> Internationalization directors, officers, and junior leaders of higher education institutions (Private HEIs, SUCs, and LUCs)
+                            </p>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">
+                                The Emerging Leadership Award recognizes the exceptional contributions of rising stars who are shaping a more inclusive future of internationalization. We honor International Relations Directors, Officers, and/or Heads of Internationalization Department/Unit/Offices who practice innovation, drive strategic and inclusive growth, and empower others.
+                            </p>
+                        </div>
+
+                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                            <h5 class="font-semibold text-text-light dark:text-text-dark mb-2">Internationalization Leadership Award</h5>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark mb-2">
+                                <strong>For:</strong> Executive officials of higher education institutions (Private HEIs, SUCs, and LUCs)
+                            </p>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">
+                                The Internationalization (IZN) Leadership Award honors transformative leaders who are shaping the future of Philippine Higher Education. Leaders who demonstrate excellence in strategic vision and integration; ethical leadership and governance; and sustained impact and development.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Special Awards -->
+                <div class="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl p-6 border border-amber-200 dark:border-amber-800">
+                    <h4 class="text-md font-bold text-text-light dark:text-text-dark mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-amber-600">star</span>
+                        III. Special Awards
+                    </h4>
+                    <p class="text-xs text-text-muted-light dark:text-text-muted-dark mb-4">
+                        This group recognizes <strong>Higher Education Institutions (HEIs)</strong> and their core units for exceptional strategy and results. These awards highlight programs that successfully embed <strong>internationalization, sustainability, and regional solidarity</strong> into their operations and academics.
+                    </p>
+                    
+                    <div class="space-y-3">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                            <h5 class="font-semibold text-text-light dark:text-text-dark mb-2">Best CHED Regional Office for Internationalization Award</h5>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark mb-2">
+                                <strong>For:</strong> The Commission on Higher Education Regional Offices
+                            </p>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">
+                                This award recognizes the CHED Regional Office that demonstrates exceptional commitment, leadership, and operational excellence in promoting sustainable and inclusive internationalization within its region. We celebrate the office whose leadership and innovation have created the most significant, compliant, and well-governed internationalization ecosystem.
+                            </p>
+                        </div>
+
+                        <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                            <h5 class="font-semibold text-text-light dark:text-text-dark mb-2">Most Promising Regional IRO Community Award</h5>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark mb-2">
+                                <strong>For:</strong> The Commission on Higher Education Regional Offices
+                            </p>
+                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">
+                                This recognizes the Regional IRO Community, or Group, or Network, or Association that demonstrates the most significant vision, early progress, and clear potential to strengthen internationalization capacity among Higher Education Institutions (HEIs) within its region. This award celebrates effective <strong>collaboration, resource-sharing, and future impact</strong>, honoring communities that are paving the way for a more connected and skilled regional internationalization ecosystem.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Requirements Section -->
+            <div class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-6 border border-green-200 dark:border-green-800">
+                <h3 class="text-lg font-bold text-text-light dark:text-text-dark mb-4 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-green-600">checklist</span>
+                    Nominations and Applications Requirements
+                </h3>
+                <ul class="space-y-2 mb-4">
+                    <li class="flex items-start gap-2 text-sm text-text-light dark:text-text-dark">
+                        <span class="material-symbols-outlined text-green-600 text-sm mt-0.5">video_library</span>
+                        <span>A <strong>5-min video</strong> for IZN Leadership Award, or <strong>3-min video</strong> for all other awards</span>
+                    </li>
+                    <li class="flex items-start gap-2 text-sm text-text-light dark:text-text-dark">
+                        <span class="material-symbols-outlined text-green-600 text-sm mt-0.5">description</span>
+                        <span>Supporting documents (MOA/MOUs, Certificates, Policies approved by the Board)</span>
+                    </li>
+                </ul>
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-green-200 dark:border-green-700">
+                    <p class="text-xs text-text-muted-light dark:text-text-muted-dark mb-2">
+                        <strong>Click here to download the detailed guidelines.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Application Information -->
+            <div class="bg-card-light dark:bg-card-dark rounded-xl p-6 border border-border-light dark:border-border-dark">
+                <h3 class="text-lg font-bold text-text-light dark:text-text-dark mb-4 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">assignment</span>
+                    Nominations and Applications Form
+                </h3>
+                <ul class="space-y-2 mb-4">
+                    <li class="flex items-start gap-2 text-sm text-text-light dark:text-text-dark">
+                        <span class="material-symbols-outlined text-primary text-sm mt-0.5">check_circle</span>
+                        <span>All nominations/application must be done <strong>online</strong>.</span>
+                    </li>
+                    <li class="flex items-start gap-2 text-sm text-text-light dark:text-text-dark">
+                        <span class="material-symbols-outlined text-primary text-sm mt-0.5">event</span>
+                        <span>Deadline for nominations/application is on <strong>17 November 2025, 05:00 PM (PhST)</strong></span>
+                    </li>
+                </ul>
+                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                    <p class="text-xs text-blue-700 dark:text-blue-300">
+                        <strong>Click here to access the online form.</strong>
+                    </p>
+                </div>
+            </div>
+
+            <!-- External Link -->
+            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-6 border border-indigo-200 dark:border-indigo-800 text-center">
+                <p class="text-sm text-text-muted-light dark:text-text-muted-dark mb-3">
+                    For more information, visit the official ICONS 2025 website:
+                </p>
+                <a href="https://ieducationphl.ched.gov.ph/icons2025/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">
+                    <span class="material-symbols-outlined text-sm">open_in_new</span>
+                    Visit ICONS 2025 Website
+                </a>
+            </div>
         </div>
     `;
 }

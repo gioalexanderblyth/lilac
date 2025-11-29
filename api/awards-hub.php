@@ -221,8 +221,14 @@ function getCombinedEvidence($pdo) {
     
     // Get certificates/awards - from awards page (awards table)
     // These are files uploaded from the awards page and eligibility is determined by match score
+    // Ensure deleted_at column exists and filter out deleted awards
     try {
-        $stmt = $pdo->query("SELECT id, user_id, title, description, file_name, file_path, status, created_at FROM awards ORDER BY created_at DESC");
+        try {
+            $pdo->exec("ALTER TABLE awards ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore
+        }
+        $stmt = $pdo->query("SELECT id, user_id, title, description, file_name, file_path, status, created_at FROM awards WHERE deleted_at IS NULL ORDER BY created_at DESC");
         $evidence['certificates'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         error_log("Error fetching awards: " . $e->getMessage());

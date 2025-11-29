@@ -1680,7 +1680,7 @@ try {
 
 
 
-                        <!-- CHED ICONS 2024 Guidance & Gaps -->
+                        <!-- CHED ICONS 2025 Guidance & Gaps -->
 
                         <div id="ched-guidance-content" class="tab-content hidden">
 
@@ -1694,7 +1694,7 @@ try {
 
                                         <div>
 
-                                            <h3 class="text-lg font-bold text-text-light dark:text-text-dark">CHED ICONS Awards 2024 Snapshot</h3>
+                                            <h3 class="text-lg font-bold text-text-light dark:text-text-dark">CHED ICONS Awards 2025 Snapshot</h3>
 
                                             <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Celebrating HEIs that lead on sustainability, ASEAN awareness, and internationalization.</p>
 
@@ -1706,11 +1706,11 @@ try {
 
                                     <ul class="mt-4 text-sm text-text-muted-light dark:text-text-muted-dark space-y-2 list-disc list-inside">
 
-                                        <li>Icons Awards highlight CPU’s role in bringing PH higher education to the global stage.</li>
+                                        <li>The ICONS Awards 2025 recognize exemplary performance of Philippine HEIs as their presence grows in renowned international ranking tables.</li>
 
-                                        <li>Internationalization (IZN) Awards remain the highlight—proof of strategic leadership is crucial.</li>
+                                        <li>Internationalization (IZN) Awards serve as the highlight, honoring exemplar Philippine HEIs and their leaders.</li>
 
-                                        <li>Focus areas lifted from CHED brief: intercultural understanding, inclusive access, and measurable impact.</li>
+                                        <li>Focus areas: sustainability, ASEAN awareness, and internationalization with measurable impact and strategic vision.</li>
 
                                     </ul>
 
@@ -1722,7 +1722,7 @@ try {
 
                                         <h3 class="text-lg font-bold text-text-light dark:text-text-dark">Deadlines & Official References</h3>
 
-                                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Nominations close <strong>01 October 2024 · 10:00 PM PhST</strong> (extended).</p>
+                                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Deadline for nominations/application: <strong>17 November 2025 · 05:00 PM PhST</strong></p>
 
                                     </div>
 
@@ -1736,7 +1736,7 @@ try {
 
                                     <div class="flex flex-wrap gap-3">
 
-                                        <a href="https://ieducationphl.ched.gov.ph/asia-pacific/" target="_blank" rel="noopener"
+                                        <a href="https://ieducationphl.ched.gov.ph/icons2025/" target="_blank" rel="noopener"
 
                                             class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors">
 
@@ -1746,13 +1746,13 @@ try {
 
                                         </a>
 
-                                        <a href="https://forms.office.com/" target="_blank" rel="noopener"
+                                        <a href="https://ieducationphl.ched.gov.ph/icons2025/" target="_blank" rel="noopener"
 
                                             class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border-light dark:border-border-dark text-sm font-semibold text-text-light dark:text-text-dark hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
 
                                             <span class="material-symbols-outlined text-sm">open_in_new</span>
 
-                                            Nomination Form
+                                            Online Form
 
                                         </a>
 
@@ -1772,7 +1772,7 @@ try {
 
                                         </div>
 
-                                        <span class="px-3 py-1 text-xs rounded-full bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-200">CHED 2024 cycle</span>
+                                        <span class="px-3 py-1 text-xs rounded-full bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-200">CHED 2025 cycle</span>
 
                                     </div>
 
@@ -1786,7 +1786,7 @@ try {
 
                                                 <p class="text-sm font-semibold text-text-light dark:text-text-dark">Compile evidence package</p>
 
-                                                <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Upload pitch video, MOUs, certificates, and related policies.</p>
+                                                <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Upload video (5-min for IZN Leadership, 3-min for others), MOUs/MOAs, certificates, and board-approved policies.</p>
 
                                                 <p class="timeline-status text-xs font-semibold mt-1 text-primary" data-default-label="Due soon">Due soon</p>
 
@@ -1818,9 +1818,9 @@ try {
 
                                                 <p class="text-sm font-semibold text-text-light dark:text-text-dark">CHED submission prep</p>
 
-                                                <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Lock the nomination form and readiness survey before the cutoff.</p>
+                                                <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Complete online nomination/application form before the deadline.</p>
 
-                                                <p class="timeline-status text-xs font-semibold mt-1 text-primary" data-default-label="01 Oct 2024 · 10:00 PM PhST">01 Oct 2024 · 10:00 PM PhST</p>
+                                                <p class="timeline-status text-xs font-semibold mt-1 text-primary" data-default-label="17 Nov 2025 · 05:00 PM PhST">17 Nov 2025 · 05:00 PM PhST</p>
 
                                             </div>
 
@@ -1854,7 +1854,7 @@ try {
 
                                     </div>
 
-                                    <span class="text-xs font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-400">Source: CHED ICONS Awards 2024 content</span>
+                                    <span class="text-xs font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-400">Source: CHED ICONS Awards 2025 content</span>
 
                                 </div>
 
@@ -1872,11 +1872,11 @@ try {
 
                                         <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
 
-                                            <li>Ignite intercultural understanding with inclusive learning arenas.</li>
+                                            <li>Ignite intercultural understanding—creates inclusive learning experiences fostering mutual respect across cultures, backgrounds, and abilities.</li>
 
-                                            <li>Empower changemakers aligned with SDGs.</li>
+                                            <li>Empower changemakers—students gain knowledge/skills to tackle challenges aligned with the SDGs.</li>
 
-                                            <li>Provide platforms for students to convert awareness into equitable action.</li>
+                                            <li>Cultivate active engagement—provides accessible platforms for students to translate global awareness into concrete action.</li>
 
                                         </ul>
 
@@ -1886,7 +1886,7 @@ try {
 
                                         <div class="flex items-center justify-between mb-3">
 
-                                            <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Outstanding International Education Program</h4>
+                                            <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Outstanding International Education Program Awards</h4>
 
                                             <span class="px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Institutional · Cat A/B</span>
 
@@ -1894,11 +1894,55 @@ try {
 
                                         <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
 
-                                            <li>Expand access—track inclusion of students across backgrounds and abilities.</li>
+                                            <li>Expand access to global opportunities—break down barriers to include students from various backgrounds, abilities, and financial situations.</li>
 
-                                            <li>Foster collaborative innovation with varied local/foreign partners.</li>
+                                            <li>Foster collaborative innovation—partnerships with local and international partners fuel innovative, culturally-rich experiences.</li>
 
-                                            <li>Document how barriers are dismantled so mobility benefits everyone.</li>
+                                            <li>Embrace inclusivity and beyond—actively dismantle barriers so international education benefits everyone.</li>
+
+                                        </ul>
+
+                                    </div>
+
+                                    <div class="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/30">
+
+                                        <div class="flex items-center justify-between mb-3">
+
+                                            <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Sustainability Awards</h4>
+
+                                            <span class="px-3 py-1 text-xs rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Institutional · Cat A/B/C</span>
+
+                                        </div>
+
+                                        <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
+
+                                            <li>Pioneering integration—strategically integrated UN SDGs across institutional operations, curriculum, and community engagement.</li>
+
+                                            <li>Impactful projects—implemented measurable projects in energy efficiency, waste management, and social well-being aligned with UN SDGs.</li>
+
+                                            <li>Long-term commitment—demonstrates scalability, financial viability, and institutional commitment for continued positive impact.</li>
+
+                                        </ul>
+
+                                    </div>
+
+                                    <div class="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/30">
+
+                                        <div class="flex items-center justify-between mb-3">
+
+                                            <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Best ASEAN Awareness Initiative Awards</h4>
+
+                                            <span class="px-3 py-1 text-xs rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Institutional · Cat A/B</span>
+
+                                        </div>
+
+                                        <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
+
+                                            <li>Promote regional identity and solidarity—advance ASEAN awareness through creative activities like curriculum integration, cultural festivals, or youth dialogues.</li>
+
+                                            <li>Cross-cultural initiative programs—execute impactful exchange and collaboration programs fostering genuine intercultural exchange.</li>
+
+                                            <li>Measurable outreach and sustained commitment—clear evidence of reach and impact with long-term commitment to promoting ASEAN narrative.</li>
 
                                         </ul>
 
@@ -1910,17 +1954,17 @@ try {
 
                                             <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Emerging Leadership Award</h4>
 
-                                            <span class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">Individual · Directors/Managers</span>
+                                            <span class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">Individual · Directors/Officers</span>
 
                                         </div>
 
                                         <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
 
-                                            <li>Spotlight innovative approaches in IRO operations or student services.</li>
+                                            <li>Practice innovation—spearhead creative approaches to internationalization, fostering global collaboration.</li>
 
-                                            <li>Show how leaders drive inclusive, strategic growth for all stakeholders.</li>
+                                            <li>Drive strategic and inclusive growth—promote diversity, equity, and accessibility, expanding access and impact.</li>
 
-                                            <li>Capture mentoring stories proving they empower next-gen champions.</li>
+                                            <li>Empower others—serve as mentors and advocates, cultivating future leaders.</li>
 
                                         </ul>
 
@@ -1938,21 +1982,21 @@ try {
 
                                         <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
 
-                                            <li>Champion bold innovation that embeds IZN across governance, curriculum, and services.</li>
+                                            <li>Strategic vision and integration—champion bold innovation driving comprehensive integration of international dimensions.</li>
 
-                                            <li>Demonstrate how leaders cultivate ethical, inclusive, and globally ready graduates.</li>
+                                            <li>Ethical leadership and governance—exemplify integrity, ethical decision-making, and responsible fiscal management.</li>
 
-                                            <li>Highlight metrics that prove lifelong learning and resilience mindsets.</li>
+                                            <li>Sustained impact and development—foster culture of continuous improvement and lifelong learning.</li>
 
                                         </ul>
 
                                     </div>
 
-                                    <div class="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/30 xl:col-span-2">
+                                    <div class="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/30">
 
                                         <div class="flex items-center justify-between mb-3">
 
-                                            <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Best Regional Office for Internationalization</h4>
+                                            <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Best CHED Regional Office for Internationalization Award</h4>
 
                                             <span class="px-3 py-1 text-xs rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">Special · CHED ROs</span>
 
@@ -1960,11 +2004,35 @@ try {
 
                                         <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
 
-                                            <li>Log comprehensive regional initiatives promoting sustainable & inclusive IZN.</li>
+                                            <li>Comprehensive internationalization efforts—overall strategy embedding international dimension across regional HEIs with focus on sustainability and inclusivity.</li>
 
-                                            <li>Track cooperation with CHED IAS and responsiveness to national programs.</li>
+                                            <li>Cooperation and collaboration—partnership with CHED IAS, proactive execution of national programs, effective communication.</li>
 
-                                            <li>Maintain evidence of measurable impact (rankings, mobility, faculty exchange, July 15 survey readiness).</li>
+                                            <li>Operational excellence and compliance—high standards of governance, timely submission of mandated reports.</li>
+
+                                            <li>Measurable impact—demonstrated impact through rankings, enrollment data, exchange programs, or survey results.</li>
+
+                                        </ul>
+
+                                    </div>
+
+                                    <div class="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/30">
+
+                                        <div class="flex items-center justify-between mb-3">
+
+                                            <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Most Promising Regional IRO Community Award</h4>
+
+                                            <span class="px-3 py-1 text-xs rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">Special · IRO Networks</span>
+
+                                        </div>
+
+                                        <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
+
+                                            <li>Vision and strategic plan—clear, compelling vision and organizational structure addressing specific regional needs.</li>
+
+                                            <li>Early progress and collaboration—successfully implemented at least one high-impact collaborative activity.</li>
+
+                                            <li>Promising future and value—promising plan for initiative creating exceptional value for member HEIs.</li>
 
                                         </ul>
 
@@ -1974,105 +2042,6 @@ try {
 
                             </div>
 
-
-
-                            <div class="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-2xl p-6 shadow-soft space-y-4">
-
-                                <div class="flex items-center justify-between flex-wrap gap-3">
-
-                                    <div>
-
-                                        <h3 class="text-xl font-bold text-text-light dark:text-text-dark">Submission Requirement Tracker</h3>
-
-                                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Mark items once the evidence is ready. Progress now saves to your account so teams can resume later.</p>
-
-                                    </div>
-
-                                    <div class="text-sm font-semibold text-primary-700 dark:text-primary-300" id="ched-requirement-progress-count">0/0 ready</div>
-
-                                </div>
-
-                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-
-                                    <div class="bg-primary h-2.5 rounded-full transition-all duration-500" id="ched-requirement-progress-bar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
-
-                                </div>
-
-                                <div class="divide-y divide-border-light dark:divide-border-dark text-sm text-text-light dark:text-text-dark">
-
-                                    <label class="flex items-start gap-3 py-3 cursor-pointer">
-
-                                        <input type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary ched-requirement" data-requirement-id="videos">
-
-                                        <div>
-
-                                            <p class="font-semibold">Official video pitch</p>
-
-                                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">5-min for IZN Leadership; 3-min for other awards. Confirm scripting, narration, and subtitles.</p>
-
-                                        </div>
-
-                                    </label>
-
-                                    <label class="flex items-start gap-3 py-3 cursor-pointer">
-
-                                        <input type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary ched-requirement" data-requirement-id="supporting-docs">
-
-                                        <div>
-
-                                            <p class="font-semibold">Supporting documents</p>
-
-                                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">MOAs/MOUs, certificates, and board-approved policies referenced in CHED guidelines.</p>
-
-                                        </div>
-
-                                    </label>
-
-                                    <label class="flex items-start gap-3 py-3 cursor-pointer">
-
-                                        <input type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary ched-requirement" data-requirement-id="nomination-form">
-
-                                        <div>
-
-                                            <p class="font-semibold">Nomination/Application form</p>
-
-                                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Ensure all sections (institutional data, focal person, narrative answers) are filled before the deadline.</p>
-
-                                        </div>
-
-                                    </label>
-
-                                    <label class="flex items-start gap-3 py-3 cursor-pointer">
-
-                                        <input type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary ched-requirement" data-requirement-id="impact-metrics">
-
-                                        <div>
-
-                                            <p class="font-semibold">Impact & collaboration metrics</p>
-
-                                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Regional rankings, student/faculty mobility numbers, CHED IAS cooperation logs, July 15 survey readiness.</p>
-
-                                        </div>
-
-                                    </label>
-
-                                    <label class="flex items-start gap-3 py-3 cursor-pointer">
-
-                                        <input type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary ched-requirement" data-requirement-id="deadline-plan">
-
-                                        <div>
-
-                                            <p class="font-semibold">Deadline & reviewer plan</p>
-
-                                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Internal milestone plan leading to 01 Oct 2024 10:00 PM PhST submission, with assigned reviewers.</p>
-
-                                        </div>
-
-                                    </label>
-
-                                </div>
-
-                            </div>
 
                         </section>
 
@@ -6070,7 +6039,7 @@ try {
 
             const deadlineElement = document.getElementById('ched-deadline-countdown');
 
-            const chedDeadline = new Date('2024-10-01T22:00:00+08:00');
+            const chedDeadline = new Date('2025-11-17T17:00:00+08:00');
 
             const DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -9200,7 +9169,7 @@ try {
 
 
 
-    const CHED_GUIDANCE_URL = 'https://sites.google.com/ched.gov.ph/icons-awards-2024/home?authuser=0';
+    const CHED_GUIDANCE_URL = 'https://ieducationphl.ched.gov.ph/icons2025/';
 
     const ELIGIBILITY_GUIDANCE_THRESHOLD = 70;
 
@@ -9340,7 +9309,7 @@ try {
 
                 <a href="${CHED_GUIDANCE_URL}" target="_blank" rel="noopener" class="mt-3 inline-flex items-center gap-1 text-xs font-medium text-red-700 dark:text-red-200 underline">
 
-                    Review CHED ICONS 2024 criteria
+                    Review CHED ICONS 2025 criteria
 
                     <span class="material-symbols-outlined text-sm">open_in_new</span>
 
@@ -16456,11 +16425,12 @@ try {
 
                 }
 
+                // Limit to 3 most recent activities
+                const limitedActivities = activities.slice(0, 3);
 
+                timeline.innerHTML = limitedActivities
 
-                timeline.innerHTML = activities
-
-                    .map((activity, index) => renderProcessingActivityItem(activity, index, activities.length))
+                    .map((activity, index) => renderProcessingActivityItem(activity, index, limitedActivities.length))
 
                     .join('');
 
