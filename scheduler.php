@@ -74,7 +74,7 @@ try {
 <link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link rel="stylesheet" href="assets/css/tailwind.css">
 <script>
         // Apply theme immediately to prevent flash
         (function() {
@@ -87,52 +87,6 @@ try {
         })();
 </script>
 <script src="js/notifications.js"></script>
-<script>
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-                        "primary": {
-                            DEFAULT: "#137fec",
-                            "50": "#e8f2fe",
-                            "100": "#d1e6fd",
-                            "200": "#a2cbfb",
-                            "300": "#74b1f9",
-                            "400": "#4596f7",
-                            "500": "#137fec",
-                            "600": "#0f66bc",
-                            "700": "#0c4c8d",
-                            "800": "#08335d",
-                            "900": "#04192e"
-                        },
-                        "background-light": "#e8ecf1",
-                        "background-dark": "#0f172a",
-                        "card-light": "#fafbfc",
-                        "card-dark": "#1e293b",
-                        "text-light": "#1e293b",
-                        "text-dark": "#e2e8f0",
-                        "text-muted-light": "#64748b",
-                        "text-muted-dark": "#94a3b8",
-                        "border-light": "#d1d5db",
-            "border-dark": "#334155",
-          },
-          fontFamily: {
-                        "display": ["Inter", "sans-serif"]
-          },
-          borderRadius: {
-                        "DEFAULT": "0.5rem",
-                        "lg": "0.75rem",
-                        "xl": "1rem",
-                        "full": "9999px"
-          },
-                    boxShadow: {
-                        'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
-                    }
-        },
-      },
-        }
-  </script>
 <style>
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
@@ -625,44 +579,108 @@ try {
             const profileContainer = document.querySelector('.profile-container');
             const toggleContainer = document.querySelector('.sidebar-toggle-container');
             
-            // Function to toggle sidebar
-            const toggleSidebar = () => {
-                const isCollapsed = appContainer.classList.contains('sidebar-collapsed');
-                if (isCollapsed) {
-                    // Expand sidebar
+            // Initialize sidebar from saved state (shared with other pages)
+            const initSidebarState = () => {
+                const savedState = localStorage.getItem('sidebarCollapsed');
+                const isCollapsed = savedState !== 'false'; // default collapsed
+                
+                if (!isCollapsed) {
+                    // Expanded state
                     appContainer.classList.remove('sidebar-collapsed');
-                    sidebarLogoText.classList.remove('hidden');
+                    appContainer.classList.add('sidebar-expanded');
+                    if (sidebarLogoText) sidebarLogoText.classList.remove('hidden');
                     sidebarTexts.forEach(text => text.classList.remove('hidden'));
-                    sidebarProfileInfo.classList.remove('hidden');
-                    sidebarProfilePicture.classList.remove('hidden');
-                    openIcon.classList.remove('hidden');
-                    openIcon.classList.add('block');
-                    closedIcon.classList.add('hidden');
-                    closedIcon.classList.remove('block');
+                    if (sidebarProfileInfo) sidebarProfileInfo.classList.remove('hidden');
+                    if (sidebarProfilePicture) sidebarProfilePicture.classList.remove('hidden');
+                    if (openIcon) {
+                        openIcon.classList.remove('hidden');
+                        openIcon.classList.add('block');
+                    }
+                    if (closedIcon) {
+                        closedIcon.classList.add('hidden');
+                        closedIcon.classList.remove('block');
+                    }
                     navLinks.forEach(link => link.classList.remove('justify-center'));
                     if (profileContainer) profileContainer.classList.remove('justify-center');
                     if (toggleContainer) toggleContainer.classList.remove('justify-center');
                 } else {
-                    // Collapse sidebar
+                    // Collapsed state
                     appContainer.classList.add('sidebar-collapsed');
-                    sidebarLogoText.classList.add('hidden');
+                    appContainer.classList.remove('sidebar-expanded');
+                    if (sidebarLogoText) sidebarLogoText.classList.add('hidden');
                     sidebarTexts.forEach(text => text.classList.add('hidden'));
-                    sidebarProfileInfo.classList.add('hidden');
-                    sidebarProfilePicture.classList.add('hidden');
-                    openIcon.classList.add('hidden');
-                    openIcon.classList.remove('block');
-                    closedIcon.classList.remove('hidden');
-                    closedIcon.classList.add('block');
+                    if (sidebarProfileInfo) sidebarProfileInfo.classList.add('hidden');
+                    if (sidebarProfilePicture) sidebarProfilePicture.classList.add('hidden');
+                    if (openIcon) {
+                        openIcon.classList.add('hidden');
+                        openIcon.classList.remove('block');
+                    }
+                    if (closedIcon) {
+                        closedIcon.classList.remove('hidden');
+                        closedIcon.classList.add('block');
+                    }
                     navLinks.forEach(link => link.classList.add('justify-center'));
                     if (profileContainer) profileContainer.classList.add('justify-center');
                     if (toggleContainer) toggleContainer.classList.add('justify-center');
+                }
+            };
+            initSidebarState();
+            
+            // Function to toggle sidebar and persist state
+            const toggleSidebar = () => {
+                const isCollapsed = appContainer.classList.contains('sidebar-collapsed');
+                
+                if (isCollapsed) {
+                    // Expand sidebar
+                    appContainer.classList.remove('sidebar-collapsed');
+                    appContainer.classList.add('sidebar-expanded');
+                    if (sidebarLogoText) sidebarLogoText.classList.remove('hidden');
+                    sidebarTexts.forEach(text => text.classList.remove('hidden'));
+                    if (sidebarProfileInfo) sidebarProfileInfo.classList.remove('hidden');
+                    if (sidebarProfilePicture) sidebarProfilePicture.classList.remove('hidden');
+                    if (openIcon) {
+                        openIcon.classList.remove('hidden');
+                        openIcon.classList.add('block');
+                    }
+                    if (closedIcon) {
+                        closedIcon.classList.add('hidden');
+                        closedIcon.classList.remove('block');
+                    }
+                    navLinks.forEach(link => link.classList.remove('justify-center'));
+                    if (profileContainer) profileContainer.classList.remove('justify-center');
+                    if (toggleContainer) toggleContainer.classList.remove('justify-center');
+                    
+                    localStorage.setItem('sidebarCollapsed', 'false');
+                } else {
+                    // Collapse sidebar
+                    appContainer.classList.add('sidebar-collapsed');
+                    appContainer.classList.remove('sidebar-expanded');
+                    if (sidebarLogoText) sidebarLogoText.classList.add('hidden');
+                    sidebarTexts.forEach(text => text.classList.add('hidden'));
+                    if (sidebarProfileInfo) sidebarProfileInfo.classList.add('hidden');
+                    if (sidebarProfilePicture) sidebarProfilePicture.classList.add('hidden');
+                    if (openIcon) {
+                        openIcon.classList.add('hidden');
+                        openIcon.classList.remove('block');
+                    }
+                    if (closedIcon) {
+                        closedIcon.classList.remove('hidden');
+                        closedIcon.classList.add('block');
+                    }
+                    navLinks.forEach(link => link.classList.add('justify-center'));
+                    if (profileContainer) profileContainer.classList.add('justify-center');
+                    if (toggleContainer) toggleContainer.classList.add('justify-center');
+                    
+                    localStorage.setItem('sidebarCollapsed', 'true');
                 }
                 
                 // Force a reflow to ensure layout updates properly
                 void appContainer.offsetHeight;
             };
             
-            sidebarToggle.addEventListener('click', toggleSidebar);
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', toggleSidebar);
+            }
             
             // Function to toggle dark mode
             const toggleDarkMode = (enable) => {

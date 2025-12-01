@@ -94,7 +94,7 @@ try {
 <link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link rel="stylesheet" href="assets/css/tailwind.css">
 <script>
         // Apply theme immediately to prevent flash
         (function() {
@@ -112,52 +112,7 @@ try {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script>
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": {
-                            DEFAULT: "#137fec",
-                            "50": "#e8f2fe",
-                            "100": "#d1e6fd",
-                            "200": "#a2cbfb",
-                            "300": "#74b1f9",
-                            "400": "#4596f7",
-                            "500": "#137fec",
-                            "600": "#0f66bc",
-                            "700": "#0c4c8d",
-                            "800": "#08335d",
-                            "900": "#04192e"
-                        },
-                        "background-light": "#e8ecf1",
-                        "background-dark": "#0f172a",
-                        "card-light": "#fafbfc",
-                        "card-dark": "#1e293b",
-                        "text-light": "#1e293b",
-                        "text-dark": "#e2e8f0",
-                        "text-muted-light": "#64748b",
-                        "text-muted-dark": "#94a3b8",
-                        "border-light": "#d1d5db",
-                        "border-dark": "#334155",
-                    },
-                    fontFamily: {
-                        "display": ["Inter", "sans-serif"]
-                    },
-                    borderRadius: {
-                        "DEFAULT": "0.5rem",
-                        "lg": "0.75rem",
-                        "xl": "1rem",
-                        "full": "9999px"
-                    },
-                    boxShadow: {
-                        'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
-                    }
-                },
-            },
-        }
-    </script>
+<!-- Tailwind runtime config removed; using compiled CSS in assets/css/tailwind.css -->
     <style>
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
@@ -226,47 +181,21 @@ try {
             min-width: 5rem;
             max-width: 5rem;
         }
-        .sidebar-collapsed .sidebar-profile-info {
-            display: none;
-        }
-        .sidebar-collapsed .sidebar-profile-picture {
-            display: none;
-        }
-        /* Add styles for expanded sidebar */
-        .sidebar-expanded .sidebar-profile-picture {
-            display: block;
-        }
-        .sidebar-expanded .sidebar-profile-info {
-            display: block;
-        }
-        main {
-            flex: 1;
-            transition: margin-left 0.3s ease;
-        }
-        .sidebar-collapsed main {
-            margin-left: 0;
-        }
-        .main-content {
-            padding-left: 0;
-        }
-        .sidebar-collapsed .sidebar-toggle-icon-open {
-            display: none;
-        }
-        .sidebar-collapsed .sidebar-toggle-icon-closed {
-            display: block;
-        }
-        .sidebar-toggle-icon-closed {
-            display: none;
-        }
+        .sidebar-collapsed .sidebar-text { display: none; }
+        .sidebar-collapsed .sidebar-logo-text { display: none; }
+        /* Ensure sidebar links are centered when collapsed */
         .sidebar-collapsed .sidebar-nav-link {
             justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
         }
-        .sidebar-collapsed .sidebar-toggle-container {
-            justify-content: center;
-        }
-        .sidebar-collapsed .profile-container {
-            justify-content: center;
-        }
+        .sidebar-collapsed .sidebar-profile-info { display: none; }
+        .sidebar-collapsed .sidebar-profile-picture { display: none; }
+        .sidebar-collapsed .sidebar-toggle-container { justify-content: center; }
+        .sidebar-collapsed .profile-container { justify-content: center; }
+        .sidebar-collapsed .sidebar-toggle-icon-open { display: none; }
+        .sidebar-collapsed .sidebar-toggle-icon-closed { display: block; }
+        .sidebar-toggle-icon-closed { display: none; }
         /* Clickable table rows */
         tbody tr {
             cursor: pointer;
@@ -337,70 +266,69 @@ try {
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
 <div class="flex h-screen sidebar-collapsed" id="app-container">
-<aside class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col">
-<div class="flex items-center justify-start px-4 h-20 border-b border-border-light dark:border-border-dark">
-<div class="flex items-center gap-3">
-<img alt="CPU LILAC Logo" class="h-11 w-11" src="./api/get-logo.php?v=1" width="32" height="32" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex'; console.error('Logo failed to load:', this.src);"/>
-<div class="h-11 w-11 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm" style="display: none;" id="logo-fallback">CPU</div>
-<h1 class="text-xl font-bold text-text-light dark:text-text-dark sidebar-logo-text hidden">LILAC</h1>
-</div>
-</div>
-<nav class="flex-1 px-4 py-6 space-y-2">
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="dashboard.php" title="Dashboard">
-<span class="material-symbols-outlined">dashboard</span>
-<span class="sidebar-text hidden">Dashboard</span>
-</a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards-hub.php" title="ICONS 2025 Hub">
-<span class="material-symbols-outlined">military_tech</span>
-<span class="sidebar-text hidden">ICONS 2025</span>
-</a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
-<span class="material-symbols-outlined">emoji_events</span>
-<span class="sidebar-text hidden">Awards Progress</span>
-</a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
-<span class="material-symbols-outlined">event</span>
-<span class="sidebar-text hidden">Events &amp; Activities</span>
-</a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="scheduler.php" title="Scheduler">
-<span class="material-symbols-outlined">calendar_today</span>
-<span class="sidebar-text hidden">Scheduler</span>
-</a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-primary-50 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 font-semibold sidebar-nav-link" href="mou-moa.php" title="MOUs & MOAs">
-<span class="material-symbols-outlined filled">handshake</span>
-<span class="sidebar-text hidden">MOUs &amp; MOAs</span>
-</a>
-
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="documents.php" title="Documents">
-<span class="material-symbols-outlined">description</span>
-<span class="sidebar-text hidden">Documents</span>
-</a>
-<a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="trash.php" title="Trash">
-<span class="material-symbols-outlined">delete</span>
-<span class="sidebar-text hidden">Trash</span>
-</a>
-</nav>
-<div class="px-4 py-4 border-t border-border-light dark:border-border-dark">
-<div class="flex items-center justify-between profile-container">
-<div class="flex items-center gap-3">
-<div class="w-10 h-10 rounded-full bg-cover bg-center sidebar-profile-picture hidden" style='background-image: url("<?php echo !empty($user['profile_picture']) ? htmlspecialchars($user['profile_picture']) : 'https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p'; ?>");'></div>
-<div class="sidebar-profile-info hidden">
-<p class="font-semibold text-text-light dark:text-text-dark"><?php echo htmlspecialchars($user['role'] === 'admin' ? 'Admin User' : $user['username']); ?></p>
-<div class="flex gap-3">
-<a class="text-sm text-primary-600 dark:text-primary-400 hover:underline" href="profile.php">Profile</a>
-<span class="text-sm text-gray-400">|</span>
-<a class="text-sm text-red-600 dark:text-red-400 hover:underline" href="logout.php">Logout</a>
-</div>
-</div>
-</div>
-<button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-background-dark transition-colors" id="sidebar-toggle">
-<span class="material-symbols-outlined sidebar-toggle-icon-open hidden">chevron_left</span>
-<span class="material-symbols-outlined sidebar-toggle-icon-closed block">chevron_right</span>
-</button>
-</div>
-</div>
-</aside>
-<main class="flex-1 overflow-hidden">
+    <aside class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col fixed h-full z-40 transition-all duration-300">
+        <div class="flex items-center justify-start px-4 h-20 border-b border-border-light dark:border-border-dark flex-shrink-0">
+            <div class="flex items-center gap-3 overflow-hidden">
+                <img alt="CPU LILAC Logo" class="h-11 w-11 flex-shrink-0" src="./api/get-logo.php?v=1" width="44" height="44" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex'; console.error('Logo failed to load:', this.src);"/>
+                <div class="h-11 w-11 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style="display: none;" id="logo-fallback">CPU</div>
+                <h1 class="text-xl font-bold text-text-light dark:text-text-dark sidebar-logo-text whitespace-nowrap">LILAC</h1>
+            </div>
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto overflow-x-hidden">
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="dashboard.php" title="Dashboard">
+                <span class="material-symbols-outlined flex-shrink-0">dashboard</span>
+                <span class="sidebar-text whitespace-nowrap">Dashboard</span>
+            </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards-hub.php" title="ICONS 2025 Hub">
+                <span class="material-symbols-outlined flex-shrink-0">military_tech</span>
+                <span class="sidebar-text whitespace-nowrap">ICONS 2025</span>
+            </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
+                <span class="material-symbols-outlined flex-shrink-0">emoji_events</span>
+                <span class="sidebar-text whitespace-nowrap">Awards Progress</span>
+            </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
+                <span class="material-symbols-outlined flex-shrink-0">event</span>
+                <span class="sidebar-text whitespace-nowrap">Events &amp; Activities</span>
+            </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="scheduler.php" title="Scheduler">
+                <span class="material-symbols-outlined flex-shrink-0">calendar_today</span>
+                <span class="sidebar-text whitespace-nowrap">Scheduler</span>
+            </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-gradient-to-r from-emerald-500/10 to-teal-500/10 text-primary-600 dark:text-primary-400 font-semibold sidebar-nav-link border border-emerald-200 dark:border-emerald-800" href="mou-moa.php" title="MOUs & MOAs">
+                <span class="material-symbols-outlined filled text-emerald-600 flex-shrink-0">handshake</span>
+                <span class="sidebar-text whitespace-nowrap">MOUs &amp; MOAs</span>
+            </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="documents.php" title="Documents">
+                <span class="material-symbols-outlined flex-shrink-0">description</span>
+                <span class="sidebar-text whitespace-nowrap">Documents</span>
+            </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="trash.php" title="Trash">
+                <span class="material-symbols-outlined flex-shrink-0">delete</span>
+                <span class="sidebar-text whitespace-nowrap">Trash</span>
+            </a>
+        </nav>
+        <div class="px-4 py-4 border-t border-border-light dark:border-border-dark flex-shrink-0">
+            <div class="flex items-center justify-between profile-container overflow-hidden">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="w-10 h-10 rounded-full bg-cover bg-center sidebar-profile-picture flex-shrink-0" style='background-image: url("<?php echo !empty($user['profile_picture']) ? htmlspecialchars($user['profile_picture']) : 'https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p'; ?>");'></div>
+                    <div class="sidebar-profile-info overflow-hidden">
+                        <p class="font-semibold text-text-light dark:text-text-dark truncate"><?php echo htmlspecialchars($user['role'] === 'admin' ? 'Admin User' : $user['username']); ?></p>
+                        <div class="flex gap-3">
+                            <a class="text-sm text-primary-600 dark:text-primary-400 hover:underline whitespace-nowrap" href="profile.php">Profile</a>
+                            <span class="text-sm text-gray-400">|</span>
+                            <a class="text-sm text-red-600 dark:text-red-400 hover:underline whitespace-nowrap" href="logout.php">Logout</a>
+                        </div>
+                    </div>
+                </div>
+                <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-background-dark transition-colors flex-shrink-0" id="sidebar-toggle">
+                    <span class="material-symbols-outlined sidebar-toggle-icon-open">chevron_left</span>
+                    <span class="material-symbols-outlined sidebar-toggle-icon-closed hidden">chevron_right</span>
+                </button>
+            </div>
+        </div>
+    </aside>
+    <main class="flex-1 overflow-hidden transition-all duration-300 ml-64" id="main-content">
 <header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible header-animate">
 <div class="flex items-center gap-3">
 <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
@@ -493,6 +421,7 @@ try {
                                     <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filter by Institution</div>
                                     
                                     <div class="px-4 py-2">
+                                        <label class="sr-only" for="institutionFilter">Search institution</label>
                                         <input type="text" id="institutionFilter" placeholder="Search institution..." class="w-full px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary">
                                     </div>
                                     
@@ -503,19 +432,19 @@ try {
                                     
                                     <div class="px-4 py-2 space-y-2">
                                         <div>
-                                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">Sign Date From</label>
+                                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1" for="signDateFrom">Sign Date From</label>
                                             <input type="date" id="signDateFrom" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary">
                                         </div>
                                         <div>
-                                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">Sign Date To</label>
+                                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1" for="signDateTo">Sign Date To</label>
                                             <input type="date" id="signDateTo" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary">
                                         </div>
                                         <div>
-                                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">End Date From</label>
+                                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1" for="endDateFrom">End Date From</label>
                                             <input type="date" id="endDateFrom" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary">
                                         </div>
                                         <div>
-                                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1">End Date To</label>
+                                            <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1" for="endDateTo">End Date To</label>
                                             <input type="date" id="endDateTo" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary">
                                         </div>
                                     </div>
@@ -737,9 +666,9 @@ try {
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="term">Term</label>
                     <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="term" placeholder="e.g., 3 Years" type="text"/>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="auto-status">Status</label>
-                    <div class="w-full bg-gray-100 dark:bg-background-dark/30 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                <div aria-live="polite">
+                    <p class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</p>
+                    <div class="w-full bg-gray-100 dark:bg-background-dark/30 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400" id="auto-status" role="status">
                         <span id="autoStatusText">Auto-determined</span>
                     </div>
                 </div>
@@ -1153,22 +1082,18 @@ try {
             const navLinks = document.querySelectorAll('.sidebar-nav-link');
             const profileContainer = document.querySelector('.profile-container');
             const toggleContainer = document.querySelector('.sidebar-toggle-container');
-            // Prevent navigating when clicking the current page link
-            const currentPath = window.location.pathname.split('/').pop();
-            navLinks.forEach(link => {
-                const href = link.getAttribute('href');
-                if (href === currentPath) {
-                    link.addEventListener('click', (e) => {
-                        e.preventDefault();
-                    });
-                }
-            });
-            // Function to toggle sidebar
-            const toggleSidebar = () => {
-                const isCollapsed = appContainer.classList.contains('sidebar-collapsed');
-                if (isCollapsed) {
-                    // Expand sidebar
+            
+            // Initialize sidebar state
+            const initSidebarState = () => {
+                const savedState = localStorage.getItem('sidebarCollapsed');
+                const mainContent = document.getElementById('main-content');
+                if (savedState === 'false') {
                     appContainer.classList.remove('sidebar-collapsed');
+                    if (mainContent) {
+                        mainContent.classList.remove('ml-20');
+                        mainContent.classList.add('ml-64');
+                    }
+                    
                     sidebarLogoText.classList.remove('hidden');
                     sidebarTexts.forEach(text => text.classList.remove('hidden'));
                     sidebarProfileInfo.classList.remove('hidden');
@@ -1181,8 +1106,61 @@ try {
                     if (profileContainer) profileContainer.classList.remove('justify-center');
                     if (toggleContainer) toggleContainer.classList.remove('justify-center');
                 } else {
+                    // Default or true
+                    appContainer.classList.add('sidebar-collapsed');
+                    if (mainContent) {
+                        mainContent.classList.remove('ml-64');
+                        mainContent.classList.add('ml-20');
+                    }
+                }
+            };
+            initSidebarState();
+            
+            // Prevent navigating when clicking the current page link
+            const currentPath = window.location.pathname.split('/').pop();
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (href === currentPath) {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                    });
+                }
+            });
+            
+            // Function to toggle sidebar
+            const toggleSidebar = () => {
+                const isCollapsed = appContainer.classList.contains('sidebar-collapsed');
+                const mainContent = document.getElementById('main-content');
+                
+                if (isCollapsed) {
+                    // Expand sidebar
+                    appContainer.classList.remove('sidebar-collapsed');
+                    if (mainContent) {
+                        mainContent.classList.remove('ml-20');
+                        mainContent.classList.add('ml-64');
+                    }
+                    
+                    sidebarLogoText.classList.remove('hidden');
+                    sidebarTexts.forEach(text => text.classList.remove('hidden'));
+                    sidebarProfileInfo.classList.remove('hidden');
+                    sidebarProfilePicture.classList.remove('hidden');
+                    openIcon.classList.remove('hidden');
+                    openIcon.classList.add('block');
+                    closedIcon.classList.add('hidden');
+                    closedIcon.classList.remove('block');
+                    navLinks.forEach(link => link.classList.remove('justify-center'));
+                    if (profileContainer) profileContainer.classList.remove('justify-center');
+                    if (toggleContainer) toggleContainer.classList.remove('justify-center');
+                    
+                    localStorage.setItem('sidebarCollapsed', 'false');
+                } else {
                     // Collapse sidebar
                     appContainer.classList.add('sidebar-collapsed');
+                    if (mainContent) {
+                        mainContent.classList.remove('ml-64');
+                        mainContent.classList.add('ml-20');
+                    }
+                    
                     sidebarLogoText.classList.add('hidden');
                     sidebarTexts.forEach(text => text.classList.add('hidden'));
                     sidebarProfileInfo.classList.add('hidden');
@@ -1194,6 +1172,8 @@ try {
                     navLinks.forEach(link => link.classList.add('justify-center'));
                     if (profileContainer) profileContainer.classList.add('justify-center');
                     if (toggleContainer) toggleContainer.classList.add('justify-center');
+                    
+                    localStorage.setItem('sidebarCollapsed', 'true');
                 }
                 
                 // Force a reflow to ensure layout updates properly

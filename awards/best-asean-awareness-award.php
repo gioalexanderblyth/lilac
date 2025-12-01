@@ -6,29 +6,18 @@
     <link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect"/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="../assets/css/tailwind.css">
     <script>
         (function() {
             const savedTheme = localStorage.getItem('theme');
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) document.documentElement.classList.add('dark');
-        })();
-    </script>
-    <script>
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": { DEFAULT: "#137fec", "50": "#e8f2fe", "100": "#d1e6fd", "200": "#a2cbfb", "300": "#74b1f9", "400": "#4596f7", "500": "#137fec", "600": "#0f66bc", "700": "#0c4c8d", "800": "#08335d", "900": "#04192e" },
-                        "background-light": "#f1f5f9", "background-dark": "#0f172a", "card-light": "#ffffff", "card-dark": "#1e293b",
-                        "text-light": "#0f172a", "text-dark": "#e2e8f0", "text-muted-light": "#64748b", "text-muted-dark": "#94a3b8",
-                        "border-light": "#e2e8f0", "border-dark": "#334155"
-                    },
-                    fontFamily: { "display": ["Inter", "sans-serif"] }
-                }
+            const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
+            if (shouldBeDark) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
             }
-        }
+        })();
     </script>
     <style>
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }

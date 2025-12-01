@@ -1,0 +1,1 @@
+{"name": "lilac","private": true,"version": "1.0.0","scripts": {"build:css": "tailwindcss -i ./src/input.css -o ./assets/css/tailwind.css --minify"},"devDependencies": {"tailwindcss": "^3.4.14","postcss": "^8.4.38","autoprefixer": "^10.4.20","@tailwindcss/forms": "^0.5.9"}}

@@ -1,10 +1,25 @@
 <?php
+// Prevent HTML errors from breaking JSON
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit(); }
+// Handle preflight requests
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+// Global exception handler to ensure JSON response
+set_exception_handler(function($e) {
+    http_response_code(500);
+    echo json_encode(['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+    exit();
+});
 
 // Include config for database connection with fallback
 require_once 'config.php';
@@ -15,6 +30,7 @@ function db() {
         
         // Check if we're using file-based fallback
         if ($pdo instanceof FileBasedDatabase) {
+            error_log("awards.php: getDatabaseConnection returned FileBasedDatabase");
             // Return the fallback database object
             return $pdo;
         }
@@ -29,25 +45,39 @@ function db() {
         return $pdo;
     } catch (Exception $e) {
         // Return file-based fallback if SQLite fails
-        logActivity('Database connection failed in awards.php: ' . $e->getMessage(), 'WARNING');
+        error_log('Database connection failed in awards.php: ' . $e->getMessage());
         return new FileBasedDatabase();
     }
 }
 
 function requireAuth($requireAdmin = false) {
-    $user = $_SERVER['HTTP_X_USER'] ?? '';
-    $role = strtolower($_SERVER['HTTP_X_ROLE'] ?? '');
-    if (!$user) {
-        http_response_code(401);
-        echo json_encode(['error' => 'Unauthorized']);
-        exit();
+    $headers = getallheaders();
+    $authHeader = $headers['Authorization'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    
+    if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+        $token = $matches[1];
+        // Verify token (simple check for now, assume valid if passed from PHP session)
+        // In a real app, decode JWT or check session
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        if (isset($_SESSION['user_id']) && isset($_SESSION['token']) && $_SESSION['token'] === $token) {
+            return [$_SESSION['user_id'], $_SESSION['role'] ?? 'user'];
+        }
     }
-    if ($requireAdmin && $role !== 'admin') {
-        http_response_code(403);
-        echo json_encode(['error' => 'Forbidden']);
-        exit();
+    
+    // Fallback for development/testing
+    if (session_status() === PHP_SESSION_NONE) session_start();
+    if (isset($_SESSION['user_id'])) {
+        return [$_SESSION['user_id'], $_SESSION['role'] ?? 'user'];
     }
-    return [$user, $role];
+    
+    http_response_code(401);
+    echo json_encode(['error' => 'Unauthorized']);
+    exit();
+}
+
+function getUserIdFromToken() {
+    list($userId, ) = requireAuth();
+    return $userId;
 }
 
 function jsonInput() {
@@ -263,37 +293,140 @@ function listAwards($pdo) {
     }
     
     // Normal database query for SQLite/MySQL
-    // Check if awards table exists
     try {
-        $checkStmt = $pdo->query("SELECT 1 FROM awards LIMIT 1");
-    } catch (Exception $e) {
-        error_log("Awards table check failed: " . $e->getMessage());
-        // Table doesn't exist, return empty array
-        echo json_encode([]);
-        return;
-    }
-    
-    try {
-        // Ensure deleted_at column exists
-        try {
-            $pdo->exec("ALTER TABLE awards ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
-        } catch (PDOException $e) {
-            // Column might already exist, ignore
+        // Get current user ID to filter WITHOUT forcing Unauthorized for this listing endpoint
+        // We read directly from the PHP session instead of calling requireAuth()
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $userId = $_SESSION['user_id'] ?? null;
+        $role   = $_SESSION['role'] ?? 'user';
+        
+        // Build user filter - only show awards for current user (unless admin)
+        if ($role === 'admin') {
+            $userFilter = "";
+        } else if ($userId) {
+            // Check both user_id and created_by columns (handle both string and int)
+            $userFilter = "AND (a.user_id = " . intval($userId) . " OR a.created_by = " . intval($userId) . " OR a.created_by = '" . intval($userId) . "' OR CAST(a.created_by AS INTEGER) = " . intval($userId) . ")";
+        } else {
+            // No user ID in session – for now return everything so we can detect files
+            $userFilter = "";
         }
         
-        $stmt = $pdo->query("
-            SELECT 
-                a.*, 
-                aa.predicted_category, 
-                aa.confidence, 
-                aa.matched_categories_json, 
-                aa.status as analysis_status
-            FROM awards a 
-            LEFT JOIN award_analysis aa ON a.id = aa.award_id 
-            WHERE a.deleted_at IS NULL
-            ORDER BY a.created_at DESC
-        ");
-        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Check for required columns to prevent query errors
+        $columns = [];
+        try {
+            $cols = $pdo->query("PRAGMA table_info(awards)")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($cols as $col) $columns[] = $col['name'];
+        } catch (Exception $e) {
+            try {
+                $cols = $pdo->query("SHOW COLUMNS FROM awards")->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($cols as $col) $columns[] = $col['Field'];
+            } catch (Exception $e2) {}
+        }
+        
+        $hasDeletedAt = in_array('deleted_at', $columns);
+        $deletedClause = $hasDeletedAt ? "AND (a.deleted_at IS NULL OR a.deleted_at = '')" : "";
+        
+        // Try standard query with filters
+        try {
+            // Explicitly select columns to avoid collision and ensure we get what we need
+            // Use subquery to get the LATEST analysis record for each award (in case there are multiple)
+            $sql = "
+                SELECT 
+                    a.id, a.title, a.date, a.description, a.file_name, a.file_path, a.ocr_text, a.created_by, a.created_at,
+                    aa.predicted_category, 
+                    aa.confidence, 
+                    aa.match_percentage,
+                    aa.matched_categories_json, 
+                    aa.status as analysis_status,
+                    aa.all_matches
+                FROM awards a 
+                LEFT JOIN (
+                    SELECT aa1.* 
+                    FROM award_analysis aa1
+                    INNER JOIN (
+                        SELECT award_id, MAX(id) as max_id 
+                        FROM award_analysis 
+                        GROUP BY award_id
+                    ) aa2 ON aa1.award_id = aa2.award_id AND aa1.id = aa2.max_id
+                ) aa ON a.id = aa.award_id
+                WHERE 1=1
+                $deletedClause
+                $userFilter
+                ORDER BY a.created_at DESC
+            ";
+            $stmt = $pdo->query($sql);
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            // Fallback if columns missing
+            error_log("Standard query failed, trying fallback: " . $e->getMessage());
+            
+            // Fallback query - include deleted_at filter
+            try {
+                $sql = "
+                    SELECT 
+                        a.id, a.title, a.date, a.description, a.file_name, a.file_path, a.ocr_text, a.created_by, a.created_at,
+                        aa.predicted_category, 
+                        aa.confidence, 
+                        aa.matched_categories_json, 
+                        aa.status as analysis_status,
+                        aa.all_matches
+                    FROM awards a 
+                    LEFT JOIN award_analysis aa ON a.id = aa.award_id 
+                    WHERE 1=1
+                    $deletedClause
+                    $userFilter
+                    ORDER BY a.created_at DESC
+                ";
+                $stmt = $pdo->query($sql);
+                $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Exception $e2) {
+                error_log("Fallback query failed: " . $e2->getMessage());
+                // Super fallback - just awards, but still filter deleted and by user
+                $sql = "SELECT * FROM awards WHERE 1=1 $deletedClause $userFilter ORDER BY created_at DESC";
+                $stmt = $pdo->query($sql);
+                $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+        }
+        
+        // Debug: Log raw results
+        error_log("Raw awards query returned " . count($results) . " rows");
+
+
+        if (count($results) > 0) {
+            error_log("First row sample: " . json_encode($results[0]));
+        }
+        
+        // Ensure match_percentage is included in the response
+        foreach ($results as &$result) {
+            // If match_percentage is null but we have all_matches, try to calculate it
+            if ((!isset($result['match_percentage']) || $result['match_percentage'] === null || $result['match_percentage'] === '') && !empty($result['all_matches'])) {
+                $matches = json_decode($result['all_matches'], true);
+                // Handle different formats of all_matches
+                if (is_array($matches)) {
+                    // Format 1: { match_count: N, total_keywords: M }
+                    if (isset($matches['match_count']) && isset($matches['total_keywords'])) {
+                        $totalKeywords = $matches['total_keywords'] ?? 1;
+                        $matchCount = $matches['match_count'] ?? 0;
+                        if ($totalKeywords > 0) {
+                            $result['match_percentage'] = round(($matchCount / $totalKeywords) * 100, 2);
+                        }
+                    } 
+                    // Format 2: { matched: [...], missing: [...] }
+                    else if (isset($matches['matched']) && is_array($matches['matched'])) {
+                        $matchCount = count($matches['matched']);
+                        $missingCount = isset($matches['missing']) ? count($matches['missing']) : 0;
+                        $totalKeywords = $matchCount + $missingCount;
+                        if ($totalKeywords > 0) {
+                            $result['match_percentage'] = round(($matchCount / $totalKeywords) * 100, 2);
+                        }
+                    }
+                }
+            }
+        }
+        unset($result);
     } catch (Exception $e) {
         error_log("Awards list query error: " . $e->getMessage());
         // Return empty array instead of throwing
@@ -302,6 +435,9 @@ function listAwards($pdo) {
     
     // Transform for frontend
     $awards = array_map(function($row) {
+        // Calculate match_percentage from all_matches if not directly available
+        $matchPercentage = $row['match_percentage'] ?? null;
+        
         return [
             'id' => $row['id'],
             'title' => $row['title'],
@@ -312,14 +448,24 @@ function listAwards($pdo) {
             'ocr_text' => $row['ocr_text'],
             'created_by' => $row['created_by'] ?? 'admin',
             'created_at' => $row['created_at'],
+            'match_percentage' => $matchPercentage !== null && $matchPercentage !== '' ? (float)$matchPercentage : null,
+            'predicted_category' => $row['predicted_category'] ?? null,
+            'analysis_status' => $row['analysis_status'] ?? null,
             'analysis' => [
                 'confidence' => (float)($row['confidence'] ?? 0),
                 'predicted_category' => $row['predicted_category'] ?? 'Not Analyzed',
                 'matched_criteria' => json_decode($row['matched_categories_json'] ?? '[]', true) ?: [],
-                'status' => $row['analysis_status'] ?? 'Pending Review'
+                'status' => $row['analysis_status'] ?? 'Pending Review',
+                'match_percentage' => $matchPercentage !== null && $matchPercentage !== '' ? (float)$matchPercentage : null
             ]
         ];
     }, $results);
+    
+    // Debug logging
+    error_log("Awards API returning " . count($awards) . " awards");
+    if (count($awards) > 0) {
+        error_log("Sample award: " . json_encode($awards[0]));
+    }
     
     echo json_encode($awards);
     } catch (Exception $e) {
@@ -748,5 +894,3 @@ try {
     echo json_encode(['error'=>$e->getMessage()]);
 }
 ?>
-
-

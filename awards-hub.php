@@ -25,7 +25,7 @@ require_once __DIR__ . '/api/config.php';
     <link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect"/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="assets/css/tailwind.css">
     <script>
         // Apply theme immediately to prevent flash
         (function() {
@@ -36,43 +36,6 @@ require_once __DIR__ . '/api/config.php';
                 document.documentElement.classList.add('dark');
             }
         })();
-    </script>
-    <script>
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": {
-                            DEFAULT: "#137fec",
-                            "50": "#e8f2fe",
-                            "100": "#d1e6fd",
-                            "200": "#a2cbfb",
-                            "300": "#74b1f9",
-                            "400": "#4596f7",
-                            "500": "#137fec",
-                            "600": "#0f66bc",
-                            "700": "#0c4c8d",
-                            "800": "#08335d",
-                            "900": "#04192e"
-                        },
-                        "background-light": "#f1f5f9",
-                        "background-dark": "#0f172a",
-                        "card-light": "#ffffff",
-                        "card-dark": "#1e293b",
-                        "text-light": "#0f172a",
-                        "text-dark": "#e2e8f0",
-                        "text-muted-light": "#64748b",
-                        "text-muted-dark": "#94a3b8",
-                        "border-light": "#e2e8f0",
-                        "border-dark": "#334155",
-                    },
-                    fontFamily: {
-                        "display": ["Inter", "sans-serif"]
-                    }
-                }
-            }
-        }
     </script>
     <style>
         .material-symbols-outlined {
@@ -123,7 +86,7 @@ require_once __DIR__ . '/api/config.php';
         }
         .sidebar-collapsed .sidebar-text { display: none; }
         .sidebar-collapsed .sidebar-logo-text { display: none; }
-        .sidebar-collapsed .sidebar-nav-link { justify-content: center; }
+        /* .sidebar-collapsed .sidebar-nav-link { justify-content: center; } - Removed to allow flex-start/center control */
         .sidebar-collapsed .sidebar-profile-info { display: none; }
         .sidebar-collapsed .sidebar-profile-picture { display: none; }
         .sidebar-collapsed .sidebar-toggle-container { justify-content: center; }
@@ -131,6 +94,13 @@ require_once __DIR__ . '/api/config.php';
         .sidebar-collapsed .sidebar-toggle-icon-open { display: none; }
         .sidebar-collapsed .sidebar-toggle-icon-closed { display: block; }
         .sidebar-toggle-icon-closed { display: none; }
+        
+        /* Ensure sidebar links are centered when collapsed */
+        .sidebar-collapsed .sidebar-nav-link {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+        }
         
         /* Tab styles */
         .tab-btn.active {
@@ -163,79 +133,82 @@ require_once __DIR__ . '/api/config.php';
 <body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
 <div class="flex h-screen sidebar-collapsed" id="app-container">
     <!-- Sidebar -->
-    <aside class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col">
-        <div class="flex items-center justify-start px-4 h-20 border-b border-border-light dark:border-border-dark">
-            <div class="flex items-center gap-3">
-                <img alt="CPU LILAC Logo" class="h-11 w-11" src="./api/get-logo.php?v=1" width="32" height="32" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex';"/>
-                <div class="h-11 w-11 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm" style="display: none;" id="logo-fallback">CPU</div>
-                <h1 class="text-xl font-bold text-text-light dark:text-text-dark sidebar-logo-text hidden">LILAC</h1>
+    <aside class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col fixed h-full z-40 transition-all duration-300">
+        <div class="flex items-center justify-start px-4 h-20 border-b border-border-light dark:border-border-dark flex-shrink-0">
+            <div class="flex items-center gap-3 overflow-hidden">
+                <img alt="CPU LILAC Logo" class="h-11 w-11 flex-shrink-0" src="./api/get-logo.php?v=1" width="44" height="44" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex';"/>
+                <div class="h-11 w-11 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style="display: none;" id="logo-fallback">CPU</div>
+                <h1 class="text-xl font-bold text-text-light dark:text-text-dark sidebar-logo-text whitespace-nowrap">LILAC</h1>
             </div>
         </div>
-        <nav class="flex-1 px-4 py-6 space-y-2">
-            <a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="dashboard.php" title="Dashboard">
-                <span class="material-symbols-outlined">dashboard</span>
-                <span class="sidebar-text hidden">Dashboard</span>
+        <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto overflow-x-hidden">
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="dashboard.php" title="Dashboard">
+                <span class="material-symbols-outlined flex-shrink-0">dashboard</span>
+                <span class="sidebar-text whitespace-nowrap">Dashboard</span>
             </a>
-            <a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-500/10 to-blue-500/10 text-primary-600 dark:text-primary-400 font-semibold sidebar-nav-link border border-purple-200 dark:border-purple-800" href="awards-hub.php" title="ICONS 2025 Hub">
-                <span class="material-symbols-outlined filled text-purple-600">military_tech</span>
-                <span class="sidebar-text hidden">ICONS 2025</span>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-500/10 to-blue-500/10 text-primary-600 dark:text-primary-400 font-semibold sidebar-nav-link border border-purple-200 dark:border-purple-800" href="awards-hub.php" title="ICONS 2025 Hub">
+                <span class="material-symbols-outlined filled text-purple-600 flex-shrink-0">military_tech</span>
+                <span class="sidebar-text whitespace-nowrap">ICONS 2025</span>
             </a>
-            <a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
-                <span class="material-symbols-outlined">emoji_events</span>
-                <span class="sidebar-text hidden">Awards Progress</span>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
+                <span class="material-symbols-outlined flex-shrink-0">emoji_events</span>
+                <span class="sidebar-text whitespace-nowrap">Awards Progress</span>
             </a>
-            <a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
-                <span class="material-symbols-outlined">event</span>
-                <span class="sidebar-text hidden">Events &amp; Activities</span>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
+                <span class="material-symbols-outlined flex-shrink-0">event</span>
+                <span class="sidebar-text whitespace-nowrap">Events &amp; Activities</span>
             </a>
-            <a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="mou-moa.php" title="MOUs & MOAs">
-                <span class="material-symbols-outlined">handshake</span>
-                <span class="sidebar-text hidden">MOUs &amp; MOAs</span>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="scheduler.php" title="Scheduler">
+                <span class="material-symbols-outlined flex-shrink-0">calendar_today</span>
+                <span class="sidebar-text whitespace-nowrap">Scheduler</span>
             </a>
-            <a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="documents.php" title="Documents">
-                <span class="material-symbols-outlined">description</span>
-                <span class="sidebar-text hidden">Documents</span>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="mou-moa.php" title="MOUs & MOAs">
+                <span class="material-symbols-outlined flex-shrink-0">handshake</span>
+                <span class="sidebar-text whitespace-nowrap">MOUs &amp; MOAs</span>
             </a>
-            <a class="flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="trash.php" title="Trash">
-                <span class="material-symbols-outlined">delete</span>
-                <span class="sidebar-text hidden">Trash</span>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="documents.php" title="Documents">
+                <span class="material-symbols-outlined flex-shrink-0">description</span>
+                <span class="sidebar-text whitespace-nowrap">Documents</span>
+            </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="trash.php" title="Trash">
+                <span class="material-symbols-outlined flex-shrink-0">delete</span>
+                <span class="sidebar-text whitespace-nowrap">Trash</span>
             </a>
         </nav>
-        <div class="px-4 py-4 border-t border-border-light dark:border-border-dark">
-            <div class="flex items-center justify-between profile-container">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center sidebar-profile-picture hidden">
-                        <span class="material-symbols-outlined text-primary">person</span>
-                    </div>
-                    <div class="sidebar-profile-info hidden">
-                        <p class="font-semibold text-text-light dark:text-text-dark"><?php echo htmlspecialchars($user['username'] ?? 'User'); ?></p>
+        <div class="px-4 py-4 border-t border-border-light dark:border-border-dark flex-shrink-0">
+            <div class="flex items-center justify-between profile-container overflow-hidden">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="w-10 h-10 rounded-full bg-cover bg-center sidebar-profile-picture flex-shrink-0" style='background-image: url("<?php echo !empty($user['profile_picture']) ? htmlspecialchars($user['profile_picture']) : 'https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p'; ?>");'></div>
+                    <div class="sidebar-profile-info overflow-hidden">
+                        <p class="font-semibold text-text-light dark:text-text-dark truncate"><?php echo htmlspecialchars($user['username'] ?? 'User'); ?></p>
                         <div class="flex gap-3">
-                            <a class="text-sm text-primary-600 dark:text-primary-400 hover:underline" href="profile.php">Profile</a>
+                            <a class="text-sm text-primary-600 dark:text-primary-400 hover:underline whitespace-nowrap" href="profile.php">Profile</a>
                             <span class="text-sm text-gray-400">|</span>
-                            <a class="text-sm text-red-600 dark:text-red-400 hover:underline" href="logout.php">Logout</a>
+                            <a class="text-sm text-red-600 dark:text-red-400 hover:underline whitespace-nowrap" href="logout.php">Logout</a>
                         </div>
                     </div>
                 </div>
-                <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-background-dark transition-colors" id="sidebar-toggle">
-                    <span class="material-symbols-outlined sidebar-toggle-icon-open hidden">chevron_left</span>
-                    <span class="material-symbols-outlined sidebar-toggle-icon-closed block">chevron_right</span>
+                <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-background-dark transition-colors flex-shrink-0" id="sidebar-toggle">
+                    <span class="material-symbols-outlined sidebar-toggle-icon-open">chevron_left</span>
+                    <span class="material-symbols-outlined sidebar-toggle-icon-closed hidden">chevron_right</span>
                 </button>
             </div>
         </div>
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto">
+    <main class="flex-1 overflow-y-auto transition-all duration-300 ml-64" id="main-content">
         <!-- Header -->
-        <header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20">
+        <header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-6 border-b border-border-light dark:border-border-dark flex justify-between items-center h-auto mb-8">
             <div class="flex items-center gap-4">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-sm">
                         <span class="material-symbols-outlined text-white">military_tech</span>
                     </div>
                     <div>
                         <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">ICONS 2025 Awards Hub</h1>
-                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Internationalization Awards Evidence Management</p>
+                        <h2 class="text-base font-medium text-text-muted-light dark:text-text-muted-dark">Internationalization Awards Evidence Management</h2>
+                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1">Review award readiness and open details to manage evidence.</p>
                     </div>
                 </div>
             </div>
@@ -247,57 +220,58 @@ require_once __DIR__ . '/api/config.php';
                     <span class="material-symbols-outlined">refresh</span>
                 </button>
                 <button id="theme-toggle" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors" title="Toggle Theme">
-                    <span class="material-symbols-outlined dark:hidden">dark_mode</span>
-                    <span class="material-symbols-outlined hidden dark:block">light_mode</span>
+                    <span class="material-symbols-outlined dark:hidden">light_mode</span>
+                    <span class="material-symbols-outlined hidden dark:block">dark_mode</span>
                 </button>
             </div>
         </header>
 
-        <div class="p-6 lg:p-8">
+        <div class="px-6 lg:px-8 pb-12">
             <!-- Overview Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <div class="bg-card-light dark:bg-card-dark rounded-xl p-5 border border-border-light dark:border-border-dark">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                            <span class="material-symbols-outlined text-blue-600 dark:text-blue-400">rocket_launch</span>
-                        </div>
-                        <div>
-                            <p class="text-2xl font-bold text-text-light dark:text-text-dark" id="stat-ready-to-apply">0</p>
-                            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Awards Ready to Apply</p>
-                        </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+                <!-- Card 1 -->
+                <div class="bg-card-light dark:bg-card-dark rounded-xl p-6 border border-border-light dark:border-border-dark relative overflow-hidden group hover:shadow-md transition-shadow">
+                    <div class="relative z-10">
+                        <p class="text-sm font-medium text-text-muted-light dark:text-text-muted-dark mb-1">Awards Ready to Apply</p>
+                        <p class="text-4xl font-bold text-text-light dark:text-text-dark mb-2" id="stat-ready-to-apply">0</p>
+                        <p class="text-xs text-text-muted-light dark:text-text-muted-dark hidden mt-1" id="stat-ready-hint">No awards ready yet. Complete evidence to unlock eligibility.</p>
+                    </div>
+                    <div class="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="material-symbols-outlined text-6xl text-blue-600 dark:text-blue-400">rocket_launch</span>
                     </div>
                 </div>
-                <div class="bg-card-light dark:bg-card-dark rounded-xl p-5 border border-border-light dark:border-border-dark">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                            <span class="material-symbols-outlined text-green-600 dark:text-green-400">work</span>
-                        </div>
-                        <div>
-                            <p class="text-2xl font-bold text-text-light dark:text-text-dark" id="stat-in-progress">0</p>
-                            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Awards In Progress</p>
-                        </div>
+
+                <!-- Card 2 -->
+                <div class="bg-card-light dark:bg-card-dark rounded-xl p-6 border border-border-light dark:border-border-dark relative overflow-hidden group hover:shadow-md transition-shadow">
+                    <div class="relative z-10">
+                        <p class="text-sm font-medium text-text-muted-light dark:text-text-muted-dark mb-1">Awards In Progress</p>
+                        <p class="text-4xl font-bold text-text-light dark:text-text-dark mb-2" id="stat-in-progress">0</p>
+                        <p class="text-xs text-text-muted-light dark:text-text-muted-dark hidden mt-1" id="stat-in-progress-hint">Start requirements to see progress.</p>
+                    </div>
+                    <div class="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="material-symbols-outlined text-6xl text-green-600 dark:text-green-400">work</span>
                     </div>
                 </div>
-                <div class="bg-card-light dark:bg-card-dark rounded-xl p-5 border border-border-light dark:border-border-dark">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                            <span class="material-symbols-outlined text-purple-600 dark:text-purple-400">folder</span>
-                        </div>
-                        <div>
-                            <p class="text-2xl font-bold text-text-light dark:text-text-dark" id="stat-total-awards">0</p>
-                            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Total Awards</p>
-                        </div>
+
+                <!-- Card 3 -->
+                <div class="bg-card-light dark:bg-card-dark rounded-xl p-6 border border-border-light dark:border-border-dark relative overflow-hidden group hover:shadow-md transition-shadow">
+                    <div class="relative z-10">
+                        <p class="text-sm font-medium text-text-muted-light dark:text-text-muted-dark mb-1">Total Awards</p>
+                        <p class="text-4xl font-bold text-text-light dark:text-text-dark mb-2" id="stat-total-awards">0</p>
+                    </div>
+                    <div class="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="material-symbols-outlined text-6xl text-purple-600 dark:text-purple-400">folder</span>
                     </div>
                 </div>
-                <div class="bg-card-light dark:bg-card-dark rounded-xl p-5 border border-border-light dark:border-border-dark">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                            <span class="material-symbols-outlined text-amber-600 dark:text-amber-400">trending_up</span>
-                        </div>
-                        <div>
-                            <p class="text-2xl font-bold text-text-light dark:text-text-dark" id="stat-avg-readiness">0%</p>
-                            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Avg. Readiness</p>
-                        </div>
+
+                <!-- Card 4 -->
+                <div class="bg-card-light dark:bg-card-dark rounded-xl p-6 border border-border-light dark:border-border-dark relative overflow-hidden group hover:shadow-md transition-shadow">
+                    <div class="relative z-10">
+                        <p class="text-sm font-medium text-text-muted-light dark:text-text-muted-dark mb-1">Avg. Readiness</p>
+                        <p class="text-4xl font-bold text-text-light dark:text-text-dark mb-2" id="stat-avg-readiness">0%</p>
+                    </div>
+                    <div class="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="material-symbols-outlined text-6xl text-amber-600 dark:text-amber-400">trending_up</span>
                     </div>
                 </div>
             </div>
@@ -318,24 +292,27 @@ require_once __DIR__ . '/api/config.php';
                     </div>
                 </div>
                 
-                <!-- Category Tabs -->
-                <div class="flex gap-2 mb-6 overflow-x-auto pb-2">
-                    <button class="category-tab active px-4 py-2 rounded-lg bg-primary text-white font-medium whitespace-nowrap" data-category="all">
-                        All Awards
-                    </button>
-                    <button class="category-tab px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-text-muted-light dark:text-text-muted-dark font-medium whitespace-nowrap hover:bg-gray-200 dark:hover:bg-gray-700" data-category="institutional">
-                        Institutional
-                    </button>
-                    <button class="category-tab px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-text-muted-light dark:text-text-muted-dark font-medium whitespace-nowrap hover:bg-gray-200 dark:hover:bg-gray-700" data-category="individual">
-                        Individual
-                    </button>
-                    <button class="category-tab px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-text-muted-light dark:text-text-muted-dark font-medium whitespace-nowrap hover:bg-gray-200 dark:hover:bg-gray-700" data-category="special">
-                        Special
-                    </button>
+                <!-- Category Filters -->
+                <div class="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
+                    <span class="text-sm font-medium text-text-muted-light dark:text-text-muted-dark whitespace-nowrap">Filter by category:</span>
+                    <div class="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
+                        <button class="category-tab active px-4 py-1.5 rounded-full text-sm bg-primary text-white font-medium whitespace-nowrap transition-colors" data-category="all">
+                            All
+                        </button>
+                        <button class="category-tab px-4 py-1.5 rounded-full text-sm bg-gray-100 dark:bg-gray-800 text-text-muted-light dark:text-text-muted-dark font-medium whitespace-nowrap hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-category="institutional">
+                            Institutional
+                        </button>
+                        <button class="category-tab px-4 py-1.5 rounded-full text-sm bg-gray-100 dark:bg-gray-800 text-text-muted-light dark:text-text-muted-dark font-medium whitespace-nowrap hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-category="individual">
+                            Individual
+                        </button>
+                        <button class="category-tab px-4 py-1.5 rounded-full text-sm bg-gray-100 dark:bg-gray-800 text-text-muted-light dark:text-text-muted-dark font-medium whitespace-nowrap hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-category="special">
+                            Special
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Awards Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="awards-grid">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="awards-grid">
                     <!-- Award cards will be populated here -->
                     <div class="col-span-full flex items-center justify-center py-12">
                         <div class="flex items-center gap-3 text-text-muted-light dark:text-text-muted-dark">
@@ -842,6 +819,9 @@ const AWARDS_REQUIREMENTS = {
     }
 };
 
+// Inject token from PHP session
+const authToken = '<?php echo $token; ?>';
+
 let currentAwardId = null;
 let allEvidence = {
     certificates: [],
@@ -883,15 +863,33 @@ document.addEventListener('DOMContentLoaded', async function() {
 function initSidebar() {
     const container = document.getElementById('app-container');
     const toggle = document.getElementById('sidebar-toggle');
+    const mainContent = document.getElementById('main-content');
     const savedState = localStorage.getItem('sidebarCollapsed');
     
-    if (savedState === 'false') {
-        container.classList.remove('sidebar-collapsed');
+    // Function to apply collapsed state
+    const applyState = (isCollapsed) => {
+        if (isCollapsed) {
+            container.classList.add('sidebar-collapsed');
+            mainContent.classList.remove('ml-64');
+            mainContent.classList.add('ml-20');
+        } else {
+            container.classList.remove('sidebar-collapsed');
+            mainContent.classList.remove('ml-20');
+            mainContent.classList.add('ml-64');
+        }
+    };
+
+    // Initialize state
+    if (savedState === 'true') {
+        applyState(true);
+    } else {
+        applyState(false);
     }
     
     toggle?.addEventListener('click', () => {
-        container.classList.toggle('sidebar-collapsed');
-        localStorage.setItem('sidebarCollapsed', container.classList.contains('sidebar-collapsed'));
+        const isCollapsed = !container.classList.contains('sidebar-collapsed');
+        applyState(isCollapsed);
+        localStorage.setItem('sidebarCollapsed', isCollapsed);
     });
 }
 
@@ -938,15 +936,29 @@ function initModalTabs() {
 async function loadAllData() {
     try {
         // Load certificates/awards - from awards page
-        // These are files uploaded from the awards page and eligibility is determined by match score
+        // These are files uploaded from the awards page.
+        // For the Hub, we only need awards that are already 100% matched,
+        // so we use a dedicated endpoint that returns only 100% items.
         try {
-            const awardsRes = await fetch('api/awards.php?action=list');
-            if (awardsRes.ok) {
-                const awardsData = await awardsRes.json();
-                allEvidence.certificates = Array.isArray(awardsData) ? awardsData : [];
+            const hubDocsRes = await fetch('api/hub-supporting-docs.php');
+            if (hubDocsRes.ok) {
+                const hubDocsData = await hubDocsRes.json();
+                if (Array.isArray(hubDocsData)) {
+                    allEvidence.certificates = hubDocsData;
+                    console.log('Loaded 100% awards for Hub from hub-supporting-docs:', {
+                        count: allEvidence.certificates.length,
+                        certificates: allEvidence.certificates
+                    });
+                } else {
+                    console.error('Hub supporting docs API returned non-array data:', hubDocsData);
+                    allEvidence.certificates = [];
+                }
+            } else {
+                console.warn('Failed to load hub supporting docs - response not ok:', hubDocsRes.status);
+                allEvidence.certificates = [];
             }
         } catch (e) {
-            console.warn('Failed to load awards:', e);
+            console.warn('Failed to load hub supporting docs:', e);
             allEvidence.certificates = [];
         }
         
@@ -1005,6 +1017,10 @@ async function loadAllData() {
         calculateAwardStats();
         updateOverviewStats();
         
+        // Refresh the grid to show updated cards
+        const currentCategory = document.querySelector('.category-tab.active')?.dataset.category || 'all';
+        renderAwardsGrid(currentCategory);
+        
     } catch (error) {
         console.error('Error loading data:', error);
     }
@@ -1024,51 +1040,163 @@ function calculateAwardStats() {
         };
         
         // Process certificates - from awards page
-        // Include ALL files, calculate match score to determine eligibility for this award
+        // Use match_percentage from database if available (from awards page analysis), otherwise calculate
+        // Debug: Log all certificates for Global Citizenship Award
+        if (award.id === 'global-citizenship') {
+            console.log('Processing certificates for Global Citizenship:', {
+                totalCerts: allEvidence.certificates.length,
+                certificates: allEvidence.certificates
+            });
+        }
+        
         allEvidence.certificates.forEach(cert => {
-            const text = `${cert.title || ''} ${cert.description || ''}`.toLowerCase();
-            const matchScore = calculateMatchScore(text, award.keywords);
-            // Include all files, but still calculate match score for display and eligibility
-            stats.certificates.push({ ...cert, matchScore, aiDetected: matchScore >= 30 });
-            stats.total++;
-            if (matchScore >= 30) stats.aiDetected++;
-            if (matchScore >= 70) stats.eligible++;
+            // Only consider certificates whose predicted category matches this award
+            const certCategory = (cert.predicted_category || cert.analysis?.predicted_category || '').toLowerCase();
+            const awardTitle = (award.title || '').toLowerCase();
+            // e.g. 'Global Citizenship Award' → 'global citizenship'
+            const normalizedAward = awardTitle.replace(/\s*award\s*$/i, '').trim();
+            if (!certCategory || !normalizedAward || !certCategory.includes(normalizedAward)) {
+                return; // skip certificates that belong to other awards
+            }
+
+            // Check if match_percentage exists from database (awards page analysis)
+            // Also check analysis.match_percentage, analysis_status, or calculate from all_matches
+            let matchScore = cert.match_percentage || cert.analysis?.match_percentage;
+            
+            // If still null, try to calculate from all_matches if available
+            if ((matchScore === null || matchScore === undefined) && cert.analysis?.all_matches) {
+                try {
+                    const allMatches = typeof cert.analysis.all_matches === 'string' 
+                        ? JSON.parse(cert.analysis.all_matches) 
+                        : cert.analysis.all_matches;
+                    
+                    if (allMatches && typeof allMatches === 'object') {
+                        // Format 1: { match_count: N, total_keywords: M }
+                        if (allMatches.match_count !== undefined && allMatches.total_keywords !== undefined) {
+                            const total = allMatches.total_keywords || 1;
+                            const matched = allMatches.match_count || 0;
+                            if (total > 0) {
+                                matchScore = Math.round((matched / total) * 100);
+                            }
+                        }
+                        // Format 2: { matched: [...], missing: [...] }
+                        else if (Array.isArray(allMatches.matched)) {
+                            const matched = allMatches.matched.length;
+                            const missing = Array.isArray(allMatches.missing) ? allMatches.missing.length : 0;
+                            const total = matched + missing;
+                            if (total > 0) {
+                                matchScore = Math.round((matched / total) * 100);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // Ignore parsing errors
+                }
+            }
+            
+            // Fallback: check analysis_status
+            if ((matchScore === null || matchScore === undefined) && cert.analysis_status === 'Eligible') {
+                matchScore = 100;
+            }
+            
+            // Convert to number if it's a string
+            if (matchScore !== undefined && matchScore !== null) {
+                matchScore = parseFloat(matchScore);
+            }
+            
+            // Store the match score on the cert object for later use
+            cert.match_percentage = matchScore;
+            
+            // Debug logging for Global Citizenship Award - log ALL certificates
+            if (award.id === 'global-citizenship') {
+                console.log('Checking certificate:', {
+                    title: cert.title,
+                    matchScore,
+                    match_percentage: cert.match_percentage,
+                    analysis: cert.analysis,
+                    analysis_status: cert.analysis_status,
+                    all_matches: cert.analysis?.all_matches,
+                    willInclude: (matchScore === 100 || matchScore >= 100)
+                });
+            }
+            
+            // If match_percentage is 100 from database, include it regardless of award keywords
+            // This ensures files with 100% match from awards page are detected
+            if (matchScore === 100 || matchScore >= 100) {
+                stats.certificates.push({ ...cert, matchScore: 100, aiDetected: true });
+                stats.total++;
+                stats.aiDetected++;
+                stats.eligible++;
+                
+                // Debug logging
+                if (award.id === 'global-citizenship') {
+                    console.log('✅ Included certificate with 100% match:', cert.title);
+                }
+            } else {
+                // If no match_percentage from database or it's not 100%, calculate it
+                const text = `${cert.title || ''} ${cert.description || ''}`.toLowerCase();
+                matchScore = calculateMatchScore(text, award.keywords);
+                
+                // Only include if calculated score is 100%
+                if (matchScore === 100) {
+                    stats.certificates.push({ ...cert, matchScore: 100, aiDetected: true });
+                    stats.total++;
+                    stats.aiDetected++;
+                    stats.eligible++;
+                    
+                    // Debug logging
+                    if (award.id === 'global-citizenship') {
+                        console.log('✅ Included certificate with calculated 100% match:', cert.title);
+                    }
+                } else if (award.id === 'global-citizenship') {
+                    console.log('❌ Excluded certificate (not 100%):', {
+                        title: cert.title,
+                        calculatedScore: matchScore
+                    });
+                }
+            }
         });
         
         // Process MOUs - from MOU/MOA page
-        // Include ALL files regardless of match score
+        // Only include files with 100% match (same as awards page logic)
         allEvidence.mous.forEach(mou => {
             const text = `${mou.title || ''} ${mou.institution || ''} ${mou.description || ''}`.toLowerCase();
             const matchScore = calculateMatchScore(text, award.keywords);
-            // Include all files, but still calculate match score for display
-            stats.mous.push({ ...mou, matchScore, aiDetected: matchScore >= 30 });
-            stats.total++;
-            if (matchScore >= 30) stats.aiDetected++;
-            if (matchScore >= 70) stats.eligible++;
+            // Only include if 100% match
+            if (matchScore === 100) {
+                stats.mous.push({ ...mou, matchScore, aiDetected: true });
+                stats.total++;
+                stats.aiDetected++;
+                stats.eligible++;
+            }
         });
         
         // Process Events - from events page
-        // Include ALL files regardless of match score
+        // Only include files with 100% match (same as awards page logic)
         allEvidence.events.forEach(event => {
             const text = `${event.title || ''} ${event.description || ''} ${event.location || ''}`.toLowerCase();
             const matchScore = calculateMatchScore(text, award.keywords);
-            // Include all files, but still calculate match score for display
-            stats.events.push({ ...event, matchScore, aiDetected: matchScore >= 30 });
-            stats.total++;
-            if (matchScore >= 30) stats.aiDetected++;
-            if (matchScore >= 70) stats.eligible++;
+            // Only include if 100% match
+            if (matchScore === 100) {
+                stats.events.push({ ...event, matchScore, aiDetected: true });
+                stats.total++;
+                stats.aiDetected++;
+                stats.eligible++;
+            }
         });
         
         // Process Documents - from documents page (excluding MOU/MOA)
-        // Include ALL files regardless of match score
+        // Only include files with 100% match (same as awards page logic)
         allEvidence.documents.forEach(doc => {
             const text = `${doc.title || ''} ${doc.description || ''} ${doc.category || ''}`.toLowerCase();
             const matchScore = calculateMatchScore(text, award.keywords);
-            // Include all files, but still calculate match score for display
-            stats.documents.push({ ...doc, matchScore, aiDetected: matchScore >= 30 });
-            stats.total++;
-            if (matchScore >= 30) stats.aiDetected++;
-            if (matchScore >= 70) stats.eligible++;
+            // Only include if 100% match
+            if (matchScore === 100) {
+                stats.documents.push({ ...doc, matchScore, aiDetected: true });
+                stats.total++;
+                stats.aiDetected++;
+                stats.eligible++;
+            }
         });
         
         // Calculate readiness percentage based on requirements and criteria
@@ -1078,15 +1206,18 @@ function calculateAwardStats() {
     });
 }
 
-// Simple keyword matching
+// Simple keyword matching - Only returns 100 if ALL keywords match (same as awards page)
 function calculateMatchScore(text, keywords) {
+    if (!keywords || keywords.length === 0) return 0;
     let matches = 0;
     keywords.forEach(keyword => {
         if (text.includes(keyword.toLowerCase())) {
             matches++;
         }
     });
-    return Math.round((matches / keywords.length) * 100);
+    // Only return 100 if ALL keywords match, otherwise return the percentage
+    const percentage = Math.round((matches / keywords.length) * 100);
+    return percentage === 100 ? 100 : percentage;
 }
 
 // ============================
@@ -1101,8 +1232,9 @@ function getCombinedEvidenceList(stats, key) {
 }
 
 function hasDocumentKeywords(doc, keywords) {
+    // Require ALL keywords to match (100% match) - same as awards page logic
     const text = `${doc.title || ''} ${doc.description || ''} ${doc.category || ''}`.toLowerCase();
-    return keywords.some(keyword => text.includes(keyword));
+    return keywords.every(keyword => text.includes(keyword.toLowerCase()));
 }
 
 function eventHasVideoAttachment(event) {
@@ -1116,14 +1248,43 @@ function getRequirementAutoStatus(req, stats) {
     const detectType = (req.autoDetect || req.id || '').toLowerCase();
     const status = { autoChecked: false, detail: '' };
     
-    const documentSources = [
-        ...(normalizedStats.documents || []),
-        ...(normalizedStats.certificates || [])
-    ];
-    const mouSources = normalizedStats.mous || [];
-    const eventSources = normalizedStats.events || [];
+    // Check if this requirement is manually checked
+    const savedState = getChecklistState(currentAwardId);
+    const isManuallyChecked = savedState[req.id] === true;
+    
+    // If manually checked, use allEvidence (all documents), otherwise use stats (100% matches only)
+    let documentSources, mouSources, eventSources;
+    
+    if (isManuallyChecked && (detectType.includes('supporting') || detectType === 'documents' || detectType === 'supporting-docs')) {
+        // When manually checked, use ALL documents from allEvidence (not just 100% matches)
+        documentSources = [
+            ...(allEvidence.documents || []),
+            ...(allEvidence.certificates || [])
+        ];
+    } else {
+        // When not manually checked, use only 100% matches from stats
+        documentSources = [
+            ...(normalizedStats.documents || []),
+            ...(normalizedStats.certificates || [])
+        ];
+    }
+    
+    mouSources = normalizedStats.mous || [];
+    eventSources = normalizedStats.events || [];
     
     if (detectType.includes('supporting') || detectType === 'documents' || detectType === 'supporting-docs') {
+        // If not manually checked, count 100% matched certificates from awards list
+        if (!isManuallyChecked) {
+            const hundredPercentCerts = (allEvidence.certificates || []).filter(cert => {
+                const matchPct = cert.match_percentage || cert.analysis?.match_percentage;
+                return matchPct === 100 || matchPct >= 100;
+            });
+            documentSources = [
+                ...hundredPercentCerts,
+                ...(normalizedStats.documents || [])
+            ];
+        }
+        
         status.autoChecked = documentSources.length > 0;
         if (status.autoChecked) {
             status.detail = `${documentSources.length} document(s) found`;
@@ -1189,9 +1350,12 @@ function calculateAwardReadiness(awardId, stats) {
             return;
         }
         docPossible += 1;
-        const isChecked = state[req.id] || false;
+        const manualState = state[req.id];
         const autoChecked = isRequirementAutoMet(req, normalizedStats);
-        if (isChecked || autoChecked) {
+        // Use manual state if defined, otherwise use auto
+        const isChecked = manualState !== undefined ? manualState : autoChecked;
+        
+        if (isChecked) {
             docScore += 1;
         }
     });
@@ -1204,12 +1368,15 @@ function calculateAwardReadiness(awardId, stats) {
     if (criteriaCount > 0) {
         requirements.eligibilityCriteria.forEach(criteria => {
             const criteriaKey = `criteria-${criteria.id}`;
-            const isManuallyChecked = state[criteriaKey] || false;
-            const matchCount = countCriteriaMatches(criteria.id, normalizedStats);
+            const manualState = state[criteriaKey];
+            const matchCount = countCriteriaMatches(criteria.id, normalizedStats, awardId);
             const hasAutoMatch = matchCount > 0;
             
             // Criteria is met if manually checked OR automatically matched
-            if (isManuallyChecked || hasAutoMatch) {
+            // BUT manual override takes precedence if it's explicitly set
+            const isMet = manualState !== undefined ? manualState : hasAutoMatch;
+            
+            if (isMet) {
                 evidenceScore += 1;
             }
         });
@@ -1251,7 +1418,7 @@ function isAwardFullyCompleted(awardId) {
     
     let allCriteriaMet = true;
     requirements.eligibilityCriteria.forEach(criteria => {
-        const matchCount = countCriteriaMatches(criteria.id, stats);
+        const matchCount = countCriteriaMatches(criteria.id, stats, awardId);
         if (matchCount === 0) {
             allCriteriaMet = false;
         }
@@ -1295,7 +1462,19 @@ function updateOverviewStats() {
     });
     
     document.getElementById('stat-ready-to-apply').textContent = fullyCompleted;
+    const readyHint = document.getElementById('stat-ready-hint');
+    if (readyHint) {
+        if (fullyCompleted === 0) readyHint.classList.remove('hidden');
+        else readyHint.classList.add('hidden');
+    }
+
     document.getElementById('stat-in-progress').textContent = inProgress;
+    const progressHint = document.getElementById('stat-in-progress-hint');
+    if (progressHint) {
+        if (inProgress === 0) progressHint.classList.remove('hidden');
+        else progressHint.classList.add('hidden');
+    }
+
     document.getElementById('stat-total-awards').textContent = AWARDS_CONFIG.length;
     document.getElementById('stat-avg-readiness').textContent = Math.round(totalReadiness / AWARDS_CONFIG.length) + '%';
 }
@@ -1319,59 +1498,74 @@ function renderAwardsGrid(category) {
     
     grid.innerHTML = filteredAwards.map(award => {
         const stats = awardStats[award.id] || { total: 0, eligible: 0, readiness: 0, certificates: [], documents: [], events: [], mous: [] };
+        // Use original gradient-based readiness color unless it's very low/high
+        // Actually, let's use the Red/Orange/Green logic requested but apply it to the text color
         const readinessColor = stats.readiness >= 70 ? 'text-green-600' : stats.readiness >= 40 ? 'text-amber-600' : 'text-red-600';
         
+        // Badges for eligible/AI
+        const eligibleClass = stats.eligible > 0 
+            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+            : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500';
+            
+        const aiClass = stats.aiDetected > 0 
+            ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' 
+            : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500';
+        
         return `
-            <div class="award-card bg-card-light dark:bg-card-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden cursor-pointer h-full flex flex-col" onclick="openAwardModal('${award.id}')">
-                <!-- Card Header with Gradient -->
-                <div class="${award.gradient} p-5 flex-shrink-0">
-                    <div class="flex items-center justify-between">
-                        <div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                            <span class="material-symbols-outlined text-white text-2xl">${award.icon}</span>
+            <div class="award-card bg-card-light dark:bg-card-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden cursor-pointer h-full flex flex-col group hover:shadow-lg transition-all duration-300" onclick="openAwardModal('${award.id}')">
+                <!-- Card Header with Gradient (Original Design) -->
+                <div class="${award.gradient} p-5 flex-shrink-0 relative overflow-hidden">
+                    <div class="relative z-10 flex items-center justify-between">
+                        <div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/10">
+                            <span class="material-symbols-outlined text-white text-2xl shadow-sm">${award.icon}</span>
                         </div>
                         <div class="text-right">
-                            <p class="text-white/80 text-xs uppercase tracking-wider">${award.category}</p>
-                            <p class="text-white font-bold text-2xl">${stats.total}</p>
-                            <p class="text-white/70 text-xs">evidence items</p>
+                            <p class="text-white/80 text-[10px] font-bold uppercase tracking-widest mb-0.5">${award.category}</p>
+                            <div class="flex items-baseline justify-end gap-1">
+                                <p class="text-white font-bold text-3xl leading-none">${stats.total}</p>
+                                <p class="text-white/70 text-xs">items</p>
+                            </div>
                         </div>
                     </div>
+                    <!-- Decorative circle -->
+                    <div class="absolute -bottom-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
                 </div>
                 
                 <!-- Card Body -->
                 <div class="p-5 flex-grow flex flex-col">
-                    <h3 class="font-bold text-text-light dark:text-text-dark mb-2 line-clamp-2 min-h-[3rem]">${award.title}</h3>
-                    <p class="text-sm text-text-muted-light dark:text-text-muted-dark mb-4 line-clamp-2 min-h-[2.5rem]">${award.description}</p>
+                    <h3 class="text-lg font-bold text-text-light dark:text-text-dark mb-2 line-clamp-2 min-h-[3.5rem] group-hover:text-primary transition-colors">${award.title}</h3>
+                    <p class="text-sm text-text-muted-light dark:text-text-muted-dark mb-6 line-clamp-2 flex-grow">${award.description}</p>
                     
-                    <!-- Progress -->
-                    <div class="mb-4 mt-auto">
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-xs text-text-muted-light dark:text-text-muted-dark">Readiness</span>
+                    <!-- Progress (Matching Header Color logic from original, but improved layout) -->
+                    <div class="mb-5 mt-auto">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-xs font-medium text-text-muted-light dark:text-text-muted-dark">Readiness</span>
                             <span class="text-xs font-bold ${readinessColor}">${stats.readiness}%</span>
                         </div>
-                        <div class="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                            <div class="h-full ${award.gradient} rounded-full transition-all duration-500" style="width: ${stats.readiness}%"></div>
+                        <div class="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div class="h-full ${award.gradient} rounded-full transition-all duration-500 shadow-sm" style="width: ${stats.readiness}%"></div>
                         </div>
                     </div>
                     
-                    <!-- Stats Row -->
-                    <div class="flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-1 text-green-600 dark:text-green-400">
-                            <span class="material-symbols-outlined text-sm">check_circle</span>
-                            <span>${stats.eligible} eligible</span>
-                        </div>
-                        <div class="flex items-center gap-1 text-purple-600 dark:text-purple-400">
-                            <span class="material-symbols-outlined text-sm">smart_toy</span>
-                            <span>${stats.aiDetected} AI</span>
-                        </div>
+                    <!-- Status Badges (Improved from text) -->
+                    <div class="flex items-center gap-2 mb-5">
+                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide ${eligibleClass}">
+                            <span class="material-symbols-outlined text-[10px]">${stats.eligible > 0 ? 'check_circle' : 'radio_button_unchecked'}</span>
+                            ${stats.eligible} eligible
+                        </span>
+                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide ${aiClass}">
+                            <span class="material-symbols-outlined text-[10px]">${stats.aiDetected > 0 ? 'smart_toy' : 'smart_toy'}</span>
+                            ${stats.aiDetected} AI
+                        </span>
                     </div>
-                </div>
-                
-                <!-- Card Footer -->
-                <div class="px-5 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-border-light dark:border-border-dark flex-shrink-0 mt-auto">
-                    <button class="w-full text-center text-sm font-medium text-primary hover:text-primary-600 flex items-center justify-center gap-2">
-                        View Details
-                        <span class="material-symbols-outlined text-sm">arrow_forward</span>
-                    </button>
+                    
+                    <!-- Action Button (Improved) -->
+                    <div class="pt-4 border-t border-border-light dark:border-border-dark mt-auto">
+                         <button class="w-full py-2 rounded-lg bg-gray-50 dark:bg-gray-800 text-primary font-medium text-sm hover:bg-primary hover:text-white transition-all duration-300 flex items-center justify-center gap-2 group-hover:translate-y-0">
+                            View Details 
+                            <span class="material-symbols-outlined text-sm transition-transform group-hover:translate-x-1">arrow_forward</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
@@ -1382,7 +1576,7 @@ function renderAwardsGrid(category) {
 function openAwardModal(awardId) {
     currentAwardId = awardId;
     const award = AWARDS_CONFIG.find(a => a.id === awardId);
-    const stats = getAwardStatsById(awardId);
+    let stats = getAwardStatsById(awardId);
     
     if (!award) return;
     
@@ -1391,6 +1585,10 @@ function openAwardModal(awardId) {
     document.getElementById('modal-subtitle').textContent = award.description;
     document.getElementById('modal-icon').className = `w-14 h-14 rounded-xl ${award.gradient} flex items-center justify-center`;
     document.getElementById('modal-icon').innerHTML = `<span class="material-symbols-outlined text-white text-2xl">${award.icon}</span>`;
+    
+    // Recalculate stats to ensure we have the latest data
+    calculateAwardStats();
+    stats = getAwardStatsById(awardId);
     
     // Update readiness (recalculate to ensure it's accurate)
     stats.readiness = calculateAwardReadiness(awardId, stats);
@@ -1525,10 +1723,10 @@ function renderModalContent(tab) {
 function renderRequirementsTab(requirements, stats) {
     const statsSafe = ensureStatsStructure(stats);
     const totalEvidence = statsSafe.total || 0;
-    const supportingDocsCount = Math.min((statsSafe.documents.length + statsSafe.certificates.length), requirements.documentaryRequirements.find(req => req.id === 'supporting-docs')?.maxCount || 10);
     
     // Load saved checklist state from localStorage
     const savedState = getChecklistState(currentAwardId);
+    
     
     return `
         <div class="space-y-6">
@@ -1551,23 +1749,133 @@ function renderRequirementsTab(requirements, stats) {
                 <div class="space-y-3">
                     ${requirements.documentaryRequirements.map(req => {
                         const autoStatus = getRequirementAutoStatus(req, statsSafe);
-                        const isChecked = savedState[req.id] || false;
+                        const manualState = savedState[req.id];
                         const autoChecked = autoStatus.autoChecked;
-                        const checked = isChecked || autoChecked;
+                        // If manual state is set (true/false), use it. Otherwise default to auto state.
+                        const checked = manualState !== undefined ? manualState : autoChecked;
                         
-                        const autoDetectInfo = autoChecked
-                            ? `<p class="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-xs">check_circle</span>Auto-detected${autoStatus.detail ? `: ${autoStatus.detail}` : ''}</p>`
-                            : '';
+                        // Calculate supporting docs count based on manual state
+                        let docCount = 0;
+                        if (req.maxCount) {
+                            if (manualState === true) {
+                                // Use all documents when manually checked
+                                const allDocsCount = (allEvidence.documents || []).length + (allEvidence.certificates || []).length;
+                                docCount = Math.min(allDocsCount, req.maxCount || 10);
+                                // Debug logging
+                                if (req.id === 'supporting-docs') {
+                                    console.log('Supporting Docs (Manual):', {
+                                        allDocs: allEvidence.documents?.length || 0,
+                                        allCerts: allEvidence.certificates?.length || 0,
+                                        total: allDocsCount,
+                                        docCount
+                                    });
+                                }
+                            } else {
+                                // Count 100% matched certificates from awards list
+                                // Check ALL certificates and see which ones are 100% for THIS award
+                                const allCerts = allEvidence.certificates || [];
+                                
+                                // First, check certificates that already have match_percentage = 100
+                                let hundredPercentCerts = allCerts.filter(cert => {
+                                    let matchPct = cert.match_percentage || cert.analysis?.match_percentage;
+                                    
+                                    // If null, try to calculate from all_matches
+                                    if ((matchPct === null || matchPct === undefined) && cert.analysis?.all_matches) {
+                                        try {
+                                            const allMatches = typeof cert.analysis.all_matches === 'string' 
+                                                ? JSON.parse(cert.analysis.all_matches) 
+                                                : cert.analysis.all_matches;
+                                            
+                                            if (allMatches && typeof allMatches === 'object') {
+                                                // Format 1: { match_count: N, total_keywords: M }
+                                                if (allMatches.match_count !== undefined && allMatches.total_keywords !== undefined) {
+                                                    const total = allMatches.total_keywords || 1;
+                                                    const matched = allMatches.match_count || 0;
+                                                    if (total > 0) {
+                                                        matchPct = Math.round((matched / total) * 100);
+                                                    }
+                                                }
+                                                // Format 2: { matched: [...], missing: [...] }
+                                                else if (Array.isArray(allMatches.matched)) {
+                                                    const matched = allMatches.matched.length;
+                                                    const missing = Array.isArray(allMatches.missing) ? allMatches.missing.length : 0;
+                                                    const total = matched + missing;
+                                                    if (total > 0) {
+                                                        matchPct = Math.round((matched / total) * 100);
+                                                    }
+                                                }
+                                            }
+                                        } catch (e) {
+                                            // Ignore parsing errors
+                                        }
+                                    }
+                                    
+                                    // Fallback: check analysis_status
+                                    if ((matchPct === null || matchPct === undefined) && cert.analysis_status === 'Eligible') {
+                                        matchPct = 100;
+                                    }
+                                    
+                                    // Also check if predicted_category matches this award
+                                    const awardTitle = AWARDS_CONFIG[currentAwardId]?.title || '';
+                                    const certCategory = cert.predicted_category || cert.analysis?.predicted_category || '';
+                                    const matchesAward = awardTitle && certCategory && certCategory.includes(awardTitle.split(' ')[0]);
+                                    
+                                    const is100Percent = matchPct === 100 || matchPct >= 100;
+                                    
+                                    return is100Percent;
+                                });
+                                
+                                // Combine with 100% matched documents from stats
+                                const total100Percent = hundredPercentCerts.length + statsSafe.documents.length;
+                                docCount = Math.min(total100Percent, req.maxCount || 10);
+                                
+                                // Debug logging
+                                if (req.id === 'supporting-docs') {
+                                    console.log('Supporting Docs (Auto) - Global Citizenship:', {
+                                        currentAwardId,
+                                        awardTitle: AWARDS_CONFIG[currentAwardId]?.title,
+                                        hundredPercentCerts: hundredPercentCerts.length,
+                                        statsDocs: statsSafe.documents.length,
+                                        total100Percent,
+                                        docCount,
+                                        allCerts: allCerts.length,
+                                        certsWith100: hundredPercentCerts.map(c => ({ 
+                                            title: c.title, 
+                                            match: c.match_percentage || c.analysis?.match_percentage,
+                                            status: c.analysis_status,
+                                            category: c.predicted_category || c.analysis?.predicted_category
+                                        })),
+                                        allCertDetails: allCerts.map(c => ({
+                                            title: c.title,
+                                            match_percentage: c.match_percentage,
+                                            analysis_match: c.analysis?.match_percentage,
+                                            analysis_status: c.analysis_status,
+                                            predicted_category: c.predicted_category || c.analysis?.predicted_category,
+                                            all_matches: c.analysis?.all_matches
+                                        }))
+                                    });
+                                }
+                            }
+                        }
+                        
+                        // For supporting-docs, if manually checked, show count from allEvidence
+                        let autoDetectInfo = '';
+                        if (req.id === 'supporting-docs' && manualState === true) {
+                            const allDocsCount = (allEvidence.documents || []).length + (allEvidence.certificates || []).length;
+                            autoDetectInfo = `<p class="text-xs text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-xs">edit</span>Manually checked: ${allDocsCount} document(s) available</p>`;
+                        } else if (autoChecked) {
+                            autoDetectInfo = `<p class="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-xs">check_circle</span>Auto-detected${autoStatus.detail ? `: ${autoStatus.detail}` : ''}</p>`;
+                        }
                         
                         return `
                         <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border ${checked ? 'border-green-300 dark:border-green-700' : 'border-gray-200 dark:border-gray-700'} cursor-pointer hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
-                             onclick="toggleRequirement('${req.id}', this)">
+                             onclick="toggleRequirement('${req.id}', this, ${autoChecked})">
                             <div id="check-${req.id}" class="w-6 h-6 rounded-full border-2 ${checked ? 'border-green-500 bg-green-500' : 'border-gray-300 dark:border-gray-600 hover:border-blue-400'} flex items-center justify-center flex-shrink-0 transition-all">
                                 ${checked ? '<span class="material-symbols-outlined text-white text-sm">check</span>' : ''}
                             </div>
                             <div class="flex-1">
                                 <p class="text-sm font-medium text-text-light dark:text-text-dark">${req.label}</p>
-                                ${req.maxCount ? `<p class="text-xs text-text-muted-light dark:text-text-muted-dark">${supportingDocsCount}/${req.maxCount} documents uploaded</p>` : ''}
+                                ${req.maxCount ? `<p class="text-xs text-text-muted-light dark:text-text-muted-dark">${docCount}/${req.maxCount} documents uploaded</p>` : ''}
                                 ${autoDetectInfo}
                             </div>
                             ${req.required !== false ? '<span class="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs rounded-full">Required</span>' : '<span class="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs rounded-full">Optional</span>'}
@@ -1594,18 +1902,20 @@ function renderRequirementsTab(requirements, stats) {
                 <div class="space-y-3">
                     ${requirements.eligibilityCriteria.map(criteria => {
                         // Check if any evidence matches this criteria
-                        const matchCount = countCriteriaMatches(criteria.id, statsSafe);
-                        const hasMatch = matchCount > 0;
+                        const matchCount = countCriteriaMatches(criteria.id, statsSafe, currentAwardId);
+                        const autoMatchFound = matchCount > 0;
                         
                         // Check if manually marked as complete
                         const criteriaState = getChecklistState(currentAwardId);
                         const criteriaKey = `criteria-${criteria.id}`;
-                        const isManuallyChecked = criteriaState[criteriaKey] || false;
-                        const isCompleted = isManuallyChecked || hasMatch;
+                        const manualState = criteriaState[criteriaKey];
+                        
+                        // If manual state is defined, use it. Otherwise default to auto state.
+                        const isCompleted = manualState !== undefined ? manualState : autoMatchFound;
                         
                         return `
                             <div class="p-4 bg-white dark:bg-gray-800 rounded-lg border ${isCompleted ? 'border-green-300 dark:border-green-700' : 'border-gray-200 dark:border-gray-700'} cursor-pointer hover:border-green-400 dark:hover:border-green-600 transition-colors"
-                                 onclick="toggleCriteria('${criteria.id}', this)">
+                                 onclick="toggleCriteria('${criteria.id}', this, ${autoMatchFound})">
                                 <div class="flex items-start gap-3">
                                     <div id="criteria-check-${criteria.id}" class="w-6 h-6 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'} flex items-center justify-center flex-shrink-0 transition-all">
                                         ${isCompleted ? '<span class="material-symbols-outlined text-white text-sm">check</span>' : '<span class="material-symbols-outlined text-gray-400 text-sm">radio_button_unchecked</span>'}
@@ -1613,8 +1923,10 @@ function renderRequirementsTab(requirements, stats) {
                                     <div class="flex-1">
                                         <p class="text-sm font-semibold text-text-light dark:text-text-dark">${criteria.label}</p>
                                         <p class="text-xs text-text-muted-light dark:text-text-muted-dark mt-1">${criteria.description}</p>
-                                        ${hasMatch && !isManuallyChecked ? `<p class="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1"><span class="material-symbols-outlined text-xs">check_circle</span>${matchCount} evidence item(s) matched (auto-detected)</p>` : ''}
-                                        ${isManuallyChecked ? `<p class="text-xs text-blue-600 dark:text-blue-400 mt-2 flex items-center gap-1"><span class="material-symbols-outlined text-xs">edit</span>Manually marked as complete</p>` : ''}
+                                        ${autoMatchFound && manualState === undefined ? `<p class="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1"><span class="material-symbols-outlined text-xs">check_circle</span>${matchCount} evidence item(s) matched (auto-detected, 100% match)</p>` : ''}
+                                        ${autoMatchFound && manualState !== undefined ? `<p class="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1"><span class="material-symbols-outlined text-xs">check_circle</span>${matchCount} evidence item(s) detected (100% match)</p>` : ''}
+                                        ${manualState !== undefined ? (manualState ? `<p class="text-xs text-blue-600 dark:text-blue-400 mt-2 flex items-center gap-1"><span class="material-symbols-outlined text-xs">edit</span>Manually marked as complete</p>` : `<p class="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-1"><span class="material-symbols-outlined text-xs">close</span>Manually marked as incomplete</p>`) : ''}
+                                        ${!autoMatchFound && manualState === undefined ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-1"><span class="material-symbols-outlined text-xs">info</span>No evidence items with 100% match found</p>` : ''}
                                     </div>
                                 </div>
                             </div>
@@ -1909,8 +2221,14 @@ function renderCHEDGuidelinesTab() {
 }
 
 // Count evidence matches for a specific criteria
-function countCriteriaMatches(criteriaId, stats) {
-    // Simple heuristic: check if any evidence keywords match criteria keywords
+function countCriteriaMatches(criteriaId, stats, awardId = null) {
+    // Check if this criteria is manually checked
+    const checkAwardId = awardId || currentAwardId;
+    const state = getChecklistState(checkAwardId);
+    const criteriaKey = `criteria-${criteriaId}`;
+    const isManuallyChecked = state[criteriaKey] === true;
+    
+    // Only count items where ALL keywords match (100% match) - same as awards page logic
     const criteriaKeywords = {
         'intercultural': ['intercultural', 'cultural', 'diversity', 'inclusive'],
         'changemakers': ['SDG', 'sustainable', 'development', 'goals', 'changemaker'],
@@ -1940,17 +2258,43 @@ function countCriteriaMatches(criteriaId, stats) {
     if (keywords.length === 0) return 0;
     
     let matchCount = 0;
-    const allItems = [
-        ...(stats.certificates || []),
-        ...(stats.mous || []),
-        ...(stats.events || []),
-        ...(stats.documents || [])
-    ];
+    
+    // If manually checked, use allEvidence (all files, even below 100% match)
+    // Otherwise, use stats (only 100% matches)
+    let allItems;
+    if (isManuallyChecked) {
+        // When manually checked, include ALL files regardless of match percentage
+        allItems = [
+            ...(allEvidence.certificates || []),
+            ...(allEvidence.mous || []),
+            ...(allEvidence.events || []),
+            ...(allEvidence.documents || [])
+        ];
+    } else {
+        // When not manually checked, only use 100% matches from stats
+        allItems = [
+            ...(stats.certificates || []),
+            ...(stats.mous || []),
+            ...(stats.events || []),
+            ...(stats.documents || [])
+        ];
+    }
     
     allItems.forEach(item => {
         const text = `${item.title || ''} ${item.description || ''} ${item.institution || ''}`.toLowerCase();
-        const hasMatch = keywords.some(kw => text.includes(kw.toLowerCase()));
-        if (hasMatch) matchCount++;
+        if (isManuallyChecked) {
+            // When manually checked, count if ANY keyword matches (not requiring 100%)
+            const hasAnyMatch = keywords.some(kw => text.includes(kw.toLowerCase()));
+            if (hasAnyMatch) {
+                matchCount++;
+            }
+        } else {
+            // When not manually checked, require ALL keywords to match (100% match)
+            const allKeywordsMatch = keywords.every(kw => text.includes(kw.toLowerCase()));
+            if (allKeywordsMatch) {
+                matchCount++;
+            }
+        }
     });
     
     return matchCount;
@@ -1979,9 +2323,9 @@ function renderEvidenceItem(item) {
         document: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
     };
     
-    const scoreColor = item.matchScore >= 70 ? 'text-green-600 bg-green-50 dark:bg-green-900/20' : 
-                       item.matchScore >= 40 ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' : 
-                       'text-red-600 bg-red-50 dark:bg-red-900/20';
+    // Only 100% matches are shown, so all items are green
+    const scoreColor = item.matchScore === 100 ? 'text-green-600 bg-green-50 dark:bg-green-900/20' : 
+                       'text-gray-600 bg-gray-50 dark:bg-gray-900/20';
     
     const title = item.title || item.institution || 'Untitled';
     const description = item.description || item.location || '';
@@ -2061,19 +2405,23 @@ function saveChecklistState(awardId, state) {
 }
 
 // Toggle eligibility criteria checkbox
-function toggleCriteria(criteriaId, element) {
+function toggleCriteria(criteriaId, element, isAutoMatched) {
     const state = getChecklistState(currentAwardId);
     const criteriaKey = `criteria-${criteriaId}`;
-    const isCurrentlyChecked = state[criteriaKey] || false;
+    const manualState = state[criteriaKey];
+    
+    // Determine current effective state
+    const effectiveState = manualState !== undefined ? manualState : (isAutoMatched || false);
     
     // Toggle the state
-    state[criteriaKey] = !isCurrentlyChecked;
+    const newState = !effectiveState;
+    state[criteriaKey] = newState;
     saveChecklistState(currentAwardId, state);
     
     // Update the UI
     const checkDiv = element.querySelector(`#criteria-check-${criteriaId}`);
     if (checkDiv) {
-        if (state[criteriaKey]) {
+        if (newState) {
             // Mark as checked
             checkDiv.classList.remove('bg-gray-200', 'dark:bg-gray-700');
             checkDiv.classList.add('bg-green-500');
@@ -2090,6 +2438,36 @@ function toggleCriteria(criteriaId, element) {
         }
     }
     
+    // Update the info text to show detection status
+    const infoDiv = element.querySelector('.flex-1');
+    if (infoDiv) {
+        const criteria = AWARDS_REQUIREMENTS[currentAwardId]?.eligibilityCriteria?.find(c => c.id === criteriaId);
+        if (criteria) {
+            const stats = awardStats[currentAwardId] || { total: 0, certificates: [], documents: [], events: [], mous: [] };
+            const matchCount = countCriteriaMatches(criteriaId, stats, currentAwardId);
+            const autoMatchFound = matchCount > 0;
+            
+            let infoHTML = `
+                <p class="text-sm font-semibold text-text-light dark:text-text-dark">${criteria.label}</p>
+                <p class="text-xs text-text-muted-light dark:text-text-muted-dark mt-1">${criteria.description}</p>
+            `;
+            
+            if (autoMatchFound && newState) {
+                infoHTML += `<p class="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1"><span class="material-symbols-outlined text-xs">check_circle</span>${matchCount} evidence item(s) detected (100% match)</p>`;
+            }
+            if (newState) {
+                infoHTML += `<p class="text-xs text-blue-600 dark:text-blue-400 mt-2 flex items-center gap-1"><span class="material-symbols-outlined text-xs">edit</span>Manually marked as complete</p>`;
+            } else {
+                infoHTML += `<p class="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-1"><span class="material-symbols-outlined text-xs">close</span>Manually marked as incomplete</p>`;
+            }
+            if (!autoMatchFound && !newState) {
+                infoHTML += `<p class="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-1"><span class="material-symbols-outlined text-xs">info</span>No evidence items with 100% match found</p>`;
+            }
+            
+            infoDiv.innerHTML = infoHTML;
+        }
+    }
+    
     // Update Application Readiness in modal
     updateApplicationReadiness();
     
@@ -2103,22 +2481,33 @@ function toggleCriteria(criteriaId, element) {
     }
     
     // Show toast notification
-    showChecklistToast(state[criteriaKey] ? 'Criteria marked as complete!' : 'Criteria marked as incomplete');
+    showChecklistToast(newState ? 'Criteria marked as complete!' : 'Criteria marked as incomplete');
 }
 
 // Toggle requirement checkbox
-function toggleRequirement(reqId, element) {
+function toggleRequirement(reqId, element, isAutoChecked) {
     const state = getChecklistState(currentAwardId);
-    const isCurrentlyChecked = state[reqId] || false;
+    const manualState = state[reqId];
+    
+    // Determine current effective state
+    // If manual state is defined, use it. Else use auto state.
+    // Default to false if neither (shouldn't happen given call site but for safety)
+    const effectiveState = manualState !== undefined ? manualState : (isAutoChecked || false);
     
     // Toggle the state
-    state[reqId] = !isCurrentlyChecked;
+    const newState = !effectiveState;
+    state[reqId] = newState;
     saveChecklistState(currentAwardId, state);
+    
+    // If toggling supporting-docs, refresh the requirements tab to update the count
+    if (reqId === 'supporting-docs') {
+        renderModalContent('requirements');
+    }
     
     // Update the UI
     const checkDiv = element.querySelector(`#check-${reqId}`);
     if (checkDiv) {
-        if (state[reqId]) {
+        if (newState) {
             // Mark as checked
             checkDiv.classList.remove('border-gray-300', 'dark:border-gray-600');
             checkDiv.classList.add('border-green-500', 'bg-green-500');
@@ -2148,7 +2537,7 @@ function toggleRequirement(reqId, element) {
     }
     
     // Show toast notification
-    showChecklistToast(state[reqId] ? 'Marked as complete!' : 'Marked as incomplete');
+    showChecklistToast(newState ? 'Marked as complete!' : 'Marked as incomplete');
 }
 
 // Calculate and update Application Readiness
@@ -2169,9 +2558,12 @@ function updateApplicationReadiness() {
             return;
         }
         docPossible += 1;
-        const isChecked = state[req.id] || false;
+        const manualState = state[req.id];
         const autoChecked = isRequirementAutoMet(req, stats);
-        if (isChecked || autoChecked) {
+        // Use manual state if defined, otherwise use auto
+        const isChecked = manualState !== undefined ? manualState : autoChecked;
+        
+        if (isChecked) {
             docScore += 1;
         }
     });
@@ -2183,12 +2575,15 @@ function updateApplicationReadiness() {
     const criteriaCount = requirements.eligibilityCriteria.length;
     requirements.eligibilityCriteria.forEach(criteria => {
         const criteriaKey = `criteria-${criteria.id}`;
-        const isManuallyChecked = state[criteriaKey] || false;
-        const matchCount = countCriteriaMatches(criteria.id, stats);
+        const manualState = state[criteriaKey];
+        const matchCount = countCriteriaMatches(criteria.id, stats, currentAwardId);
         const hasAutoMatch = matchCount > 0;
         
         // Criteria is met if manually checked OR automatically matched
-        if (isManuallyChecked || hasAutoMatch) {
+        // BUT manual override takes precedence if it's explicitly set
+        const isMet = manualState !== undefined ? manualState : hasAutoMatch;
+        
+        if (isMet) {
             evidenceScore += 1;
         }
     });
@@ -2546,7 +2941,7 @@ function generateReport() {
                     <div class="space-y-3">
             `;
             requirements.eligibilityCriteria.forEach(criteria => {
-                const matchCount = countCriteriaMatches(criteria.id, stats);
+                const matchCount = countCriteriaMatches(criteria.id, stats, awardId);
                 html += `
                     <div class="p-4 bg-gray-50 rounded-lg border border-gray-300">
                         <h4 class="font-semibold text-gray-900 mb-1">${criteria.label}</h4>

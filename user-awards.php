@@ -2,7 +2,7 @@
 
 /**
 
- * LILAC Awards Management - With Upload & Analysis
+ * LILAC Awards Progress - With Upload & Analysis
 
  */
 
@@ -292,7 +292,7 @@ try {
 
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
 
-    <title>LILAC Awards Management</title>
+    <title>LILAC Awards Progress</title>
 
     <link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect" />
 
@@ -304,7 +304,7 @@ try {
 
     <link rel="stylesheet" href="css/award-analyzer.css">
 
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="assets/css/tailwind.css">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -349,127 +349,7 @@ try {
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
 
     </script>
-
-    <script>
-
-        tailwind.config = {
-
-            darkMode: "class",
-
-            theme: {
-
-                extend: {
-
-                    colors: {
-
-                        "primary": {
-
-                            DEFAULT: "#137fec",
-
-                            "50": "#e8f2fe",
-
-                            "100": "#d1e6fd",
-
-                            "200": "#a2cbfb",
-
-                            "300": "#74b1f9",
-
-                            "400": "#4596f7",
-
-                            "500": "#137fec",
-
-                            "600": "#0f66bc",
-
-                            "700": "#0c4c8d",
-
-                            "800": "#08335d",
-
-                            "900": "#04192e"
-
-                        },
-
-                        "background-light": "#e8ecf1",
-
-                        "background-dark": "#0f172a",
-
-                        "card-light": "#fafbfc",
-
-                        "card-dark": "#1e293b",
-
-                        "text-light": "#1e293b",
-
-                        "text-dark": "#e2e8f0",
-
-                        "text-muted-light": "#64748b",
-
-                        "text-muted-dark": "#94a3b8",
-
-                        "border-light": "#d1d5db",
-
-                        "border-dark": "#334155",
-
-                        // Modern Professional Color Palette
-
-                        'kpi-blue': '#2563eb',
-
-                        'kpi-green': '#059669',
-
-                        'kpi-purple': '#7c3aed',
-
-                        'kpi-yellow': '#f59e0b',
-
-                        'kpi-indigo': '#4f46e5',
-
-                        'kpi-teal': '#0d9488',
-
-                        'kpi-orange': '#ea580c',
-
-                        'kpi-pink': '#ec4899',
-
-                        // Status Chart Colors
-
-                        'status-fully': '#3b82f6',
-
-                        'status-partial': '#a78bfa',
-
-                        'status-review': '#facc15',
-
-                        'status-unqualified': '#ef4444',
-
-                    },
-
-                    fontFamily: {
-
-                        "display": ["Inter", "sans-serif"]
-
-                    },
-
-                    borderRadius: {
-
-                        "DEFAULT": "0.5rem",
-
-                        "lg": "0.75rem",
-
-                        "xl": "1rem",
-
-                        "full": "9999px"
-
-                    },
-
-                    boxShadow: {
-
-                        'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
-
-                    }
-
-                },
-
-            },
-
-        }
-
-    </script>
-
+    <!-- Tailwind is now configured via tailwind.config.js and compiled into assets/css/tailwind.css -->
     <style>
 
         .material-symbols-outlined {
@@ -505,99 +385,39 @@ try {
 
 
         .sidebar {
-
             width: 16rem;
-
             min-width: 16rem;
-
             max-width: 16rem;
-
             flex-shrink: 0;
-
             transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
-
         }
-
-
 
         .sidebar-collapsed .sidebar {
-
             width: 5rem;
-
             min-width: 5rem;
-
             max-width: 5rem;
-
         }
 
-
-
-        .sidebar-collapsed .sidebar-profile-info {
-
-            display: none;
-
-        }
-
-
-
-        .sidebar-collapsed .sidebar-profile-picture {
-
-            display: none;
-
-        }
-
-
-
-        .sidebar-expanded .sidebar-profile-picture {
-
-            display: block;
-
-        }
-
-
-
-        .sidebar-expanded .sidebar-profile-info {
-
-            display: block;
-
-        }
-
-
+        .sidebar-collapsed .sidebar-profile-info { display: none; }
+        .sidebar-collapsed .sidebar-profile-picture { display: none; }
+        
+        .sidebar-expanded .sidebar-profile-picture { display: block; }
+        .sidebar-expanded .sidebar-profile-info { display: block; }
 
         main {
-
             flex: 1;
-
             transition: margin-left 0.3s ease;
-
         }
 
+        .sidebar-collapsed main { margin-left: 0; }
+        #app-container.sidebar-collapsed main { margin-left: 0; }
+        .main-content { padding-left: 0; }
 
-
-        /* When sidebar is collapsed, add margin to main to account for sidebar width */
-
-        .sidebar-collapsed main {
-
-            margin-left: 0;
-
-        }
-
-        
-
-        /* Ensure main content doesn't get pushed incorrectly */
-
-        #app-container.sidebar-collapsed main {
-
-            margin-left: 0;
-
-        }
-
-
-
-        .main-content {
-
+        /* Ensure sidebar links are centered when collapsed */
+        .sidebar-collapsed .sidebar-nav-link {
+            justify-content: center;
             padding-left: 0;
-
+            padding-right: 0;
         }
 
 
@@ -1408,7 +1228,7 @@ try {
 
                     <span class="material-symbols-outlined filled">emoji_events</span>
 
-                    <span class="sidebar-text hidden">Awards Management</span>
+                    <span class="sidebar-text hidden">Awards Progress</span>
 
                 </a>
 
@@ -1521,7 +1341,7 @@ try {
                         <span class="material-symbols-outlined text-white">emoji_events</span>
                     </div>
                     <div>
-                <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">Awards Management</h1>
+                <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">Awards Progress</h1>
 
                         <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Track awards, readiness, and evidence submissions</p>
                     </div>
@@ -5469,76 +5289,90 @@ try {
 
             const toggleContainer = document.querySelector('.sidebar-toggle-container');
 
-            // Function to toggle sidebar
-
-            const toggleSidebar = () => {
-
-                const isCollapsed = appContainer.classList.contains('sidebar-collapsed');
-
-                if (isCollapsed) {
-
-                    // Expand sidebar
-
+            // Initialize sidebar state
+            const initSidebarState = () => {
+                const savedState = localStorage.getItem('sidebarCollapsed');
+                const mainContent = document.getElementById('main-content');
+                if (savedState === 'false') {
                     appContainer.classList.remove('sidebar-collapsed');
-
+                    if (mainContent) {
+                        mainContent.classList.remove('ml-20');
+                        mainContent.classList.add('ml-64');
+                    }
+                    
                     sidebarLogoText.classList.remove('hidden');
-
                     sidebarTexts.forEach(text => text.classList.remove('hidden'));
-
                     sidebarProfileInfo.classList.remove('hidden');
-
                     sidebarProfilePicture.classList.remove('hidden');
-
                     openIcon.classList.remove('hidden');
-
                     openIcon.classList.add('block');
-
                     closedIcon.classList.add('hidden');
-
                     closedIcon.classList.remove('block');
-
                     navLinks.forEach(link => link.classList.remove('justify-center'));
-
                     if (profileContainer) profileContainer.classList.remove('justify-center');
-
                     if (toggleContainer) toggleContainer.classList.remove('justify-center');
-
                 } else {
-
-                    // Collapse sidebar
-
+                    // Default or true
                     appContainer.classList.add('sidebar-collapsed');
-
-                    sidebarLogoText.classList.add('hidden');
-
-                    sidebarTexts.forEach(text => text.classList.add('hidden'));
-
-                    sidebarProfileInfo.classList.add('hidden');
-
-                    sidebarProfilePicture.classList.add('hidden');
-
-                    openIcon.classList.add('hidden');
-
-                    openIcon.classList.remove('block');
-
-                    closedIcon.classList.remove('hidden');
-
-                    closedIcon.classList.add('block');
-
-                    navLinks.forEach(link => link.classList.add('justify-center'));
-
-                    if (profileContainer) profileContainer.classList.add('justify-center');
-
-                    if (toggleContainer) toggleContainer.classList.add('justify-center');
-
+                    if (mainContent) {
+                        mainContent.classList.remove('ml-64');
+                        mainContent.classList.add('ml-20');
+                    }
                 }
+            };
+            initSidebarState();
 
+            // Function to toggle sidebar
+            const toggleSidebar = () => {
+                const isCollapsed = appContainer.classList.contains('sidebar-collapsed');
+                const mainContent = document.getElementById('main-content');
                 
-
+                if (isCollapsed) {
+                    // Expand sidebar
+                    appContainer.classList.remove('sidebar-collapsed');
+                    if (mainContent) {
+                        mainContent.classList.remove('ml-20');
+                        mainContent.classList.add('ml-64');
+                    }
+                    
+                    sidebarLogoText.classList.remove('hidden');
+                    sidebarTexts.forEach(text => text.classList.remove('hidden'));
+                    sidebarProfileInfo.classList.remove('hidden');
+                    sidebarProfilePicture.classList.remove('hidden');
+                    openIcon.classList.remove('hidden');
+                    openIcon.classList.add('block');
+                    closedIcon.classList.add('hidden');
+                    closedIcon.classList.remove('block');
+                    navLinks.forEach(link => link.classList.remove('justify-center'));
+                    if (profileContainer) profileContainer.classList.remove('justify-center');
+                    if (toggleContainer) toggleContainer.classList.remove('justify-center');
+                    
+                    localStorage.setItem('sidebarCollapsed', 'false');
+                } else {
+                    // Collapse sidebar
+                    appContainer.classList.add('sidebar-collapsed');
+                    if (mainContent) {
+                        mainContent.classList.remove('ml-64');
+                        mainContent.classList.add('ml-20');
+                    }
+                    
+                    sidebarLogoText.classList.add('hidden');
+                    sidebarTexts.forEach(text => text.classList.add('hidden'));
+                    sidebarProfileInfo.classList.add('hidden');
+                    sidebarProfilePicture.classList.add('hidden');
+                    openIcon.classList.add('hidden');
+                    openIcon.classList.remove('block');
+                    closedIcon.classList.remove('hidden');
+                    closedIcon.classList.add('block');
+                    navLinks.forEach(link => link.classList.add('justify-center'));
+                    if (profileContainer) profileContainer.classList.add('justify-center');
+                    if (toggleContainer) toggleContainer.classList.add('justify-center');
+                    
+                    localStorage.setItem('sidebarCollapsed', 'true');
+                }
+                
                 // Force a reflow to ensure layout updates properly
-
                 void appContainer.offsetHeight;
-
             };
 
             sidebarToggle.addEventListener('click', toggleSidebar);
