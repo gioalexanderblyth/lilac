@@ -217,7 +217,7 @@ try {
                 <h1 class="text-xl font-bold text-text-light dark:text-text-dark sidebar-logo-text whitespace-nowrap">LILAC</h1>
             </div>
         </div>
-        <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto overflow-x-hidden">
+        <nav class="flex-1 px-4 py-6 space-y-2">
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="dashboard.php" title="Dashboard">
                 <span class="material-symbols-outlined flex-shrink-0">dashboard</span>
                 <span class="sidebar-text whitespace-nowrap">Dashboard</span>
@@ -272,9 +272,17 @@ try {
         </div>
     </aside>
     <main class="flex-1 overflow-y-auto transition-all duration-300 ml-64" id="main-content">
-<header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible header-animate">
-<h1 class="text-2xl font-bold text-text-light dark:text-text-dark">User Profile</h1>
-<div class="flex items-center gap-2">
+    <header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible header-animate">
+    <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center">
+            <span class="material-symbols-outlined text-white">person</span>
+        </div>
+        <div>
+            <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">User Profile</h1>
+            <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Manage your account information and preferences</p>
+        </div>
+    </div>
+    <div class="flex items-center gap-2">
 					<div class="relative z-[9999]">
                         <button id="notificationBtn" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors duration-200 relative">
                             <span class="material-symbols-outlined">notifications</span>

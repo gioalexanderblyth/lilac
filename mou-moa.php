@@ -274,7 +274,7 @@ try {
                 <h1 class="text-xl font-bold text-text-light dark:text-text-dark sidebar-logo-text whitespace-nowrap">LILAC</h1>
             </div>
         </div>
-        <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto overflow-x-hidden">
+        <nav class="flex-1 px-4 py-6 space-y-2">
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="dashboard.php" title="Dashboard">
                 <span class="material-symbols-outlined flex-shrink-0">dashboard</span>
                 <span class="sidebar-text whitespace-nowrap">Dashboard</span>

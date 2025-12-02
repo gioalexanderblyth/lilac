@@ -384,42 +384,6 @@ try {
 
 
 
-        .sidebar {
-            width: 16rem;
-            min-width: 16rem;
-            max-width: 16rem;
-            flex-shrink: 0;
-            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
-        }
-
-        .sidebar-collapsed .sidebar {
-            width: 5rem;
-            min-width: 5rem;
-            max-width: 5rem;
-        }
-
-        .sidebar-collapsed .sidebar-profile-info { display: none; }
-        .sidebar-collapsed .sidebar-profile-picture { display: none; }
-        
-        .sidebar-expanded .sidebar-profile-picture { display: block; }
-        .sidebar-expanded .sidebar-profile-info { display: block; }
-
-        main {
-            flex: 1;
-            transition: margin-left 0.3s ease;
-        }
-
-        .sidebar-collapsed main { margin-left: 0; }
-        #app-container.sidebar-collapsed main { margin-left: 0; }
-        .main-content { padding-left: 0; }
-
-        /* Ensure sidebar links are centered when collapsed */
-        .sidebar-collapsed .sidebar-nav-link {
-            justify-content: center;
-            padding-left: 0;
-            padding-right: 0;
-        }
-
 
 
         /* Analytics Dashboard Styles */
@@ -1177,8 +1141,7 @@ try {
     <div class="flex h-screen sidebar-collapsed" id="app-container">
 
         <aside
-
-            class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col">
+            class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col fixed h-full z-40 transition-all duration-300">
 
             <div class="flex items-center justify-start px-4 h-20 border-b border-border-light dark:border-border-dark">
 
@@ -1330,7 +1293,7 @@ try {
 
         </aside>
 
-        <main class="flex-1 overflow-y-auto">
+        <main class="flex-1 overflow-y-auto transition-all duration-300 ml-64" id="main-content">
 
             <header
 

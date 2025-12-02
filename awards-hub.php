@@ -141,7 +141,7 @@ require_once __DIR__ . '/api/config.php';
                 <h1 class="text-xl font-bold text-text-light dark:text-text-dark sidebar-logo-text whitespace-nowrap">LILAC</h1>
             </div>
         </div>
-        <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto overflow-x-hidden">
+        <nav class="flex-1 px-4 py-6 space-y-2">
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="dashboard.php" title="Dashboard">
                 <span class="material-symbols-outlined flex-shrink-0">dashboard</span>
                 <span class="sidebar-text whitespace-nowrap">Dashboard</span>
@@ -199,17 +199,14 @@ require_once __DIR__ . '/api/config.php';
     <!-- Main Content -->
     <main class="flex-1 overflow-y-auto transition-all duration-300 ml-64" id="main-content">
         <!-- Header -->
-        <header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-6 border-b border-border-light dark:border-border-dark flex justify-between items-center h-auto mb-8">
-            <div class="flex items-center gap-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-sm">
-                        <span class="material-symbols-outlined text-white">military_tech</span>
-                    </div>
-                    <div>
-                        <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">ICONS 2025 Awards Hub</h1>
-                        <h2 class="text-base font-medium text-text-muted-light dark:text-text-muted-dark">Internationalization Awards Evidence Management</h2>
-                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1">Review award readiness and open details to manage evidence.</p>
-                    </div>
+        <header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-sm">
+                    <span class="material-symbols-outlined text-white">military_tech</span>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-text-light dark:text-text-dark">ICONS 2025 Awards Hub</h1>
+                    <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Internationalization Awards Evidence Management</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -226,52 +223,54 @@ require_once __DIR__ . '/api/config.php';
             </div>
         </header>
 
-        <div class="px-6 lg:px-8 pb-12">
-            <!-- Overview Stats -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+        <div class="px-6 lg:px-8 pt-4 pb-12">
+            <!-- Overview Stats (compact) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <!-- Card 1 -->
-                <div class="bg-card-light dark:bg-card-dark rounded-xl p-6 border border-border-light dark:border-border-dark relative overflow-hidden group hover:shadow-md transition-shadow">
+                <div class="bg-card-light dark:bg-card-dark rounded-lg p-4 border border-border-light dark:border-border-dark relative overflow-hidden group hover:shadow-md transition-shadow">
                     <div class="relative z-10">
                         <p class="text-sm font-medium text-text-muted-light dark:text-text-muted-dark mb-1">Awards Ready to Apply</p>
-                        <p class="text-4xl font-bold text-text-light dark:text-text-dark mb-2" id="stat-ready-to-apply">0</p>
+                        <p class="text-3xl font-bold text-text-light dark:text-text-dark mb-1" id="stat-ready-to-apply">0</p>
                         <p class="text-xs text-text-muted-light dark:text-text-muted-dark hidden mt-1" id="stat-ready-hint">No awards ready yet. Complete evidence to unlock eligibility.</p>
                     </div>
-                    <div class="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <span class="material-symbols-outlined text-6xl text-blue-600 dark:text-blue-400">rocket_launch</span>
+                    <div class="absolute right-3 top-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="material-symbols-outlined text-4xl text-blue-600 dark:text-blue-400">rocket_launch</span>
                     </div>
                 </div>
 
                 <!-- Card 2 -->
-                <div class="bg-card-light dark:bg-card-dark rounded-xl p-6 border border-border-light dark:border-border-dark relative overflow-hidden group hover:shadow-md transition-shadow">
+                <div class="bg-card-light dark:bg-card-dark rounded-lg p-4 border border-border-light dark:border-border-dark relative overflow-hidden group hover:shadow-md transition-shadow">
                     <div class="relative z-10">
                         <p class="text-sm font-medium text-text-muted-light dark:text-text-muted-dark mb-1">Awards In Progress</p>
-                        <p class="text-4xl font-bold text-text-light dark:text-text-dark mb-2" id="stat-in-progress">0</p>
+                        <p class="text-3xl font-bold text-text-light dark:text-text-dark mb-1" id="stat-in-progress">0</p>
                         <p class="text-xs text-text-muted-light dark:text-text-muted-dark hidden mt-1" id="stat-in-progress-hint">Start requirements to see progress.</p>
                     </div>
-                    <div class="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <span class="material-symbols-outlined text-6xl text-green-600 dark:text-green-400">work</span>
+                    <div class="absolute right-3 top-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="material-symbols-outlined text-4xl text-green-600 dark:text-green-400">work</span>
                     </div>
                 </div>
 
                 <!-- Card 3 -->
-                <div class="bg-card-light dark:bg-card-dark rounded-xl p-6 border border-border-light dark:border-border-dark relative overflow-hidden group hover:shadow-md transition-shadow">
+                <div class="bg-card-light dark:bg-card-dark rounded-lg p-4 border border-border-light dark:border-border-dark relative overflow-hidden group hover:shadow-md transition-shadow">
                     <div class="relative z-10">
                         <p class="text-sm font-medium text-text-muted-light dark:text-text-muted-dark mb-1">Total Awards</p>
-                        <p class="text-4xl font-bold text-text-light dark:text-text-dark mb-2" id="stat-total-awards">0</p>
+                        <p class="text-3xl font-bold text-text-light dark:text-text-dark mb-1" id="stat-total-awards">0</p>
+                        <p class="text-xs text-text-muted-light dark:text-text-muted-dark mt-1">Total awards configured in ICONS 2025.</p>
                     </div>
-                    <div class="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <span class="material-symbols-outlined text-6xl text-purple-600 dark:text-purple-400">folder</span>
+                    <div class="absolute right-3 top-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="material-symbols-outlined text-4xl text-purple-600 dark:text-purple-400">folder</span>
                     </div>
                 </div>
 
                 <!-- Card 4 -->
-                <div class="bg-card-light dark:bg-card-dark rounded-xl p-6 border border-border-light dark:border-border-dark relative overflow-hidden group hover:shadow-md transition-shadow">
+                <div class="bg-card-light dark:bg-card-dark rounded-lg p-4 border border-border-light dark:border-border-dark relative overflow-hidden group hover:shadow-md transition-shadow">
                     <div class="relative z-10">
                         <p class="text-sm font-medium text-text-muted-light dark:text-text-muted-dark mb-1">Avg. Readiness</p>
-                        <p class="text-4xl font-bold text-text-light dark:text-text-dark mb-2" id="stat-avg-readiness">0%</p>
+                        <p class="text-3xl font-bold text-text-light dark:text-text-dark mb-1" id="stat-avg-readiness">0%</p>
+                        <p class="text-xs text-text-muted-light dark:text-text-muted-dark mt-1">Average readiness across all awards.</p>
                     </div>
-                    <div class="absolute right-4 bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <span class="material-symbols-outlined text-6xl text-amber-600 dark:text-amber-400">trending_up</span>
+                    <div class="absolute right-3 top-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <span class="material-symbols-outlined text-4xl text-amber-600 dark:text-amber-400">trending_up</span>
                     </div>
                 </div>
             </div>
@@ -312,7 +311,7 @@ require_once __DIR__ . '/api/config.php';
                 </div>
 
                 <!-- Awards Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="awards-grid">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8" id="awards-grid">
                     <!-- Award cards will be populated here -->
                     <div class="col-span-full flex items-center justify-center py-12">
                         <div class="flex items-center gap-3 text-text-muted-light dark:text-text-muted-dark">
@@ -1512,9 +1511,9 @@ function renderAwardsGrid(category) {
             : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500';
         
         return `
-            <div class="award-card bg-card-light dark:bg-card-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden cursor-pointer h-full flex flex-col group hover:shadow-lg transition-all duration-300" onclick="openAwardModal('${award.id}')">
-                <!-- Card Header with Gradient (Original Design) -->
-                <div class="${award.gradient} p-5 flex-shrink-0 relative overflow-hidden">
+            <div class="award-card bg-card-light dark:bg-card-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden cursor-pointer flex flex-col group hover:shadow-lg transition-all duration-300" onclick="openAwardModal('${award.id}')">
+                <!-- Card Header with Gradient (More compact) -->
+                <div class="${award.gradient} p-4 flex-shrink-0 relative overflow-hidden">
                     <div class="relative z-10 flex items-center justify-between">
                         <div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/10">
                             <span class="material-symbols-outlined text-white text-2xl shadow-sm">${award.icon}</span>
@@ -1531,37 +1530,27 @@ function renderAwardsGrid(category) {
                     <div class="absolute -bottom-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
                 </div>
                 
-                <!-- Card Body -->
-                <div class="p-5 flex-grow flex flex-col">
-                    <h3 class="text-lg font-bold text-text-light dark:text-text-dark mb-2 line-clamp-2 min-h-[3.5rem] group-hover:text-primary transition-colors">${award.title}</h3>
-                    <p class="text-sm text-text-muted-light dark:text-text-muted-dark mb-6 line-clamp-2 flex-grow">${award.description}</p>
+                <!-- Card Body (More compact) -->
+                <div class="p-4 flex flex-col gap-2">
+                    <h3 class="text-base font-semibold text-text-light dark:text-text-dark line-clamp-2 group-hover:text-primary transition-colors">${award.title}</h3>
+                    <p class="text-xs text-text-muted-light dark:text-text-muted-dark line-clamp-2">${award.description}</p>
                     
-                    <!-- Progress (Matching Header Color logic from original, but improved layout) -->
-                    <div class="mb-5 mt-auto">
-                        <div class="flex items-center justify-between mb-1.5">
-                            <span class="text-xs font-medium text-text-muted-light dark:text-text-muted-dark">Readiness</span>
-                            <span class="text-xs font-bold ${readinessColor}">${stats.readiness}%</span>
+                    <!-- Progress (more compact) -->
+                    <div class="mt-2">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[11px] font-medium text-text-muted-light dark:text-text-muted-dark">Readiness</span>
+                            <span class="text-[11px] font-bold ${readinessColor}">${stats.readiness}%</span>
                         </div>
                         <div class="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                             <div class="h-full ${award.gradient} rounded-full transition-all duration-500 shadow-sm" style="width: ${stats.readiness}%"></div>
                         </div>
                     </div>
                     
-                    <!-- Status Badges (Improved from text) -->
-                    <div class="flex items-center gap-2 mb-5">
-                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide ${eligibleClass}">
-                            <span class="material-symbols-outlined text-[10px]">${stats.eligible > 0 ? 'check_circle' : 'radio_button_unchecked'}</span>
-                            ${stats.eligible} eligible
-                        </span>
-                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide ${aiClass}">
-                            <span class="material-symbols-outlined text-[10px]">${stats.aiDetected > 0 ? 'smart_toy' : 'smart_toy'}</span>
-                            ${stats.aiDetected} AI
-                        </span>
-                    </div>
+                    <!-- Status Badges removed per request -->
                     
-                    <!-- Action Button (Improved) -->
-                    <div class="pt-4 border-t border-border-light dark:border-border-dark mt-auto">
-                         <button class="w-full py-2 rounded-lg bg-gray-50 dark:bg-gray-800 text-primary font-medium text-sm hover:bg-primary hover:text-white transition-all duration-300 flex items-center justify-center gap-2 group-hover:translate-y-0">
+                    <!-- Action Button (compact) -->
+                    <div class="pt-3 border-t border-border-light dark:border-border-dark mt-3">
+                         <button class="w-full py-1.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-primary font-medium text-xs hover:bg-primary hover:text-white transition-all duration-300 flex items-center justify-center gap-1.5 group-hover:translate-y-0">
                             View Details 
                             <span class="material-symbols-outlined text-sm transition-transform group-hover:translate-x-1">arrow_forward</span>
                         </button>

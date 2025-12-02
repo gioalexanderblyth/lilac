@@ -233,7 +233,7 @@ try {
                 <h1 class="text-xl font-bold text-text-light dark:text-text-dark sidebar-logo-text whitespace-nowrap">LILAC</h1>
             </div>
         </div>
-        <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto overflow-x-hidden">
+        <nav class="flex-1 px-4 py-6 space-y-2">
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="dashboard.php" title="Dashboard">
                 <span class="material-symbols-outlined flex-shrink-0">dashboard</span>
                 <span class="sidebar-text whitespace-nowrap">Dashboard</span>
@@ -360,12 +360,133 @@ No notifications yet
 
       <!-- Events Table View -->
       <div class="bg-card-light dark:bg-card-dark p-6 rounded-xl shadow-soft">
-        <div class="flex justify-between items-center mb-4">
+        <div class="mb-4 flex items-center justify-between gap-4">
           <div>
             <h3 class="text-xl font-bold text-text-light dark:text-text-dark">All Events</h3>
             <p class="text-sm text-text-muted-light dark:text-text-muted-dark">View all events in a table format</p>
           </div>
+          
+          <!-- Filter and Sort Buttons -->
+          <div class="flex items-center gap-2">
+            <div class="relative">
+              <button id="eventFilterBtn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-light bg-card-light border border-border-light rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-text-muted-dark dark:border-border-dark dark:hover:bg-card-dark">
+                <span class="material-symbols-outlined text-base">filter_list</span>
+                <span id="eventFilterText">Filter</span>
+              </button>
+              
+              <!-- Filter Dropdown Menu -->
+              <div id="eventFilterDropdown" class="absolute right-0 mt-2 w-80 bg-white dark:bg-background-dark rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 hidden max-h-96 overflow-y-auto">
+                <div class="py-2">
+                  <!-- Status Filter -->
+                  <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filter by Status</div>
+                  
+                  <button class="event-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="status" data-value="all">
+                    <span>All Status</span>
+                    <span class="event-filter-indicator hidden">✓</span>
+                  </button>
+                  
+                  <button class="event-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="status" data-value="upcoming">
+                    <span>Upcoming</span>
+                    <span class="event-filter-indicator hidden">✓</span>
+                  </button>
+                  
+                  <button class="event-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="status" data-value="today">
+                    <span>Today</span>
+                    <span class="event-filter-indicator hidden">✓</span>
+                  </button>
+                  
+                  <button class="event-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="status" data-value="completed">
+                    <span>Completed</span>
+                    <span class="event-filter-indicator hidden">✓</span>
+                  </button>
+                  
+                  <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                  
+                  <!-- Location Filter -->
+                  <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filter by Location</div>
+                  
+                  <div class="px-4 py-2">
+                    <label class="sr-only" for="eventLocationFilter">Search location</label>
+                    <input type="text" id="eventLocationFilter" placeholder="Search location..." class="w-full px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary">
+                  </div>
+                  
+                  <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                  
+                  <!-- Date Range Filters -->
+                  <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filter by Date Range</div>
+                  
+                  <div class="px-4 py-2 space-y-2">
+                    <div>
+                      <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1" for="eventDateFromFilter">Event Date From</label>
+                      <input type="date" id="eventDateFromFilter" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary">
+                    </div>
+                    <div>
+                      <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1" for="eventDateToFilter">Event Date To</label>
+                      <input type="date" id="eventDateToFilter" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary">
+                    </div>
+                  </div>
+                  
+                  <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                  
+                  <button id="eventClearFilter" class="w-full text-left px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+                    Clear All Filters
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="relative">
+              <button id="eventSortBtn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-light bg-card-light border border-border-light rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-text-muted-dark dark:border-border-dark dark:hover:bg-card-dark">
+                <span class="material-symbols-outlined text-base">swap_vert</span>
+                <span id="eventSortText">Sort</span>
+              </button>
+              
+              <!-- Sort Dropdown Menu -->
+              <div id="eventSortDropdown" class="absolute right-0 mt-2 w-56 bg-white dark:bg-background-dark rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 hidden">
+                <div class="py-2">
+                  <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sort by</div>
+                  
+                  <button class="event-sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="title" data-direction="asc">
+                    <span>Event Name (A-Z)</span>
+                    <span class="event-sort-indicator hidden">✓</span>
+                  </button>
+                  
+                  <button class="event-sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="title" data-direction="desc">
+                    <span>Event Name (Z-A)</span>
+                    <span class="event-sort-indicator hidden">✓</span>
+                  </button>
+                  
+                  <button class="event-sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="date" data-direction="desc">
+                    <span>Date (Newest)</span>
+                    <span class="event-sort-indicator hidden">✓</span>
+                  </button>
+                  
+                  <button class="event-sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="date" data-direction="asc">
+                    <span>Date (Oldest)</span>
+                    <span class="event-sort-indicator hidden">✓</span>
+                  </button>
+                  
+                  <button class="event-sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="location" data-direction="asc">
+                    <span>Location (A-Z)</span>
+                    <span class="event-sort-indicator hidden">✓</span>
+                  </button>
+                  
+                  <button class="event-sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="status" data-direction="asc">
+                    <span>Status (A-Z)</span>
+                    <span class="event-sort-indicator hidden">✓</span>
+                  </button>
+                  
+                  <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                  
+                  <button id="eventClearSort" class="w-full text-left px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+                    Clear Sort
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+        
         <div class="bg-card-light dark:bg-card-dark rounded-xl shadow-soft overflow-hidden border border-border-light dark:border-border-dark">
           <div class="overflow-x-auto">
             <table class="w-full divide-y divide-border-light dark:divide-border-dark">
@@ -2015,6 +2136,8 @@ No notifications yet
                         
                         // Store events in memory for UI functions (not localStorage)
                         window.currentEvents = convertedEvents;
+                        // Store all events separately for filtering
+                        window.allEvents = [...convertedEvents];
                         
                         // Reload the UI with database events directly
                         loadUpcomingEventsFromData(convertedEvents);
@@ -2024,7 +2147,7 @@ No notifications yet
                         // Populate events table - CRITICAL: Must be called to show events
                         if (typeof renderEventsTable === 'function') {
                             try {
-                                renderEventsTable(convertedEvents);
+                                applyEventFilters();
                                 console.log('✅ Events table rendered with', convertedEvents.length, 'events');
                             } catch (error) {
                                 console.error('❌ Error rendering events table:', error);
@@ -2069,8 +2192,12 @@ No notifications yet
                     // Try to populate table from localStorage
                     try {
                         const savedEvents = JSON.parse(localStorage.getItem('upcomingEvents') || '[]');
-                        renderEventsTable(savedEvents);
+                        window.allEvents = [...savedEvents];
+                        window.currentEvents = savedEvents;
+                        applyEventFilters();
                     } catch (e) {
+                        window.allEvents = [];
+                        window.currentEvents = [];
                         renderEventsTable([]);
                     }
                     
@@ -2091,7 +2218,7 @@ No notifications yet
             }
 
             // Function to render events in table format
-            function renderEventsTable(events) {
+            function renderEventsTable(events, hasActiveFilters = false) {
                 const tableBody = document.getElementById('eventsTableBody');
                 if (!tableBody) return;
 
@@ -2101,12 +2228,15 @@ No notifications yet
                 // Show empty state if no events
                 if (!Array.isArray(events) || events.length === 0) {
                     const emptyRow = document.createElement('tr');
+                    const emptyMessage = hasActiveFilters 
+                        ? 'No events match your current filters. Try adjusting your filter criteria.'
+                        : 'Click "Add Event" to create your first event';
                     emptyRow.innerHTML = `
                         <td colspan="6" class="px-6 py-12 text-center">
                             <div class="flex flex-col items-center justify-center">
                                 <span class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-500 mb-4">event</span>
                                 <p class="text-lg font-medium text-text-muted-light dark:text-text-muted-dark mb-2">No events found</p>
-                                <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Click "Add Event" to create your first event</p>
+                                <p class="text-sm text-text-muted-light dark:text-text-muted-dark">${emptyMessage}</p>
                             </div>
                         </td>
                     `;
@@ -2115,17 +2245,10 @@ No notifications yet
                     return;
                 }
                 
-                // Sort events by date (newest first)
-                const sortedEvents = [...events].sort((a, b) => {
-                    const dateA = new Date(a.date || a.event_date || 0);
-                    const dateB = new Date(b.date || b.event_date || 0);
-                    return dateB - dateA;
-                });
-
-                console.log('🔵 Rendering', sortedEvents.length, 'events in table');
+                console.log('🔵 Rendering', events.length, 'events in table');
 
                 // Add rows for each event
-                sortedEvents.forEach(event => {
+                events.forEach(event => {
                     const row = document.createElement('tr');
                     row.className = 'border-b border-border-light dark:border-border-dark';
                     
@@ -2212,6 +2335,304 @@ No notifications yet
                 });
             }
 
+            // Event filtering and sorting functionality
+            let eventCurrentFilter = {
+                status: 'all',
+                location: '',
+                dateFrom: '',
+                dateTo: ''
+            };
+            
+            let eventCurrentSort = {
+                field: 'date',
+                direction: 'desc'
+            };
+            
+            function applyEventFilters() {
+                // Get all events from memory or use empty array
+                let filteredEvents = [...(window.allEvents || window.currentEvents || [])];
+                
+                // Apply filters
+                filteredEvents = filteredEvents.filter(event => {
+                    const eventDate = event.date || event.event_date || '';
+                    const eventLocation = (event.location || '').toLowerCase();
+                    
+                    // Status filter
+                    if (eventCurrentFilter.status !== 'all') {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const eventDateObj = new Date(eventDate);
+                        eventDateObj.setHours(0, 0, 0, 0);
+                        
+                        let eventStatus = 'upcoming';
+                        if (eventDateObj < today) {
+                            eventStatus = 'completed';
+                        } else if (eventDateObj.getTime() === today.getTime()) {
+                            eventStatus = 'today';
+                        }
+                        
+                        if (eventStatus !== eventCurrentFilter.status) {
+                            return false;
+                        }
+                    }
+                    
+                    // Location filter
+                    if (eventCurrentFilter.location && !eventLocation.includes(eventCurrentFilter.location.toLowerCase())) {
+                        return false;
+                    }
+                    
+                    // Date range filter
+                    if (eventCurrentFilter.dateFrom) {
+                        const fromDate = new Date(eventCurrentFilter.dateFrom);
+                        fromDate.setHours(0, 0, 0, 0);
+                        const eventDateObj = new Date(eventDate);
+                        eventDateObj.setHours(0, 0, 0, 0);
+                        if (eventDateObj < fromDate) {
+                            return false;
+                        }
+                    }
+                    
+                    if (eventCurrentFilter.dateTo) {
+                        const toDate = new Date(eventCurrentFilter.dateTo);
+                        toDate.setHours(23, 59, 59, 999);
+                        const eventDateObj = new Date(eventDate);
+                        eventDateObj.setHours(23, 59, 59, 999);
+                        if (eventDateObj > toDate) {
+                            return false;
+                        }
+                    }
+                    
+                    return true;
+                });
+                
+                // Apply sorting
+                filteredEvents.sort((a, b) => {
+                    let aValue, bValue;
+                    
+                    switch (eventCurrentSort.field) {
+                        case 'title':
+                            aValue = (a.title || '').toLowerCase();
+                            bValue = (b.title || '').toLowerCase();
+                            return eventCurrentSort.direction === 'asc' 
+                                ? aValue.localeCompare(bValue)
+                                : bValue.localeCompare(aValue);
+                        
+                        case 'date':
+                            aValue = new Date(a.date || a.event_date || 0);
+                            bValue = new Date(b.date || b.event_date || 0);
+                            return eventCurrentSort.direction === 'asc'
+                                ? aValue - bValue
+                                : bValue - aValue;
+                        
+                        case 'location':
+                            aValue = (a.location || '').toLowerCase();
+                            bValue = (b.location || '').toLowerCase();
+                            return eventCurrentSort.direction === 'asc'
+                                ? aValue.localeCompare(bValue)
+                                : bValue.localeCompare(aValue);
+                        
+                        case 'status':
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const aDate = new Date(a.date || a.event_date || 0);
+                            aDate.setHours(0, 0, 0, 0);
+                            const bDate = new Date(b.date || b.event_date || 0);
+                            bDate.setHours(0, 0, 0, 0);
+                            
+                            let aStatus = 'upcoming';
+                            if (aDate < today) aStatus = 'completed';
+                            else if (aDate.getTime() === today.getTime()) aStatus = 'today';
+                            
+                            let bStatus = 'upcoming';
+                            if (bDate < today) bStatus = 'completed';
+                            else if (bDate.getTime() === today.getTime()) bStatus = 'today';
+                            
+                            return eventCurrentSort.direction === 'asc'
+                                ? aStatus.localeCompare(bStatus)
+                                : bStatus.localeCompare(aStatus);
+                        
+                        default:
+                            return 0;
+                    }
+                });
+                
+                // Check if any filters are active
+                const hasActiveFilters = eventCurrentFilter.status !== 'all' || 
+                                       eventCurrentFilter.location || 
+                                       eventCurrentFilter.dateFrom || 
+                                       eventCurrentFilter.dateTo;
+                
+                // Render filtered and sorted events
+                renderEventsTable(filteredEvents, hasActiveFilters);
+            }
+            
+            function updateEventFilterUI() {
+                // Clear all indicators
+                document.querySelectorAll('.event-filter-indicator').forEach(indicator => {
+                    indicator.classList.add('hidden');
+                });
+                
+                // Show current filter indicators
+                if (eventCurrentFilter.status !== 'all') {
+                    const activeOption = document.querySelector(`[data-filter="status"][data-value="${eventCurrentFilter.status}"]`);
+                    if (activeOption) {
+                        activeOption.querySelector('.event-filter-indicator')?.classList.remove('hidden');
+                    }
+                } else {
+                    const allOption = document.querySelector(`[data-filter="status"][data-value="all"]`);
+                    if (allOption) {
+                        allOption.querySelector('.event-filter-indicator')?.classList.remove('hidden');
+                    }
+                }
+                
+                // Update filter button text
+                const activeFilters = [];
+                if (eventCurrentFilter.status !== 'all') activeFilters.push(eventCurrentFilter.status.charAt(0).toUpperCase() + eventCurrentFilter.status.slice(1));
+                if (eventCurrentFilter.location) activeFilters.push('Location');
+                if (eventCurrentFilter.dateFrom || eventCurrentFilter.dateTo) activeFilters.push('Date');
+                
+                const filterText = document.getElementById('eventFilterText');
+                if (filterText) {
+                    filterText.textContent = activeFilters.length > 0 ? `Filter (${activeFilters.length})` : 'Filter';
+                }
+            }
+            
+            function updateEventSortUI() {
+                // Clear all indicators
+                document.querySelectorAll('.event-sort-indicator').forEach(indicator => {
+                    indicator.classList.add('hidden');
+                });
+                
+                // Show current sort indicator
+                const activeOption = document.querySelector(`[data-sort="${eventCurrentSort.field}"][data-direction="${eventCurrentSort.direction}"]`);
+                if (activeOption) {
+                    activeOption.querySelector('.event-sort-indicator')?.classList.remove('hidden');
+                }
+            }
+            
+            // Initialize filter and sort event listeners
+            function initializeEventFilters() {
+                const filterBtn = document.getElementById('eventFilterBtn');
+                const filterDropdown = document.getElementById('eventFilterDropdown');
+                const sortBtn = document.getElementById('eventSortBtn');
+                const sortDropdown = document.getElementById('eventSortDropdown');
+                
+                if (!filterBtn || !filterDropdown || !sortBtn || !sortDropdown) {
+                    console.log('Filter/Sort elements not found, retrying in 200ms...');
+                    setTimeout(initializeEventFilters, 200);
+                    return;
+                }
+                
+                // Prevent double initialization
+                if (filterBtn.hasAttribute('data-initialized')) {
+                    console.log('Event filters already initialized');
+                    return;
+                }
+                
+                filterBtn.setAttribute('data-initialized', 'true');
+                sortBtn.setAttribute('data-initialized', 'true');
+                
+                console.log('Initializing event filters and sort...');
+                const filterOptions = document.querySelectorAll('.event-filter-option');
+                const sortOptions = document.querySelectorAll('.event-sort-option');
+                const clearFilterBtn = document.getElementById('eventClearFilter');
+                const clearSortBtn = document.getElementById('eventClearSort');
+                const locationFilter = document.getElementById('eventLocationFilter');
+                const dateFromFilter = document.getElementById('eventDateFromFilter');
+                const dateToFilter = document.getElementById('eventDateToFilter');
+                
+                // Note: Button toggle functionality is handled by standalone script at end of page
+                // This function only handles filter/sort option interactions
+                    
+                    // Filter option clicks
+                    filterOptions.forEach(option => {
+                        option.addEventListener('click', function() {
+                            const filter = this.dataset.filter;
+                            const value = this.dataset.value;
+                            
+                            if (filter === 'status') {
+                                eventCurrentFilter.status = value;
+                                updateEventFilterUI();
+                                applyEventFilters();
+                                filterDropdown?.classList.add('hidden');
+                            }
+                        });
+                    });
+                    
+                    // Sort option clicks
+                    sortOptions.forEach(option => {
+                        option.addEventListener('click', function() {
+                            eventCurrentSort.field = this.dataset.sort;
+                            eventCurrentSort.direction = this.dataset.direction;
+                            updateEventSortUI();
+                            applyEventFilters();
+                            sortDropdown?.classList.add('hidden');
+                        });
+                    });
+                    
+                    // Location filter input
+                    if (locationFilter) {
+                        locationFilter.addEventListener('input', function() {
+                            eventCurrentFilter.location = this.value.trim();
+                            updateEventFilterUI();
+                            applyEventFilters();
+                        });
+                    }
+                    
+                    // Date filters
+                    if (dateFromFilter) {
+                        dateFromFilter.addEventListener('change', function() {
+                            eventCurrentFilter.dateFrom = this.value;
+                            updateEventFilterUI();
+                            applyEventFilters();
+                        });
+                    }
+                    
+                    if (dateToFilter) {
+                        dateToFilter.addEventListener('change', function() {
+                            eventCurrentFilter.dateTo = this.value;
+                            updateEventFilterUI();
+                            applyEventFilters();
+                        });
+                    }
+                    
+                    // Clear filters
+                    if (clearFilterBtn) {
+                        clearFilterBtn.addEventListener('click', function() {
+                            eventCurrentFilter = {
+                                status: 'all',
+                                location: '',
+                                dateFrom: '',
+                                dateTo: ''
+                            };
+                            if (locationFilter) locationFilter.value = '';
+                            if (dateFromFilter) dateFromFilter.value = '';
+                            if (dateToFilter) dateToFilter.value = '';
+                            updateEventFilterUI();
+                            applyEventFilters();
+                            filterDropdown?.classList.add('hidden');
+                        });
+                    }
+                    
+                    // Clear sort
+                    if (clearSortBtn) {
+                        clearSortBtn.addEventListener('click', function() {
+                            eventCurrentSort = {
+                                field: 'date',
+                                direction: 'desc'
+                            };
+                            updateEventSortUI();
+                            applyEventFilters();
+                            sortDropdown?.classList.add('hidden');
+                        });
+                    }
+                    
+                // Initialize UI
+                updateEventFilterUI();
+                updateEventSortUI();
+                console.log('Event filters and sort initialized successfully');
+            }
+
             // Disable demo seeding: no sample events
             function createSamplePastEvents() { /* intentionally no-op */ }
 
@@ -2222,6 +2643,9 @@ No notifications yet
             
             // Show helpful message about server mode
             document.addEventListener('DOMContentLoaded', () => {
+                // Initialize event filters immediately
+                initializeEventFilters();
+                
                 // Wait a bit for calendar functions to be defined (they're defined later in the script)
                 setTimeout(() => {
                     // Initialize calendar immediately (don't wait for events to load)
@@ -4570,6 +4994,255 @@ document.addEventListener('click', async function(e) {
 </script>
     <!-- Award Analysis Results Container -->
     <div id="award-analysis-results" class="award-analysis-results-container" style="display: none;"></div>
+
+    <!-- Filter and Sort Functionality (DOM-based, similar to MOU/MOA) -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const filterBtn = document.getElementById('eventFilterBtn');
+            const filterDropdown = document.getElementById('eventFilterDropdown');
+            const sortBtn = document.getElementById('eventSortBtn');
+            const sortDropdown = document.getElementById('eventSortDropdown');
+            const filterOptions = document.querySelectorAll('.event-filter-option');
+            const sortOptions = document.querySelectorAll('.event-sort-option');
+            const clearFilterBtn = document.getElementById('eventClearFilter');
+            const clearSortBtn = document.getElementById('eventClearSort');
+            const locationFilter = document.getElementById('eventLocationFilter');
+            const dateFromFilter = document.getElementById('eventDateFromFilter');
+            const dateToFilter = document.getElementById('eventDateToFilter');
+            const filterText = document.getElementById('eventFilterText');
+            const tableBody = document.getElementById('eventsTableBody');
+
+            if (!filterBtn || !filterDropdown || !sortBtn || !sortDropdown || !tableBody) {
+                console.warn('Event filter/sort elements not found – filter UI disabled.');
+                return;
+            }
+
+            // Current filter & sort state
+            let currentFilter = {
+                status: 'all',
+                location: '',
+                dateFrom: '',
+                dateTo: ''
+            };
+
+            let currentSort = {
+                field: 'date',
+                direction: 'desc'
+            };
+
+            function parseDate(text) {
+                if (!text) return null;
+                const d = new Date(text);
+                return isNaN(d.getTime()) ? null : d;
+            }
+
+            function applyFiltersAndSort() {
+                const rows = Array.from(tableBody.querySelectorAll('tr'));
+
+                // Filter rows
+                const filteredRows = rows.filter(row => {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length < 5) return true; // keep header/empty rows
+
+                    const nameCell = cells[0];
+                    const dateCell = cells[1];
+                    const timeCell = cells[2];
+                    const locationCell = cells[3];
+                    const statusCell = cells[4];
+
+                    const dateText = (dateCell.textContent || '').trim();
+                    const locationText = (locationCell.textContent || '').toLowerCase();
+                    const statusText = (statusCell.textContent || statusCell.innerText || '').toLowerCase();
+
+                    // Status (Upcoming/Today/Completed)
+                    if (currentFilter.status !== 'all') {
+                        if (!statusText.includes(currentFilter.status.toLowerCase())) {
+                            return false;
+                        }
+                    }
+
+                    // Location filter
+                    if (currentFilter.location) {
+                        if (!locationText.includes(currentFilter.location.toLowerCase())) {
+                            return false;
+                        }
+                    }
+
+                    // Date range filter
+                    const rowDate = parseDate(dateText);
+                    if (rowDate) {
+                        if (currentFilter.dateFrom) {
+                            const from = parseDate(currentFilter.dateFrom);
+                            if (from && rowDate < from) return false;
+                        }
+                        if (currentFilter.dateTo) {
+                            const to = parseDate(currentFilter.dateTo);
+                            if (to && rowDate > to) return false;
+                        }
+                    }
+
+                    return true;
+                });
+
+                // Sort rows
+                filteredRows.sort((a, b) => {
+                    const aCells = a.querySelectorAll('td');
+                    const bCells = b.querySelectorAll('td');
+                    if (aCells.length < 5 || bCells.length < 5) return 0;
+
+                    let aVal = '';
+                    let bVal = '';
+
+                    switch (currentSort.field) {
+                        case 'title':
+                            aVal = (aCells[0].textContent || '').toLowerCase();
+                            bVal = (bCells[0].textContent || '').toLowerCase();
+                            return currentSort.direction === 'asc'
+                                ? aVal.localeCompare(bVal)
+                                : bVal.localeCompare(aVal);
+                        case 'location':
+                            aVal = (aCells[3].textContent || '').toLowerCase();
+                            bVal = (bCells[3].textContent || '').toLowerCase();
+                            return currentSort.direction === 'asc'
+                                ? aVal.localeCompare(bVal)
+                                : bVal.localeCompare(aVal);
+                        case 'status':
+                            aVal = (aCells[4].textContent || aCells[4].innerText || '').toLowerCase();
+                            bVal = (bCells[4].textContent || bCells[4].innerText || '').toLowerCase();
+                            return currentSort.direction === 'asc'
+                                ? aVal.localeCompare(bVal)
+                                : bVal.localeCompare(aVal);
+                        case 'date':
+                        default:
+                            const aDate = parseDate((aCells[1].textContent || '').trim()) || new Date(0);
+                            const bDate = parseDate((bCells[1].textContent || '').trim()) || new Date(0);
+                            return currentSort.direction === 'asc'
+                                ? aDate - bDate
+                                : bDate - aDate;
+                    }
+                });
+
+                // Clear body and append filtered/sorted rows
+                tableBody.innerHTML = '';
+                filteredRows.forEach(row => tableBody.appendChild(row));
+
+                // Update filter button text badge
+                const activeFilters = [];
+                if (currentFilter.status !== 'all') activeFilters.push('Status');
+                if (currentFilter.location) activeFilters.push('Location');
+                if (currentFilter.dateFrom || currentFilter.dateTo) activeFilters.push('Date');
+                if (filterText) {
+                    filterText.textContent = activeFilters.length > 0
+                        ? `Filter (${activeFilters.length})`
+                        : 'Filter';
+                }
+            }
+
+            // Button toggles
+            filterBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                e.preventDefault();
+                filterDropdown.classList.toggle('hidden');
+                if (!filterDropdown.classList.contains('hidden')) {
+                    sortDropdown.classList.add('hidden');
+                }
+            });
+
+            sortBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                e.preventDefault();
+                sortDropdown.classList.toggle('hidden');
+                if (!sortDropdown.classList.contains('hidden')) {
+                    filterDropdown.classList.add('hidden');
+                }
+            });
+
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', function (e) {
+                if (!filterBtn.contains(e.target) && !filterDropdown.contains(e.target)) {
+                    filterDropdown.classList.add('hidden');
+                }
+                if (!sortBtn.contains(e.target) && !sortDropdown.contains(e.target)) {
+                    sortDropdown.classList.add('hidden');
+                }
+            });
+
+            // Status filter options
+            filterOptions.forEach(option => {
+                option.addEventListener('click', function () {
+                    const filter = this.dataset.filter;
+                    const value = this.dataset.value;
+                    if (filter === 'status') {
+                        currentFilter.status = value;
+                        applyFiltersAndSort();
+                        filterDropdown.classList.add('hidden');
+                    }
+                });
+            });
+
+            // Location filter
+            if (locationFilter) {
+                locationFilter.addEventListener('input', function () {
+                    currentFilter.location = this.value.trim();
+                    applyFiltersAndSort();
+                });
+            }
+
+            // Date range filters
+            if (dateFromFilter) {
+                dateFromFilter.addEventListener('change', function () {
+                    currentFilter.dateFrom = this.value;
+                    applyFiltersAndSort();
+                });
+            }
+
+            if (dateToFilter) {
+                dateToFilter.addEventListener('change', function () {
+                    currentFilter.dateTo = this.value;
+                    applyFiltersAndSort();
+                });
+            }
+
+            // Clear filters
+            if (clearFilterBtn) {
+                clearFilterBtn.addEventListener('click', function () {
+                    currentFilter = {
+                        status: 'all',
+                        location: '',
+                        dateFrom: '',
+                        dateTo: ''
+                    };
+                    if (locationFilter) locationFilter.value = '';
+                    if (dateFromFilter) dateFromFilter.value = '';
+                    if (dateToFilter) dateToFilter.value = '';
+                    applyFiltersAndSort();
+                    filterDropdown.classList.add('hidden');
+                });
+            }
+
+            // Sort options
+            sortOptions.forEach(option => {
+                option.addEventListener('click', function () {
+                    currentSort.field = this.dataset.sort;
+                    currentSort.direction = this.dataset.direction;
+                    applyFiltersAndSort();
+                    sortDropdown.classList.add('hidden');
+                });
+            });
+
+            // Clear sort
+            if (clearSortBtn) {
+                clearSortBtn.addEventListener('click', function () {
+                    currentSort = { field: 'date', direction: 'desc' };
+                    applyFiltersAndSort();
+                    sortDropdown.classList.add('hidden');
+                });
+            }
+
+            // Initial apply
+            applyFiltersAndSort();
+        });
+    </script>
 </body></html>
 
 

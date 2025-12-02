@@ -88,8 +88,13 @@ try {
         } catch (PDOException $e) {
             // Column might already exist, ignore
         }
+        try {
+            $pdo->exec("ALTER TABLE events ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore
+        }
         
-        // Load deleted documents from MOU, MOA, and Other Documents tables
+        // Load deleted documents from MOU, MOA, Other Documents, Awards, and Events tables
         $stmt = $pdo->query("
             SELECT
                 m.id,
@@ -151,6 +156,24 @@ try {
             ) aa ON a.id = aa.award_id
             LEFT JOIN users u ON a.user_id = u.id
             WHERE a.deleted_at IS NOT NULL
+
+            UNION ALL
+
+            SELECT
+                e.id,
+                e.user_id,
+                e.title,
+                e.description,
+                NULL as file_name,
+                NULL as file_path,
+                'Events & Activities' as source_page,
+                e.created_at,
+                e.deleted_at,
+                u.username as uploaded_by,
+                'events' as source_table
+            FROM events e
+            LEFT JOIN users u ON e.user_id = u.id
+            WHERE e.deleted_at IS NOT NULL
 
             ORDER BY deleted_at DESC
         ");
@@ -295,7 +318,7 @@ try {
                 <h1 class="text-xl font-bold text-text-light dark:text-text-dark sidebar-logo-text whitespace-nowrap">LILAC</h1>
             </div>
         </div>
-        <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto overflow-x-hidden">
+        <nav class="flex-1 px-4 py-6 space-y-2">
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="dashboard.php" title="Dashboard">
                 <span class="material-symbols-outlined flex-shrink-0">dashboard</span>
                 <span class="sidebar-text whitespace-nowrap">Dashboard</span>
@@ -351,6 +374,7 @@ try {
     </aside>
     <main class="flex-1 overflow-y-auto transition-all duration-300 ml-64" id="main-content">
 <header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible">
+<div class="flex items-center justify-between w-full">
 <div class="flex items-center gap-3">
 <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center">
 <span class="material-symbols-outlined text-white">delete</span>
@@ -361,10 +385,130 @@ try {
 </div>
 </div>
 <div class="flex items-center gap-2">
+<!-- Filter and Sort Buttons -->
+<div class="flex items-center gap-2">
+<div class="relative">
+<button id="trashFilterBtn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-light bg-card-light border border-border-light rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-text-muted-dark dark:border-border-dark dark:hover:bg-card-dark">
+<span class="material-symbols-outlined text-base">filter_list</span>
+<span id="trashFilterText">Filter</span>
+</button>
+
+<!-- Filter Dropdown Menu -->
+<div id="trashFilterDropdown" class="absolute right-0 mt-2 w-80 bg-white dark:bg-background-dark rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 hidden max-h-96 overflow-y-auto">
+<div class="py-2">
+<!-- Page Filter -->
+<div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filter by Page</div>
+
+<button class="trash-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="page" data-value="all">
+<span>All Pages</span>
+<span class="trash-filter-indicator hidden">✓</span>
+</button>
+
+<button class="trash-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="page" data-value="MOUs & MOAs">
+<span>MOUs & MOAs</span>
+<span class="trash-filter-indicator hidden">✓</span>
+</button>
+
+<button class="trash-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="page" data-value="Documents">
+<span>Documents</span>
+<span class="trash-filter-indicator hidden">✓</span>
+</button>
+
+<button class="trash-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="page" data-value="Awards">
+<span>Awards</span>
+<span class="trash-filter-indicator hidden">✓</span>
+</button>
+
+<button class="trash-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="page" data-value="Events & Activities">
+<span>Events & Activities</span>
+<span class="trash-filter-indicator hidden">✓</span>
+</button>
+
+<div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+
+<!-- Search Filter -->
+<div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filter by Name</div>
+
+<div class="px-4 py-2">
+<label class="sr-only" for="trashSearchFilter">Search name/title</label>
+<input type="text" id="trashSearchFilter" placeholder="Search name or title..." class="w-full px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary">
+</div>
+
+<div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+
+<!-- Date Range Filters -->
+<div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filter by Deleted Date</div>
+
+<div class="px-4 py-2 space-y-2">
+<div>
+<label class="block text-xs text-gray-600 dark:text-gray-400 mb-1" for="trashDateFromFilter">Deleted Date From</label>
+<input type="date" id="trashDateFromFilter" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary">
+</div>
+<div>
+<label class="block text-xs text-gray-600 dark:text-gray-400 mb-1" for="trashDateToFilter">Deleted Date To</label>
+<input type="date" id="trashDateToFilter" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary">
+</div>
+</div>
+
+<div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+
+<button id="trashClearFilter" class="w-full text-left px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+Clear All Filters
+</button>
+</div>
+</div>
+</div>
+
+<div class="relative">
+<button id="trashSortBtn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-light bg-card-light border border-border-light rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-text-muted-dark dark:border-border-dark dark:hover:bg-card-dark">
+<span class="material-symbols-outlined text-base">swap_vert</span>
+<span id="trashSortText">Sort</span>
+</button>
+
+<!-- Sort Dropdown Menu -->
+<div id="trashSortDropdown" class="absolute right-0 mt-2 w-56 bg-white dark:bg-background-dark rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 hidden">
+<div class="py-2">
+<div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sort by</div>
+
+<button class="trash-sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="name" data-direction="asc">
+<span>Name/Title (A-Z)</span>
+<span class="trash-sort-indicator hidden">✓</span>
+</button>
+
+<button class="trash-sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="name" data-direction="desc">
+<span>Name/Title (Z-A)</span>
+<span class="trash-sort-indicator hidden">✓</span>
+</button>
+
+<button class="trash-sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="deleted" data-direction="desc">
+<span>Deleted Date (Newest)</span>
+<span class="trash-sort-indicator hidden">✓</span>
+</button>
+
+<button class="trash-sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="deleted" data-direction="asc">
+<span>Deleted Date (Oldest)</span>
+<span class="trash-sort-indicator hidden">✓</span>
+</button>
+
+<button class="trash-sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="page" data-direction="asc">
+<span>Page (A-Z)</span>
+<span class="trash-sort-indicator hidden">✓</span>
+</button>
+
+<div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+
+<button id="trashClearSort" class="w-full text-left px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+Clear Sort
+</button>
+</div>
+</div>
+</div>
+</div>
 <button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors duration-200" id="theme-toggle">
 <span class="material-symbols-outlined dark:hidden">light_mode</span>
 <span class="material-symbols-outlined hidden dark:inline">dark_mode</span>
 </button>
+</div>
 </div>
 </header>
 <div class="p-4">
@@ -680,6 +824,8 @@ try {
                                 apiUrl = `api/other-documents.php?action=restore&id=${encodeURIComponent(id)}`;
                             } else if (source === 'awards') {
                                 apiUrl = `api/awards.php?action=restore&id=${encodeURIComponent(id)}`;
+                            } else if (source === 'events') {
+                                apiUrl = `api/events.php?action=restore&id=${encodeURIComponent(id)}`;
                             } else {
                                 apiUrl = `api/other-documents.php?action=restore&id=${encodeURIComponent(id)}`;
                             }
@@ -770,6 +916,8 @@ try {
                                 apiUrl = `api/other-documents.php?id=${encodeURIComponent(id)}&permanent=true`;
                             } else if (source === 'awards') {
                                 apiUrl = `api/delete-award.php?id=${encodeURIComponent(id)}&permanent=true`;
+                            } else if (source === 'events') {
+                                apiUrl = `api/events.php?id=${encodeURIComponent(id)}&permanent=true`;
                             } else {
                                 apiUrl = `api/other-documents.php?id=${encodeURIComponent(id)}&permanent=true`;
                             }
@@ -927,6 +1075,347 @@ try {
         if (bulkDeleteBtn) {
             bulkDeleteBtn.addEventListener('click', bulkDeleteItems);
         }
+    });
+
+    // Filter and Sort Functionality for Trash Page
+    document.addEventListener('DOMContentLoaded', function() {
+        // Wait a bit for elements to be fully loaded
+        setTimeout(function() {
+            const filterBtn = document.getElementById('trashFilterBtn');
+            const filterDropdown = document.getElementById('trashFilterDropdown');
+            const sortBtn = document.getElementById('trashSortBtn');
+            const sortDropdown = document.getElementById('trashSortDropdown');
+            
+            if (!filterBtn || !filterDropdown || !sortBtn || !sortDropdown) {
+                console.log('Filter/Sort elements not found yet, retrying...');
+                setTimeout(arguments.callee, 200);
+                return;
+            }
+            
+            console.log('Initializing Trash Filter and Sort buttons...');
+            
+            // Filter and sort state
+            let trashCurrentFilter = {
+                page: 'all',
+                search: '',
+                dateFrom: '',
+                dateTo: ''
+            };
+            
+            let trashCurrentSort = {
+                field: 'deleted',
+                direction: 'desc'
+            };
+            
+            // Filter button toggle
+            filterBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                filterDropdown.classList.toggle('hidden');
+                if (!filterDropdown.classList.contains('hidden')) {
+                    if (sortDropdown) sortDropdown.classList.add('hidden');
+                }
+            });
+            
+            // Sort button toggle
+            sortBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                sortDropdown.classList.toggle('hidden');
+                if (!sortDropdown.classList.contains('hidden')) {
+                    if (filterDropdown) filterDropdown.classList.add('hidden');
+                }
+            });
+            
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', function(e) {
+                if (filterBtn && !filterBtn.contains(e.target) && filterDropdown && !filterDropdown.contains(e.target)) {
+                    filterDropdown.classList.add('hidden');
+                }
+                if (sortBtn && !sortBtn.contains(e.target) && sortDropdown && !sortDropdown.contains(e.target)) {
+                    sortDropdown.classList.add('hidden');
+                }
+            });
+            
+            // Apply filters and sorting to table rows
+            function applyTrashFilters() {
+                const tableBody = document.getElementById('trash-table-body');
+                if (!tableBody) return;
+                
+                const rows = Array.from(tableBody.querySelectorAll('tr'));
+                let visibleRows = [];
+                
+                // Filter rows
+                rows.forEach(row => {
+                    let showRow = true;
+                    
+                    // Skip empty state row
+                    if (row.querySelector('td[colspan]')) {
+                        return;
+                    }
+                    
+                    // Get row data
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length < 4) return;
+                    
+                    const nameCell = cells[1]; // Name/Title column
+                    const pageCell = cells[2]; // Page column
+                    const dateCell = cells[3]; // Deleted Date column
+                    
+                    const nameText = (nameCell?.textContent || '').trim().toLowerCase();
+                    const pageText = (pageCell?.textContent || '').trim();
+                    const dateText = dateCell?.textContent || '';
+                    
+                    // Page filter
+                    if (trashCurrentFilter.page !== 'all' && pageText !== trashCurrentFilter.page) {
+                        showRow = false;
+                    }
+                    
+                    // Search filter
+                    if (trashCurrentFilter.search && !nameText.includes(trashCurrentFilter.search.toLowerCase())) {
+                        showRow = false;
+                    }
+                    
+                    // Date range filter
+                    if (trashCurrentFilter.dateFrom) {
+                        const rowDate = parseDateFromText(dateText);
+                        const fromDate = new Date(trashCurrentFilter.dateFrom);
+                        fromDate.setHours(0, 0, 0, 0);
+                        if (rowDate && rowDate < fromDate) {
+                            showRow = false;
+                        }
+                    }
+                    
+                    if (trashCurrentFilter.dateTo) {
+                        const rowDate = parseDateFromText(dateText);
+                        const toDate = new Date(trashCurrentFilter.dateTo);
+                        toDate.setHours(23, 59, 59, 999);
+                        if (rowDate && rowDate > toDate) {
+                            showRow = false;
+                        }
+                    }
+                    
+                    if (showRow) {
+                        row.style.display = '';
+                        visibleRows.push({ row, nameText, pageText, dateText });
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+                
+                // Sort visible rows
+                visibleRows.sort((a, b) => {
+                    let aValue, bValue;
+                    
+                    switch (trashCurrentSort.field) {
+                        case 'name':
+                            aValue = a.nameText;
+                            bValue = b.nameText;
+                            return trashCurrentSort.direction === 'asc' 
+                                ? aValue.localeCompare(bValue)
+                                : bValue.localeCompare(aValue);
+                        
+                        case 'deleted':
+                            aValue = parseDateFromText(a.dateText);
+                            bValue = parseDateFromText(b.dateText);
+                            if (!aValue) return 1;
+                            if (!bValue) return -1;
+                            return trashCurrentSort.direction === 'asc'
+                                ? aValue - bValue
+                                : bValue - aValue;
+                        
+                        case 'page':
+                            aValue = a.pageText.toLowerCase();
+                            bValue = b.pageText.toLowerCase();
+                            return trashCurrentSort.direction === 'asc'
+                                ? aValue.localeCompare(bValue)
+                                : bValue.localeCompare(aValue);
+                        
+                        default:
+                            return 0;
+                    }
+                });
+                
+                // Reorder rows in DOM
+                visibleRows.forEach(({ row }) => {
+                    tableBody.appendChild(row);
+                });
+                
+                // Show/hide empty state
+                const visibleCount = visibleRows.length;
+                const emptyStateRow = tableBody.querySelector('tr td[colspan]')?.closest('tr');
+                if (emptyStateRow) {
+                    const allRowsHidden = rows.filter(r => !r.querySelector('td[colspan]')).every(r => r.style.display === 'none');
+                    emptyStateRow.style.display = allRowsHidden ? '' : 'none';
+                }
+            }
+            
+            // Helper function to parse date from text
+            function parseDateFromText(dateText) {
+                if (!dateText || dateText === 'N/A') return null;
+                try {
+                    // Try parsing common date formats
+                    const date = new Date(dateText);
+                    if (!isNaN(date.getTime())) {
+                        return date;
+                    }
+                    // Try parsing "Mmm d, YYYY H:i" format
+                    const parts = dateText.match(/(\w+)\s+(\d+),\s+(\d+)\s+(\d+):(\d+)/);
+                    if (parts) {
+                        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        const monthIndex = monthNames.indexOf(parts[1]);
+                        if (monthIndex !== -1) {
+                            return new Date(parseInt(parts[3]), monthIndex, parseInt(parts[2]), parseInt(parts[4]), parseInt(parts[5]));
+                        }
+                    }
+                } catch (e) {
+                    return null;
+                }
+                return null;
+            }
+            
+            // Update filter UI
+            function updateTrashFilterUI() {
+                // Clear all indicators
+                document.querySelectorAll('.trash-filter-indicator').forEach(indicator => {
+                    indicator.classList.add('hidden');
+                });
+                
+                // Show current filter indicators
+                if (trashCurrentFilter.page !== 'all') {
+                    const activeOption = document.querySelector(`[data-filter="page"][data-value="${trashCurrentFilter.page}"]`);
+                    if (activeOption) {
+                        activeOption.querySelector('.trash-filter-indicator')?.classList.remove('hidden');
+                    }
+                } else {
+                    const allOption = document.querySelector(`[data-filter="page"][data-value="all"]`);
+                    if (allOption) {
+                        allOption.querySelector('.trash-filter-indicator')?.classList.remove('hidden');
+                    }
+                }
+                
+                // Update filter button text
+                const activeFilters = [];
+                if (trashCurrentFilter.page !== 'all') activeFilters.push(trashCurrentFilter.page);
+                if (trashCurrentFilter.search) activeFilters.push('Search');
+                if (trashCurrentFilter.dateFrom || trashCurrentFilter.dateTo) activeFilters.push('Date');
+                
+                const filterText = document.getElementById('trashFilterText');
+                if (filterText) {
+                    filterText.textContent = activeFilters.length > 0 ? `Filter (${activeFilters.length})` : 'Filter';
+                }
+            }
+            
+            // Update sort UI
+            function updateTrashSortUI() {
+                // Clear all indicators
+                document.querySelectorAll('.trash-sort-indicator').forEach(indicator => {
+                    indicator.classList.add('hidden');
+                });
+                
+                // Show current sort indicator
+                const activeOption = document.querySelector(`[data-sort="${trashCurrentSort.field}"][data-direction="${trashCurrentSort.direction}"]`);
+                if (activeOption) {
+                    activeOption.querySelector('.trash-sort-indicator')?.classList.remove('hidden');
+                }
+            }
+            
+            // Filter option clicks
+            const filterOptions = document.querySelectorAll('.trash-filter-option');
+            filterOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    const filter = this.dataset.filter;
+                    const value = this.dataset.value;
+                    
+                    if (filter === 'page') {
+                        trashCurrentFilter.page = value;
+                        updateTrashFilterUI();
+                        applyTrashFilters();
+                        filterDropdown?.classList.add('hidden');
+                    }
+                });
+            });
+            
+            // Sort option clicks
+            const sortOptions = document.querySelectorAll('.trash-sort-option');
+            sortOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    trashCurrentSort.field = this.dataset.sort;
+                    trashCurrentSort.direction = this.dataset.direction;
+                    updateTrashSortUI();
+                    applyTrashFilters();
+                    sortDropdown?.classList.add('hidden');
+                });
+            });
+            
+            // Search filter input
+            const searchFilter = document.getElementById('trashSearchFilter');
+            if (searchFilter) {
+                searchFilter.addEventListener('input', function() {
+                    trashCurrentFilter.search = this.value.trim();
+                    updateTrashFilterUI();
+                    applyTrashFilters();
+                });
+            }
+            
+            // Date filters
+            const dateFromFilter = document.getElementById('trashDateFromFilter');
+            if (dateFromFilter) {
+                dateFromFilter.addEventListener('change', function() {
+                    trashCurrentFilter.dateFrom = this.value;
+                    updateTrashFilterUI();
+                    applyTrashFilters();
+                });
+            }
+            
+            const dateToFilter = document.getElementById('trashDateToFilter');
+            if (dateToFilter) {
+                dateToFilter.addEventListener('change', function() {
+                    trashCurrentFilter.dateTo = this.value;
+                    updateTrashFilterUI();
+                    applyTrashFilters();
+                });
+            }
+            
+            // Clear filters
+            const clearFilterBtn = document.getElementById('trashClearFilter');
+            if (clearFilterBtn) {
+                clearFilterBtn.addEventListener('click', function() {
+                    trashCurrentFilter = {
+                        page: 'all',
+                        search: '',
+                        dateFrom: '',
+                        dateTo: ''
+                    };
+                    if (searchFilter) searchFilter.value = '';
+                    if (dateFromFilter) dateFromFilter.value = '';
+                    if (dateToFilter) dateToFilter.value = '';
+                    updateTrashFilterUI();
+                    applyTrashFilters();
+                    filterDropdown?.classList.add('hidden');
+                });
+            }
+            
+            // Clear sort
+            const clearSortBtn = document.getElementById('trashClearSort');
+            if (clearSortBtn) {
+                clearSortBtn.addEventListener('click', function() {
+                    trashCurrentSort = {
+                        field: 'deleted',
+                        direction: 'desc'
+                    };
+                    updateTrashSortUI();
+                    applyTrashFilters();
+                    sortDropdown?.classList.add('hidden');
+                });
+            }
+            
+            // Initialize UI
+            updateTrashFilterUI();
+            updateTrashSortUI();
+            
+            console.log('Trash Filter and Sort initialized successfully');
+        }, 100);
     });
 </script>
 </body>

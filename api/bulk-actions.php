@@ -134,7 +134,15 @@ try {
                 break;
 
             case 'events':
-                $stmt = $pdo->prepare("DELETE FROM events WHERE id IN ($placeholders)");
+                // Soft delete - move to trash (set deleted_at)
+                try {
+                    // Ensure deleted_at column exists
+                    $pdo->exec("ALTER TABLE events ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+                } catch (PDOException $e) {
+                    // Column might already exist, ignore
+                }
+                
+                $stmt = $pdo->prepare("UPDATE events SET deleted_at = NOW() WHERE id IN ($placeholders) AND deleted_at IS NULL");
                 $stmt->execute($ids);
                 $deleted = $stmt->rowCount();
                 

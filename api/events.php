@@ -37,6 +37,20 @@ try {
         exit();
     }
 
+    // Helper function to check if a column exists in a table
+    function columnExists($pdo, $table, $column) {
+        try {
+            $stmt = $pdo->prepare("SHOW COLUMNS FROM `$table` LIKE ?");
+            $stmt->execute([$column]);
+            return $stmt->rowCount() > 0;
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    // Check if image_path column exists
+    $hasImagePathColumn = columnExists($pdo, 'events', 'image_path');
+
     $method = $_SERVER['REQUEST_METHOD'];
     $action = $_GET['action'] ?? 'list';
     $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -59,6 +73,7 @@ try {
             FROM events e
             LEFT JOIN users u ON e.user_id = u.id
             LEFT JOIN other_documents od ON e.document_id = od.id
+            WHERE e.deleted_at IS NULL
             ORDER BY e.event_date DESC, e.start_time DESC
         ");
         } else {
@@ -72,7 +87,7 @@ try {
                 FROM events e
                 LEFT JOIN users u ON e.user_id = u.id
                 LEFT JOIN other_documents od ON e.document_id = od.id
-                WHERE e.user_id = ?
+                WHERE e.user_id = ? AND e.deleted_at IS NULL
                 ORDER BY e.event_date DESC, e.start_time DESC
             ");
             $stmt->execute([$userId]);
@@ -95,6 +110,7 @@ try {
             FROM events e
             LEFT JOIN users u ON e.user_id = u.id
             LEFT JOIN other_documents od ON e.document_id = od.id
+            WHERE e.deleted_at IS NULL
             ORDER BY e.event_date ASC, e.start_time ASC
         ");
 
@@ -129,7 +145,7 @@ try {
     }
 
     // GET: Get specific event details (all authenticated users can view any event)
-    if ($method === 'GET' && $id > 0) {
+    if ($method === 'GET' && $id > 0 && $action !== 'restore') {
         $stmt = $pdo->prepare("
             SELECT
                 e.*,
@@ -141,7 +157,7 @@ try {
             FROM events e
             LEFT JOIN users u ON e.user_id = u.id
             LEFT JOIN other_documents od ON e.document_id = od.id
-            WHERE e.id = ?
+            WHERE e.id = ? AND e.deleted_at IS NULL
         ");
         $stmt->execute([$id]);
         $event = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -185,26 +201,45 @@ try {
         $documentId = isset($data['document_id']) && $data['document_id'] !== '' ? (int)$data['document_id'] : null;
         $imagePath = $data['image_path'] ?? null;
 
-        // Insert event
-        $stmt = $pdo->prepare("
-            INSERT INTO events (
-                user_id, title, description, event_date,
-                start_time, end_time, location, status, document_id, image_path
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
-
-        $stmt->execute([
-            $userId,
-            $title,
-            $description,
-            $eventDate,
-            $startTime,
-            $endTime,
-            $location,
-            $status,
-            $documentId,
-            $imagePath
-        ]);
+        // Insert event - conditionally include image_path if column exists
+        if ($hasImagePathColumn) {
+            $stmt = $pdo->prepare("
+                INSERT INTO events (
+                    user_id, title, description, event_date,
+                    start_time, end_time, location, status, document_id, image_path
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $userId,
+                $title,
+                $description,
+                $eventDate,
+                $startTime,
+                $endTime,
+                $location,
+                $status,
+                $documentId,
+                $imagePath
+            ]);
+        } else {
+            $stmt = $pdo->prepare("
+                INSERT INTO events (
+                    user_id, title, description, event_date,
+                    start_time, end_time, location, status, document_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $userId,
+                $title,
+                $description,
+                $eventDate,
+                $startTime,
+                $endTime,
+                $location,
+                $status,
+                $documentId
+            ]);
+        }
 
         $newId = $pdo->lastInsertId();
 
@@ -243,9 +278,12 @@ try {
         // Log the delete attempt for debugging
         error_log("DELETE request received: method=$method, id=$id, userId=$userId");
         
+        // Check if permanent delete is requested
+        $permanent = isset($_GET['permanent']) && $_GET['permanent'] === 'true';
+        
         // Check if event exists
-        $stmt = $pdo->prepare("SELECT id, user_id FROM events WHERE id = ?");
-        $stmt->execute([$id]);
+        $stmt = $pdo->prepare("SELECT id, user_id FROM events WHERE id = ? AND (deleted_at IS NULL OR ? = true)");
+        $stmt->execute([$id, $permanent]);
         $event = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$event) {
@@ -256,21 +294,73 @@ try {
         }
 
         // Allow all authenticated users to delete events (removed permission check)
-        error_log("DELETE proceeding: Deleting event id=$id");
+        error_log("DELETE proceeding: Deleting event id=$id, permanent=$permanent");
 
-        // Delete event
-        $stmt = $pdo->prepare("DELETE FROM events WHERE id = ?");
+        if ($permanent) {
+            // Permanent delete - remove from database
+            $stmt = $pdo->prepare("DELETE FROM events WHERE id = ?");
+            $stmt->execute([$id]);
+            
+            $rowsAffected = $stmt->rowCount();
+            error_log("DELETE result: rows_affected=$rowsAffected for event id=$id (permanent)");
+            
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Event permanently deleted', 
+                'rows_affected' => $rowsAffected
+            ]);
+        } else {
+            // Soft delete - move to trash (set deleted_at)
+            try {
+                // Ensure deleted_at column exists
+                $pdo->exec("ALTER TABLE events ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+            } catch (PDOException $e) {
+                // Column might already exist, ignore
+            }
+            
+            $stmt = $pdo->prepare("UPDATE events SET deleted_at = NOW() WHERE id = ?");
+            $stmt->execute([$id]);
+            
+            $rowsAffected = $stmt->rowCount();
+            error_log("DELETE result: rows_affected=$rowsAffected for event id=$id (soft delete)");
+            
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Event moved to trash', 
+                'rows_affected' => $rowsAffected
+            ]);
+        }
+        exit();
+    }
+    
+    // GET: Restore event from trash
+    if ($method === 'GET' && $action === 'restore' && $id > 0) {
+        // Ensure deleted_at column exists
+        try {
+            $pdo->exec("ALTER TABLE events ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore
+        }
+        
+        // Check if event exists and is deleted
+        $stmt = $pdo->prepare("SELECT id FROM events WHERE id = ? AND deleted_at IS NOT NULL");
+        $stmt->execute([$id]);
+        $event = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$event) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'error' => 'Deleted event not found']);
+            exit();
+        }
+
+        // Restore event (clear deleted_at)
+        $stmt = $pdo->prepare("UPDATE events SET deleted_at = NULL WHERE id = ?");
         $stmt->execute([$id]);
         
-        // Check if deletion was successful
-        $rowsAffected = $stmt->rowCount();
-        error_log("DELETE result: rows_affected=$rowsAffected for event id=$id");
-        
-        if ($rowsAffected > 0) {
-            echo json_encode(['success' => true, 'message' => 'Event deleted successfully', 'rows_affected' => $rowsAffected]);
+        if ($stmt->rowCount() > 0) {
+            echo json_encode(['success' => true, 'message' => 'Event restored successfully']);
         } else {
-            // Event might have already been deleted, but still return success
-            echo json_encode(['success' => true, 'message' => 'Event deleted successfully (or already deleted)', 'rows_affected' => $rowsAffected]);
+            echo json_encode(['success' => false, 'error' => 'Failed to restore event']);
         }
         exit();
     }
@@ -285,8 +375,8 @@ try {
 
     // PUT: Update event (admin only, or user can update their own)
     if ($method === 'PUT' && $id > 0) {
-        // Check if event exists and get owner
-        $stmt = $pdo->prepare("SELECT user_id FROM events WHERE id = ?");
+        // Check if event exists and get owner (exclude deleted events)
+        $stmt = $pdo->prepare("SELECT user_id FROM events WHERE id = ? AND deleted_at IS NULL");
         $stmt->execute([$id]);
         $event = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -341,7 +431,7 @@ try {
             $updateFields[] = "document_id = ?";
             $updateValues[] = $data['document_id'] !== '' ? (int)$data['document_id'] : null;
         }
-        if (isset($data['image_path'])) {
+        if (isset($data['image_path']) && $hasImagePathColumn) {
             $updateFields[] = "image_path = ?";
             $updateValues[] = $data['image_path'];
         }
