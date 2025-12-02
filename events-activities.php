@@ -1990,6 +1990,14 @@ No notifications yet
                 }
             }
 
+            // Helper function to format a date in local time as YYYY-MM-DD (not UTC)
+            function formatLocalDate(date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
             // Function to load today's events (now just calls loadEventsForDate with today's date)
             function loadTodayEvents() {
                 // Use in-memory events if available
@@ -1999,11 +2007,14 @@ No notifications yet
                 }
                 // Otherwise use the date-based loading
                 const today = new Date();
-                const todayString = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+                const todayString = formatLocalDate(today); // Use local time, not UTC
                 
-                // Set today as selected if no date is selected yet
-                if (!window.selectedCalendarDate) {
-                    window.selectedCalendarDate = todayString;
+                // Always set today as selected (force override any previous selection)
+                window.selectedCalendarDate = todayString;
+                
+                // Re-render calendar to update highlighting
+                if (typeof window.renderCalendar === 'function') {
+                    window.renderCalendar();
                 }
                 
                 // Load events for today
@@ -2014,11 +2025,14 @@ No notifications yet
             function loadTodayEventsFromData(events) {
                 const savedEvents = Array.isArray(events) ? events : [];
                 const today = new Date();
-                const todayString = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+                const todayString = formatLocalDate(today); // Use local time, not UTC
                 
-                // Set today as selected if no date is selected yet
-                if (!window.selectedCalendarDate) {
-                    window.selectedCalendarDate = todayString;
+                // Always set today as selected (force override any previous selection)
+                window.selectedCalendarDate = todayString;
+                
+                // Re-render calendar to update highlighting
+                if (typeof window.renderCalendar === 'function') {
+                    window.renderCalendar();
                 }
                 
                 // Filter events for today
@@ -2141,7 +2155,7 @@ No notifications yet
                         
                         // Reload the UI with database events directly
                         loadUpcomingEventsFromData(convertedEvents);
-                        loadTodayEventsFromData(convertedEvents);
+                        loadTodayEventsFromData(convertedEvents); // This will set today's date and re-render calendar
                         loadCompletedEventsFromData(convertedEvents);
                         
                         // Populate events table - CRITICAL: Must be called to show events
@@ -2157,6 +2171,7 @@ No notifications yet
                         }
                         
                         // Update calendar title and render calendar - CRITICAL: Must be called to show date cells
+                        // Note: loadTodayEventsFromData already re-renders the calendar, but we do it again here to ensure it's updated
                         if (typeof window.updateCalendarTitle === 'function') {
                             window.updateCalendarTitle();
                         }
@@ -4161,12 +4176,15 @@ Current mode: localStorage only (events will persist in browser)
 
             function isCurrentDay(year, month, day) {
                 // Check if this date is today
+                // Normalize both dates to midnight to avoid timezone/time-of-day issues
                 const today = new Date();
-                const checkDate = new Date(year, month, day);
+                today.setHours(0, 0, 0, 0);
                 
-                return today.getFullYear() === year &&
-                       today.getMonth() === month &&
-                       today.getDate() === day;
+                const checkDate = new Date(year, month, day);
+                checkDate.setHours(0, 0, 0, 0);
+                
+                // Compare the normalized dates
+                return today.getTime() === checkDate.getTime();
             }
 
 
@@ -4260,7 +4278,7 @@ Current mode: localStorage only (events will persist in browser)
                     
                     // Set today as the initial selected date
                     const today = new Date();
-                    const todayString = today.toISOString().split('T')[0];
+                    const todayString = formatLocalDate(today); // Use local time, not UTC
                     window.selectedCalendarDate = todayString;
                     
                     // Ensure events table is rendered (even if empty)
