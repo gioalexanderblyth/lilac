@@ -1020,8 +1020,8 @@ try {
         });
  </script>
  
- <!-- Create Event Modal -->
-<div id="createModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+<!-- Create Event Modal -->
+<div id="createModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center pt-24 z-50 hidden">
     <div id="createModalCard" class="bg-white dark:bg-card-dark rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[85vh] overflow-y-auto">
          <!-- Modal Header -->
         <div id="createModalHeader" class="flex items-center justify-between p-4 border-b">
@@ -1262,8 +1262,8 @@ try {
      </div>
  </div>
  
- <!-- Date Picker Calendar Popup -->
- <div id="datePickerModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+<!-- Date Picker Calendar Popup -->
+<div id="datePickerModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center pt-24 z-50 hidden">
      <div class="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4">
          <!-- Calendar Content -->
          <div class="p-4">
@@ -1336,8 +1336,8 @@ try {
      </div>
  </div>
  
- <!-- Time Picker Popup -->
- <div id="timePickerModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+<!-- Time Picker Popup -->
+<div id="timePickerModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center pt-24 z-50 hidden">
      <div class="bg-white rounded-lg shadow-xl w-full max-w-xs mx-4">
          <!-- Time Picker Header -->
          <div class="p-4 border-b">
@@ -1365,19 +1365,9 @@ let currentCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
 let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Current month - Sidebar mini calendar (independent when using its arrows)
  
  function openCreateModal() {
-    const overlay = document.getElementById('createModal');
-    overlay.classList.remove('hidden');
-    const card = document.getElementById('createModalCard');
-    if (card) {
-        // Always center the modal
-        card.style.position = '';
-        card.style.left = '';
-        card.style.top = '';
-        card.style.transform = '';
-        card.style.margin = 'auto';
-        // Clear saved position to ensure it stays centered
-        localStorage.removeItem('createModalPos');
-    }
+   const overlay = document.getElementById('createModal');
+   overlay.classList.remove('hidden');
+   overlay.classList.remove('dragging');
  }
  
  function closeCreateModal() {

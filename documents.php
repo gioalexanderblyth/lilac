@@ -642,18 +642,93 @@ No notifications yet
 </div>
 
 <div class="mt-2">
-<div class="flex flex-col md:flex-row justify-between md:items-center mt-10">
-<div>
- 
-<p class="text-text-muted-light dark:text-text-muted-dark mt-1">Upload and track your documents here</p>
-</div>
-<div class="flex items-center gap-2 mt-2 md:mt-0">
-<button class="px-4 py-2 text-sm font-medium rounded-md bg-primary text-white flex items-center gap-2" id="addDocumentBtn">
-<span class="material-symbols-outlined text-sm">add</span>
-Add Document
-</button>
-</div>
-</div>
+            <div class="flex flex-col md:flex-row justify-between md:items-center mt-10">
+                <div>
+                    <p class="text-text-muted-light dark:text-text-muted-dark mt-1">Upload and track your documents here</p>
+                </div>
+                <div class="flex items-center gap-2 mt-2 md:mt-0">
+                    <!-- Filter & Sort buttons (mirroring MOU page styles, but wired into existing category filter) -->
+                    <div class="flex items-center gap-2">
+                        <div class="relative">
+                            <button id="docFilterBtn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-light bg-card-light border border-border-light rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-text-muted-dark dark:border-border-dark dark:hover:bg-card-dark">
+                                <span class="material-symbols-outlined text-base">filter_list</span>
+                                <span id="docFilterText">Filter</span>
+                            </button>
+                            <!-- Filter Dropdown Menu -->
+                            <div id="docFilterDropdown" class="absolute right-0 mt-2 w-80 bg-white dark:bg-background-dark rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 hidden max-h-96 overflow-y-auto">
+                                <div class="py-2">
+                                    <!-- Category Filter -->
+                                    <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Filter by Category</div>
+                                    <button class="doc-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-category="all">
+                                        <span>All Documents</span>
+                                        <span class="doc-filter-indicator hidden">✓</span>
+                                    </button>
+                                    <button class="doc-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-category="MOU">
+                                        <span>MOU</span>
+                                        <span class="doc-filter-indicator hidden">✓</span>
+                                    </button>
+                                    <button class="doc-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-category="MOA">
+                                        <span>MOA</span>
+                                        <span class="doc-filter-indicator hidden">✓</span>
+                                    </button>
+                                    <button class="doc-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-category="Other Documents">
+                                        <span>Other Documents</span>
+                                        <span class="doc-filter-indicator hidden">✓</span>
+                                    </button>
+
+                                    <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+
+                                    <button id="docClearFilter" class="w-full text-left px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+                                        Clear All Filters
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sort Button (UI only for now, future-ready) -->
+                        <div class="relative">
+                            <button id="docSortBtn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-light bg-card-light border border-border-light rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-text-muted-dark dark:border-border-dark dark:hover:bg-card-dark">
+                                <span class="material-symbols-outlined text-base">swap_vert</span>
+                                <span id="docSortText">Sort</span>
+                            </button>
+                            <!-- Sort Dropdown Menu -->
+                            <div id="docSortDropdown" class="absolute right-0 mt-2 w-56 bg-white dark:bg-background-dark rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 hidden">
+                                <div class="py-2">
+                                    <div class="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sort by</div>
+                                    <button class="doc-sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="name" data-direction="asc">
+                                        <span>Document Name (A-Z)</span>
+                                        <span class="doc-sort-indicator hidden">✓</span>
+                                    </button>
+                                    <button class="doc-sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="name" data-direction="desc">
+                                        <span>Document Name (Z-A)</span>
+                                        <span class="doc-sort-indicator hidden">✓</span>
+                                    </button>
+                                    <button class="doc-sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="date" data-direction="desc">
+                                        <span>Date Uploaded (Newest)</span>
+                                        <span class="doc-sort-indicator hidden">✓</span>
+                                    </button>
+                                    <button class="doc-sort-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-sort="date" data-direction="asc">
+                                        <span>Date Uploaded (Oldest)</span>
+                                        <span class="doc-sort-indicator hidden">✓</span>
+                                    </button>
+
+                                    <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+
+                                    <button id="docClearSort" class="w-full text-left px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+                                        Clear Sort
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add Document button -->
+                    <button class="px-4 py-2 text-sm font-medium rounded-md bg-primary text-white flex items-center gap-2" id="addDocumentBtn">
+                        <span class="material-symbols-outlined text-sm">add</span>
+                        Add Document
+                    </button>
+                </div>
+            </div>
 <div class="mt-2 bg-card-light dark:bg-card-dark p-4 rounded-lg shadow-sm border border-border-light dark:border-border-dark">
 <!-- Bulk Actions Bar -->
 <div id="bulk-actions-bar" class="hidden mb-3 pb-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
@@ -1270,6 +1345,156 @@ Add Document
 
             // Load documents when page loads
             loadDocuments();
+
+            // --- Documents Filter & Sort (UI aligned with MOU page) ---
+            const docFilterBtn = document.getElementById('docFilterBtn');
+            const docFilterDropdown = document.getElementById('docFilterDropdown');
+            const docFilterOptions = document.querySelectorAll('.doc-filter-option');
+            const docFilterText = document.getElementById('docFilterText');
+            const docClearFilter = document.getElementById('docClearFilter');
+
+            const docSortBtn = document.getElementById('docSortBtn');
+            const docSortDropdown = document.getElementById('docSortDropdown');
+            const docSortOptions = document.querySelectorAll('.doc-sort-option');
+            const docSortText = document.getElementById('docSortText');
+            const docClearSort = document.getElementById('docClearSort');
+
+            let currentSort = null;
+            let currentSortDirection = null;
+
+            // Hook filter dropdown into existing category filter logic
+            if (docFilterBtn && docFilterDropdown) {
+                docFilterBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    docFilterDropdown.classList.toggle('hidden');
+                });
+
+                docFilterOptions.forEach(option => {
+                    option.addEventListener('click', function() {
+                        const category = this.getAttribute('data-category');
+
+                        // Map UI category to existing filterByCategory categories
+                        let mappedCategory = null;
+                        if (category === 'MOU') mappedCategory = 'MOU';
+                        else if (category === 'MOA') mappedCategory = 'MOA';
+                        else if (category === 'Other Documents') mappedCategory = 'Other Documents';
+                        else mappedCategory = null; // all
+
+                        filterByCategory(mappedCategory);
+
+                        // Update indicators
+                        docFilterOptions.forEach(o => {
+                            const ind = o.querySelector('.doc-filter-indicator');
+                            if (ind) ind.classList.add('hidden');
+                        });
+                        const indicator = this.querySelector('.doc-filter-indicator');
+                        if (indicator) indicator.classList.remove('hidden');
+
+                        const label = this.querySelector('span')?.textContent || 'Filter';
+                        docFilterText.textContent = label;
+
+                        docFilterDropdown.classList.add('hidden');
+                    });
+                });
+
+                if (docClearFilter) {
+                    docClearFilter.addEventListener('click', function() {
+                        filterByCategory(null);
+                        docFilterOptions.forEach(o => {
+                            const ind = o.querySelector('.doc-filter-indicator');
+                            if (ind) ind.classList.add('hidden');
+                        });
+                        docFilterText.textContent = 'Filter';
+                        docFilterDropdown.classList.add('hidden');
+                    });
+                }
+
+                // Close when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (docFilterDropdown && !docFilterDropdown.contains(e.target) && !docFilterBtn.contains(e.target)) {
+                        docFilterDropdown.classList.add('hidden');
+                    }
+                });
+            }
+
+            // Simple client-side sort on already rendered rows (per page)
+            function applyDocumentSort() {
+                if (!currentSort || !documentsTableBody) return;
+
+                const rows = Array.from(documentsTableBody.querySelectorAll('tr'))
+                    .filter(row => row.id !== 'no-documents-row');
+
+                const getData = (row) => {
+                    const cells = row.querySelectorAll('td');
+                    const name = cells[1]?.textContent.trim().toLowerCase() || '';
+                    const category = cells[2]?.textContent.trim().toLowerCase() || '';
+                    const dateText = cells[3]?.dataset.date || cells[3]?.textContent.trim() || '';
+                    const date = dateText ? new Date(dateText) : new Date(0);
+                    return { name, category, date };
+                };
+
+                rows.sort((a, b) => {
+                    const da = getData(a);
+                    const db = getData(b);
+                    let cmp = 0;
+                    if (currentSort === 'name') {
+                        cmp = da.name.localeCompare(db.name);
+                    } else if (currentSort === 'date') {
+                        cmp = da.date - db.date;
+                    }
+                    return currentSortDirection === 'desc' ? -cmp : cmp;
+                });
+
+                rows.forEach(row => documentsTableBody.appendChild(row));
+            }
+
+            if (docSortBtn && docSortDropdown) {
+                docSortBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    docSortDropdown.classList.toggle('hidden');
+                });
+
+                docSortOptions.forEach(option => {
+                    option.addEventListener('click', function() {
+                        currentSort = this.getAttribute('data-sort');
+                        currentSortDirection = this.getAttribute('data-direction');
+
+                        docSortOptions.forEach(o => {
+                            const ind = o.querySelector('.doc-sort-indicator');
+                            if (ind) ind.classList.add('hidden');
+                        });
+                        const indicator = this.querySelector('.doc-sort-indicator');
+                        if (indicator) indicator.classList.remove('hidden');
+
+                        const label = this.querySelector('span')?.textContent || 'Sort';
+                        docSortText.textContent = label;
+
+                        applyDocumentSort();
+                        docSortDropdown.classList.add('hidden');
+                    });
+                });
+
+                if (docClearSort) {
+                    docClearSort.addEventListener('click', function() {
+                        currentSort = null;
+                        currentSortDirection = null;
+                        docSortOptions.forEach(o => {
+                            const ind = o.querySelector('.doc-sort-indicator');
+                            if (ind) ind.classList.add('hidden');
+                        });
+                        docSortText.textContent = 'Sort';
+                        docSortDropdown.classList.add('hidden');
+                        // Re-render current page without sorting
+                        applyFiltersAndRender();
+                    });
+                }
+
+                document.addEventListener('click', function(e) {
+                    if (docSortDropdown && !docSortDropdown.contains(e.target) && !docSortBtn.contains(e.target)) {
+                        docSortDropdown.classList.add('hidden');
+                    }
+                });
+            }
 
             // Setup bulk delete functionality
             setupCheckboxListeners();
