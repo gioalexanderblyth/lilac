@@ -233,7 +233,7 @@ require_once __DIR__ . '/api/config.php';
                         <p class="text-3xl font-bold text-text-light dark:text-text-dark mb-1" id="stat-ready-to-apply">0</p>
                         <p class="text-xs text-text-muted-light dark:text-text-muted-dark hidden mt-1" id="stat-ready-hint">No awards ready yet. Complete evidence to unlock eligibility.</p>
                     </div>
-                    <div class="absolute right-3 top-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <div class="absolute right-3 top-3 opacity-70 group-hover:opacity-100 transition-opacity">
                         <span class="material-symbols-outlined text-4xl text-blue-600 dark:text-blue-400">rocket_launch</span>
                     </div>
                 </div>
@@ -245,7 +245,7 @@ require_once __DIR__ . '/api/config.php';
                         <p class="text-3xl font-bold text-text-light dark:text-text-dark mb-1" id="stat-in-progress">0</p>
                         <p class="text-xs text-text-muted-light dark:text-text-muted-dark hidden mt-1" id="stat-in-progress-hint">Start requirements to see progress.</p>
                     </div>
-                    <div class="absolute right-3 top-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <div class="absolute right-3 top-3 opacity-70 group-hover:opacity-100 transition-opacity">
                         <span class="material-symbols-outlined text-4xl text-green-600 dark:text-green-400">work</span>
                     </div>
                 </div>
@@ -257,19 +257,19 @@ require_once __DIR__ . '/api/config.php';
                         <p class="text-3xl font-bold text-text-light dark:text-text-dark mb-1" id="stat-total-awards">0</p>
                         <p class="text-xs text-text-muted-light dark:text-text-muted-dark mt-1">Total awards configured in ICONS 2025.</p>
                     </div>
-                    <div class="absolute right-3 top-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <div class="absolute right-3 top-3 opacity-70 group-hover:opacity-100 transition-opacity">
                         <span class="material-symbols-outlined text-4xl text-purple-600 dark:text-purple-400">folder</span>
                     </div>
                 </div>
 
                 <!-- Card 4 -->
-                <div class="bg-card-light dark:bg-card-dark rounded-lg p-4 border border-border-light dark:border-border-dark relative overflow-hidden group hover:shadow-md transition-shadow">
+                <div class="bg-card-light dark:bg-card-dark rounded-lg p-4 border border-border-light dark:border-dark relative overflow-hidden group hover:shadow-md transition-shadow">
                     <div class="relative z-10">
                         <p class="text-sm font-medium text-text-muted-light dark:text-text-muted-dark mb-1">Avg. Readiness</p>
                         <p class="text-3xl font-bold text-text-light dark:text-text-dark mb-1" id="stat-avg-readiness">0%</p>
                         <p class="text-xs text-text-muted-light dark:text-text-muted-dark mt-1">Average readiness across all awards.</p>
                     </div>
-                    <div class="absolute right-3 top-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <div class="absolute right-3 top-3 opacity-70 group-hover:opacity-100 transition-opacity">
                         <span class="material-symbols-outlined text-4xl text-amber-600 dark:text-amber-400">trending_up</span>
                     </div>
                 </div>

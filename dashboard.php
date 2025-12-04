@@ -1138,7 +1138,7 @@ echo htmlspecialchars($firstName);
 <p class="text-sm text-white/80 mt-1"><?php echo htmlspecialchars($statsData['upcoming_schedules'] ?? 0); ?> upcoming</p>
 </div>
 </a>
-<a href="mou-moa.php" class="bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-600 text-white p-6 rounded-xl cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/25 active:scale-95 page-animate-delay-2 relative overflow-hidden" style="background: linear-gradient(to bottom right, #6366f1, #a855f7, #4f46e5);">
+<a href="mou-moa.php" class="bg-gradient-to-br from-emerald-400 via-emerald-300 to-emerald-500 text-white p-6 rounded-xl cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-emerald-400/25 active:scale-95 page-animate-delay-2 relative overflow-hidden" style="background: linear-gradient(to bottom right, #34d399, #6ee7b7, #10b981);">
 <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
 <div class="relative z-10 flex justify-between items-start">
 <h3 class="font-semibold text-white/95">Signed MOUs</h3>
@@ -1149,7 +1149,7 @@ echo htmlspecialchars($firstName);
 <p class="text-sm text-white/80 mt-1"><?php echo htmlspecialchars($statsData['pending_renewal_mous'] ?? 0); ?> need renewal</p>
 </div>
 </a>
-<a href="documents.php" class="bg-gradient-to-br from-violet-500 via-purple-500 to-violet-600 text-white p-6 rounded-xl cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-violet-500/25 active:scale-95 page-animate-delay-2 relative overflow-hidden" style="background: linear-gradient(to bottom right, #8b5cf6, #a855f7, #7c3aed);">
+<a href="documents.php" class="bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500 text-white p-6 rounded-xl cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-amber-300/25 active:scale-95 page-animate-delay-2 relative overflow-hidden" style="background: linear-gradient(to bottom right, #fcd34d, #fbbf24, #f59e0b);">
 <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
 <div class="relative z-10 flex justify-between items-start">
 <h3 class="font-semibold text-white/95">Documents</h3>
