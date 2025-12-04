@@ -993,36 +993,36 @@ try {
 </div>
 </div>
 <nav class="flex-1 px-4 py-6 space-y-2">
-<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-primary-600 dark:text-primary-400 font-semibold sidebar-nav-link border border-blue-200 dark:border-blue-800" href="dashboard.php" title="Dashboard">
+<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/40 dark:to-indigo-900/40 text-purple-600 dark:text-purple-400 font-semibold sidebar-nav-link border border-purple-200 dark:border-purple-800 shadow-sm" href="dashboard.php" title="Dashboard">
 <span class="material-symbols-outlined filled flex-shrink-0">dashboard</span>
 <span class="sidebar-text whitespace-nowrap">Dashboard</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards-hub.php" title="ICONS 2025 Hub">
+<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="awards-hub.php" title="ICONS 2025 Hub">
 <span class="material-symbols-outlined flex-shrink-0">military_tech</span>
 <span class="sidebar-text whitespace-nowrap">ICONS 2025</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
+<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
 <span class="material-symbols-outlined flex-shrink-0">emoji_events</span>
 <span class="sidebar-text whitespace-nowrap">Awards Progress</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
+<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
 <span class="material-symbols-outlined flex-shrink-0">event</span>
 <span class="sidebar-text whitespace-nowrap">Events &amp; Activities</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="scheduler.php" title="Scheduler">
+<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="scheduler.php" title="Scheduler">
 <span class="material-symbols-outlined flex-shrink-0">calendar_today</span>
 <span class="sidebar-text whitespace-nowrap">Scheduler</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="mou-moa.php" title="MOUs & MOAs">
+<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="mou-moa.php" title="MOUs & MOAs">
 <span class="material-symbols-outlined flex-shrink-0">handshake</span>
 <span class="sidebar-text whitespace-nowrap">MOUs &amp; MOAs</span>
 </a>
 
-<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="documents.php" title="Documents">
+<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="documents.php" title="Documents">
 <span class="material-symbols-outlined flex-shrink-0">description</span>
 <span class="sidebar-text whitespace-nowrap">Documents</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="trash.php" title="Trash">
+<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="trash.php" title="Trash">
 <span class="material-symbols-outlined flex-shrink-0">delete</span>
 <span class="sidebar-text whitespace-nowrap">Trash</span>
 </a>
@@ -1105,62 +1105,71 @@ echo htmlspecialchars($firstName);
 </header>
 <div class="space-y-8 content-animate relative" style="z-index: 1;">
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-<a href="user-awards.php" class="bg-primary text-white p-6 rounded-lg flex flex-col justify-between cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 page-animate-delay-1">
-<div class="flex justify-between items-start">
-<h3 class="font-semibold text-white/90">Total Awards</h3>
-<span class="material-symbols-outlined text-white/80">emoji_events</span>
+<a href="user-awards.php" class="bg-gradient-to-br from-purple-600 via-purple-500 to-indigo-600 text-white p-6 rounded-xl flex flex-col justify-between cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/25 active:scale-95 page-animate-delay-1 relative overflow-hidden" style="background: linear-gradient(to bottom right, #9333ea, #a855f7, #4f46e5);">
+<div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+<div class="relative z-10 flex justify-between items-start">
+<h3 class="font-semibold text-white/95">Total Awards</h3>
+<span class="material-symbols-outlined text-white/90">emoji_events</span>
 </div>
-<div>
+<div class="relative z-10">
 <p class="text-4xl font-bold"><?php echo htmlspecialchars($statsData['total_awards'] ?? 0); ?></p>
-<p class="text-sm text-white/70 mt-1">+<?php echo htmlspecialchars($statsData['eligible'] ?? 0); ?> eligible</p>
+<p class="text-sm text-white/80 mt-1">+<?php echo htmlspecialchars($statsData['eligible'] ?? 0); ?> eligible</p>
 </div>
 </a>
-<a href="events-activities.php" class="bg-white dark:bg-slate-800 p-6 rounded-lg cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border-2 border-transparent hover:border-primary/20 page-animate-delay-1">
-<div class="flex justify-between items-start">
-<h3 class="font-semibold text-slate-600 dark:text-slate-300">Upcoming Events</h3>
-<span class="material-symbols-outlined text-slate-400 dark:text-slate-500">event</span>
+<a href="events-activities.php" class="bg-gradient-to-br from-pink-500 via-rose-500 to-pink-600 text-white p-6 rounded-xl cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-pink-500/25 active:scale-95 page-animate-delay-1 relative overflow-hidden" style="background: linear-gradient(to bottom right, #ec4899, #f43f5e, #db2777);">
+<div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+<div class="relative z-10 flex justify-between items-start">
+<h3 class="font-semibold text-white/95">Upcoming Events</h3>
+<span class="material-symbols-outlined text-white/90">event</span>
 </div>
-<div>
-<p class="text-4xl font-bold mt-4 text-slate-900 dark:text-white"><?php echo htmlspecialchars($statsData['upcoming_events'] ?? 0); ?></p>
-<p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Future events</p>
-</div>
-</a>
-<a href="scheduler.php" class="bg-white dark:bg-slate-800 p-6 rounded-lg cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border-2 border-transparent hover:border-primary/20 page-animate-delay-2">
-<div class="flex justify-between items-start">
-<h3 class="font-semibold text-slate-600 dark:text-slate-300">Active Schedules</h3>
-<span class="material-symbols-outlined text-slate-400 dark:text-slate-500">calendar_month</span>
-</div>
-<div>
-<p class="text-4xl font-bold mt-4 text-slate-900 dark:text-white"><?php echo htmlspecialchars($statsData['active_schedules'] ?? 0); ?></p>
-<p class="text-sm text-slate-500 dark:text-slate-400 mt-1"><?php echo htmlspecialchars($statsData['upcoming_schedules'] ?? 0); ?> upcoming</p>
+<div class="relative z-10">
+<p class="text-4xl font-bold mt-4"><?php echo htmlspecialchars($statsData['upcoming_events'] ?? 0); ?></p>
+<p class="text-sm text-white/80 mt-1">Future events</p>
 </div>
 </a>
-<a href="mou-moa.php" class="bg-white dark:bg-slate-800 p-6 rounded-lg cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border-2 border-transparent hover:border-primary/20 page-animate-delay-2">
-<div class="flex justify-between items-start">
-<h3 class="font-semibold text-slate-600 dark:text-slate-300">Signed MOUs</h3>
-<span class="material-symbols-outlined text-slate-400 dark:text-slate-500">handshake</span>
+<a href="scheduler.php" class="bg-gradient-to-br from-blue-500 via-cyan-500 to-blue-600 text-white p-6 rounded-xl cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/25 active:scale-95 page-animate-delay-2 relative overflow-hidden" style="background: linear-gradient(to bottom right, #3b82f6, #06b6d4, #2563eb);">
+<div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+<div class="relative z-10 flex justify-between items-start">
+<h3 class="font-semibold text-white/95">Active Schedules</h3>
+<span class="material-symbols-outlined text-white/90">calendar_month</span>
 </div>
-<div>
-<p class="text-4xl font-bold mt-4 text-slate-900 dark:text-white"><?php echo htmlspecialchars($statsData['signed_mous'] ?? 0); ?></p>
-<p class="text-sm text-slate-500 dark:text-slate-400 mt-1"><?php echo htmlspecialchars($statsData['pending_renewal_mous'] ?? 0); ?> need renewal</p>
+<div class="relative z-10">
+<p class="text-4xl font-bold mt-4"><?php echo htmlspecialchars($statsData['active_schedules'] ?? 0); ?></p>
+<p class="text-sm text-white/80 mt-1"><?php echo htmlspecialchars($statsData['upcoming_schedules'] ?? 0); ?> upcoming</p>
 </div>
 </a>
-<a href="documents.php" class="bg-white dark:bg-slate-800 p-6 rounded-lg cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 border-2 border-transparent hover:border-primary/20 page-animate-delay-2">
-<div class="flex justify-between items-start">
-<h3 class="font-semibold text-slate-600 dark:text-slate-300">Documents</h3>
-<span class="material-symbols-outlined text-slate-400 dark:text-slate-500">folder</span>
+<a href="mou-moa.php" class="bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-600 text-white p-6 rounded-xl cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/25 active:scale-95 page-animate-delay-2 relative overflow-hidden" style="background: linear-gradient(to bottom right, #6366f1, #a855f7, #4f46e5);">
+<div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+<div class="relative z-10 flex justify-between items-start">
+<h3 class="font-semibold text-white/95">Signed MOUs</h3>
+<span class="material-symbols-outlined text-white/90">handshake</span>
 </div>
-<div>
-<p class="text-4xl font-bold mt-4 text-slate-900 dark:text-white"><?php echo htmlspecialchars($statsData['total_documents'] ?? 0); ?></p>
-<p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Total files</p>
+<div class="relative z-10">
+<p class="text-4xl font-bold mt-4"><?php echo htmlspecialchars($statsData['signed_mous'] ?? 0); ?></p>
+<p class="text-sm text-white/80 mt-1"><?php echo htmlspecialchars($statsData['pending_renewal_mous'] ?? 0); ?> need renewal</p>
+</div>
+</a>
+<a href="documents.php" class="bg-gradient-to-br from-violet-500 via-purple-500 to-violet-600 text-white p-6 rounded-xl cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-violet-500/25 active:scale-95 page-animate-delay-2 relative overflow-hidden" style="background: linear-gradient(to bottom right, #8b5cf6, #a855f7, #7c3aed);">
+<div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+<div class="relative z-10 flex justify-between items-start">
+<h3 class="font-semibold text-white/95">Documents</h3>
+<span class="material-symbols-outlined text-white/90">folder</span>
+</div>
+<div class="relative z-10">
+<p class="text-4xl font-bold mt-4"><?php echo htmlspecialchars($statsData['total_documents'] ?? 0); ?></p>
+<p class="text-sm text-white/80 mt-1">Total files</p>
 </div>
 </a>
 </div>
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 page-animate-delay-1">
-<div class="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-lg">
-<div class="flex justify-between items-center mb-4">
-<h3 class="text-lg font-semibold text-slate-900 dark:text-white">Awards Performance</h3>
-<div class="flex gap-2 items-center" style="position: relative; z-index: 10;">
+<div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg border-l-4 border-purple-400 overflow-hidden">
+<div class="bg-gradient-to-r from-purple-50 via-purple-100 to-indigo-50 dark:from-purple-900/30 dark:via-indigo-900/30 dark:to-purple-800/30 px-6 py-4 border-b border-purple-100 dark:border-purple-800">
+<div class="flex justify-between items-center">
+<h3 class="text-lg font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-2">
+<span class="material-symbols-outlined text-purple-600 dark:text-purple-400">trending_up</span>
+Awards Performance
+</h3>
+<div class="flex gap-2 items-center">
                     <div class="relative inline-block custom-select-wrapper" style="position: relative; margin: 0;">
 <select id="awardsMonthFilter" class="custom-select px-3 py-1.5 pr-8 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent hidden">
 <?php foreach ($statsData['available_months'] ?? [] as $month): ?>
@@ -1198,14 +1207,22 @@ echo htmlspecialchars($firstName);
 </div>
 </div>
 </div>
+</div>
+<div class="px-6 py-4">
 <div class="h-80">
 <canvas id="awardsChart"></canvas>
 </div>
 </div>
-<div class="bg-white dark:bg-slate-800 p-6 rounded-lg page-animate-delay-1">
-<h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">MOU/MOA Notifications</h3>
-<div class="h-80 overflow-y-auto pr-2">
-<div id="renewalsContainer" class="flex items-center justify-center min-h-full">
+</div>
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg border-l-4 border-indigo-400 overflow-hidden page-animate-delay-1">
+<div class="bg-gradient-to-r from-indigo-50 via-indigo-100 to-purple-50 dark:from-indigo-900/30 dark:via-purple-900/30 dark:to-indigo-800/30 px-6 py-4 border-b border-indigo-100 dark:border-indigo-800">
+<h3 class="text-lg font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-2 mb-0">
+<span class="material-symbols-outlined text-indigo-600 dark:text-indigo-400">notifications</span>
+MOU/MOA Notifications
+</h3>
+</div>
+<div class="overflow-hidden">
+<div id="renewalsContainer" class="flex items-center justify-center min-h-full p-6">
 <!-- Renewals will be loaded here via JavaScript -->
 <div class="flex items-center justify-center text-slate-400 dark:text-slate-500">
 <span class="material-symbols-outlined animate-spin mr-2">sync</span>
@@ -1216,11 +1233,17 @@ echo htmlspecialchars($firstName);
 </div>
 </div>
 <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 page-animate-delay-2">
-<div class="lg:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-lg">
-<div class="flex justify-between items-center mb-4">
-<h3 class="text-lg font-semibold text-slate-900 dark:text-white">Upcoming Events</h3>
-<button class="text-sm font-medium text-primary hover:underline" onclick="window.location.href='events-activities.php'">View All</button>
+<div class="lg:col-span-3 bg-white dark:bg-slate-800 rounded-xl shadow-lg border-l-4 border-pink-400 overflow-hidden">
+<div class="bg-gradient-to-r from-pink-50 via-pink-100 to-rose-50 dark:from-pink-900/30 dark:via-rose-900/30 dark:to-pink-800/30 px-6 py-4 border-b border-pink-100 dark:border-pink-800">
+<div class="flex justify-between items-center">
+<h3 class="text-lg font-semibold text-pink-700 dark:text-pink-300 flex items-center gap-2">
+<span class="material-symbols-outlined text-pink-600 dark:text-pink-400">event</span>
+Upcoming Events
+</h3>
+<button class="text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:underline transition-colors" onclick="window.location.href='events-activities.php'">View All</button>
 </div>
+</div>
+<div class="p-6">
 <div class="overflow-x-auto">
 <table class="w-full text-sm text-left">
 <thead class="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
@@ -1259,11 +1282,18 @@ $statusText = ucfirst($status);
 </table>
 </div>
 </div>
-<div class="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-lg page-animate-delay-2">
-<div class="flex justify-between items-center mb-4">
-<h3 class="text-lg font-semibold text-slate-900 dark:text-white">Recent Activity</h3>
-<button type="button" class="text-sm font-medium text-primary hover:underline" data-view-log>View Log</button>
 </div>
+<div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg border-l-4 border-violet-400 overflow-hidden page-animate-delay-2">
+<div class="bg-gradient-to-r from-violet-50 via-violet-100 to-purple-50 dark:from-violet-900/30 dark:via-purple-900/30 dark:to-violet-800/30 px-6 py-4 border-b border-violet-100 dark:border-violet-800">
+<div class="flex justify-between items-center">
+<h3 class="text-lg font-semibold text-violet-700 dark:text-violet-300 flex items-center gap-2">
+<span class="material-symbols-outlined text-violet-600 dark:text-violet-400">history</span>
+Recent Activity
+</h3>
+<button type="button" class="text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:underline transition-colors" data-view-log>View Log</button>
+</div>
+</div>
+<div class="p-6">
 <?php $recentActivities = $statsData['recent_activity'] ?? []; ?>
 <ul class="space-y-4">
 <?php if (!empty($recentActivities)): ?>
@@ -1284,7 +1314,7 @@ $statusText = ucfirst($status);
 <li class="text-sm text-slate-500 dark:text-slate-400">No recent activity.</li>
 <?php endif; ?>
 </ul>
-
+</div>
 </div>
 </div>
 </div>
@@ -1888,38 +1918,84 @@ $statusText = ucfirst($status);
                             container.innerHTML = `
                                 <div class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
                                     <span class="material-symbols-outlined text-4xl mb-3">check_circle</span>
-                                    <p class="text-sm font-medium">No renewals needed</p>
-                                    <p class="text-xs mt-1">All MOU/MOA are up to date</p>
+                                    <p class="text-sm font-medium text-center">No renewals needed</p>
+                                    <p class="text-xs mt-1 text-center">All MOU/MOA are up to date</p>
                                 </div>
                             `;
                             return;
                         }
                         
                         container.classList.remove('flex', 'items-center', 'justify-center');
-                        container.innerHTML = `<div class="space-y-4">${renewals.map(renewal => {
-                            const endDate = new Date(renewal.end_date);
-                            const formattedDate = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                            
-                            const title = renewal.title || renewal.institution || 'Untitled';
-                            
-                            return `
-                                <div class="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/50 relative">
-                                    <button 
-                                        onclick="viewMouDetails(${renewal.id})"
-                                        class="absolute top-2 right-2 p-1.5 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 rounded transition-colors"
-                                        title="View Details">
-                                        <span class="material-symbols-outlined text-base">visibility</span>
-                                    </button>
-                                    <p class="font-semibold text-yellow-800 dark:text-yellow-200 text-sm pr-8">${title}</p>
-                                    <p class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">Renewal Due: ${formattedDate}</p>
-                                    <button 
-                                        onclick="markAsRenewed(${renewal.id})"
-                                        class="mt-3 w-full text-sm font-semibold bg-yellow-400/50 dark:bg-yellow-400/30 text-yellow-900 dark:text-yellow-100 py-1.5 px-3 rounded-md hover:bg-yellow-400/70 dark:hover:bg-yellow-400/40 transition-colors">
-                                        Confirm Renewal
-                                    </button>
-                                </div>
-                            `;
-                        }).join('')}</div>`;
+                        container.className = 'px-6 pb-6 pt-0';
+                        
+                        container.innerHTML = `
+                            <table class="w-full table-auto">
+                                <thead>
+                                    <tr class="border-b border-gray-200 dark:border-gray-700">
+                                        <th class="text-center py-1 px-2 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">File name</th>
+                                        <th class="text-center py-1 px-2 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">End Date</th>
+                                        <th class="text-center py-1 px-2 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">Days Left</th>
+                                        <th class="text-center py-1 px-2 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${renewals.map((renewal, index) => {
+                                        const endDate = new Date(renewal.end_date);
+                                        const formattedDate = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                                        
+                                        const title = renewal.title || renewal.institution || 'Untitled';
+                                        const daysRemaining = renewal.days_remaining || 0;
+                                        const isUrgent = daysRemaining <= 7;
+                                        const isExpiringSoon = daysRemaining > 7 && daysRemaining <= 30;
+                                        
+                                        let statusDot = '';
+                                        let statusText = '';
+                                        if (isUrgent) {
+                                            statusDot = 'bg-red-500';
+                                            statusText = '<p class="text-sm font-medium text-red-600 dark:text-red-500">Urgent</p>';
+                                        } else if (isExpiringSoon) {
+                                            statusDot = 'bg-yellow-500';
+                                            statusText = '<p class="text-sm font-medium text-yellow-600 dark:text-yellow-500">Expiring Soon</p>';
+                                        } else {
+                                            statusDot = 'bg-gray-400 dark:bg-gray-500';
+                                            statusText = '<p class="text-sm font-medium text-gray-600 dark:text-gray-400">Standard</p>';
+                                        }
+                                        
+                                        const daysText = daysRemaining > 0 ? `${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'} left` : 'Overdue';
+                                        
+                                        return `
+                                            <tr class="border-b border-gray-100 dark:border-gray-800">
+                                                <td class="py-1 px-2 text-center">
+                                                    <span class="text-sm font-bold text-gray-900 dark:text-white truncate block">${title}</span>
+                                                </td>
+                                                <td class="py-1 px-2 text-center">
+                                                    <span class="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">${formattedDate}</span>
+                                                </td>
+                                                <td class="py-1 px-2 text-center">
+                                                    <span class="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">${daysText}</span>
+                                                </td>
+                                                <td class="py-1 px-2 text-center">
+                                                    <div class="flex items-center gap-2 text-sm font-medium whitespace-nowrap justify-center">
+                                                        <button 
+                                                            onclick="viewMouDetails(${renewal.id})"
+                                                            class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded"
+                                                            title="View Details">
+                                                            View
+                                                        </button>
+                                                        <button 
+                                                            onclick="showRenewalModal(${renewal.id})"
+                                                            class="text-green-600 dark:text-green-500 hover:text-green-700 dark:hover:text-green-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 rounded"
+                                                            title="Mark as Renewed">
+                                                            Renew
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        `;
                     } catch (error) {
                         console.error('Error loading renewals:', error);
                         container.innerHTML = `
@@ -1932,11 +2008,35 @@ $statusText = ucfirst($status);
                     }
                 }
                 
+                // Show renewal confirmation modal
+                window.showRenewalModal = function(id) {
+                    const modal = document.getElementById('renewalConfirmModal');
+                    const confirmBtn = document.getElementById('confirmRenewalBtn');
+                    const cancelBtn = document.getElementById('cancelRenewalBtn');
+                    
+                    // Close modal function
+                    const closeModal = () => {
+                        modal.classList.add('hidden');
+                    };
+                    
+                    // Remove existing event listeners by cloning
+                    const newConfirmBtn = confirmBtn.cloneNode(true);
+                    const newCancelBtn = cancelBtn.cloneNode(true);
+                    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+                    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+                    
+                    // Add new event listeners
+                    newConfirmBtn.onclick = () => {
+                        closeModal();
+                        markAsRenewed(id);
+                    };
+                    newCancelBtn.onclick = closeModal;
+                    
+                    modal.classList.remove('hidden');
+                };
+                
                 // Mark as renewed function (global for onclick handlers)
                 window.markAsRenewed = async function(id) {
-                    if (!confirm('Have you already renewed this MOU/MOA?')) {
-                        return;
-                    }
                     
                     try {
                         const response = await fetch(`api/mou-moa.php?action=mark-renewed&id=${id}`, {
@@ -2826,10 +2926,11 @@ $statusText = ucfirst($status);
     
     function renewMouFromModal() {
         if (currentMouData) {
-            if (confirm('Have you already renewed this MOU/MOA?')) {
-                markAsRenewed(currentMouData.id);
+            showRenewalModal(currentMouData.id);
+            // Close details modal when renewal modal opens
+            setTimeout(() => {
                 closeMouDetailsModal();
-            }
+            }, 100);
         }
     }
     
@@ -2853,6 +2954,42 @@ $statusText = ucfirst($status);
 <script>
     // XAMPP/Apache version - no port redirect needed
 </script>
+<!-- Renewal Confirmation Modal -->
+<div id="renewalConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+    <div class="bg-black/50 backdrop-blur-sm fixed inset-0" onclick="document.getElementById('renewalConfirmModal').classList.add('hidden')"></div>
+    <div class="w-full max-w-md bg-white dark:bg-slate-800 rounded-xl shadow-2xl m-4 transform transition-all relative z-10">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/20 rounded-full flex items-center justify-center">
+                    <span class="material-symbols-outlined text-indigo-600 dark:text-indigo-400 text-xl">check_circle</span>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Confirm Renewal</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">MOU/MOA Renewal</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Body -->
+        <div class="p-6">
+            <p class="text-gray-700 dark:text-gray-300">
+                Have you already renewed this MOU/MOA?
+            </p>
+        </div>
+        
+        <!-- Modal Footer -->
+        <div class="p-6 bg-gray-50 dark:bg-slate-900/50 rounded-b-xl flex justify-end gap-3">
+            <button id="cancelRenewalBtn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-slate-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-slate-700 transition-colors">
+                Cancel
+            </button>
+            <button id="confirmRenewalBtn" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
+                Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
 </body></html>
 
 

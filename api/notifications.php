@@ -258,7 +258,7 @@ function getNotifications($pdo, $userId, $unreadOnly = false) {
                 WHERE (n.user_id = ? OR n.user_id IS NULL)
                 AND (
                     n.related_type IS NULL
-                    OR (n.related_type = 'mou_moa' AND m.id IS NOT NULL)
+                    OR (n.related_type = 'mou_moa' AND m.id IS NOT NULL AND (m.deleted_at IS NULL OR m.deleted_at = ''))
                     OR (n.related_type = 'event' AND e.id IS NOT NULL)
                 )
                 AND (
@@ -414,7 +414,7 @@ function getUnreadCount($pdo, $userId) {
             WHERE (n.user_id = ? OR n.user_id IS NULL)
             AND (
                 n.related_type IS NULL
-                OR (n.related_type = 'mou_moa' AND m.id IS NOT NULL)
+                OR (n.related_type = 'mou_moa' AND m.id IS NOT NULL AND (m.deleted_at IS NULL OR m.deleted_at = ''))
                 OR (n.related_type = 'event' AND e.id IS NOT NULL)
             )
             AND (

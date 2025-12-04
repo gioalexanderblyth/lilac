@@ -1893,9 +1893,17 @@ try {
                     // Reload all data from database
                     await loadFromDatabase();
 
-                    // Remove related notifications
+                    // Remove related notifications (localStorage cleanup)
                     if (typeof removeNotificationsForEntry === 'function') {
                         removeNotificationsForEntry(id);
+                    }
+
+                    // Reload notifications from API to reflect deleted notifications
+                    if (typeof loadNotifications === 'function') {
+                        await loadNotifications();
+                    }
+                    if (typeof updateNotificationBadge === 'function') {
+                        await updateNotificationBadge();
                     }
 
                     // Close modal
@@ -2213,9 +2221,9 @@ try {
                         formData.append('file', fileInput.files[0]);
                     }
 
-                    // Note: PUT with FormData requires special handling
+                    // Use POST for FormData (PHP handles POST FormData correctly)
                     const response = await fetch(`${API_BASE_URL}?action=update&id=${entry.id}`, {
-                        method: 'PUT',
+                        method: 'POST',
                         body: formData
                     });
 

@@ -145,7 +145,15 @@ function deleteFile($filePath) {
 // Get all MOU/MOA entries
 function getAllEntries($pdo, $userId, $isAdmin) {
     try {
-        $sql = "SELECT * FROM mou_moa ORDER BY created_at DESC";
+        // Ensure deleted_at column exists
+        try {
+            $pdo->exec("ALTER TABLE mou_moa ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore
+        }
+        
+        // Filter out soft-deleted entries (where deleted_at IS NULL)
+        $sql = "SELECT * FROM mou_moa WHERE deleted_at IS NULL ORDER BY created_at DESC";
         $stmt = $pdo->query($sql);
         $entries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -243,8 +251,21 @@ function addEntry($pdo, $data, $userId) {
 // Update MOU/MOA entry
 function updateEntry($pdo, $id, $data) {
     try {
+        // Validate required fields
+        $required = ['institution', 'location', 'contact_email', 'term', 'sign_date', 'end_date'];
+        foreach ($required as $field) {
+            if (!isset($data[$field]) || $data[$field] === '') {
+                throw new Exception("Field '$field' is required");
+            }
+        }
+
+        // Validate email format if provided
+        if (!empty($data['contact_email']) && !filter_var($data['contact_email'], FILTER_VALIDATE_EMAIL)) {
+            throw new Exception('Invalid email format');
+        }
+
         // Calculate status
-        $status = calculateStatus($data['end_date']);
+        $status = calculateStatus($data['end_date'] ?? '');
 
         // Check if we're updating the file
         $updateFile = isset($data['file_name']) && isset($data['file_path']);
@@ -319,6 +340,19 @@ function deleteEntry($pdo, $id, $permanent = false) {
             throw new Exception('Entry not found');
         }
 
+        // Delete related notifications (both for permanent and soft delete)
+        try {
+            // Delete all notifications related to this MOU
+            // This will also cascade delete related records in notification_reads and notification_confirmations
+            // if foreign keys are properly set up
+            $notifStmt = $pdo->prepare("DELETE FROM notifications WHERE related_type = 'mou_moa' AND related_id = ?");
+            $notifStmt->execute([$id]);
+        } catch (PDOException $e) {
+            // Log error but don't fail the delete operation if notifications table doesn't exist
+            // This allows the system to work even if notifications haven't been set up yet
+            error_log('Error deleting notifications for MOU ' . $id . ': ' . $e->getMessage());
+        }
+
         if ($permanent) {
             // Permanent delete - remove file and database record
             $stmt = $pdo->prepare("DELETE FROM mou_moa WHERE id = ?");
@@ -355,7 +389,8 @@ function getRenewals($pdo) {
         $sql = "SELECT id, title, institution, partner, type, end_date, 
                        DATEDIFF(end_date, CURDATE()) as days_remaining
                 FROM mou_moa 
-                WHERE end_date IS NOT NULL
+                WHERE deleted_at IS NULL
+                AND end_date IS NOT NULL
                 AND end_date >= CURDATE()
                 AND end_date <= DATE_ADD(CURDATE(), INTERVAL 60 DAY)
                 AND (renewal_confirmed = 0 OR renewal_confirmed IS NULL)
@@ -478,6 +513,50 @@ try {
             // Allow all authenticated users to create (same as admin)
             // No admin check needed - all authenticated users have full access
 
+            $action = $_GET['action'] ?? '';
+            
+            // Handle update via POST (for FormData compatibility)
+            if ($action === 'update') {
+                $id = $_GET['id'] ?? null;
+                if (!$id) {
+                    throw new Exception('ID is required for update');
+                }
+
+                // Handle file upload if present
+                $data = $_POST;
+                $hasFile = isset($_FILES['file']) && $_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE;
+                
+                if ($hasFile) {
+                    // Get old file path for deletion
+                    $oldEntry = getEntry($pdo, $id);
+                    
+                    // Upload new file
+                    $fileInfo = handleFileUpload($_FILES['file']);
+                    $data['file_name'] = $fileInfo['file_name'];
+                    $data['file_path'] = $fileInfo['file_path'];
+                }
+
+                // Map 'category' from form to 'type' for database
+                if (isset($data['category'])) {
+                    $data['type'] = $data['category'];
+                    unset($data['category']);
+                }
+
+                $success = updateEntry($pdo, $id, $data);
+
+                // Delete old file if update was successful
+                if ($success && $hasFile && !empty($oldEntry['file_path'])) {
+                    deleteFile($oldEntry['file_path']);
+                }
+
+                if ($success) {
+                    echo json_encode(['success' => true, 'message' => 'Entry updated successfully']);
+                } else {
+                    throw new Exception('Entry not found or no changes made');
+                }
+                break;
+            }
+
             // Handle file upload if present
             $data = $_POST;
             if (isset($_FILES['file']) && $_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE) {
@@ -509,9 +588,38 @@ try {
                 throw new Exception('ID is required for update');
             }
 
-            // Check if it's multipart/form-data (with file upload)
-            if (isset($_FILES['file']) && $_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE) {
-                $data = $_POST;
+            // Check if it's multipart/form-data (FormData from frontend)
+            $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+            $isFormData = strpos($contentType, 'multipart/form-data') !== false;
+            
+            // For PUT requests, PHP doesn't populate $_POST automatically
+            // Check if we have files (which PHP does populate for PUT)
+            if ($isFormData && isset($_FILES['file']) && $_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE) {
+                // File upload with FormData - PHP populates $_FILES but may not populate $_POST for PUT
+                // Try $_POST first, if empty, parse from input stream
+                if (!empty($_POST)) {
+                    $data = $_POST;
+                } else {
+                    // Parse multipart/form-data manually for PUT requests
+                    $data = [];
+                    $input = file_get_contents('php://input');
+                    $boundary = substr($contentType, strpos($contentType, 'boundary=') + 9);
+                    $parts = explode('--' . $boundary, $input);
+                    
+                    foreach ($parts as $part) {
+                        if (empty(trim($part)) || $part === '--') continue;
+                        
+                        if (preg_match('/name="([^"]+)"/', $part, $matches)) {
+                            $name = $matches[1];
+                            if ($name === 'file') continue; // Skip file, already in $_FILES
+                            
+                            $value = preg_split('/\r\n\r\n/', $part, 2);
+                            if (isset($value[1])) {
+                                $data[$name] = trim($value[1], "\r\n-");
+                            }
+                        }
+                    }
+                }
 
                 // Map 'category' from form to 'type' for database
                 if (isset($data['category'])) {
@@ -533,6 +641,37 @@ try {
                 if ($success && !empty($oldEntry['file_path'])) {
                     deleteFile($oldEntry['file_path']);
                 }
+            } elseif ($isFormData) {
+                // FormData without file upload - PHP doesn't populate $_POST for PUT
+                // Parse multipart/form-data manually
+                if (!empty($_POST)) {
+                    $data = $_POST;
+                } else {
+                    $data = [];
+                    $input = file_get_contents('php://input');
+                    $boundary = substr($contentType, strpos($contentType, 'boundary=') + 9);
+                    $parts = explode('--' . $boundary, $input);
+                    
+                    foreach ($parts as $part) {
+                        if (empty(trim($part)) || $part === '--') continue;
+                        
+                        if (preg_match('/name="([^"]+)"/', $part, $matches)) {
+                            $name = $matches[1];
+                            $value = preg_split('/\r\n\r\n/', $part, 2);
+                            if (isset($value[1])) {
+                                $data[$name] = trim($value[1], "\r\n-");
+                            }
+                        }
+                    }
+                }
+
+                // Map 'category' from form to 'type' for database
+                if (isset($data['category'])) {
+                    $data['type'] = $data['category'];
+                    unset($data['category']);
+                }
+
+                $success = updateEntry($pdo, $id, $data);
             } else {
                 // JSON input (no file upload)
                 $input = json_decode(file_get_contents('php://input'), true);
