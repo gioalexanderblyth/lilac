@@ -366,7 +366,7 @@ No notifications yet
             <p class="text-sm text-text-muted-light dark:text-text-muted-dark">View all events in a table format</p>
           </div>
           
-          <!-- Filter and Sort Buttons -->
+          <!-- Filter, Sort, and Add Event Buttons -->
           <div class="flex items-center gap-2">
             <div class="relative">
               <button id="eventFilterBtn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-light bg-card-light border border-border-light rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-text-muted-dark dark:border-border-dark dark:hover:bg-card-dark">
@@ -484,6 +484,12 @@ No notifications yet
                 </div>
               </div>
             </div>
+            
+            <!-- Add Event button - moved beside Sort -->
+            <button id="addEventBtn" class="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors">
+              <span class="material-symbols-outlined">add</span>
+              <span>Add Event</span>
+            </button>
           </div>
         </div>
         
@@ -511,13 +517,6 @@ No notifications yet
     </div>
 
     <div class="space-y-6">
-      <!-- Add Event button - available to all authenticated users -->
-      <div class="flex justify-end">
-        <button id="addEventBtn" class="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors">
-          <span class="material-symbols-outlined">add</span>
-          <span>Add Event</span>
-        </button>
-      </div>
       <div class="bg-card-light dark:bg-card-dark p-4 rounded-xl shadow-soft">
         <div class="flex justify-between items-center mb-4">
           <div class="relative">
