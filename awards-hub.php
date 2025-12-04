@@ -119,6 +119,56 @@ require_once __DIR__ . '/api/config.php';
         .ai-badge {
             animation: pulse-glow 2s infinite;
         }
+
+        /* Page Animation Effects (match Awards page) */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .page-animate {
+            animation: fadeInUp 0.6s ease-out forwards;
+            opacity: 0;
+        }
+
+        .page-animate-delay-1 {
+            animation: fadeInUp 0.6s ease-out 0.1s forwards;
+            opacity: 0;
+        }
+
+        .page-animate-delay-2 {
+            animation: fadeInUp 0.6s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+
+        .page-animate-delay-3 {
+            animation: fadeInUp 0.6s ease-out 0.3s forwards;
+            opacity: 0;
+        }
+
+        .header-animate {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        .content-animate {
+            animation: fadeInUp 0.7s ease-out 0.2s forwards;
+            opacity: 0;
+        }
         
         /* Toast animation */
         @keyframes fade-in {
@@ -199,7 +249,7 @@ require_once __DIR__ . '/api/config.php';
     <!-- Main Content -->
     <main class="flex-1 overflow-y-auto transition-all duration-300 ml-64" id="main-content">
         <!-- Header -->
-        <header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible">
+        <header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible header-animate">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-sm">
                     <span class="material-symbols-outlined text-white">military_tech</span>
@@ -223,9 +273,9 @@ require_once __DIR__ . '/api/config.php';
             </div>
         </header>
 
-        <div class="px-6 lg:px-8 pt-4 pb-12">
+        <div class="px-6 lg:px-8 pt-4 pb-12 main-content content-animate">
             <!-- Overview Stats (compact) -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 page-animate-delay-1">
                 <!-- Card 1 -->
                 <div class="bg-card-light dark:bg-card-dark rounded-lg p-4 border border-border-light dark:border-border-dark relative overflow-hidden group hover:shadow-md transition-shadow">
                     <div class="relative z-10">
@@ -276,7 +326,7 @@ require_once __DIR__ . '/api/config.php';
             </div>
 
             <!-- Award Categories Section -->
-            <div class="mb-8">
+            <div class="mb-8 page-animate-delay-2">
                 <div class="flex items-center justify-between mb-6">
                     <h2 class="text-xl font-bold text-text-light dark:text-text-dark">Award Categories</h2>
                     <div class="relative group">
