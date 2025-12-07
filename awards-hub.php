@@ -186,41 +186,41 @@ require_once __DIR__ . '/api/config.php';
     <aside class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col fixed h-full z-40 transition-all duration-300">
         <div class="flex items-center justify-start px-4 h-20 border-b border-border-light dark:border-border-dark flex-shrink-0">
             <div class="flex items-center gap-3 overflow-hidden">
-                <img alt="CPU LILAC Logo" class="h-11 w-11 flex-shrink-0" src="./api/get-logo.php?v=1" width="44" height="44" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex';"/>
+                <img alt="CPU LILAC Logo" class="h-11 w-11 flex-shrink-0" src="./api/get-logo.php?v=1" width="44" height="44" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex'; console.error('Logo failed to load:', this.src);"/>
                 <div class="h-11 w-11 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style="display: none;" id="logo-fallback">CPU</div>
                 <h1 class="text-xl font-bold text-text-light dark:text-text-dark sidebar-logo-text whitespace-nowrap">LILAC</h1>
             </div>
         </div>
         <nav class="flex-1 px-4 py-6 space-y-2">
-            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="dashboard.php" title="Dashboard">
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="dashboard.php" title="Dashboard">
                 <span class="material-symbols-outlined flex-shrink-0">dashboard</span>
                 <span class="sidebar-text whitespace-nowrap">Dashboard</span>
             </a>
-            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-500/10 to-blue-500/10 text-primary-600 dark:text-primary-400 font-semibold sidebar-nav-link border border-purple-200 dark:border-purple-800" href="awards-hub.php" title="ICONS 2025 Hub">
-                <span class="material-symbols-outlined filled text-purple-600 flex-shrink-0">military_tech</span>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/40 dark:to-indigo-900/40 text-purple-600 dark:text-purple-400 font-semibold sidebar-nav-link border border-purple-200 dark:border-purple-800 shadow-sm" href="awards-hub.php" title="ICONS 2025 Hub">
+                <span class="material-symbols-outlined filled flex-shrink-0">military_tech</span>
                 <span class="sidebar-text whitespace-nowrap">ICONS 2025</span>
             </a>
-            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
                 <span class="material-symbols-outlined flex-shrink-0">emoji_events</span>
                 <span class="sidebar-text whitespace-nowrap">Awards Progress</span>
             </a>
-            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
                 <span class="material-symbols-outlined flex-shrink-0">event</span>
                 <span class="sidebar-text whitespace-nowrap">Events &amp; Activities</span>
             </a>
-            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="scheduler.php" title="Scheduler">
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="scheduler.php" title="Scheduler">
                 <span class="material-symbols-outlined flex-shrink-0">calendar_today</span>
                 <span class="sidebar-text whitespace-nowrap">Scheduler</span>
             </a>
-            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="mou-moa.php" title="MOUs & MOAs">
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="mou-moa.php" title="MOUs & MOAs">
                 <span class="material-symbols-outlined flex-shrink-0">handshake</span>
                 <span class="sidebar-text whitespace-nowrap">MOUs &amp; MOAs</span>
             </a>
-            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="documents.php" title="Documents">
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="documents.php" title="Documents">
                 <span class="material-symbols-outlined flex-shrink-0">description</span>
                 <span class="sidebar-text whitespace-nowrap">Documents</span>
             </a>
-            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-background-dark hover:text-text-light dark:hover:text-text-dark transition-colors duration-200 sidebar-nav-link" href="trash.php" title="Trash">
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="trash.php" title="Trash">
                 <span class="material-symbols-outlined flex-shrink-0">delete</span>
                 <span class="sidebar-text whitespace-nowrap">Trash</span>
             </a>
@@ -230,7 +230,7 @@ require_once __DIR__ . '/api/config.php';
                 <div class="flex items-center gap-3 overflow-hidden">
                     <div class="w-10 h-10 rounded-full bg-cover bg-center sidebar-profile-picture flex-shrink-0" style='background-image: url("<?php echo !empty($user['profile_picture']) ? htmlspecialchars($user['profile_picture']) : 'https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p'; ?>");'></div>
                     <div class="sidebar-profile-info overflow-hidden">
-                        <p class="font-semibold text-text-light dark:text-text-dark truncate"><?php echo htmlspecialchars($user['username'] ?? 'User'); ?></p>
+                        <p class="font-semibold text-text-light dark:text-text-dark truncate"><?php echo htmlspecialchars($user['role'] === 'admin' ? 'Admin User' : $user['username']); ?></p>
                         <div class="flex gap-3">
                             <a class="text-sm text-primary-600 dark:text-primary-400 hover:underline whitespace-nowrap" href="profile.php">Profile</a>
                             <span class="text-sm text-gray-400">|</span>
@@ -910,36 +910,95 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 // Sidebar toggle
 function initSidebar() {
-    const container = document.getElementById('app-container');
-    const toggle = document.getElementById('sidebar-toggle');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const appContainer = document.getElementById('app-container');
+    const sidebar = document.querySelector('.sidebar');
     const mainContent = document.getElementById('main-content');
-    const savedState = localStorage.getItem('sidebarCollapsed');
-    
-    // Function to apply collapsed state
-    const applyState = (isCollapsed) => {
-        if (isCollapsed) {
-            container.classList.add('sidebar-collapsed');
-            mainContent.classList.remove('ml-64');
-            mainContent.classList.add('ml-20');
-        } else {
-            container.classList.remove('sidebar-collapsed');
+    const sidebarLogoText = document.querySelector('.sidebar-logo-text');
+    const sidebarTexts = document.querySelectorAll('.sidebar-text');
+    const sidebarProfileInfo = document.querySelector('.sidebar-profile-info');
+    const sidebarProfilePicture = document.querySelector('.sidebar-profile-picture');
+    const profileContainer = document.querySelector('.profile-container');
+    const toggleContainer = document.querySelector('.sidebar-toggle-container');
+    const openIcon = document.querySelector('.sidebar-toggle-icon-open');
+    const closedIcon = document.querySelector('.sidebar-toggle-icon-closed');
+    const navLinks = document.querySelectorAll('.sidebar-nav-link');
+
+    const initSidebarState = () => {
+        const savedState = localStorage.getItem('sidebarCollapsed');
+        if (savedState === 'false') {
+            appContainer.classList.remove('sidebar-collapsed');
             mainContent.classList.remove('ml-20');
             mainContent.classList.add('ml-64');
+            
+            sidebarLogoText.classList.remove('hidden');
+            sidebarTexts.forEach(text => text.classList.remove('hidden'));
+            sidebarProfileInfo.classList.remove('hidden');
+            sidebarProfilePicture.classList.remove('hidden');
+            openIcon.classList.remove('hidden');
+            openIcon.classList.add('block');
+            closedIcon.classList.add('hidden');
+            closedIcon.classList.remove('block');
+            navLinks.forEach(link => link.classList.remove('justify-center'));
+            if (profileContainer) profileContainer.classList.remove('justify-center');
+            if (toggleContainer) toggleContainer.classList.remove('justify-center');
+        } else {
+            // Default or true - ensure collapsed state matches
+            appContainer.classList.add('sidebar-collapsed');
+            mainContent.classList.remove('ml-64');
+            mainContent.classList.add('ml-20');
         }
     };
+    initSidebarState();
 
-    // Initialize state
-    if (savedState === 'true') {
-        applyState(true);
-    } else {
-        applyState(false);
-    }
-    
-    toggle?.addEventListener('click', () => {
-        const isCollapsed = !container.classList.contains('sidebar-collapsed');
-        applyState(isCollapsed);
-        localStorage.setItem('sidebarCollapsed', isCollapsed);
-    });
+    // Function to toggle sidebar
+    const toggleSidebar = () => {
+        const isCollapsed = appContainer.classList.contains('sidebar-collapsed');
+        
+        if (isCollapsed) {
+            // Expand sidebar
+            appContainer.classList.remove('sidebar-collapsed');
+            mainContent.classList.remove('ml-20');
+            mainContent.classList.add('ml-64');
+            
+            sidebarLogoText.classList.remove('hidden');
+            sidebarTexts.forEach(text => text.classList.remove('hidden'));
+            sidebarProfileInfo.classList.remove('hidden');
+            sidebarProfilePicture.classList.remove('hidden');
+            openIcon.classList.remove('hidden');
+            openIcon.classList.add('block');
+            closedIcon.classList.add('hidden');
+            closedIcon.classList.remove('block');
+            navLinks.forEach(link => link.classList.remove('justify-center'));
+            if (profileContainer) profileContainer.classList.remove('justify-center');
+            if (toggleContainer) toggleContainer.classList.remove('justify-center');
+            
+            localStorage.setItem('sidebarCollapsed', 'false');
+        } else {
+            // Collapse sidebar
+            appContainer.classList.add('sidebar-collapsed');
+            mainContent.classList.remove('ml-64');
+            mainContent.classList.add('ml-20');
+            
+            sidebarLogoText.classList.add('hidden');
+            sidebarTexts.forEach(text => text.classList.add('hidden'));
+            sidebarProfileInfo.classList.add('hidden');
+            sidebarProfilePicture.classList.add('hidden');
+            openIcon.classList.add('hidden');
+            openIcon.classList.remove('block');
+            closedIcon.classList.remove('hidden');
+            closedIcon.classList.add('block');
+            navLinks.forEach(link => link.classList.add('justify-center'));
+            if (profileContainer) profileContainer.classList.add('justify-center');
+            if (toggleContainer) toggleContainer.classList.add('justify-center');
+            
+            localStorage.setItem('sidebarCollapsed', 'true');
+        }
+        
+        // Force a reflow to ensure layout updates properly
+        void appContainer.offsetHeight;
+    };
+    sidebarToggle.addEventListener('click', toggleSidebar);
 }
 
 // Theme toggle

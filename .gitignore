@@ -2,3 +2,6 @@
 logs/activity.log
 logs/*.log
 .claude
+
+# Cursor workspace storage files (shouldn't be in project)
+assets/c__Users_Admin_AppData_Roaming_Cursor*.png
