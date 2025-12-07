@@ -907,7 +907,11 @@ Clear Sort
                 let failCount = 0;
 
                 try {
-                    for (const { id, source } of items) {
+                    // Process all items sequentially, but continue even if one fails
+                    for (let i = 0; i < items.length; i++) {
+                        const item = items[i];
+                        const { id, source } = item;
+                        
                         try {
                             let apiUrl = '';
                             if (source === 'mou_moa') {
@@ -922,25 +926,59 @@ Clear Sort
                                 apiUrl = `api/other-documents.php?id=${encodeURIComponent(id)}&permanent=true`;
                             }
 
+                            console.log(`Deleting item ${i + 1}/${items.length}: ID ${id}, Source: ${source}`);
+                            
                             const response = await fetch(apiUrl, { method: 'DELETE' });
-                            const result = await response.json();
-
-                            if (result.success) {
-                                successCount++;
-                            } else {
+                            
+                            if (!response.ok) {
+                                // Try to get error message from response
+                                let errorText = '';
+                                try {
+                                    const errorResult = await response.json();
+                                    errorText = errorResult.error || errorResult.message || 'Unknown error';
+                                } catch (e) {
+                                    errorText = await response.text() || `HTTP ${response.status}`;
+                                }
+                                console.error(`Delete failed for item ${i + 1} (ID: ${id}):`, errorText);
                                 failCount++;
+                            } else {
+                                try {
+                                    const result = await response.json();
+                                    if (result.success) {
+                                        console.log(`Successfully deleted item ${i + 1} (ID: ${id})`);
+                                        successCount++;
+                                    } else {
+                                        console.error(`Delete failed for item ${i + 1} (ID: ${id}):`, result.error || result.message);
+                                        failCount++;
+                                    }
+                                } catch (jsonError) {
+                                    // Response might not be JSON, but status was OK
+                                    console.warn(`Item ${i + 1} (ID: ${id}) deleted but response was not JSON`);
+                                    successCount++;
+                                }
                             }
                         } catch (error) {
-                            console.error('Error deleting item:', error);
+                            console.error(`Error deleting item ${i + 1} (ID: ${id}, Source: ${source}):`, error);
                             failCount++;
+                        }
+                        
+                        // Small delay between requests to avoid overwhelming the server
+                        if (i < items.length - 1) {
+                            await new Promise(resolve => setTimeout(resolve, 100));
                         }
                     }
 
+                    console.log(`Delete operation completed: ${successCount} succeeded, ${failCount} failed`);
+                    
                     if (successCount > 0) {
-                        // On success, just reload; avoid blocking browser alerts
+                        // Show success message with details
+                        if (failCount > 0) {
+                            alert(`Successfully deleted ${successCount} item(s). ${failCount} item(s) failed to delete.`);
+                        }
+                        // Reload page to refresh the trash list
                         location.reload();
                     } else {
-                        alert('Failed to delete items. Please try again.');
+                        alert(`Failed to delete all items. ${failCount} item(s) failed. Please try again.`);
                     }
                 } finally {
                     hideDeleteModal();
@@ -1040,9 +1078,16 @@ Clear Sort
             }
 
             const items = Array.from(selectedTrashItems).map(key => {
-                const [id, source] = key.split('_');
+                // Split by first underscore only (format: "id_source_table")
+                const firstUnderscore = key.indexOf('_');
+                if (firstUnderscore === -1) {
+                    console.error('Invalid key format:', key);
+                    return null;
+                }
+                const id = key.substring(0, firstUnderscore);
+                const source = key.substring(firstUnderscore + 1);
                 return { id, source };
-            });
+            }).filter(item => item !== null);
 
             // Open styled restore modal for these items
             showRestoreModal(items);
@@ -1056,9 +1101,21 @@ Clear Sort
             }
 
             const items = Array.from(selectedTrashItems).map(key => {
-                const [id, source] = key.split('_');
+                // Split by first underscore only (format: "id_source_table")
+                const firstUnderscore = key.indexOf('_');
+                if (firstUnderscore === -1) {
+                    console.error('Invalid key format:', key);
+                    return null;
+                }
+                const id = key.substring(0, firstUnderscore);
+                const source = key.substring(firstUnderscore + 1);
                 return { id, source };
-            });
+            }).filter(item => item !== null);
+
+            if (items.length === 0) {
+                alert('No valid items selected');
+                return;
+            }
 
             // Open styled delete modal for these items
             showDeleteModal(items);

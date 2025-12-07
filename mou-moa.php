@@ -632,16 +632,11 @@ try {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="institution">Institution</label>
-                    <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="institution" placeholder="e.g., Central Philippine University" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"/>
+                    <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary uppercase-input" id="institution" placeholder="e.g., CENTRAL PHILIPPINE UNIVERSITY" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="text-transform: uppercase;"/>
                 </div>
-                <div class="relative">
+                <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="location">Location</label>
                     <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="location" placeholder="e.g., Iloilo City" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"/>
-                    <div id="mouLocationSuggestions" class="hidden absolute top-full left-0 right-0 mt-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg max-h-48 overflow-y-auto z-50">
-                        <div id="mouSuggestionsList" class="p-2 space-y-1">
-                            <!-- Location suggestions will appear here -->
-                        </div>
-                    </div>
                 </div>
             </div>
             
@@ -726,7 +721,7 @@ try {
     </div>
 </div>
 <!-- File Viewer Modal -->
-<div id="fileViewerModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+<div id="fileViewerModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
     <div class="w-full max-w-4xl bg-white dark:bg-background-dark rounded-xl shadow-2xl m-4 flex flex-col max-h-[90vh]">
         <!-- Modal Header -->
         <div class="p-6 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 flex items-center justify-between">
@@ -740,13 +735,15 @@ try {
         </div>
         
         <!-- Modal Body -->
-        <div class="p-6 flex-1 overflow-hidden">
-            <div class="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-lg">
-                <div id="fileViewerContent" class="w-full h-full flex items-center justify-center">
+        <div class="p-6 flex-1 overflow-auto" style="min-height: 400px;">
+            <div class="w-full h-full bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <div id="fileViewerContent" class="w-full h-full">
                     <!-- File content will be displayed here -->
-                    <div class="text-center">
+                    <div class="text-center flex items-center justify-center h-full">
+                        <div>
                         <span class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-600 mb-4">description</span>
                         <p class="text-gray-500 dark:text-gray-400">File preview will be displayed here</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1754,11 +1751,36 @@ try {
             termInput.addEventListener('change', autoCalculateEndDate);
             termInput.addEventListener('input', autoCalculateEndDate);
             
+            // Force institution field to uppercase
+            const institutionInput = document.getElementById('institution');
+            if (institutionInput) {
+                // Convert to uppercase on input
+                institutionInput.addEventListener('input', function(e) {
+                    const cursorPosition = e.target.selectionStart;
+                    e.target.value = e.target.value.toUpperCase();
+                    // Restore cursor position after conversion
+                    e.target.setSelectionRange(cursorPosition, cursorPosition);
+                });
+                
+                // Convert to uppercase on paste
+                institutionInput.addEventListener('paste', function(e) {
+                    e.preventDefault();
+                    const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                    const cursorPosition = e.target.selectionStart;
+                    const textBefore = e.target.value.substring(0, cursorPosition);
+                    const textAfter = e.target.value.substring(e.target.selectionEnd);
+                    e.target.value = textBefore + pastedText.toUpperCase() + textAfter;
+                    // Set cursor position after pasted text
+                    const newCursorPosition = cursorPosition + pastedText.length;
+                    e.target.setSelectionRange(newCursorPosition, newCursorPosition);
+                });
+            }
+            
             // Handle Save button
             if (saveBtn) {
                 saveBtn.addEventListener('click', async function() {
                     // Get form data
-                    const institution = document.getElementById('institution').value.trim();
+                    const institution = document.getElementById('institution').value.trim().toUpperCase();
                     const location = document.getElementById('location').value.trim();
                     const contact = document.getElementById('contact').value.trim();
                     const term = document.getElementById('term').value.trim();
@@ -1807,7 +1829,7 @@ try {
                     const newEntry = {
                         institution: institution,
                         location: location,
-                        contact_email: contact,
+                        contact_email: contact || null, // Send null if empty string
                         term: term,
                         category: category,
                         sign_date: signDate,
@@ -2019,7 +2041,38 @@ try {
             
             // Function to show file viewer modal
             function showFileViewer(filePath, fileName) {
-                currentFileData = { path: filePath, name: fileName };
+                if (!filePath) {
+                    alert('File path not available');
+                    return;
+                }
+                
+                console.log('showFileViewer called with:', { filePath, fileName });
+                
+                // Normalize file path - database stores paths like "uploads/mou/filename.pdf"
+                let normalizedPath = filePath.trim();
+                
+                // Remove leading slash if present (paths should be relative from root)
+                if (normalizedPath.startsWith('/')) {
+                    normalizedPath = normalizedPath.substring(1);
+                }
+                
+                // If it's already a full URL, use it directly
+                // Otherwise, use the path as-is (should already be "uploads/mou/filename.pdf")
+                if (!normalizedPath.startsWith('http://') && !normalizedPath.startsWith('https://')) {
+                    // Path from database is already in correct format: "uploads/mou/filename.pdf"
+                    // Just clean up any double slashes
+                    normalizedPath = normalizedPath.replace(/\/+/g, '/');
+                }
+                
+                console.log('Final file path:', normalizedPath);
+                
+                // Verify file path format
+                if (!normalizedPath || normalizedPath.length === 0) {
+                    alert('Invalid file path. Cannot view file.');
+                    return;
+                }
+                
+                currentFileData = { path: normalizedPath, name: fileName };
                 
                 // Update modal title and subtitle
                 fileViewerTitle.textContent = fileName || 'View File';
@@ -2030,39 +2083,127 @@ try {
                 
                 // Show loading state
                 fileViewerContent.innerHTML = `
+                    <div class="w-full h-full flex items-center justify-center" style="min-height: 500px;">
                     <div class="text-center">
                         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
                         <p class="text-gray-500 dark:text-gray-400">Loading file...</p>
+                        </div>
                     </div>
                 `;
                 
                 // Show modal
                 fileViewerModal.classList.remove('hidden');
                 
-                // Simulate file loading (in a real app, you'd load the actual file)
+                // Load file content immediately
                 setTimeout(() => {
-                    loadFileContent(filePath, fileName);
-                }, 1000);
+                    loadFileContent(normalizedPath, fileName);
+                }, 100);
             }
             
-            // Function to load file content (Simplified version matching documents.php)
+            // Function to load file content
             function loadFileContent(filePath, fileName) {
+                if (!filePath) {
+                    fileViewerContent.innerHTML = `
+                        <div class="text-center p-8">
+                            <span class="material-symbols-outlined text-6xl text-gray-400 mb-4">error</span>
+                            <p class="text-gray-500">File path not available</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                console.log('Loading file content:', { filePath, fileName });
+                
                 const fileExtension = fileName ? fileName.split('.').pop().toLowerCase() : '';
+                
+                // Escape only for display text (not for URLs in src attributes)
+                const displayFileName = (fileName || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                
+                // Reset content area - remove flex classes that might interfere  
+                fileViewerContent.className = 'w-full h-full';
+                fileViewerContent.style.display = 'block';
                 
                 // Handle different file types
                 if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(fileExtension)) {
-                    // Show image preview
-                    fileViewerContent.innerHTML = `
-                        <div class="w-full h-full flex items-center justify-center p-4">
-                            <img src="${filePath}" alt="${fileName}" class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg" 
-                                 onerror="this.parentElement.innerHTML='<div class=\\'text-center\\'><span class=\\'material-symbols-outlined text-6xl text-gray-400 mb-4\\'>error</span><p class=\\'text-gray-500\\'>Failed to load image</p></div>'">
+                    // Show image preview - create img element directly
+                    fileViewerContent.innerHTML = '';
+                    const imgContainer = document.createElement('div');
+                    imgContainer.className = 'w-full h-full flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900';
+                    imgContainer.style.minHeight = '500px';
+                    
+                    const img = document.createElement('img');
+                    img.src = filePath;
+                    img.alt = fileName || 'Image';
+                    img.className = 'max-w-full max-h-[75vh] object-contain rounded-lg shadow-lg';
+                    img.style.display = 'block';
+                    
+                    img.onload = function() {
+                        console.log('✓ Image loaded successfully:', filePath);
+                    };
+                    
+                    img.onerror = function() {
+                        console.error('✗ Failed to load image:', filePath);
+                        imgContainer.innerHTML = `
+                            <div class="text-center p-8">
+                                <span class="material-symbols-outlined text-6xl text-red-400 mb-4">error</span>
+                                <p class="text-red-500 font-medium mb-2">Failed to load image</p>
+                                <p class="text-sm text-gray-400 mb-4">Path: ${filePath}</p>
+                                <button onclick="window.open('${filePath}', '_blank')" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
+                                    Open in New Tab
+                                </button>
                         </div>
                     `;
+                    };
+                    
+                    imgContainer.appendChild(img);
+                    fileViewerContent.appendChild(imgContainer);
                 } else if (fileExtension === 'pdf') {
-                    // Show PDF in iframe
+                    // Show PDF in iframe - create iframe element directly
+                    fileViewerContent.innerHTML = '';
+                    const iframeContainer = document.createElement('div');
+                    iframeContainer.className = 'w-full h-full bg-gray-50 dark:bg-gray-900';
+                    iframeContainer.style.minHeight = '600px';
+                    
+                    const iframe = document.createElement('iframe');
+                    iframe.src = filePath;
+                    iframe.className = 'w-full h-full min-h-[600px] rounded-lg border border-gray-300 dark:border-gray-700';
+                    iframe.frameBorder = '0';
+                    iframe.style.display = 'block';
+                    iframe.style.width = '100%';
+                    iframe.style.height = '75vh';
+                    iframe.style.minHeight = '600px';
+                    
+                    iframe.onload = function() {
+                        console.log('✓ PDF loaded successfully:', filePath);
+                    };
+                    
+                    iframe.onerror = function() {
+                        console.error('✗ Failed to load PDF:', filePath);
+                        iframeContainer.innerHTML = `
+                            <div class="text-center p-8">
+                                <span class="material-symbols-outlined text-6xl text-red-400 mb-4">error</span>
+                                <p class="text-red-500 font-medium mb-2">Failed to load PDF</p>
+                                <p class="text-sm text-gray-400 mb-4">Path: ${filePath}</p>
+                                <button onclick="window.open('${filePath}', '_blank')" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
+                                    Open in New Tab
+                                </button>
+                            </div>
+                        `;
+                    };
+                    
+                    iframeContainer.appendChild(iframe);
+                    fileViewerContent.appendChild(iframeContainer);
+                } else if (['doc', 'docx'].includes(fileExtension)) {
+                    // For Word documents, show download option with info
                     fileViewerContent.innerHTML = `
-                        <div class="w-full h-full">
-                            <iframe src="${filePath}" class="w-full h-full min-h-[600px] rounded-lg" frameborder="0"></iframe>
+                        <div class="w-full h-full flex flex-col items-center justify-center p-8">
+                            <div class="text-center max-w-md">
+                                <div class="w-24 h-24 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-4xl text-gray-400 dark:text-gray-600">description</span>
+                                </div>
+                                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">${displayFileName || 'Document'}</h4>
+                                <p class="text-gray-500 dark:text-gray-400 mb-4">Word documents cannot be previewed in the browser. Please download the file to view it.</p>
+                            </div>
                         </div>
                     `;
                 } else {
@@ -2073,7 +2214,7 @@ try {
                                 <div class="w-24 h-24 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
                                     <span class="material-symbols-outlined text-4xl text-gray-400 dark:text-gray-600">description</span>
                                 </div>
-                                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">${fileName || 'Document'}</h4>
+                                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">${displayFileName || 'Document'}</h4>
                                 <p class="text-gray-500 dark:text-gray-400 mb-4">Preview not available for this file type. You can download the file using the button below.</p>
                             </div>
                         </div>
@@ -2092,9 +2233,12 @@ try {
                     const link = document.createElement('a');
                     link.href = currentFileData.path;
                     link.download = currentFileData.name || 'document';
+                    link.target = '_blank'; // Open in new tab as fallback
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
+                } else {
+                    alert('File not available for download');
                 }
             }
             
@@ -2133,8 +2277,10 @@ try {
                 }
             });
             
-            // Make downloadCurrentFile globally accessible
+            // Make downloadCurrentFile and showFileViewer globally accessible
             window.downloadCurrentFile = downloadCurrentFile;
+            window.showFileViewer = showFileViewer;
+            window.loadFileContent = loadFileContent;
 
             // API-based Database Integration
             const API_BASE_URL = 'api/mou-moa.php';
@@ -2162,7 +2308,10 @@ try {
                     const formData = new FormData();
                     formData.append('institution', entry.institution);
                     formData.append('location', entry.location);
+                    // Only append contact_email if it has a value (it's optional)
+                    if (entry.contact_email && entry.contact_email.trim()) {
                     formData.append('contact_email', entry.contact_email);
+                    }
                     formData.append('term', entry.term);
                     formData.append('sign_date', entry.sign_date);
                     formData.append('end_date', entry.end_date);
@@ -2207,7 +2356,10 @@ try {
                     const formData = new FormData();
                     formData.append('institution', entry.institution);
                     formData.append('location', entry.location);
+                    // Only append contact_email if it has a value (it's optional)
+                    if (entry.contact_email && entry.contact_email.trim()) {
                     formData.append('contact_email', entry.contact_email);
+                    }
                     formData.append('term', entry.term);
                     formData.append('sign_date', entry.sign_date);
                     formData.append('end_date', entry.end_date);
@@ -2305,10 +2457,17 @@ try {
 
                     // Add view file event listeners to existing rows
                     document.querySelectorAll('.view-file-btn').forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            const filePath = this.dataset.filePath;
-                            const fileName = this.dataset.fileName;
+                        btn.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const filePath = this.dataset.filePath || this.getAttribute('data-file-path');
+                            const fileName = this.dataset.fileName || this.getAttribute('data-file-name');
+                            if (filePath && fileName) {
                             showFileViewer(filePath, fileName);
+                            } else {
+                                console.error('View File button clicked but file path or name is missing', { filePath, fileName });
+                                alert('File information is missing. Cannot view file.');
+                            }
                         });
                     });
                 } catch (error) {
@@ -2528,11 +2687,18 @@ try {
 
                 // Add view file event listener to the new button (only if it exists)
                 const viewFileBtn = newRow.querySelector('.view-file-btn');
-                if (viewFileBtn) {
-                    viewFileBtn.addEventListener('click', function() {
-                        const filePath = this.dataset.filePath;
-                        const fileName = this.dataset.fileName;
+                if (viewFileBtn && !viewFileBtn.disabled) {
+                    viewFileBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const filePath = this.dataset.filePath || this.getAttribute('data-file-path');
+                        const fileName = this.dataset.fileName || this.getAttribute('data-file-name');
+                        if (filePath && fileName) {
                         showFileViewer(filePath, fileName);
+                        } else {
+                            console.error('View File button clicked but file path or name is missing', { filePath, fileName });
+                            alert('File information is missing. Cannot view file.');
+                        }
                     });
                 }
 
@@ -2659,7 +2825,7 @@ try {
                     const signDateField = document.getElementById('sign-date');
                     const endDateField = document.getElementById('end-date');
                     
-                    if (institutionField) institutionField.value = entryToEdit.institution || '';
+                    if (institutionField) institutionField.value = (entryToEdit.institution || '').toUpperCase();
                     if (locationField) locationField.value = entryToEdit.location || '';
                     if (contactField) contactField.value = entryToEdit.contact_email || '';
                     if (termField) termField.value = entryToEdit.term || '';
@@ -4429,359 +4595,7 @@ try {
             window.addRowClickListener = addRowClickListener;
         });
 
-        // MOU Location Autocomplete Functionality
-        let mouAutocompleteService = null;
-        let mouLocationInput = null;
-        let mouLocationSuggestions = null;
-        let mouSuggestionsList = null;
-        // Track whether a location was explicitly selected to avoid re-showing suggestions
-        let mouLocationSelected = false;
-        let mouLastConfirmedLocation = '';
-
-        // Initialize MOU location autocomplete when DOM is loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            mouLocationInput = document.getElementById('location');
-            mouLocationSuggestions = document.getElementById('mouLocationSuggestions');
-            mouSuggestionsList = document.getElementById('mouSuggestionsList');
-
-            if (mouLocationInput && mouLocationSuggestions && mouSuggestionsList) {
-                // Add input event listener with debouncing
-                let inputTimeout;
-                mouLocationInput.addEventListener('input', function(e) {
-                    const value = e.target.value || '';
-                    // If user hasn't changed the confirmed selection, keep suggestions hidden
-                    if (mouLocationSelected && value.trim() === (mouLastConfirmedLocation || '').trim()) {
-                        mouLocationSuggestions.classList.add('hidden');
-                        return;
-                    }
-                    // If user edits the value, allow suggestions again
-                    mouLocationSelected = false;
-                    clearTimeout(inputTimeout);
-                    inputTimeout = setTimeout(() => {
-                        if (value.trim().length < 2) {
-                            mouLocationSuggestions.classList.add('hidden');
-                            return;
-                        }
-                        showMouLocationSuggestions(value);
-                    }, 300);
-                });
-
-                // Hide suggestions on blur
-                mouLocationInput.addEventListener('blur', function() {
-                    setTimeout(() => mouLocationSuggestions.classList.add('hidden'), 100);
-                });
-
-                // Hide suggestions when clicking outside
-                document.addEventListener('click', function(e) {
-                    if (!mouLocationInput.contains(e.target) && !mouLocationSuggestions.contains(e.target)) {
-                        mouLocationSuggestions.classList.add('hidden');
-                    }
-                });
-
-                // Handle keyboard navigation
-                mouLocationInput.addEventListener('keydown', function(e) {
-                    const suggestions = mouSuggestionsList.querySelectorAll('[data-active="true"]');
-                    const activeSuggestion = mouSuggestionsList.querySelector('[data-active="true"]');
-                    
-                    if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        if (activeSuggestion) {
-                            activeSuggestion.removeAttribute('data-active');
-                            const next = activeSuggestion.nextElementSibling;
-                            if (next) {
-                                next.setAttribute('data-active', 'true');
-                                next.scrollIntoView({ block: 'nearest' });
-                            }
-                        } else if (suggestions.length > 0) {
-                            suggestions[0].setAttribute('data-active', 'true');
-                        }
-                    } else if (e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        if (activeSuggestion) {
-                            activeSuggestion.removeAttribute('data-active');
-                            const prev = activeSuggestion.previousElementSibling;
-                            if (prev) {
-                                prev.setAttribute('data-active', 'true');
-                                prev.scrollIntoView({ block: 'nearest' });
-                            }
-                        }
-                    } else if (e.key === 'Enter') {
-                        e.preventDefault();
-                        if (activeSuggestion) {
-                            activeSuggestion.click();
-                        } else {
-                            // Treat current input as confirmed selection
-                            mouLastConfirmedLocation = mouLocationInput.value;
-                            mouLocationSelected = true;
-                            mouLocationSuggestions.classList.add('hidden');
-                        }
-                    } else if (e.key === 'Escape') {
-                        mouLocationSuggestions.classList.add('hidden');
-                    }
-                });
-            }
-        });
-
-        // Load Google Maps API for MOU
-        function loadMouGoogleMaps() {
-            return new Promise((resolve, reject) => {
-                if (window.google && window.google.maps && window.google.maps.places) {
-                    resolve();
-                    return;
-                }
-
-                if (document.querySelector('script[src*="maps.googleapis.com"]')) {
-                    // Script already exists, wait for it to load
-                    const checkGoogle = setInterval(() => {
-                        if (window.google && window.google.maps && window.google.maps.places) {
-                            clearInterval(checkGoogle);
-                            resolve();
-                        }
-                    }, 100);
-                    return;
-                }
-
-                const script = document.createElement('script');
-                script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyD1p_x_nw6wT7_zUnILTuG17fHNOf0zFC4&libraries=places&loading=async&callback=initMouMapsCallback';
-                script.async = true;
-                script.defer = true;
-                
-                window.initMouMapsCallback = () => {
-                    resolve();
-                };
-                
-                script.onerror = () => {
-                    reject(new Error('Failed to load Google Maps API'));
-                };
-                
-                document.head.appendChild(script);
-            });
-        }
-
-        // Show MOU location suggestions
-        const showMouLocationSuggestions = async (query) => {
-            if (!query.trim() || query.length < 2) {
-                mouLocationSuggestions.classList.add('hidden');
-                return;
-            }
-
-            // Always show fallback suggestions first for immediate response
-            showMouFallbackSuggestions(query);
-
-            // Try to load Google Places API in the background (non-blocking)
-            try {
-                await loadMouGoogleMaps();
-                
-                if (!mouAutocompleteService && window.google && window.google.maps && window.google.maps.places) {
-                    mouAutocompleteService = new google.maps.places.AutocompleteService();
-                }
-
-                if (mouAutocompleteService) {
-                    // Use the legacy API which is still working - restricted to Iloilo only
-                    mouAutocompleteService.getPlacePredictions({
-                        input: query,
-                        types: ['geocode', 'establishment'],
-                        componentRestrictions: { country: 'ph' },
-                        location: new google.maps.LatLng(10.7202, 122.5621), // Iloilo City coordinates
-                        radius: 50000 // 50km radius around Iloilo
-                    }, (predictions, status) => {
-                        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-                            // Filter predictions to only show Iloilo locations (strict filtering)
-                            const iloiloPredictions = predictions.filter(prediction => {
-                                const desc = prediction.description.toLowerCase();
-                                return desc.includes('iloilo') && 
-                                       !desc.includes('manila') &&
-                                       !desc.includes('cebu') &&
-                                       !desc.includes('davao') &&
-                                       !desc.includes('baguio') &&
-                                       !desc.includes('bacolod') &&
-                                       !desc.includes('tacloban') &&
-                                       !desc.includes('antique') &&
-                                       !desc.includes('capiz') &&
-                                       !desc.includes('aklan') &&
-                                       !desc.includes('negros') &&
-                                       !desc.includes('guimaras');
-                            });
-                            if (iloiloPredictions.length > 0) {
-                                displayMouSuggestions(iloiloPredictions);
-                            }
-                            // If no Iloilo predictions, keep fallback suggestions
-                        } else {
-                            console.log('MOU Places API status:', status);
-                            // Keep fallback suggestions if API fails
-                        }
-                    });
-                }
-
-            } catch (error) {
-                // Silently fail - fallback suggestions are already shown
-                console.log('MOU Places API unavailable, using fallback suggestions');
-            }
-        };
-
-        // Display MOU suggestions from Google Places API
-        const displayMouSuggestions = (predictions) => {
-            mouSuggestionsList.innerHTML = '';
-            
-            predictions.slice(0, 8).forEach((prediction, index) => {
-                const suggestionItem = document.createElement('div');
-                suggestionItem.className = 'flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors select-none';
-                suggestionItem.style.pointerEvents = 'auto';
-                suggestionItem.setAttribute('data-active', index === 0 ? 'true' : 'false');
-                
-                // Add location icon
-                const icon = document.createElement('span');
-                icon.className = 'material-symbols-outlined text-gray-500 dark:text-gray-400 text-sm';
-                icon.textContent = 'place';
-                
-                // Add location text
-                const text = document.createElement('span');
-                text.className = 'text-sm text-gray-700 dark:text-gray-300';
-                text.textContent = prediction.description;
-                
-                suggestionItem.appendChild(icon);
-                suggestionItem.appendChild(text);
-                
-                // Add click event
-                suggestionItem.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    mouLocationInput.value = prediction.description;
-                    mouLastConfirmedLocation = prediction.description;
-                    mouLocationSelected = true;
-                    mouLocationSuggestions.classList.add('hidden');
-                    // Trigger input event to update any other listeners
-                    mouLocationInput.dispatchEvent(new Event('input', { bubbles: true }));
-                });
-                
-                // Add mousedown event as backup
-                suggestionItem.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                });
-                
-                mouSuggestionsList.appendChild(suggestionItem);
-            });
-            
-            mouLocationSuggestions.classList.remove('hidden');
-        };
-
-        // Show MOU fallback suggestions (Iloilo-only)
-        const showMouFallbackSuggestions = (query) => {
-            console.log('Showing ILOILO-ONLY MOU fallback suggestions for:', query); // Debug log
-            
-            // STRICT ILOILO-ONLY LOCATIONS - No other provinces or cities
-            const commonLocations = [
-                // Iloilo City and Province - Main Areas
-                'Iloilo City, Philippines', 'Central Philippine University, Iloilo City, Philippines', 'University of the Philippines Visayas, Iloilo City, Philippines',
-                'West Visayas State University, Iloilo City, Philippines', 'University of San Agustin, Iloilo City, Philippines',
-                'St. Paul University Iloilo, Iloilo City, Philippines', 'Iloilo Science and Technology University, Iloilo City, Philippines',
-                
-                // Iloilo City Districts and Barangays
-                'Mandurriao, Iloilo City, Philippines', 'Molo, Iloilo City, Philippines', 'Jaro, Iloilo City, Philippines',
-                'La Paz, Iloilo City, Philippines', 'Lapuz, Iloilo City, Philippines', 'Arevalo, Iloilo City, Philippines',
-                'City Proper, Iloilo City, Philippines', 'Villa Arevalo, Iloilo City, Philippines',
-                
-                // Iloilo Province Municipalities
-                'Miagao, Iloilo, Philippines', 'San Joaquin, Iloilo, Philippines', 'Guimbal, Iloilo, Philippines',
-                'Tigbauan, Iloilo, Philippines', 'Oton, Iloilo, Philippines', 'Pavia, Iloilo, Philippines',
-                'Santa Barbara, Iloilo, Philippines', 'New Lucena, Iloilo, Philippines', 'Zarraga, Iloilo, Philippines',
-                'Leganes, Iloilo, Philippines', 'Dumangas, Iloilo, Philippines', 'Barotac Nuevo, Iloilo, Philippines',
-                'Barotac Viejo, Iloilo, Philippines', 'Anilao, Iloilo, Philippines', 'Banate, Iloilo, Philippines',
-                'Bingawan, Iloilo, Philippines', 'Cabatuan, Iloilo, Philippines', 'Calinog, Iloilo, Philippines',
-                'Carles, Iloilo, Philippines', 'Concepcion, Iloilo, Philippines', 'Dingle, Iloilo, Philippines',
-                'Dueñas, Iloilo, Philippines', 'Estancia, Iloilo, Philippines',
-                'Igbaras, Iloilo, Philippines', 'Janiuay, Iloilo, Philippines', 'Lambunao, Iloilo, Philippines',
-                'Maasin, Iloilo, Philippines', 'Passi City, Iloilo, Philippines', 'Pototan, Iloilo, Philippines',
-                'San Dionisio, Iloilo, Philippines', 'San Enrique, Iloilo, Philippines', 'San Miguel, Iloilo, Philippines',
-                'San Rafael, Iloilo, Philippines', 'Sara, Iloilo, Philippines', 'Tubungan, Iloilo, Philippines',
-                
-                // Popular Iloilo Landmarks and Places
-                'Iloilo Business Park, Mandurriao, Iloilo City, Philippines', 'SM City Iloilo, Mandurriao, Iloilo City, Philippines',
-                'Robinsons Place Iloilo, La Paz, Iloilo City, Philippines', 'Festive Walk Iloilo, Mandurriao, Iloilo City, Philippines',
-                'Iloilo Convention Center, Mandurriao, Iloilo City, Philippines', 'Iloilo International Airport, Cabatuan, Iloilo, Philippines',
-                'Miagao Church, Miagao, Iloilo, Philippines', 'Jaro Cathedral, Jaro, Iloilo City, Philippines',
-                'Molo Church, Molo, Iloilo City, Philippines', 'Casa Mariquit, Jaro, Iloilo City, Philippines',
-                'Iloilo Museum of Contemporary Art, Mandurriao, Iloilo City, Philippines', 'Plaza Libertad, City Proper, Iloilo City, Philippines',
-                'Esplanade, Iloilo City, Philippines', 'Iloilo River, Iloilo City, Philippines',
-                
-                // Iloilo Universities and Schools
-                'Central Philippine University, Jaro, Iloilo City, Philippines', 'University of the Philippines Visayas, Miagao, Iloilo, Philippines',
-                'West Visayas State University, La Paz, Iloilo City, Philippines', 'University of San Agustin, Jaro, Iloilo City, Philippines',
-                'St. Paul University Iloilo, Jaro, Iloilo City, Philippines', 'Iloilo Science and Technology University, La Paz, Iloilo City, Philippines',
-                'John B. Lacson Foundation Maritime University, Molo, Iloilo City, Philippines', 'Iloilo Doctors College, Mandurriao, Iloilo City, Philippines',
-                'Assumption Iloilo, Jaro, Iloilo City, Philippines', 'Ateneo de Iloilo, Mandurriao, Iloilo City, Philippines',
-                'Colegio de San Jose, Jaro, Iloilo City, Philippines', 'St. Therese MTC Colleges, La Paz, Iloilo City, Philippines',
-                
-                // Iloilo Hospitals and Medical Centers
-                'Iloilo Doctors Hospital, Mandurriao, Iloilo City, Philippines', 'West Visayas State University Medical Center, La Paz, Iloilo City, Philippines',
-                'St. Paul Hospital Iloilo, Jaro, Iloilo City, Philippines', 'Iloilo Mission Hospital, Jaro, Iloilo City, Philippines',
-                'The Medical City Iloilo, Mandurriao, Iloilo City, Philippines', 'QualiMed Hospital Iloilo, Mandurriao, Iloilo City, Philippines',
-                
-                // Iloilo Government Offices
-                'Iloilo Provincial Capitol, Iloilo City, Philippines', 'Iloilo City Hall, City Proper, Iloilo City, Philippines',
-                'Iloilo City Government Center, Mandurriao, Iloilo City, Philippines', 'Department of Trade and Industry Iloilo, Iloilo City, Philippines',
-                'Bureau of Internal Revenue Iloilo, Iloilo City, Philippines', 'Social Security System Iloilo, Iloilo City, Philippines',
-                
-                // Iloilo Shopping and Commercial Areas
-                'Gaisano City Iloilo, La Paz, Iloilo City, Philippines', 'Atrium Mall, Mandurriao, Iloilo City, Philippines',
-                'Plaza Libertad Commercial Complex, City Proper, Iloilo City, Philippines', 'Iloilo Central Market, City Proper, Iloilo City, Philippines',
-                'Iloilo Terminal Market, City Proper, Iloilo City, Philippines', 'Megaworld Iloilo Business Park, Mandurriao, Iloilo City, Philippines'
-            ];
-
-            const filtered = commonLocations.filter(location => 
-                location.toLowerCase().includes(query.toLowerCase())
-            );
-
-            console.log('Filtered MOU results:', filtered.length, 'for query:', query); // Debug log
-
-            if (filtered.length > 0) {
-                mouSuggestionsList.innerHTML = '';
-                filtered.slice(0, 8).forEach((location, index) => {
-                    const suggestionItem = document.createElement('div');
-                    suggestionItem.className = 'flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors select-none';
-                    suggestionItem.style.pointerEvents = 'auto';
-                    suggestionItem.setAttribute('data-active', index === 0 ? 'true' : 'false');
-                    
-                    // Add location icon
-                    const icon = document.createElement('span');
-                    icon.className = 'material-symbols-outlined text-gray-500 dark:text-gray-400 text-sm';
-                    icon.textContent = 'place';
-                    
-                    // Add location text
-                    const text = document.createElement('span');
-                    text.className = 'text-sm text-gray-700 dark:text-gray-300';
-                    text.textContent = location;
-                    
-                    suggestionItem.appendChild(icon);
-                    suggestionItem.appendChild(text);
-                    
-                    // Add click event
-                    suggestionItem.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        mouLocationInput.value = location;
-                        mouLastConfirmedLocation = location;
-                        mouLocationSelected = true;
-                        mouLocationSuggestions.classList.add('hidden');
-                        // Trigger input event to update any other listeners
-                        mouLocationInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    });
-                    
-                    // Add mousedown event as backup
-                    suggestionItem.addEventListener('mousedown', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    });
-                    
-                    mouSuggestionsList.appendChild(suggestionItem);
-                });
-                
-                mouLocationSuggestions.classList.remove('hidden');
-            } else {
-                mouLocationSuggestions.classList.add('hidden');
-            }
-        };
+        // Location field is now a simple text input - no autocomplete functionality
 
         // Load profile picture from localStorage if available
         document.addEventListener('DOMContentLoaded', function() {

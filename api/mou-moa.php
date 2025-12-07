@@ -200,16 +200,16 @@ function getEntry($pdo, $id) {
 // Add new MOU/MOA entry
 function addEntry($pdo, $data, $userId) {
     try {
-        // Validate required fields
-        $required = ['institution', 'location', 'contact_email', 'term', 'sign_date', 'end_date'];
+        // Validate required fields (contact_email is optional)
+        $required = ['institution', 'location', 'term', 'sign_date', 'end_date'];
         foreach ($required as $field) {
             if (empty($data[$field])) {
                 throw new Exception("Field '$field' is required");
             }
         }
 
-        // Validate email format
-        if (!filter_var($data['contact_email'], FILTER_VALIDATE_EMAIL)) {
+        // Validate email format only if contact_email is provided
+        if (!empty($data['contact_email']) && !filter_var($data['contact_email'], FILTER_VALIDATE_EMAIL)) {
             throw new Exception('Invalid email format');
         }
 
@@ -229,7 +229,7 @@ function addEntry($pdo, $data, $userId) {
             $userId,
             $data['institution'],
             $data['location'],
-            $data['contact_email'],
+            $data['contact_email'] ?? null, // Allow null for optional contact email
             $data['term'],
             $data['sign_date'],
             $data['end_date'],
@@ -251,15 +251,15 @@ function addEntry($pdo, $data, $userId) {
 // Update MOU/MOA entry
 function updateEntry($pdo, $id, $data) {
     try {
-        // Validate required fields
-        $required = ['institution', 'location', 'contact_email', 'term', 'sign_date', 'end_date'];
+        // Validate required fields (contact_email is optional)
+        $required = ['institution', 'location', 'term', 'sign_date', 'end_date'];
         foreach ($required as $field) {
             if (!isset($data[$field]) || $data[$field] === '') {
                 throw new Exception("Field '$field' is required");
             }
         }
 
-        // Validate email format if provided
+        // Validate email format only if contact_email is provided
         if (!empty($data['contact_email']) && !filter_var($data['contact_email'], FILTER_VALIDATE_EMAIL)) {
             throw new Exception('Invalid email format');
         }
@@ -283,7 +283,7 @@ function updateEntry($pdo, $id, $data) {
             $stmt->execute([
                 $data['institution'],
                 $data['location'],
-                $data['contact_email'],
+                !empty($data['contact_email']) ? $data['contact_email'] : null, // Allow null for optional contact email
                 $data['term'],
                 $data['sign_date'],
                 $data['end_date'],
@@ -309,7 +309,7 @@ function updateEntry($pdo, $id, $data) {
             $stmt->execute([
                 $data['institution'],
                 $data['location'],
-                $data['contact_email'],
+                !empty($data['contact_email']) ? $data['contact_email'] : null, // Allow null for optional contact email
                 $data['term'],
                 $data['sign_date'],
                 $data['end_date'],
@@ -332,12 +332,26 @@ function updateEntry($pdo, $id, $data) {
 function deleteEntry($pdo, $id, $permanent = false) {
     try {
         // Get file path before deleting
-        $stmt = $pdo->prepare("SELECT file_path FROM mou_moa WHERE id = ?");
+        // For permanent delete, include soft-deleted items (deleted_at IS NOT NULL)
+        // For soft delete, only find active items
+        if ($permanent) {
+            // Find entry regardless of deleted_at status for permanent delete
+            $stmt = $pdo->prepare("SELECT file_path FROM mou_moa WHERE id = ?");
+        } else {
+            // Only find active entries for soft delete
+            $stmt = $pdo->prepare("SELECT file_path FROM mou_moa WHERE id = ? AND (deleted_at IS NULL OR deleted_at = '')");
+        }
         $stmt->execute([$id]);
         $entry = $stmt->fetch(PDO::FETCH_ASSOC);
 
+        // For permanent delete, if entry doesn't exist, consider it already deleted (idempotent)
         if (!$entry) {
-            throw new Exception('Entry not found');
+            if ($permanent) {
+                // Entry already deleted - return true (idempotent operation)
+                return true;
+            } else {
+                throw new Exception('Entry not found');
+            }
         }
 
         // Delete related notifications (both for permanent and soft delete)
@@ -355,13 +369,16 @@ function deleteEntry($pdo, $id, $permanent = false) {
 
         if ($permanent) {
             // Permanent delete - remove file and database record
-            $stmt = $pdo->prepare("DELETE FROM mou_moa WHERE id = ?");
-            $stmt->execute([$id]);
-
             // Delete the file if it exists
             if (!empty($entry['file_path'])) {
                 deleteFile($entry['file_path']);
             }
+            
+            // Delete database record
+            $stmt = $pdo->prepare("DELETE FROM mou_moa WHERE id = ?");
+            $stmt->execute([$id]);
+            
+            return $stmt->rowCount() > 0;
         } else {
             // Soft delete - move to trash (set deleted_at)
             // First, ensure deleted_at column exists
@@ -372,10 +389,11 @@ function deleteEntry($pdo, $id, $permanent = false) {
             }
             $stmt = $pdo->prepare("UPDATE mou_moa SET deleted_at = NOW() WHERE id = ?");
             $stmt->execute([$id]);
+            
+            return $stmt->rowCount() > 0;
         }
-
-        return $stmt->rowCount() > 0;
     } catch (PDOException $e) {
+        error_log('PDO Error in deleteEntry for MOU ' . $id . ': ' . $e->getMessage());
         throw new Exception('Failed to delete entry: ' . $e->getMessage());
     }
 }
@@ -570,6 +588,11 @@ try {
                 $data['type'] = $data['category'];
                 unset($data['category']);
             }
+            
+            // Normalize empty contact_email to null (it's optional)
+            if (isset($data['contact_email']) && empty(trim($data['contact_email']))) {
+                $data['contact_email'] = null;
+            }
 
             if (empty($data['institution'])) {
                 throw new Exception('Invalid input data');
@@ -626,6 +649,11 @@ try {
                     $data['type'] = $data['category'];
                     unset($data['category']);
                 }
+                
+                // Normalize empty contact_email to null (it's optional)
+                if (isset($data['contact_email']) && empty(trim($data['contact_email']))) {
+                    $data['contact_email'] = null;
+                }
 
                 // Get old file path for deletion
                 $oldEntry = getEntry($pdo, $id);
@@ -670,6 +698,11 @@ try {
                     $data['type'] = $data['category'];
                     unset($data['category']);
                 }
+                
+                // Normalize empty contact_email to null (it's optional)
+                if (isset($data['contact_email']) && empty(trim($data['contact_email']))) {
+                    $data['contact_email'] = null;
+                }
 
                 $success = updateEntry($pdo, $id, $data);
             } else {
@@ -683,6 +716,11 @@ try {
                 if (isset($input['category'])) {
                     $input['type'] = $input['category'];
                     unset($input['category']);
+                }
+                
+                // Normalize empty contact_email to null (it's optional)
+                if (isset($input['contact_email']) && empty(trim($input['contact_email']))) {
+                    $input['contact_email'] = null;
                 }
 
                 $success = updateEntry($pdo, $id, $input);
@@ -732,7 +770,12 @@ try {
                 $message = $permanent ? 'Entry permanently deleted' : 'Entry moved to trash';
                 echo json_encode(['success' => true, 'message' => $message]);
             } else {
-                throw new Exception('Entry not found');
+                // For permanent delete, if entry doesn't exist, it's already deleted (success)
+                if ($permanent) {
+                    echo json_encode(['success' => true, 'message' => 'Entry already deleted or not found']);
+                } else {
+                    throw new Exception('Entry not found');
+                }
             }
             break;
 

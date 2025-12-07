@@ -1263,19 +1263,26 @@ try {
  </div>
  
 <!-- Date Picker Calendar Popup -->
-<div id="datePickerModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center pt-24 z-50 hidden">
-     <div class="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4">
+<div id="datePickerModal" class="fixed flex items-center justify-center z-[60] hidden" style="background: transparent;">
+    <div class="bg-white dark:bg-card-dark rounded-lg shadow-xl w-full max-w-sm mx-4 relative z-10" style="pointer-events: auto;">
          <!-- Calendar Content -->
          <div class="p-4">
              <!-- Month Navigation -->
              <div class="flex items-center justify-between mb-4">
-                 <button class="p-2 hover:bg-gray-800 dark:hover:bg-gray-200 rounded-lg" onclick="prevMonth()">
-                     <span class="material-symbols-outlined text-gray-600 dark:text-gray-400 hover:text-white dark:hover:text-gray-800">chevron_left</span>
-                 </button>
-                 <h4 id="currentMonthDisplay" class="text-lg font-medium">October 2025</h4>
-                 <button class="p-2 hover:bg-gray-800 dark:hover:bg-gray-200 rounded-lg" onclick="nextMonth()">
-                     <span class="material-symbols-outlined text-gray-600 dark:text-gray-400 hover:text-white dark:hover:text-gray-800">chevron_right</span>
-                 </button>
+                 <div class="flex items-center gap-1">
+                     <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" onclick="event.stopPropagation(); prevMonth();">
+                         <span class="material-symbols-outlined text-gray-600 dark:text-gray-400">chevron_left</span>
+                     </button>
+                 </div>
+                 <h4 id="currentMonthDisplay" class="text-lg font-medium text-gray-900 dark:text-gray-100 flex-1 text-center">October 2025</h4>
+                 <div class="flex items-center gap-1">
+                     <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" onclick="event.stopPropagation(); nextMonth();">
+                         <span class="material-symbols-outlined text-gray-600 dark:text-gray-400">chevron_right</span>
+                     </button>
+                     <button id="closeDatePickerBtn" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer relative" type="button" onclick="closeDatePickerModal(); return false;" style="pointer-events: auto !important; cursor: pointer !important; z-index: 9999;">
+                         <span class="material-symbols-outlined text-gray-600 dark:text-gray-400" style="pointer-events: none;">close</span>
+                     </button>
+                 </div>
              </div>
              
              <!-- Days of Week -->
@@ -1289,49 +1296,10 @@ try {
                  <div class="text-center text-sm font-medium text-gray-500 py-2">S</div>
              </div>
              
-             <!-- Calendar Grid -->
-             <div id="calendarGrid" class="grid grid-cols-7 gap-1">
-                 <!-- Previous month dates -->
-                 <button class="h-10 text-center text-sm text-gray-400 dark:text-gray-500 hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">28</button>
-                 <button class="h-10 text-center text-sm text-gray-400 dark:text-gray-500 hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">29</button>
-                 <button class="h-10 text-center text-sm text-gray-400 dark:text-gray-500 hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">30</button>
-                 <!-- Current month dates -->
-                 <button class="h-10 text-center text-sm hover:bg-gray-100 rounded-lg bg-blue-600 text-white font-medium" onclick="selectDate(this)">1</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">2</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">3</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">4</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">5</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">6</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">7</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">8</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">9</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">10</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">11</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">12</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">13</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">14</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">15</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">16</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">17</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">18</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">19</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">20</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">21</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">22</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">23</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">24</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">25</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">26</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">27</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">28</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">29</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">30</button>
-                 <button class="h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">31</button>
-                 <!-- Next month dates -->
-                 <button class="h-10 text-center text-sm text-gray-400 dark:text-gray-500 hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">1</button>
-                 <button class="h-10 text-center text-sm text-gray-400 dark:text-gray-500 hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">2</button>
-                 <button class="h-10 text-center text-sm text-gray-400 dark:text-gray-500 hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg" onclick="selectDate(this)">3</button>
-             </div>
+            <!-- Calendar Grid -->
+            <div id="calendarGrid" class="grid grid-cols-7 gap-1" style="pointer-events: auto;">
+                <!-- Calendar will be dynamically generated here -->
+            </div>
          </div>
      </div>
  </div>
@@ -1389,7 +1357,37 @@ let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
  
  function toggleTimePicker(type = 'date') {
      if (type === 'date') {
-         document.getElementById('datePickerModal').classList.remove('hidden');
+         // Ensure calendar is rendered before showing modal
+         renderCalendar();
+         
+         const datePickerModal = document.getElementById('datePickerModal');
+         const createModalCard = document.getElementById('createModalCard');
+         
+         if (createModalCard && datePickerModal) {
+             // Use requestAnimationFrame to ensure layout is calculated after calendar renders
+             requestAnimationFrame(() => {
+                 requestAnimationFrame(() => {
+                     // Get the position and dimensions of the create modal card
+                     const cardRect = createModalCard.getBoundingClientRect();
+                     
+                     // Position the calendar modal container to match the create modal card's bounds
+                     datePickerModal.style.position = 'fixed';
+                     datePickerModal.style.top = `${cardRect.top}px`;
+                     datePickerModal.style.left = `${cardRect.left}px`;
+                     datePickerModal.style.width = `${cardRect.width}px`;
+                     datePickerModal.style.height = `${cardRect.height}px`;
+                     datePickerModal.style.margin = '0';
+                     datePickerModal.style.display = 'flex';
+                     datePickerModal.style.alignItems = 'center';
+                     datePickerModal.style.justifyContent = 'center';
+                     
+                    // Show the modal after positioning
+                    datePickerModal.classList.remove('hidden');
+                });
+             });
+         } else {
+             datePickerModal.classList.remove('hidden');
+         }
      } else {
          currentTimeType = type;
          renderTimePicker();
@@ -1397,9 +1395,42 @@ let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
      }
  }
  
- function closeDatePickerModal() {
-     document.getElementById('datePickerModal').classList.add('hidden');
+ function closeDatePickerModal(event) {
+     // Stop any event propagation to prevent closing create modal
+     if (event) {
+         if (event.stopPropagation) event.stopPropagation();
+         if (event.preventDefault) event.preventDefault();
+         if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+     }
+     
+     const datePickerModal = document.getElementById('datePickerModal');
+     if (!datePickerModal) {
+         return false;
+     }
+     
+     // Force hide the modal completely - remove inline display first
+     datePickerModal.style.removeProperty('display');
+     datePickerModal.style.removeProperty('alignItems');
+     datePickerModal.style.removeProperty('justifyContent');
+     
+     // Then set to hidden
+     datePickerModal.style.display = 'none';
+     datePickerModal.style.visibility = 'hidden';
+     datePickerModal.classList.add('hidden');
+     
+     // Clear all positioning styles
+     datePickerModal.style.top = '';
+     datePickerModal.style.left = '';
+     datePickerModal.style.width = '';
+     datePickerModal.style.height = '';
+     datePickerModal.style.margin = '';
+     datePickerModal.style.position = '';
+     
+     return false;
  }
+
+ // Make function globally accessible
+ window.closeDatePickerModal = closeDatePickerModal;
  
  function closeTimePickerModal() {
      document.getElementById('timePickerModal').classList.add('hidden');
@@ -2100,7 +2131,9 @@ function openEventDetail(event) {
      
    // Clear small calendar grid (date picker modal)
    const calendarGrid = document.getElementById('calendarGrid');
-   calendarGrid.innerHTML = '';
+   if (calendarGrid) {
+       calendarGrid.innerHTML = '';
+   }
    // Do not touch sidebar mini grid here; it's rendered separately
      
      // Clear main calendar grid
@@ -2135,10 +2168,20 @@ function openEventDetail(event) {
          
          // Small calendar button
          const button = document.createElement('button');
-         button.className = 'h-10 text-center text-sm text-gray-400 dark:text-gray-500 hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg';
+         button.className = 'h-10 text-center text-sm text-gray-400 dark:text-gray-500 hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg cursor-pointer';
          button.textContent = day;
         button.dataset.monthType = 'prev';
-         button.onclick = () => selectDate(button);
+         button.style.pointerEvents = 'auto';
+         button.type = 'button';
+        button.onclick = function(e) {
+            if (e) {
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                e.preventDefault();
+            }
+            selectDate(button);
+            return false;
+        };
        calendarGrid.appendChild(button);
          
         // Main calendar cell
@@ -2154,10 +2197,20 @@ function openEventDetail(event) {
      for (let day = 1; day <= daysInMonth; day++) {
         // Small calendar button
          const button = document.createElement('button');
-         button.className = 'h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg';
+         button.className = 'h-10 text-center text-sm hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg cursor-pointer';
          button.textContent = day;
         button.dataset.monthType = 'current';
-         button.onclick = () => selectDate(button);
+         button.style.pointerEvents = 'auto';
+         button.type = 'button';
+        button.onclick = function(e) {
+            if (e) {
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                e.preventDefault();
+            }
+            selectDate(button);
+            return false;
+        };
        calendarGrid.appendChild(button);
          
         // Main calendar cell
@@ -2189,10 +2242,20 @@ function openEventDetail(event) {
      for (let day = 1; day <= remainingCells; day++) {
         // Small calendar button
          const button = document.createElement('button');
-         button.className = 'h-10 text-center text-sm text-gray-400 dark:text-gray-500 hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg';
+         button.className = 'h-10 text-center text-sm text-gray-400 dark:text-gray-500 hover:bg-gray-800 dark:hover:bg-gray-200 hover:text-white dark:hover:text-gray-800 rounded-lg cursor-pointer';
          button.textContent = day;
         button.dataset.monthType = 'next';
-         button.onclick = () => selectDate(button);
+         button.style.pointerEvents = 'auto';
+         button.type = 'button';
+        button.onclick = function(e) {
+            if (e) {
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                e.preventDefault();
+            }
+            selectDate(button);
+            return false;
+        };
        calendarGrid.appendChild(button);
          
         // Main calendar cell
@@ -2258,62 +2321,162 @@ function renderSidebarCalendar() {
 }
  
  function selectDate(dateElement) {
-     const dateText = dateElement.textContent;
+     if (!dateElement) {
+         return;
+     }
+     
+     const dateText = dateElement.textContent ? dateElement.textContent.trim() : '';
+     if (!dateText || isNaN(parseInt(dateText))) {
+         return;
+     }
+     
      const selectedDate = parseInt(dateText);
      
-     // Update the date button text
+     // Check if this is from the date picker modal (calendarGrid) or main calendar
+     const calendarGrid = document.getElementById('calendarGrid');
+     const datePickerModal = document.getElementById('datePickerModal');
+     const isFromDatePicker = calendarGrid && calendarGrid.contains(dateElement);
+     
+     // Get month type from data attribute
+     const monthType = dateElement.dataset.monthType || 'current';
+     
+     // Get the correct month and year based on the month type
+     const currentMonth = currentCalendarDate.getMonth();
+     const currentYear = currentCalendarDate.getFullYear();
+     let selectedMonth = currentMonth;
+     let selectedYear = currentYear;
+     
+     if (monthType === 'prev') {
+         selectedMonth = currentMonth - 1;
+         if (selectedMonth < 0) {
+             selectedMonth = 11;
+             selectedYear = currentYear - 1;
+         }
+     } else if (monthType === 'next') {
+         selectedMonth = currentMonth + 1;
+         if (selectedMonth > 11) {
+             selectedMonth = 0;
+             selectedYear = currentYear + 1;
+         }
+     }
+     
+     const date = new Date(selectedYear, selectedMonth, selectedDate);
+     
+     // Validate the date
+     if (isNaN(date.getTime())) {
+         console.error('Invalid date created:', { selectedYear, selectedMonth, selectedDate });
+         return;
+     }
+     
+     // If this is from the date picker modal, update the date field and close modal
+     const datePickerVisible = datePickerModal && !datePickerModal.classList.contains('hidden');
+     if (isFromDatePicker || datePickerVisible) {
+         // Update the date button text in the create modal
+         const dateButton = document.querySelector('button[onclick="toggleTimePicker()"]');
+         if (dateButton) {
+             const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+             
+             const dayName = dayNames[date.getDay()];
+             const monthName = monthNames[date.getMonth()];
+            
+             // Include year so events can be accurately scoped across months/years
+             const formattedDate = `${dayName}, ${selectedDate} ${monthName} ${selectedYear}`;
+             dateButton.textContent = formattedDate;
+         }
+         
+         // Close the date picker modal
+         closeDatePickerModal();
+         return;
+     }
+     
+     // Otherwise, this is from the main calendar or sidebar calendar
+     // Update the date button text if create modal is open
      const dateButton = document.querySelector('button[onclick="toggleTimePicker()"]');
-    if (dateButton) {
+     if (dateButton) {
          const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
          const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-         
-         // Use the current calendar date to get the correct month and year
-         const currentMonth = currentCalendarDate.getMonth();
-         const currentYear = currentCalendarDate.getFullYear();
-         const date = new Date(currentYear, currentMonth, selectedDate);
          
          const dayName = dayNames[date.getDay()];
          const monthName = monthNames[date.getMonth()];
         
-        // Include year so events can be accurately scoped across months/years
-        dateButton.textContent = `${dayName}, ${selectedDate} ${monthName} ${currentYear}`;
+         dateButton.textContent = `${dayName}, ${selectedDate} ${monthName} ${selectedYear}`;
      }
      
-    // Close the modal
-    closeDatePickerModal();
-
-       // Show selected date in the currently chosen view (Day or Week)
-    const mainGrid = document.getElementById('mainCalendarGrid');
-    const dayContainer = document.getElementById('dayCalendarContainer');
-    const weekContainer = document.getElementById('weekCalendarContainer');
-    const viewLabel = document.getElementById('viewBtnLabel');
-    const isWeek = viewLabel && viewLabel.textContent.trim() === 'Week';
-    if (mainGrid) mainGrid.innerHTML = '';
-    if (isWeek) {
-        if (dayContainer) dayContainer.classList.add('hidden');
-        if (weekContainer) weekContainer.classList.remove('hidden');
-        renderWeekView(new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), selectedDate));
-    } else {
-        if (weekContainer) weekContainer.classList.add('hidden');
-        if (dayContainer) dayContainer.classList.remove('hidden');
-        renderDayView(new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), selectedDate));
-        if (viewLabel) viewLabel.textContent = 'Day';
-    }
+     // Update the main calendar view to show the selected date
+     const mainGrid = document.getElementById('mainCalendarGrid');
+     const dayContainer = document.getElementById('dayCalendarContainer');
+     const weekContainer = document.getElementById('weekCalendarContainer');
+     const viewLabel = document.getElementById('viewBtnLabel');
+     const isWeek = viewLabel && viewLabel.textContent.trim() === 'Week';
+     if (mainGrid) mainGrid.innerHTML = '';
+     if (isWeek) {
+         if (dayContainer) dayContainer.classList.add('hidden');
+         if (weekContainer) weekContainer.classList.remove('hidden');
+         renderWeekView(date);
+     } else {
+         if (weekContainer) weekContainer.classList.add('hidden');
+         if (dayContainer) dayContainer.classList.remove('hidden');
+         renderDayView(date);
+         if (viewLabel) viewLabel.textContent = 'Day';
+     }
 }
- 
- // Close modal when clicking outside
- document.getElementById('createModal').addEventListener('click', function(e) {
-     if (e.target === this) {
-         closeCreateModal();
-     }
- });
- 
- // Close date picker modal when clicking outside
- document.getElementById('datePickerModal').addEventListener('click', function(e) {
-     if (e.target === this) {
-         closeDatePickerModal();
-     }
- });
+
+// Make function globally accessible
+window.selectDate = selectDate;
+
+// Event delegation for calendar grid date buttons - handles clicks reliably
+document.addEventListener('click', function(e) {
+    const calendarGrid = document.getElementById('calendarGrid');
+    if (!calendarGrid || !calendarGrid.contains(e.target)) {
+        return;
+    }
+    
+    // Find the button that was clicked
+    const button = e.target.closest('button');
+    if (button && button.dataset.monthType !== undefined) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        selectDate(button);
+        return false;
+    }
+}, true); // Use capture phase
+
+// Close modal when clicking outside
+document.getElementById('createModal').addEventListener('click', function(e) {
+    const datePickerModal = document.getElementById('datePickerModal');
+    
+    // If date picker modal is open, don't close create modal - let date picker handle its own clicks
+    if (datePickerModal && !datePickerModal.classList.contains('hidden')) {
+        // Don't close create modal if date picker is open
+        return;
+    }
+    
+    // Only close if clicking directly on the backdrop (this element)
+    if (e.target === this) {
+        closeCreateModal();
+    }
+});
+
+// Close date picker modal when clicking outside - REMOVED to prevent blocking date button clicks
+
+// Close button for date picker modal - use event delegation for reliability
+document.addEventListener('click', function(e) {
+    // Check if the click is on the close button or its icon
+    const closeBtn = e.target.closest('#closeDatePickerBtn');
+    const isCloseIcon = e.target.tagName === 'SPAN' && e.target.parentElement && e.target.parentElement.id === 'closeDatePickerBtn';
+    
+    if (e.target.id === 'closeDatePickerBtn' || closeBtn || isCloseIcon) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        console.log('Close button clicked, closing date picker modal');
+        closeDatePickerModal(e);
+        return false;
+    }
+    
+}, true); // Use capture phase to catch it early
  
  // Close time picker modal when clicking outside
  document.getElementById('timePickerModal').addEventListener('click', function(e) {

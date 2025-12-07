@@ -6,7 +6,9 @@
  */
 
 // Start output buffering to catch any unexpected output
-ob_start();
+if (!ob_get_level()) {
+    ob_start();
+}
 
 session_start();
 
@@ -110,6 +112,11 @@ function handleFileUpload($file) {
 $method = $_SERVER['REQUEST_METHOD'];
 
 try {
+    // Ensure no output before JSON
+    if (ob_get_level() > 0) {
+        ob_clean();
+    }
+    
     switch ($method) {
         case 'GET':
             // Check if it's a restore action
@@ -211,53 +218,19 @@ try {
 
             $newId = $pdo->lastInsertId();
 
-            // Auto-copy to MOU/MOA table if category matches MOU or MOA
+            // NOTE: Auto-copy to MOU/MOA table has been disabled to prevent false positives.
+            // Documents uploaded to the Documents page will stay in the Documents page even if
+            // they are classified as MOU/MOA. Users should explicitly upload MOU/MOA documents
+            // through the dedicated MOU/MOA page if they want them in that system.
+            
+            // If you need to enable auto-copy in the future, uncomment the code below and add
+            // a confidence threshold check (e.g., only copy if confidence >= 85%)
+            /*
             if (stripos($category, 'MOU') !== false || stripos($category, 'MOA') !== false) {
-                try {
-                    $mouType = stripos($category, 'MOU') !== false ? 'MOU' : 'MOA';
-                    
-                    // Copy file to mou directory
-                    $mouUploadDir = __DIR__ . '/../uploads/mou/';
-                    if (!is_dir($mouUploadDir)) {
-                        mkdir($mouUploadDir, 0755, true);
-                    }
-                    
-                    $fileExtension = pathinfo($fileInfo['original_name'], PATHINFO_EXTENSION);
-                    $mouFileName = uniqid('mou_') . '_' . time() . '.' . $fileExtension;
-                    $mouFilePath = $mouUploadDir . $mouFileName;
-                    
-                    // Use absolute path for source
-                    $sourcePath = __DIR__ . '/../' . $fileInfo['filepath'];
-                    
-                    if (copy($sourcePath, $mouFilePath)) {
-                        $relMouPath = 'uploads/mou/' . $mouFileName;
-                        
-                        $stmtMou = $pdo->prepare("
-                            INSERT INTO mou_moa (
-                                user_id, institution, location, contact_email, term,
-                                sign_date, end_date, status, file_name, file_path,
-                                title, type, description, created_at, updated_at
-                            )
-                            VALUES (?, ?, NULL, NULL, NULL, NULL, NULL, 'Pending', ?, ?, ?, ?, ?, NOW(), NOW())
-                        ");
-                        
-                        $stmtMou->execute([
-                            $userId,
-                            $title, // Use title as institution/title
-                            $fileInfo['original_name'],
-                            $relMouPath,
-                            $title,
-                            $mouType,
-                            $description
-                        ]);
-                        
-                        error_log("Auto-created MOU/MOA entry from Other Documents upload: ID " . $pdo->lastInsertId());
-                    }
-                } catch (Exception $e) {
-                    error_log("Failed to auto-copy to MOU/MOA: " . $e->getMessage());
-                    // Don't fail the request, just log the error
-                }
+                // Only auto-copy if explicitly enabled and confidence is very high
+                // This prevents false positives from generic document classification
             }
+            */
 
             // Get the created document
             $stmt = $pdo->prepare("
@@ -372,21 +345,62 @@ try {
             $id = $_GET['id'];
             $permanent = isset($_GET['permanent']) && $_GET['permanent'] === 'true';
 
-            // Get document file path and details
-            $stmt = $pdo->prepare("SELECT * FROM other_documents WHERE id = ?");
+            // Get document file path and details (include soft-deleted documents for permanent delete)
+            // When permanent=true, we need to find documents even if they're in trash (deleted_at IS NOT NULL)
+            if ($permanent) {
+                // For permanent delete, find document regardless of deleted_at status
+                $stmt = $pdo->prepare("SELECT * FROM other_documents WHERE id = ?");
+            } else {
+                // For soft delete, only find active documents
+                $stmt = $pdo->prepare("SELECT * FROM other_documents WHERE id = ? AND (deleted_at IS NULL OR deleted_at = '')");
+            }
             $stmt->execute([$id]);
             $document = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$document) {
-                http_response_code(404);
-                throw new Exception('Document not found');
+                // For permanent delete, if document doesn't exist, consider it already deleted (idempotent)
+                if ($permanent) {
+                    // Document already deleted - return success (idempotent operation)
+                    if (ob_get_level() > 0) {
+                        ob_clean();
+                    }
+                    echo json_encode([
+                        'success' => true,
+                        'message' => 'Document already deleted or not found'
+                    ]);
+                    exit();
+                } else {
+                    // For soft delete, document must exist
+                    http_response_code(404);
+                    throw new Exception('Document not found');
+                }
             }
 
             if ($permanent) {
-                // Permanent delete - remove file and database record
-                $fullPath = __DIR__ . '/../' . $document['file_path'];
-                if (file_exists($fullPath)) {
-                    unlink($fullPath);
+                // Handle related records first (before deleting the main record)
+                // Update related records in events and award_analysis tables (foreign keys will set to NULL)
+                try {
+                    // Update events that reference this document
+                    $pdo->prepare("UPDATE events SET document_id = NULL WHERE document_id = ?")->execute([$id]);
+                } catch (PDOException $e) {
+                    // Log but continue - column might not exist
+                    error_log('Note: Could not update events table: ' . $e->getMessage());
+                }
+                
+                try {
+                    // Update award_analysis that reference this document
+                    $pdo->prepare("UPDATE award_analysis SET document_id = NULL WHERE document_id = ?")->execute([$id]);
+                } catch (PDOException $e) {
+                    // Log but continue - column might not exist
+                    error_log('Note: Could not update award_analysis table: ' . $e->getMessage());
+                }
+                
+                // Delete physical file (if file_path exists and is not empty)
+                if (!empty($document['file_path'])) {
+                    $fullPath = __DIR__ . '/../' . $document['file_path'];
+                    if (file_exists($fullPath)) {
+                        @unlink($fullPath);
+                    }
                 }
 
                 // CASCADE DELETE: Check for linked MOU/MOA (created within 60s with same title)
@@ -394,41 +408,95 @@ try {
                     $title = $document['title'];
                     $createdAt = $document['created_at'];
                     
-                    // Find match in mou_moa table
+                    // Find match in mou_moa table - use simpler date comparison
                     $stmtMou = $pdo->prepare("
                         SELECT id, file_path FROM mou_moa 
                         WHERE title = ? 
-                        AND created_at BETWEEN DATE_SUB(?, INTERVAL 60 SECOND) AND DATE_ADD(?, INTERVAL 60 SECOND)
-                        AND deleted_at IS NULL
+                        AND ABS(UNIX_TIMESTAMP(created_at) - UNIX_TIMESTAMP(?)) < 60
+                        AND (deleted_at IS NULL OR deleted_at = '')
                     ");
-                    $stmtMou->execute([$title, $createdAt, $createdAt]);
+                    $stmtMou->execute([$title, $createdAt]);
                     $linkedMou = $stmtMou->fetch(PDO::FETCH_ASSOC);
                     
                     if ($linkedMou) {
+                        // Delete related notifications first (to avoid foreign key constraint issues)
+                        try {
+                            $notifStmt = $pdo->prepare("DELETE FROM notifications WHERE related_type = 'mou_moa' AND related_id = ?");
+                            $notifStmt->execute([$linkedMou['id']]);
+                        } catch (PDOException $e) {
+                            // Log but don't fail if notifications table doesn't exist or has issues
+                            error_log('Error deleting notifications for MOU ' . $linkedMou['id'] . ': ' . $e->getMessage());
+                        }
+                        
                         // Delete linked MOU file if different from main doc
                         if ($linkedMou['file_path'] !== $document['file_path']) {
                             $mouPath = __DIR__ . '/../' . $linkedMou['file_path'];
                             if (file_exists($mouPath)) {
-                                unlink($mouPath);
+                                @unlink($mouPath);
                             }
                         }
                         
                         // Permanently delete linked MOU record
-                        $pdo->prepare("DELETE FROM mou_moa WHERE id = ?")->execute([$linkedMou['id']]);
-                        error_log("Cascade permanently deleted linked MOU/MOA ID: " . $linkedMou['id']);
+                        try {
+                            $deleteMouStmt = $pdo->prepare("DELETE FROM mou_moa WHERE id = ?");
+                            $deleteMouStmt->execute([$linkedMou['id']]);
+                            error_log("Cascade permanently deleted linked MOU/MOA ID: " . $linkedMou['id']);
+                        } catch (PDOException $e) {
+                            // Log error but don't fail the main delete operation
+                            error_log("Failed to delete linked MOU record: " . $e->getMessage());
+                        }
                     }
                 } catch (Exception $e) {
+                    // Log error but don't fail the main delete operation
                     error_log("Failed to cascade delete linked MOU: " . $e->getMessage());
                 }
 
                 // Delete database record
-                $stmt = $pdo->prepare("DELETE FROM other_documents WHERE id = ?");
-                $stmt->execute([$id]);
-
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'Document permanently deleted'
-                ]);
+                try {
+                    // Check if document still exists (might have been deleted by cascade)
+                    $checkStmt = $pdo->prepare("SELECT id FROM other_documents WHERE id = ?");
+                    $checkStmt->execute([$id]);
+                    $stillExists = $checkStmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($stillExists) {
+                        $stmt = $pdo->prepare("DELETE FROM other_documents WHERE id = ?");
+                        $stmt->execute([$id]);
+                        
+                        if ($stmt->rowCount() > 0) {
+                            // Clear output buffer before sending response
+                            if (ob_get_level() > 0) {
+                                ob_clean();
+                            }
+                            echo json_encode([
+                                'success' => true,
+                                'message' => 'Document permanently deleted'
+                            ]);
+                        } else {
+                            // Document might have been deleted by foreign key cascade
+                            if (ob_get_level() > 0) {
+                                ob_clean();
+                            }
+                            echo json_encode([
+                                'success' => true,
+                                'message' => 'Document deleted (may have been removed by cascade)'
+                            ]);
+                        }
+                    } else {
+                        // Document already deleted
+                        if (ob_get_level() > 0) {
+                            ob_clean();
+                        }
+                        echo json_encode([
+                            'success' => true,
+                            'message' => 'Document already deleted'
+                        ]);
+                    }
+                } catch (PDOException $e) {
+                    error_log('PDO Error deleting other_documents ID ' . $id . ': ' . $e->getMessage());
+                    error_log('PDO Error Code: ' . $e->getCode());
+                    error_log('PDO Error Info: ' . print_r($e->errorInfo, true));
+                    throw new Exception('Failed to delete document: ' . $e->getMessage());
+                }
             } else {
                 // Soft delete - move to trash (set deleted_at)
                 try {
@@ -453,6 +521,18 @@ try {
             echo json_encode(['success' => false, 'error' => 'Method not allowed']);
             break;
     }
+} catch (PDOException $e) {
+    // Clear any unexpected output that might have been generated before the error
+    if (ob_get_level() > 0) {
+        ob_clean();
+    }
+    http_response_code(500);
+    header('Content-Type: application/json');
+    error_log('PDO Error in other-documents.php: ' . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'error' => 'Database error: ' . $e->getMessage()
+    ]);
 } catch (Exception $e) {
     // Clear any unexpected output that might have been generated before the error
     if (ob_get_level() > 0) {
@@ -460,6 +540,7 @@ try {
     }
     http_response_code(500);
     header('Content-Type: application/json');
+    error_log('Error in other-documents.php: ' . $e->getMessage());
     echo json_encode([
         'success' => false,
         'error' => $e->getMessage()
@@ -471,6 +552,7 @@ try {
     }
     http_response_code(500);
     header('Content-Type: application/json');
+    error_log('Fatal Error in other-documents.php: ' . $e->getMessage());
     echo json_encode([
         'success' => false,
         'error' => 'Server error: ' . $e->getMessage()
@@ -478,6 +560,7 @@ try {
 }
 
 // End output buffering and send output
-if (ob_get_level() > 0) {
+// Only flush if we haven't already sent output
+if (ob_get_level() > 0 && !headers_sent()) {
     ob_end_flush();
 }

@@ -2654,8 +2654,8 @@ No notifications yet
                     
                 } catch (error) {
                     console.error('Error analyzing document:', error);
-                    classificationText.textContent = 'Unable to analyze document. Will be classified as "Other".';
-                    documentFile.dataset.classification = 'Other';
+                    classificationText.textContent = 'Unable to analyze document. Will be classified as "Other Documents".';
+                    documentFile.dataset.classification = 'Other Documents';
                     documentFile.dataset.confidence = '0';
                 }
             }
@@ -2768,18 +2768,23 @@ No notifications yet
             function classifyDocument(text, filename) {
                 const textToAnalyze = (text + ' ' + filename).toLowerCase();
                 
-                // MOU keywords
+                // MOU keywords - more specific, removing generic words
+                // Only match full phrases or very specific terms
                 const mouKeywords = [
-                    'memorandum of understanding', 'mou', 'understanding', 'collaboration agreement',
-                    'partnership understanding', 'mutual understanding', 'cooperation agreement',
-                    'inter-institutional agreement'
+                    'memorandum of understanding', // Full phrase - high priority
+                    'mou', // Only if part of specific context
+                    'inter-institutional memorandum of understanding',
+                    'memorandum of understanding between',
+                    'mutual understanding memorandum'
                 ];
                 
-                // MOA keywords
+                // MOA keywords - more specific, removing generic words like standalone "agreement"
+                // Only match full phrases or very specific terms
                 const moaKeywords = [
-                    'memorandum of agreement', 'moa', 'agreement', 'service agreement',
-                    'contract agreement', 'binding agreement', 'formal agreement',
-                    'cooperative agreement', 'partnership agreement'
+                    'memorandum of agreement', // Full phrase - high priority
+                    'moa', // Only if part of specific context
+                    'memorandum of agreement between',
+                    'memorandum of agreement with'
                 ];
                 
                 // Other Documents keywords
@@ -2791,17 +2796,51 @@ No notifications yet
                 let mouScore = 0;
                 let moaScore = 0;
                 let otherDocsScore = 0;
+                let mouMatches = 0; // Count of specific matches
+                let moaMatches = 0; // Count of specific matches
                 
-                // Calculate scores for each category
+                // Calculate scores for each category - prioritize longer, more specific phrases
                 mouKeywords.forEach(keyword => {
                     if (textToAnalyze.includes(keyword)) {
-                        mouScore += keyword.length; // Longer keywords get higher scores
+                        // Give much higher weight to full phrase matches
+                        if (keyword.includes('memorandum of understanding')) {
+                            mouScore += keyword.length * 5; // 5x weight for full phrase
+                            mouMatches++;
+                        } else if (keyword === 'mou') {
+                            // Only count "mou" if it appears near "memorandum" or in specific contexts
+                            const mouContext = textToAnalyze.includes('memorandum') || 
+                                             textToAnalyze.includes('understanding') ||
+                                             filename.toLowerCase().includes('mou');
+                            if (mouContext) {
+                                mouScore += keyword.length * 2;
+                                mouMatches++;
+                            }
+                        } else {
+                            mouScore += keyword.length * 3;
+                            mouMatches++;
+                        }
                     }
                 });
                 
                 moaKeywords.forEach(keyword => {
                     if (textToAnalyze.includes(keyword)) {
-                        moaScore += keyword.length;
+                        // Give much higher weight to full phrase matches
+                        if (keyword.includes('memorandum of agreement')) {
+                            moaScore += keyword.length * 5; // 5x weight for full phrase
+                            moaMatches++;
+                        } else if (keyword === 'moa') {
+                            // Only count "moa" if it appears near "memorandum" or in specific contexts
+                            const moaContext = textToAnalyze.includes('memorandum') || 
+                                             textToAnalyze.includes('agreement') ||
+                                             filename.toLowerCase().includes('moa');
+                            if (moaContext) {
+                                moaScore += keyword.length * 2;
+                                moaMatches++;
+                            }
+                        } else {
+                            moaScore += keyword.length * 3;
+                            moaMatches++;
+                        }
                     }
                 });
 
@@ -2811,21 +2850,43 @@ No notifications yet
                     }
                 });
 
-                // Determine classification
-                let category = 'Other';
+                // Determine classification - require strong evidence for MOU/MOA
+                // Default to "Other Documents" to prevent false positives
+                let category = 'Other Documents';
                 let confidence = 0;
 
-                if (mouScore > moaScore && mouScore > otherDocsScore && mouScore > 0) {
-                    category = 'MOU';
-                    confidence = Math.min(95, Math.max(60, (mouScore / (mouScore + moaScore + otherDocsScore)) * 100));
-                } else if (moaScore > mouScore && moaScore > otherDocsScore && moaScore > 0) {
-                    category = 'MOA';
-                    confidence = Math.min(95, Math.max(60, (moaScore / (mouScore + moaScore + otherDocsScore)) * 100));
+                // Require strong evidence for MOU/MOA classification to prevent false positives
+                // This prevents generic words like "agreement" from triggering MOA classification
+                const minMouMatches = 1; // At least one specific match
+                const minMoaMatches = 1; // At least one specific match
+                const minConfidenceThreshold = 70; // Require at least 70% confidence
+
+                if (mouMatches >= minMouMatches && mouScore > moaScore && mouScore > otherDocsScore && mouScore > 0) {
+                    const calculatedConfidence = (mouScore / (mouScore + moaScore + otherDocsScore + 1)) * 100;
+                    if (calculatedConfidence >= minConfidenceThreshold) {
+                        category = 'MOU';
+                        confidence = Math.min(95, Math.max(minConfidenceThreshold, calculatedConfidence));
+                    } else {
+                        // Low confidence - default to Other Documents
+                        category = 'Other Documents';
+                        confidence = Math.round(calculatedConfidence);
+                    }
+                } else if (moaMatches >= minMoaMatches && moaScore > mouScore && moaScore > otherDocsScore && moaScore > 0) {
+                    const calculatedConfidence = (moaScore / (mouScore + moaScore + otherDocsScore + 1)) * 100;
+                    if (calculatedConfidence >= minConfidenceThreshold) {
+                        category = 'MOA';
+                        confidence = Math.min(95, Math.max(minConfidenceThreshold, calculatedConfidence));
+                    } else {
+                        // Low confidence - default to Other Documents
+                        category = 'Other Documents';
+                        confidence = Math.round(calculatedConfidence);
+                    }
                 } else if (otherDocsScore > mouScore && otherDocsScore > moaScore && otherDocsScore > 0) {
                     category = 'Other Documents';
-                    confidence = Math.min(95, Math.max(60, (otherDocsScore / (mouScore + moaScore + otherDocsScore)) * 100));
+                    confidence = Math.min(95, Math.max(60, (otherDocsScore / (mouScore + moaScore + otherDocsScore + 1)) * 100));
                 } else {
-                    category = 'Other';
+                    // Default to Other Documents when no clear classification
+                    category = 'Other Documents';
                     confidence = 0;
                 }
                 
@@ -2970,8 +3031,8 @@ No notifications yet
                 formData.append('file', documentData.file);
                 formData.append('title', documentData.title);
                 formData.append('description', documentData.description || '');
-                // Use the detected classification instead of hardcoding
-                formData.append('category', category === 'Other' ? 'Other Documents' : category);
+                // Use the detected classification, defaulting to Other Documents
+                formData.append('category', (category === 'Other' || !category) ? 'Other Documents' : category);
                 
                 // Set source_page for all document uploads
                 formData.append('source_page', 'documents');
@@ -3039,8 +3100,8 @@ No notifications yet
                     // Close modal first
                     closeModalFunc();
                     
-                    // Automatically analyze the document
-                    await analyzeDocumentFromLibrary(uploadedDoc.id, uploadedDoc.file_path, uploadedDoc.title);
+                    // Automatic analysis disabled - users can manually analyze documents if needed
+                    // await analyzeDocumentFromLibrary(uploadedDoc.id, uploadedDoc.file_path, uploadedDoc.title);
                 } else {
                     // Reload page to show new document
                     location.reload();
