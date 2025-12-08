@@ -1162,8 +1162,8 @@ echo htmlspecialchars($firstName);
 </a>
 </div>
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 page-animate-delay-1">
-<div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg border-l-4 border-purple-400 overflow-hidden">
-<div class="bg-gradient-to-r from-purple-50 via-purple-100 to-indigo-50 dark:from-purple-900/30 dark:via-indigo-900/30 dark:to-purple-800/30 px-6 py-4 border-b border-purple-100 dark:border-purple-800">
+<div class="lg:col-span-2 bg-white dark:bg-card-dark rounded-xl shadow-lg border-l-4 border-purple-400 overflow-hidden">
+<div class="bg-gradient-to-r from-violet-50 via-violet-100 to-purple-50 dark:from-violet-900/30 dark:via-purple-900/30 dark:to-violet-800/30 px-6 py-4 border-b border-violet-100 dark:border-violet-800">
 <div class="flex justify-between items-center">
 <h3 class="text-lg font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-2">
 <span class="material-symbols-outlined text-purple-600 dark:text-purple-400">trending_up</span>
@@ -1214,8 +1214,8 @@ Awards Performance
 </div>
 </div>
 </div>
-<div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg border-l-4 border-indigo-400 overflow-hidden page-animate-delay-1">
-<div class="bg-gradient-to-r from-indigo-50 via-indigo-100 to-purple-50 dark:from-indigo-900/30 dark:via-purple-900/30 dark:to-indigo-800/30 px-6 py-4 border-b border-indigo-100 dark:border-indigo-800">
+<div class="bg-white dark:bg-card-dark rounded-xl shadow-lg border-l-4 border-indigo-400 overflow-hidden page-animate-delay-1">
+<div class="bg-gradient-to-r from-violet-50 via-violet-100 to-purple-50 dark:from-violet-900/30 dark:via-purple-900/30 dark:to-violet-800/30 px-6 py-4 border-b border-violet-100 dark:border-violet-800">
 <h3 class="text-lg font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-2 mb-0">
 <span class="material-symbols-outlined text-indigo-600 dark:text-indigo-400">notifications</span>
 MOU/MOA Notifications
@@ -1224,7 +1224,7 @@ MOU/MOA Notifications
 <div class="overflow-hidden">
 <div id="renewalsContainer" class="flex items-center justify-center min-h-full p-6">
 <!-- Renewals will be loaded here via JavaScript -->
-<div class="flex items-center justify-center text-slate-400 dark:text-slate-500">
+<div class="flex items-center justify-center text-slate-400 dark:text-slate-300">
 <span class="material-symbols-outlined animate-spin mr-2">sync</span>
 <span>Loading renewals...</span>
 </div>
@@ -1233,8 +1233,8 @@ MOU/MOA Notifications
 </div>
 </div>
 <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 page-animate-delay-2">
-<div class="lg:col-span-3 bg-white dark:bg-slate-800 rounded-xl shadow-lg border-l-4 border-pink-400 overflow-hidden">
-<div class="bg-gradient-to-r from-pink-50 via-pink-100 to-rose-50 dark:from-pink-900/30 dark:via-rose-900/30 dark:to-pink-800/30 px-6 py-4 border-b border-pink-100 dark:border-pink-800">
+<div class="lg:col-span-3 bg-white dark:bg-card-dark rounded-xl shadow-lg border-l-4 border-pink-400 overflow-hidden">
+<div class="bg-gradient-to-r from-violet-50 via-violet-100 to-purple-50 dark:from-violet-900/30 dark:via-purple-900/30 dark:to-violet-800/30 px-6 py-4 border-b border-violet-100 dark:border-violet-800">
 <div class="flex justify-between items-center">
 <h3 class="text-lg font-semibold text-pink-700 dark:text-pink-300 flex items-center gap-2">
 <span class="material-symbols-outlined text-pink-600 dark:text-pink-400">event</span>
@@ -1283,7 +1283,7 @@ $statusText = ucfirst($status);
 </div>
 </div>
 </div>
-<div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg border-l-4 border-violet-400 overflow-hidden page-animate-delay-2">
+<div class="lg:col-span-2 bg-white dark:bg-card-dark rounded-xl shadow-lg border-l-4 border-violet-400 overflow-hidden page-animate-delay-2">
 <div class="bg-gradient-to-r from-violet-50 via-violet-100 to-purple-50 dark:from-violet-900/30 dark:via-purple-900/30 dark:to-violet-800/30 px-6 py-4 border-b border-violet-100 dark:border-violet-800">
 <div class="flex justify-between items-center">
 <h3 class="text-lg font-semibold text-violet-700 dark:text-violet-300 flex items-center gap-2">
@@ -2957,7 +2957,7 @@ Recent Activity
 <!-- Renewal Confirmation Modal -->
 <div id="renewalConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
     <div class="bg-black/50 backdrop-blur-sm fixed inset-0" onclick="document.getElementById('renewalConfirmModal').classList.add('hidden')"></div>
-    <div class="w-full max-w-md bg-white dark:bg-slate-800 rounded-xl shadow-2xl m-4 transform transition-all relative z-10">
+    <div class="w-full max-w-md bg-white dark:bg-card-dark rounded-xl shadow-2xl m-4 transform transition-all relative z-10">
         <!-- Modal Header -->
         <div class="p-6 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center gap-3">

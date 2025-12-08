@@ -373,13 +373,31 @@ try {
             min-width: 16rem;
             max-width: 16rem;
             flex-shrink: 0;
-            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
         }
 
         .sidebar-collapsed .sidebar {
             width: 5rem;
             min-width: 5rem;
             max-width: 5rem;
+        }
+        
+        .sidebar {
+            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease !important;
+            animation: none !important;
+            -webkit-animation: none !important;
+            -moz-animation: none !important;
+            -o-animation: none !important;
+        }
+        
+        .sidebar * {
+            transition: none !important;
+            animation: none !important;
+            -webkit-transition: none !important;
+            -moz-transition: none !important;
+            -o-transition: none !important;
+            -webkit-animation: none !important;
+            -moz-animation: none !important;
+            -o-animation: none !important;
         }
 
         .sidebar-collapsed .sidebar-text {
@@ -500,26 +518,20 @@ try {
 
 
 
-        .sidebar-collapsed .sidebar-toggle-icon-open {
-
-            display: none;
-
+        .sidebar-toggle-icon-open {
+            display: block;
         }
 
-
+        .sidebar-collapsed .sidebar-toggle-icon-open {
+            display: none;
+        }
 
         .sidebar-collapsed .sidebar-toggle-icon-closed {
-
             display: block;
-
         }
 
-
-
         .sidebar-toggle-icon-closed {
-
             display: none;
-
         }
 
 
@@ -1141,15 +1153,60 @@ try {
     </style>
 
 </head>
-
-
-
 <body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
 
     <div class="flex h-screen" id="app-container">
-
+<script>
+    // Set initial sidebar state immediately to prevent flicker
+    (function() {
+        try {
+            const appContainer = document.getElementById('app-container');
+            if (!appContainer) return;
+            const savedState = localStorage.getItem('sidebarCollapsed');
+            const isCollapsed = savedState === 'true';
+            
+            // Set app container class
+            if (isCollapsed) {
+                appContainer.className = 'flex h-screen sidebar-collapsed';
+            } else {
+                appContainer.className = 'flex h-screen sidebar-expanded';
+            }
+            
+            // Set main content margin immediately using MutationObserver to catch when main is added
+            const observer = new MutationObserver((mutations, obs) => {
+                const mainContent = document.getElementById('main-content');
+                if (mainContent) {
+                    if (isCollapsed) {
+                        mainContent.classList.remove('ml-64');
+                        mainContent.classList.add('ml-20');
+                    } else {
+                        mainContent.classList.remove('ml-20');
+                        mainContent.classList.add('ml-64');
+                    }
+                    obs.disconnect(); // Stop observing once we've set it
+                }
+            });
+            
+            // Start observing the app container for when main is added
+            observer.observe(appContainer, { childList: true, subtree: true });
+            
+            // Also try immediately in case main already exists
+            const mainContent = document.getElementById('main-content');
+            if (mainContent) {
+                if (isCollapsed) {
+                    mainContent.classList.remove('ml-64');
+                    mainContent.classList.add('ml-20');
+                } else {
+                    mainContent.classList.remove('ml-20');
+                    mainContent.classList.add('ml-64');
+                }
+                observer.disconnect();
+            }
+        } catch(e) {}
+    })();
+</script>
         <aside
-            class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col fixed h-full z-40 transition-all duration-300">
+            class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col fixed h-full z-40" style="animation: none !important; -webkit-animation: none !important; -moz-animation: none !important; -o-animation: none !important;">
 
             <div class="flex items-center justify-start px-4 h-20 border-b border-border-light dark:border-border-dark flex-shrink-0">
                 <div class="flex items-center gap-3 overflow-hidden">
@@ -5146,14 +5203,28 @@ try {
 
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Remove animations from sidebar (but keep width transition for toggle)
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) {
+                sidebar.style.animation = 'none';
+                sidebar.style.webkitAnimation = 'none';
+                sidebar.style.mozAnimation = 'none';
+                sidebar.style.oAnimation = 'none';
+                // Remove animations from all children
+                const sidebarChildren = sidebar.querySelectorAll('*');
+                sidebarChildren.forEach(child => {
+                    child.style.animation = 'none';
+                    child.style.webkitAnimation = 'none';
+                    child.style.mozAnimation = 'none';
+                    child.style.oAnimation = 'none';
+                });
+            }
 
             const themeToggle = document.getElementById('theme-toggle');
 
             const sidebarToggle = document.getElementById('sidebar-toggle');
 
             const appContainer = document.getElementById('app-container');
-
-            const sidebar = document.querySelector('.sidebar');
 
             const mainContent = document.querySelector('main');
 
@@ -5175,55 +5246,56 @@ try {
 
             const toggleContainer = document.querySelector('.sidebar-toggle-container');
 
-            // Initialize sidebar state
+            // Initialize sidebar state - update UI elements and main content margin
             const initSidebarState = () => {
                 const savedState = localStorage.getItem('sidebarCollapsed');
+                const isCollapsed = savedState === 'true';
                 const mainContent = document.getElementById('main-content');
-                // Default to expanded if no saved state, or if saved state is 'false'
-                if (savedState === null || savedState === 'false') {
-                    appContainer.classList.remove('sidebar-collapsed');
-                    if (mainContent) {
+                
+                // Update main content margin based on sidebar state
+                if (mainContent) {
+                    if (isCollapsed) {
+                        mainContent.classList.remove('ml-64');
+                        mainContent.classList.add('ml-20');
+                    } else {
                         mainContent.classList.remove('ml-20');
                         mainContent.classList.add('ml-64');
                     }
-                    
-                    if (sidebarLogoText) sidebarLogoText.classList.remove('hidden');
-                    sidebarTexts.forEach(text => text.classList.remove('hidden'));
-                    if (sidebarProfileInfo) sidebarProfileInfo.classList.remove('hidden');
-                    if (sidebarProfilePicture) sidebarProfilePicture.classList.remove('hidden');
-                    if (openIcon) {
-                    openIcon.classList.remove('hidden');
-                    openIcon.classList.add('block');
-                    }
-                    if (closedIcon) {
-                    closedIcon.classList.add('hidden');
-                    closedIcon.classList.remove('block');
-                    }
-                    navLinks.forEach(link => link.classList.remove('justify-center'));
-                    if (profileContainer) profileContainer.classList.remove('justify-center');
-                    if (toggleContainer) toggleContainer.classList.remove('justify-center');
-                } else {
-                    // Only collapse if explicitly set to 'true'
-                    appContainer.classList.add('sidebar-collapsed');
-                    if (mainContent) {
-                        mainContent.classList.remove('ml-64');
-                        mainContent.classList.add('ml-20');
-                    }
+                }
+                
+                // Update UI elements based on current state
+                if (isCollapsed) {
                     if (sidebarLogoText) sidebarLogoText.classList.add('hidden');
                     sidebarTexts.forEach(text => text.classList.add('hidden'));
                     if (sidebarProfileInfo) sidebarProfileInfo.classList.add('hidden');
                     if (sidebarProfilePicture) sidebarProfilePicture.classList.add('hidden');
                     if (openIcon) {
                         openIcon.classList.add('hidden');
-                        openIcon.classList.remove('block');
+                        openIcon.style.display = 'none';
                     }
                     if (closedIcon) {
                         closedIcon.classList.remove('hidden');
-                        closedIcon.classList.add('block');
+                        closedIcon.style.display = 'block';
                     }
                     navLinks.forEach(link => link.classList.add('justify-center'));
                     if (profileContainer) profileContainer.classList.add('justify-center');
                     if (toggleContainer) toggleContainer.classList.add('justify-center');
+                } else {
+                    if (sidebarLogoText) sidebarLogoText.classList.remove('hidden');
+                    sidebarTexts.forEach(text => text.classList.remove('hidden'));
+                    if (sidebarProfileInfo) sidebarProfileInfo.classList.remove('hidden');
+                    if (sidebarProfilePicture) sidebarProfilePicture.classList.remove('hidden');
+                    if (openIcon) {
+                        openIcon.classList.remove('hidden');
+                        openIcon.style.display = 'block';
+                    }
+                    if (closedIcon) {
+                        closedIcon.classList.add('hidden');
+                        closedIcon.style.display = 'none';
+                    }
+                    navLinks.forEach(link => link.classList.remove('justify-center'));
+                    if (profileContainer) profileContainer.classList.remove('justify-center');
+                    if (toggleContainer) toggleContainer.classList.remove('justify-center');
                 }
             };
             initSidebarState();
@@ -5236,6 +5308,7 @@ try {
                 if (isCollapsed) {
                     // Expand sidebar
                     appContainer.classList.remove('sidebar-collapsed');
+                    appContainer.classList.add('sidebar-expanded');
                     if (mainContent) {
                         mainContent.classList.remove('ml-20');
                         mainContent.classList.add('ml-64');
@@ -5246,12 +5319,12 @@ try {
                     if (sidebarProfileInfo) sidebarProfileInfo.classList.remove('hidden');
                     if (sidebarProfilePicture) sidebarProfilePicture.classList.remove('hidden');
                     if (openIcon) {
-                    openIcon.classList.remove('hidden');
-                    openIcon.classList.add('block');
+                        openIcon.classList.remove('hidden');
+                        openIcon.style.display = 'block';
                     }
                     if (closedIcon) {
-                    closedIcon.classList.add('hidden');
-                    closedIcon.classList.remove('block');
+                        closedIcon.classList.add('hidden');
+                        closedIcon.style.display = 'none';
                     }
                     navLinks.forEach(link => link.classList.remove('justify-center'));
                     if (profileContainer) profileContainer.classList.remove('justify-center');
@@ -5261,6 +5334,7 @@ try {
                 } else {
                     // Collapse sidebar
                     appContainer.classList.add('sidebar-collapsed');
+                    appContainer.classList.remove('sidebar-expanded');
                     if (mainContent) {
                         mainContent.classList.remove('ml-64');
                         mainContent.classList.add('ml-20');
@@ -5271,12 +5345,12 @@ try {
                     if (sidebarProfileInfo) sidebarProfileInfo.classList.add('hidden');
                     if (sidebarProfilePicture) sidebarProfilePicture.classList.add('hidden');
                     if (openIcon) {
-                    openIcon.classList.add('hidden');
-                    openIcon.classList.remove('block');
+                        openIcon.classList.add('hidden');
+                        openIcon.style.display = 'none';
                     }
                     if (closedIcon) {
-                    closedIcon.classList.remove('hidden');
-                    closedIcon.classList.add('block');
+                        closedIcon.classList.remove('hidden');
+                        closedIcon.style.display = 'block';
                     }
                     navLinks.forEach(link => link.classList.add('justify-center'));
                     if (profileContainer) profileContainer.classList.add('justify-center');

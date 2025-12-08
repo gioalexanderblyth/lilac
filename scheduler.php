@@ -128,9 +128,14 @@ try {
         main {
             flex: 1;
             transition: margin-left 0.3s ease;
+            position: relative;
+            z-index: 10;
         }
         .sidebar-collapsed main {
-            margin-left: 0;
+            margin-left: 5rem !important;
+        }
+        .sidebar-expanded main {
+            margin-left: 16rem !important;
         }
         .main-content {
             padding-left: 0;
@@ -231,7 +236,7 @@ try {
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
 <div class="flex h-screen sidebar-collapsed" id="app-container">
-<aside class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col fixed h-full z-40 transition-all duration-300">
+<aside class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col fixed h-full z-50 transition-all duration-300">
 <div class="flex items-center justify-start px-4 h-20 border-b border-border-light dark:border-border-dark flex-shrink-0">
 <div class="flex items-center gap-3 overflow-hidden">
 <img alt="CPU LILAC Logo" class="h-11 w-11 flex-shrink-0" src="./api/get-logo.php?v=1" width="44" height="44" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex'; console.error('Logo failed to load:', this.src);"/>
@@ -583,11 +588,16 @@ try {
             const initSidebarState = () => {
                 const savedState = localStorage.getItem('sidebarCollapsed');
                 const isCollapsed = savedState !== 'false'; // default collapsed
+                const mainContent = document.getElementById('main-content');
                 
                 if (!isCollapsed) {
                     // Expanded state
                     appContainer.classList.remove('sidebar-collapsed');
                     appContainer.classList.add('sidebar-expanded');
+                    if (mainContent) {
+                        mainContent.classList.remove('ml-20');
+                        mainContent.classList.add('ml-64');
+                    }
                     if (sidebarLogoText) sidebarLogoText.classList.remove('hidden');
                     sidebarTexts.forEach(text => text.classList.remove('hidden'));
                     if (sidebarProfileInfo) sidebarProfileInfo.classList.remove('hidden');
@@ -607,6 +617,10 @@ try {
                     // Collapsed state
                     appContainer.classList.add('sidebar-collapsed');
                     appContainer.classList.remove('sidebar-expanded');
+                    if (mainContent) {
+                        mainContent.classList.remove('ml-64');
+                        mainContent.classList.add('ml-20');
+                    }
                     if (sidebarLogoText) sidebarLogoText.classList.add('hidden');
                     sidebarTexts.forEach(text => text.classList.add('hidden'));
                     if (sidebarProfileInfo) sidebarProfileInfo.classList.add('hidden');
@@ -629,11 +643,16 @@ try {
             // Function to toggle sidebar and persist state
             const toggleSidebar = () => {
                 const isCollapsed = appContainer.classList.contains('sidebar-collapsed');
+                const mainContent = document.getElementById('main-content');
                 
                 if (isCollapsed) {
                     // Expand sidebar
                     appContainer.classList.remove('sidebar-collapsed');
                     appContainer.classList.add('sidebar-expanded');
+                    if (mainContent) {
+                        mainContent.classList.remove('ml-20');
+                        mainContent.classList.add('ml-64');
+                    }
                     if (sidebarLogoText) sidebarLogoText.classList.remove('hidden');
                     sidebarTexts.forEach(text => text.classList.remove('hidden'));
                     if (sidebarProfileInfo) sidebarProfileInfo.classList.remove('hidden');
@@ -655,6 +674,10 @@ try {
                     // Collapse sidebar
                     appContainer.classList.add('sidebar-collapsed');
                     appContainer.classList.remove('sidebar-expanded');
+                    if (mainContent) {
+                        mainContent.classList.remove('ml-64');
+                        mainContent.classList.add('ml-20');
+                    }
                     if (sidebarLogoText) sidebarLogoText.classList.add('hidden');
                     sidebarTexts.forEach(text => text.classList.add('hidden'));
                     if (sidebarProfileInfo) sidebarProfileInfo.classList.add('hidden');
