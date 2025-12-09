@@ -19,6 +19,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/check-award-eligibility.php';
 
 try {
     $pdo = getDatabaseConnection();
@@ -183,6 +184,43 @@ try {
     $stmt = $pdo->prepare("UPDATE awards SET status = 'analyzed' WHERE id = ?");
     $stmt->execute([$awardId]);
 
+    // Check eligibility against CHED award criteria and automatically link if eligible
+    $eligibleAwards = checkAllAwardEligibility($combinedText);
+    $chedAwardCategory = null;
+    $eligibilityCriteriaMatch = [];
+    
+    if (!empty($eligibleAwards)) {
+        // Use the first eligible award (highest priority)
+        $primaryEligibleAward = $eligibleAwards[0];
+        $chedAwardCategory = $primaryEligibleAward['award_title'];
+        
+        // Store eligibility criteria match information
+        $eligibilityCriteriaMatch = [
+            'primary_award' => $primaryEligibleAward,
+            'all_eligible_awards' => $eligibleAwards
+        ];
+        
+        // Update the award record with the CHED award category
+        try {
+            // Check if ched_award_category column exists
+            $stmt = $pdo->prepare("UPDATE awards SET ched_award_category = ? WHERE id = ?");
+            $stmt->execute([$chedAwardCategory, $awardId]);
+            logActivity("Linked certificate ID: $awardId to CHED award: $chedAwardCategory", 'INFO');
+        } catch (PDOException $e) {
+            // Column might not exist yet - log but don't fail
+            logActivity("Could not set ched_award_category (column may not exist): " . $e->getMessage(), 'WARNING');
+        }
+        
+        // Update award_analysis with eligibility criteria match
+        try {
+            $stmt = $pdo->prepare("UPDATE award_analysis SET eligibility_criteria_match = ? WHERE award_id = ? ORDER BY id DESC LIMIT 1");
+            $stmt->execute([json_encode($eligibilityCriteriaMatch), $awardId]);
+        } catch (PDOException $e) {
+            // Column might not exist yet - log but don't fail
+            logActivity("Could not set eligibility_criteria_match (column may not exist): " . $e->getMessage(), 'WARNING');
+        }
+    }
+
     // Enhance best_match with missing_keywords for frontend display
     $bestMatchEnhanced = $bestMatch;
     $bestMatchEnhanced['missing_keywords'] = $bestMatch['missing_keywords'];
@@ -196,9 +234,14 @@ try {
             'all_matches' => $matchResults,
             'eligibility_status' => $eligibilityStatus,
             'status_class' => $statusClass,
-            'ocr_text' => substr($ocrText, 0, 500) // First 500 chars for preview
+            'ocr_text' => substr($ocrText, 0, 500), // First 500 chars for preview
+            'ched_eligibility' => [
+                'eligible' => !empty($eligibleAwards),
+                'eligible_awards' => $eligibleAwards,
+                'primary_award' => $chedAwardCategory
+            ]
         ],
-        'message' => 'Award analyzed successfully'
+        'message' => 'Award analyzed successfully' . ($chedAwardCategory ? " and automatically linked to $chedAwardCategory" : '')
     ]);
 
 } catch (Exception $e) {
@@ -359,14 +402,59 @@ function calculateWeightedMatch($text, $criteria) {
     $totalMatchedWeight = 0;
 
     foreach ($keywords as $keyword) {
+        $originalKeyword = $keyword;
         $keyword = strtolower(trim($keyword));
+        
+        // Remove trailing punctuation (periods, commas, etc.) from keyword
+        $keyword = rtrim($keyword, '.,;:!?');
+        
+        // Clean the keyword the same way as the text to handle hyphens, special chars, etc.
+        // This ensures "cross-cultural" matches "cross cultural" in the cleaned text
+        $keywordCleaned = cleanText($keyword);
 
-        // Check if keyword exists in text
-        if (strpos($text, $keyword) !== false) {
-            $matchedKeywords[] = $keyword;
+        // Check if keyword exists in text (try multiple variations)
+        // This handles cases where keyword has hyphens but text has spaces, and multi-word phrases
+        $matched = false;
+        
+        // Method 1: Try cleaned keyword (handles hyphens, special chars)
+        if (strpos($text, $keywordCleaned) !== false) {
+            $matched = true;
+        }
+        // Method 2: Try original keyword (in case text wasn't fully cleaned)
+        elseif (strpos($text, $keyword) !== false) {
+            $matched = true;
+        }
+        // Method 3: Try replacing hyphens with spaces
+        elseif (strpos($text, str_replace('-', ' ', $keyword)) !== false) {
+            $matched = true;
+        }
+        // Method 4: Try replacing spaces with hyphens
+        elseif (strpos($text, str_replace(' ', '-', $keywordCleaned)) !== false) {
+            $matched = true;
+        }
+        // Method 5: For multi-word phrases, try word-by-word matching (at least 70% of words must match)
+        elseif (strpos($keyword, ' ') !== false) {
+            $keywordWords = explode(' ', $keywordCleaned);
+            $keywordWords = array_filter($keywordWords, function($w) { return strlen($w) >= 3; }); // Filter out very short words
+            if (count($keywordWords) > 0) {
+                $matchedWords = 0;
+                foreach ($keywordWords as $word) {
+                    if (strpos($text, $word) !== false) {
+                        $matchedWords++;
+                    }
+                }
+                // If at least 70% of words match, consider it a match
+                if ($matchedWords >= ceil(count($keywordWords) * 0.7)) {
+                    $matched = true;
+                }
+            }
+        }
+        
+        if ($matched) {
+            $matchedKeywords[] = $originalKeyword;
             $totalMatchedWeight += $weightPerKeyword;
         } else {
-            $missingKeywords[] = $keyword;
+            $missingKeywords[] = $originalKeyword;
         }
     }
 

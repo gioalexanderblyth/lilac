@@ -265,15 +265,37 @@ try {
         $statsData['recent_activity'] = getDefaultRecentActivity($user);
 
     } else {
-        // Database statistics - Get ALL active awards (exclude trashed ones)
-        // Count only awards that have a title AND file (real uploaded awards, excluding empty/test records)
-        // This ensures we only count complete, non-trashed award uploads, matching the awards page
+        // Ensure deleted_at column exists
+        try {
+            $pdo->exec("ALTER TABLE awards ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore
+        }
+        
+        // Ensure source_page column exists in award_analysis table
+        try {
+            $pdo->exec("ALTER TABLE award_analysis ADD COLUMN source_page ENUM('documents', 'events', 'awards') NULL DEFAULT 'awards'");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore
+        }
+        
+        // Database statistics - Count only awards uploaded from awards progress page
+        // Awards from awards progress page have source_page = 'awards' in award_analysis
+        // OR source_page IS NULL (default is 'awards' for awards uploaded from awards page)
+        // Exclude awards with source_page = 'documents' (those came from documents page)
         $stmt = $pdo->query("
-            SELECT COUNT(*) as count
-            FROM awards
-            WHERE deleted_at IS NULL
-              AND title IS NOT NULL AND title != ''
-              AND file_name IS NOT NULL AND file_name != ''
+            SELECT COUNT(DISTINCT a.id) as count
+            FROM awards a
+            LEFT JOIN award_analysis aa ON a.id = aa.award_id
+            WHERE (a.deleted_at IS NULL OR a.deleted_at = '')
+              AND a.title IS NOT NULL AND a.title != ''
+              AND a.file_name IS NOT NULL AND a.file_name != ''
+              AND (
+                  aa.source_page = 'awards' 
+                  OR aa.source_page IS NULL
+                  OR aa.id IS NULL  -- Awards without analysis yet (assumed from awards page)
+              )
+              AND (aa.source_page IS NULL OR aa.source_page != 'documents')
         ");
         $statsData['total_awards'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
 
@@ -516,12 +538,13 @@ try {
         }
         $statsData['available_years'] = array_values(array_unique($availableYears));
 
-        // Recent uploads
+        // Recent uploads (excluding deleted awards)
         $stmt = $pdo->prepare('
             SELECT a.*, aa.predicted_category, aa.match_percentage, aa.status
             FROM awards a
             LEFT JOIN award_analysis aa ON aa.award_id = a.id
             WHERE a.user_id = ?
+              AND (a.deleted_at IS NULL OR a.deleted_at = \'\')
             ORDER BY a.created_at DESC
             LIMIT 5
         ');
@@ -529,8 +552,8 @@ try {
         $statsData['recent_uploads'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Get additional statistics for dashboard
-        // Upcoming events - all future events (event_date >= today)
-        $stmt = $pdo->query("SELECT COUNT(*) as count FROM events WHERE event_date >= CURDATE()");
+        // Upcoming events - all future events (event_date >= today), excluding deleted events
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM events WHERE event_date >= CURDATE() AND deleted_at IS NULL");
         $statsData['upcoming_events'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
         
         // Active schedules - schedules for today only (scheduled_date = today, status = 'scheduled' only)
@@ -605,27 +628,40 @@ try {
         // Debug: Log upcoming schedules query result
         error_log("Upcoming schedules tomorrow: " . $statsData['upcoming_schedules']);
         
-        // Total signed MOUs - all uploaded MOUs/MOAs
-        $stmt = $pdo->query("SELECT COUNT(*) as count FROM mou_moa");
+        // Total signed MOUs - all uploaded MOUs/MOAs (excluding deleted)
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM mou_moa WHERE (deleted_at IS NULL OR deleted_at = '')");
         $statsData['signed_mous'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
         
-        // MOUs/MOAs that need renewal (expiring soon - within next 90 days, or already expired)
-        $stmt = $pdo->query("SELECT COUNT(*) as count FROM mou_moa WHERE (end_date >= CURDATE() AND end_date <= DATE_ADD(CURDATE(), INTERVAL 90 DAY)) OR end_date < CURDATE()");
+        // MOUs/MOAs that need renewal (expiring soon - within next 90 days, or already expired, excluding deleted)
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM mou_moa WHERE ((end_date >= CURDATE() AND end_date <= DATE_ADD(CURDATE(), INTERVAL 90 DAY)) OR end_date < CURDATE()) AND (deleted_at IS NULL OR deleted_at = '')");
         $statsData['pending_renewal_mous'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
+        
+        // Ensure deleted_at column exists in both tables
+        try {
+            $pdo->exec("ALTER TABLE mou_moa ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore
+        }
+        try {
+            $pdo->exec("ALTER TABLE other_documents ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore
+        }
         
         // Total documents - all files uploaded in Documents page
         // Count from both mou_moa and other_documents tables (same as Documents page)
+        // Exclude deleted documents (those in trash)
         $stmt = $pdo->query("
             SELECT COUNT(*) as count FROM (
-                SELECT id FROM mou_moa
+                SELECT id FROM mou_moa WHERE (deleted_at IS NULL OR deleted_at = '')
                 UNION ALL
-                SELECT id FROM other_documents
+                SELECT id FROM other_documents WHERE (deleted_at IS NULL OR deleted_at = '')
             ) as combined_documents
         ");
         $statsData['total_documents'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
         
-        // Get upcoming events for table
-        $stmt = $pdo->query("SELECT title, event_date, location, status FROM events WHERE event_date >= CURDATE() ORDER BY event_date ASC LIMIT 4");
+        // Get upcoming events for table, excluding deleted events
+        $stmt = $pdo->query("SELECT title, event_date, location, status FROM events WHERE event_date >= CURDATE() AND deleted_at IS NULL ORDER BY event_date ASC LIMIT 4");
         $statsData['upcoming_events_list'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Get recent activity feed

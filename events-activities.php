@@ -3371,11 +3371,15 @@ Current mode: localStorage only (events will persist in browser)
                     console.log('Event details loaded:', { result, itm, eventId });
                     
                     // Determine image URL
-                    const imageUrl = itm.image_path || (itm.document_path && isImageFile(itm.document_path) ? itm.document_path : (itm.image_url || 'https://via.placeholder.com/120x80?text=img'));
+                    const placeholderImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
+                    const imageUrl = itm.image_path || (itm.document_path && isImageFile(itm.document_path) ? itm.document_path : (itm.image_url || placeholderImage));
 
                     body.innerHTML = `
                       <div class="mb-4">
-                        <img src="${imageUrl}" class="w-full h-48 object-cover rounded-lg shadow-sm" alt="Event image" onerror="this.src='https://via.placeholder.com/400x200?text=No+Image'"/>
+                        <img src="${imageUrl}" class="w-full h-48 object-cover rounded-lg shadow-sm" alt="Event image" onerror="if(this.src !== '${placeholderImage}') { this.src='${placeholderImage}'; } else { this.style.display='none'; const fallback = this.nextElementSibling; if(fallback) fallback.style.display='flex'; }"/>
+                        <div class="w-full h-48 bg-gray-200 dark:bg-gray-700 rounded-lg shadow-sm flex items-center justify-center hidden">
+                          <span class="text-gray-400 dark:text-gray-500 text-sm">No Image Available</span>
+                        </div>
                       </div>
                       <div class="mb-4">
                         <h4 class="text-xl font-bold text-text-light dark:text-text-dark mb-1">${(itm.title || '').toUpperCase()}</h4>
@@ -3473,9 +3477,14 @@ Current mode: localStorage only (events will persist in browser)
                 const body = document.getElementById('eventDetailsBody');
                 const delBtn = document.getElementById('deleteEventBtn');
                 modal.classList.remove('hidden'); modal.classList.add('flex');
+                const placeholderImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
+                const eventImageUrl = itm.imageUrl || itm.thumbnail_url || placeholderImage;
                 body.innerHTML = `
                       <div class="mb-4">
-                        <img src="${itm.imageUrl || itm.thumbnail_url || 'https://via.placeholder.com/400x200?text=No+Image'}" class="w-full h-48 object-cover rounded-lg shadow-sm" alt="Event image" onerror="this.src='https://via.placeholder.com/400x200?text=No+Image'"/>
+                        <img src="${eventImageUrl}" class="w-full h-48 object-cover rounded-lg shadow-sm" alt="Event image" onerror="if(this.src !== '${placeholderImage}') { this.src='${placeholderImage}'; } else { this.style.display='none'; const fallback = this.nextElementSibling; if(fallback) fallback.style.display='flex'; }"/>
+                        <div class="w-full h-48 bg-gray-200 dark:bg-gray-700 rounded-lg shadow-sm flex items-center justify-center hidden">
+                          <span class="text-gray-400 dark:text-gray-500 text-sm">No Image Available</span>
+                        </div>
                       </div>
                       <div class="mb-4">
                         <h4 class="text-xl font-bold text-text-light dark:text-text-dark mb-1">${(itm.title || '').toUpperCase()}</h4>
@@ -3587,148 +3596,19 @@ Current mode: localStorage only (events will persist in browser)
                 }
             });
 
-            // Location Autocomplete for Location Field
-            let autocompleteService = null;
-            let placesService = null;
+            // Location Autocomplete for Location Field (using fallback suggestions only)
             const locationInput = document.getElementById('evLocation');
             const locationSuggestions = document.getElementById('locationSuggestions');
             const suggestionsList = document.getElementById('suggestionsList');
 
-            const loadGoogleMaps = () => {
-                if (window.google && window.google.maps && window.google.maps.places) {
-                    return Promise.resolve();
-                }
-                
-                return new Promise((resolve, reject) => {
-                    // Check if script already exists
-                    if (document.querySelector('script[src*="maps.googleapis.com"]')) {
-                        // Script exists but might not be loaded yet
-                        const checkLoaded = () => {
-                            if (window.google && window.google.maps && window.google.maps.places) {
-                                resolve();
-                            } else {
-                                setTimeout(checkLoaded, 100);
-                            }
-                        };
-                        checkLoaded();
-                        return;
-                    }
-                    
-                    const script = document.createElement('script');
-                    script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyD1p_x_nw6wT7_zUnILTuG17fHNOf0zFC4&libraries=places&loading=async&callback=initPlacesCallback';
-                    script.async = true;
-                    script.defer = true;
-                    script.onerror = () => {
-                        console.warn('Google Maps API failed to load. Please check your API key and internet connection.');
-                        reject(new Error('Failed to load Google Maps API'));
-                    };
-                    
-                    // Create callback function
-                    window.initPlacesCallback = () => {
-                        delete window.initPlacesCallback; // Clean up
-                        resolve();
-                    };
-                    
-                    document.head.appendChild(script);
-                });
-            };
-
-            const showLocationSuggestions = async (query) => {
+            const showLocationSuggestions = (query) => {
                 if (!query.trim() || query.length < 2) {
                     locationSuggestions.classList.add('hidden');
                     return;
                 }
 
-                // Always show fallback suggestions first for better UX
+                // Show fallback suggestions only
                 showFallbackSuggestions(query);
-
-                // Try to load Google Places API in the background
-                try {
-                    await loadGoogleMaps();
-                    
-                    if (!autocompleteService) {
-                        autocompleteService = new google.maps.places.AutocompleteService();
-                    }
-
-                    // Use the legacy API which is still working - restricted to Iloilo only
-                    autocompleteService.getPlacePredictions({
-                        input: query,
-                        types: ['geocode', 'establishment'],
-                        componentRestrictions: { country: 'ph' },
-                        location: new google.maps.LatLng(10.7202, 122.5621), // Iloilo City coordinates
-                        radius: 50000 // 50km radius around Iloilo
-                    }, (predictions, status) => {
-                        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-                            // Filter predictions to only show Iloilo locations (strict filtering)
-                            const iloiloPredictions = predictions.filter(prediction => {
-                                const desc = prediction.description.toLowerCase();
-                                return desc.includes('iloilo') && 
-                                       !desc.includes('manila') &&
-                                       !desc.includes('cebu') &&
-                                       !desc.includes('davao') &&
-                                       !desc.includes('baguio') &&
-                                       !desc.includes('bacolod') &&
-                                       !desc.includes('tacloban') &&
-                                       !desc.includes('antique') &&
-                                       !desc.includes('capiz') &&
-                                       !desc.includes('aklan') &&
-                                       !desc.includes('negros') &&
-                                       !desc.includes('guimaras');
-                            });
-                            if (iloiloPredictions.length > 0) {
-                                displaySuggestions(iloiloPredictions);
-                            }
-                            // If no Iloilo predictions, keep fallback suggestions
-                        } else {
-                            console.log('Places API status:', status);
-                            // Keep fallback suggestions if API fails
-                        }
-                    });
-
-                } catch (error) {
-                    console.log('Places API failed:', error);
-                    // Fallback suggestions are already shown
-                }
-            };
-
-            const displaySuggestions = (predictions) => {
-                suggestionsList.innerHTML = '';
-                
-                predictions.slice(0, 5).forEach((prediction, index) => {
-                    const suggestionItem = document.createElement('div');
-                    suggestionItem.className = 'flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer transition-colors select-none';
-                    suggestionItem.style.pointerEvents = 'auto';
-                    suggestionItem.innerHTML = `
-                        <span class="material-symbols-outlined text-text-muted-light dark:text-text-muted-dark text-sm">place</span>
-                        <div class="flex-1">
-                            <p class="text-sm font-medium text-text-light dark:text-text-dark">${prediction.structured_formatting.main_text}</p>
-                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark">${prediction.structured_formatting.secondary_text}</p>
-                        </div>
-                    `;
-                    
-                    // Add click event with proper event handling
-                    suggestionItem.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        locationInput.value = prediction.description;
-                        locationInput.setAttribute('data-chosen-location', prediction.description);
-                        locationSuggestions.classList.add('hidden');
-                        // Trigger input event to update any other listeners
-                        locationInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        // Immediately hide suggestions and blur to close any overlays
-                        setTimeout(() => { locationSuggestions.classList.add('hidden'); locationInput.blur(); }, 0);
-                    });
-                    
-                    // Add mousedown event as backup
-                    suggestionItem.addEventListener('mousedown', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    });
-                    
-                    suggestionsList.appendChild(suggestionItem);
-                });
-                
-                locationSuggestions.classList.remove('hidden');
             };
 
             const showFallbackSuggestions = (query) => {

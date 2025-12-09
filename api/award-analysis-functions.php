@@ -20,18 +20,88 @@ function cleanText($text) {
 /**
  * Calculate weighted keyword match percentage (From Awards Page Logic)
  */
+/**
+ * Extract keywords from requirements/criteria text
+ */
+function extractKeywordsFromRequirements($requirements) {
+    $keywords = [];
+    
+    if (empty($requirements)) {
+        return $keywords;
+    }
+    
+    // Handle different formats: JSON array, newline-separated string, or plain text
+    $requirementsText = '';
+    if (is_array($requirements)) {
+        $requirementsText = implode("\n", $requirements);
+    } else if (is_string($requirements)) {
+        // Try to parse as JSON first
+        $decoded = json_decode($requirements, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            $requirementsText = implode("\n", $decoded);
+        } else {
+            $requirementsText = $requirements;
+        }
+    }
+    
+    // Split by newlines to get individual criteria
+    $criteriaLines = array_filter(array_map('trim', explode("\n", $requirementsText)));
+    
+    // Extract meaningful words from each criterion
+    $stopWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should', 'could', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them', 'their', 'there', 'then', 'than'];
+    
+    foreach ($criteriaLines as $line) {
+        // Clean and normalize the line
+        $line = strtolower($line);
+        $line = preg_replace('/[^a-z0-9\s]/', ' ', $line);
+        $line = preg_replace('/\s+/', ' ', $line);
+        
+        // Extract words (minimum 4 characters, not stop words)
+        $words = explode(' ', $line);
+        foreach ($words as $word) {
+            $word = trim($word);
+            if (strlen($word) >= 4 && !in_array($word, $stopWords)) {
+                // Add both the word and common variations
+                if (!in_array($word, $keywords)) {
+                    $keywords[] = $word;
+                }
+                // Also add plural/singular forms if different
+                if (substr($word, -1) === 's' && strlen($word) > 4) {
+                    $singular = substr($word, 0, -1);
+                    if (!in_array($singular, $keywords) && strlen($singular) >= 4) {
+                        $keywords[] = $singular;
+                    }
+                }
+            }
+        }
+    }
+    
+    return array_unique($keywords);
+}
+
 function calculateStrictWeightedMatch($text, $criteria) {
     $categoryName = $criteria['category_name'] ?? $criteria['title'] ?? 'Unknown';
     $keywordsStr = is_array($criteria['keywords']) ? implode(',', $criteria['keywords']) : ($criteria['keywords'] ?? '');
     $totalWeight = floatval($criteria['weight'] ?? 50);
 
-    // Parse keywords (comma-separated if string)
+    // Parse keywords from comma-separated field
+    $keywordsFromField = [];
     if (is_array($criteria['keywords'])) {
-        $keywords = $criteria['keywords'];
+        $keywordsFromField = $criteria['keywords'];
     } else {
-        $keywords = array_map('trim', explode(',', $keywordsStr));
+        $keywordsFromField = array_map('trim', explode(',', $keywordsStr));
     }
-    $keywords = array_filter($keywords);
+    $keywordsFromField = array_filter($keywordsFromField);
+    
+    // Also extract keywords from Requirements/Criteria field
+    $keywordsFromRequirements = [];
+    if (!empty($criteria['requirements'])) {
+        $keywordsFromRequirements = extractKeywordsFromRequirements($criteria['requirements']);
+    }
+    
+    // Combine both sources (prioritize explicit keywords, but include requirements keywords)
+    $keywords = array_merge($keywordsFromField, $keywordsFromRequirements);
+    $keywords = array_unique(array_filter($keywords)); // Remove duplicates and empty values
 
     if (empty($keywords)) {
         return [
@@ -54,14 +124,59 @@ function calculateStrictWeightedMatch($text, $criteria) {
     $totalMatchedWeight = 0;
 
     foreach ($keywords as $keyword) {
+        $originalKeyword = $keyword;
         $keyword = strtolower(trim($keyword));
+        
+        // Remove trailing punctuation (periods, commas, etc.) from keyword
+        $keyword = rtrim($keyword, '.,;:!?');
+        
+        // Clean the keyword the same way as the text to handle hyphens, special chars, etc.
+        // This ensures "cross-cultural" matches "cross cultural" in the cleaned text
+        $keywordCleaned = cleanText($keyword);
 
-        // Check if keyword exists in text
-        if (strpos($text, $keyword) !== false) {
-            $matchedKeywords[] = $keyword;
+        // Check if keyword exists in text (try multiple variations)
+        // This handles cases where keyword has hyphens but text has spaces, and multi-word phrases
+        $matched = false;
+        
+        // Method 1: Try cleaned keyword (handles hyphens, special chars)
+        if (strpos($text, $keywordCleaned) !== false) {
+            $matched = true;
+        }
+        // Method 2: Try original keyword (in case text wasn't fully cleaned)
+        elseif (strpos($text, $keyword) !== false) {
+            $matched = true;
+        }
+        // Method 3: Try replacing hyphens with spaces
+        elseif (strpos($text, str_replace('-', ' ', $keyword)) !== false) {
+            $matched = true;
+        }
+        // Method 4: Try replacing spaces with hyphens
+        elseif (strpos($text, str_replace(' ', '-', $keywordCleaned)) !== false) {
+            $matched = true;
+        }
+        // Method 5: For multi-word phrases, try word-by-word matching (at least 70% of words must match)
+        elseif (strpos($keyword, ' ') !== false) {
+            $keywordWords = explode(' ', $keywordCleaned);
+            $keywordWords = array_filter($keywordWords, function($w) { return strlen($w) >= 3; }); // Filter out very short words
+            if (count($keywordWords) > 0) {
+                $matchedWords = 0;
+                foreach ($keywordWords as $word) {
+                    if (strpos($text, $word) !== false) {
+                        $matchedWords++;
+                    }
+                }
+                // If at least 70% of words match, consider it a match
+                if ($matchedWords >= ceil(count($keywordWords) * 0.7)) {
+                    $matched = true;
+                }
+            }
+        }
+        
+        if ($matched) {
+            $matchedKeywords[] = $originalKeyword;
             $totalMatchedWeight += $weightPerKeyword;
         } else {
-            $missingKeywords[] = $keyword;
+            $missingKeywords[] = $originalKeyword;
         }
     }
 
@@ -1162,6 +1277,47 @@ function storeAnalysisResults($awardName, $description, $extractedText, $analysi
                 $stmt = $pdo->prepare("UPDATE other_documents SET award_id = ? WHERE id = ?");
                 $stmt->execute([$newAwardId, $documentId]);
                 logActivity("Linked Document ID: $documentId to Award ID: $newAwardId", 'INFO');
+            }
+            
+            // 4. Check eligibility against CHED award criteria and automatically link if eligible
+            try {
+                require_once __DIR__ . '/check-award-eligibility.php';
+                $eligibleAwards = checkAllAwardEligibility($extractedText);
+                
+                if (!empty($eligibleAwards)) {
+                    // Use the first eligible award (highest priority)
+                    $primaryEligibleAward = $eligibleAwards[0];
+                    $chedAwardCategory = $primaryEligibleAward['award_title'];
+                    
+                    // Store eligibility criteria match information
+                    $eligibilityCriteriaMatch = [
+                        'primary_award' => $primaryEligibleAward,
+                        'all_eligible_awards' => $eligibleAwards
+                    ];
+                    
+                    // Update the award record with the CHED award category
+                    try {
+                        // Check if ched_award_category column exists
+                        $stmt = $pdo->prepare("UPDATE awards SET ched_award_category = ? WHERE id = ?");
+                        $stmt->execute([$chedAwardCategory, $newAwardId]);
+                        logActivity("Auto-linked certificate ID: $newAwardId to CHED award: $chedAwardCategory", 'INFO');
+                    } catch (PDOException $e) {
+                        // Column might not exist yet - log but don't fail
+                        logActivity("Could not set ched_award_category (column may not exist): " . $e->getMessage(), 'WARNING');
+                    }
+                    
+                    // Update award_analysis with eligibility criteria match
+                    try {
+                        $stmt = $pdo->prepare("UPDATE award_analysis SET eligibility_criteria_match = ? WHERE id = ?");
+                        $stmt->execute([json_encode($eligibilityCriteriaMatch), $analysisId]);
+                    } catch (PDOException $e) {
+                        // Column might not exist yet - log but don't fail
+                        logActivity("Could not set eligibility_criteria_match (column may not exist): " . $e->getMessage(), 'WARNING');
+                    }
+                }
+            } catch (Exception $e) {
+                // Don't fail the whole process if eligibility check fails
+                logActivity("Eligibility check failed: " . $e->getMessage(), 'WARNING');
             }
             
             return $analysisId;

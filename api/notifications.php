@@ -145,7 +145,8 @@ function checkUpcomingEvents($pdo, $userId = null) {
                 WHERE event_date IS NOT NULL 
                 AND event_date >= ? 
                 AND event_date <= ? 
-                AND status IN ('planned', 'ongoing')";
+                AND status IN ('planned', 'ongoing')
+                AND deleted_at IS NULL";
         
         $params = [$today, $sevenDaysFromNow];
         

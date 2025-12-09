@@ -1245,21 +1245,24 @@ function calculateAwardStats() {
                 const text = `${cert.title || ''} ${cert.description || ''}`.toLowerCase();
                 matchScore = calculateMatchScore(text, award.keywords);
                 
-                // Only include if calculated score is 100%
-                if (matchScore === 100) {
-                    stats.certificates.push({ ...cert, matchScore: 100, aiDetected: true });
-                    stats.total++;
-                    stats.aiDetected++;
-                    stats.eligible++;
-                    
-                    // Debug logging
-                    if (award.id === 'global-citizenship') {
-                        console.log('✅ Included certificate with calculated 100% match:', cert.title);
-                    }
-                } else if (award.id === 'global-citizenship') {
-                    console.log('❌ Excluded certificate (not 100%):', {
+                // Include certificate regardless of match score (show all, but mark eligibility)
+                // This allows users to see all certificates, even with low match scores
+                stats.certificates.push({ 
+                    ...cert, 
+                    matchScore: matchScore, 
+                    aiDetected: matchScore >= 30,
+                    autoLinked: false
+                });
+                stats.total++;
+                if (matchScore >= 30) stats.aiDetected++;
+                if (matchScore >= 70) stats.eligible++;
+                
+                // Debug logging
+                if (award.id === 'global-citizenship') {
+                    console.log('📋 Included certificate with match score:', {
                         title: cert.title,
-                        calculatedScore: matchScore
+                        matchScore: matchScore,
+                        eligible: matchScore >= 70
                     });
                 }
             }
@@ -1356,21 +1359,24 @@ function getRequirementAutoStatus(req, stats) {
     const detectType = (req.autoDetect || req.id || '').toLowerCase();
     const status = { autoChecked: false, detail: '' };
     
-    // Check if this requirement is manually checked
+    // For supporting-docs, ignore manual state - always use only eligible documents
+    // Check if this requirement is manually checked (but ignore for supporting-docs)
     const savedState = getChecklistState(currentAwardId);
     const isManuallyChecked = savedState[req.id] === true;
+    const isSupportingDocs = req.id === 'supporting-docs';
     
-    // If manually checked, use allEvidence (all documents), otherwise use stats (100% matches only)
+    // If manually checked AND not supporting-docs, use allEvidence (all documents), otherwise use stats (eligible matches only)
     let documentSources, mouSources, eventSources;
     
-    if (isManuallyChecked && (detectType.includes('supporting') || detectType === 'documents' || detectType === 'supporting-docs')) {
-        // When manually checked, use ALL documents from allEvidence (not just 100% matches)
+    if (isManuallyChecked && !isSupportingDocs && (detectType.includes('documents'))) {
+        // When manually checked (but NOT for supporting-docs), use ALL documents from allEvidence
         documentSources = [
             ...(allEvidence.documents || []),
             ...(allEvidence.certificates || [])
         ];
     } else {
-        // When not manually checked, use only 100% matches from stats
+        // For supporting-docs, ALWAYS use only eligible documents (match score >= 70 or auto-linked)
+        // For other requirements, use eligible matches from stats
         documentSources = [
             ...(normalizedStats.documents || []),
             ...(normalizedStats.certificates || [])
@@ -1381,8 +1387,25 @@ function getRequirementAutoStatus(req, stats) {
     eventSources = normalizedStats.events || [];
     
     if (detectType.includes('supporting') || detectType === 'documents' || detectType === 'supporting-docs') {
-        // If not manually checked, count 100% matched certificates from awards list
-        if (!isManuallyChecked) {
+        // For supporting-docs, ALWAYS count only eligible documents (match score >= 70 or auto-linked)
+        // Eligible = match score >= 70 OR ched_award_category matches this award
+        if (isSupportingDocs) {
+            const awardTitle = AWARDS_CONFIG[currentAwardId]?.title || '';
+            const eligibleCerts = (allEvidence.certificates || []).filter(cert => {
+                const matchPct = cert.match_percentage || cert.analysis?.match_percentage || cert.matchScore || 0;
+                const chedAward = cert.ched_award_category || '';
+                // Eligible if: match score >= 70 OR auto-linked to this award
+                return (matchPct >= 70) || (chedAward === awardTitle);
+            });
+            
+            const eligibleDocs = (normalizedStats.documents || []).filter(doc => {
+                const matchPct = doc.matchScore || doc.match_percentage || 0;
+                return matchPct >= 70;
+            });
+            
+            documentSources = [...eligibleCerts, ...eligibleDocs];
+        } else if (!isManuallyChecked) {
+            // For other document types, count 100% matched certificates from awards list
             const hundredPercentCerts = (allEvidence.certificates || []).filter(cert => {
                 const matchPct = cert.match_percentage || cert.analysis?.match_percentage;
                 return matchPct === 100 || matchPct >= 100;
@@ -1395,7 +1418,7 @@ function getRequirementAutoStatus(req, stats) {
         
         status.autoChecked = documentSources.length > 0;
         if (status.autoChecked) {
-            status.detail = `${documentSources.length} document(s) found`;
+            status.detail = `${documentSources.length} eligible document(s) found`;
         }
         return status;
     }
@@ -1852,22 +1875,37 @@ function renderRequirementsTab(requirements, stats) {
                         // If manual state is set (true/false), use it. Otherwise default to auto state.
                         const checked = manualState !== undefined ? manualState : autoChecked;
                         
-                        // Calculate supporting docs count based on manual state
+                        // Calculate supporting docs count - ALWAYS use only eligible documents for supporting-docs
                         let docCount = 0;
                         if (req.maxCount) {
-                            if (manualState === true) {
-                                // Use all documents when manually checked
+                            if (req.id === 'supporting-docs') {
+                                // For supporting-docs, ALWAYS count only eligible documents (match >= 70 or auto-linked)
+                                const awardTitle = AWARDS_CONFIG[currentAwardId]?.title || '';
+                                const eligibleCerts = (allEvidence.certificates || []).filter(cert => {
+                                    const matchPct = cert.match_percentage || cert.analysis?.match_percentage || cert.matchScore || 0;
+                                    const chedAward = cert.ched_award_category || '';
+                                    return (matchPct >= 70) || (chedAward === awardTitle);
+                                });
+                                
+                                const eligibleDocs = (statsSafe.documents || []).filter(doc => {
+                                    const matchPct = doc.matchScore || doc.match_percentage || 0;
+                                    return matchPct >= 70;
+                                });
+                                
+                                const totalEligible = eligibleCerts.length + eligibleDocs.length;
+                                docCount = Math.min(totalEligible, req.maxCount || 10);
+                                
+                                // Debug logging
+                                console.log('Supporting Docs (Eligible Only):', {
+                                    eligibleCerts: eligibleCerts.length,
+                                    eligibleDocs: eligibleDocs.length,
+                                    totalEligible,
+                                    docCount
+                                });
+                            } else if (manualState === true) {
+                                // For other document types, use all documents when manually checked
                                 const allDocsCount = (allEvidence.documents || []).length + (allEvidence.certificates || []).length;
                                 docCount = Math.min(allDocsCount, req.maxCount || 10);
-                                // Debug logging
-                                if (req.id === 'supporting-docs') {
-                                    console.log('Supporting Docs (Manual):', {
-                                        allDocs: allEvidence.documents?.length || 0,
-                                        allCerts: allEvidence.certificates?.length || 0,
-                                        total: allDocsCount,
-                                        docCount
-                                    });
-                                }
                             } else {
                                 // Count 100% matched certificates from awards list
                                 // Check ALL certificates and see which ones are 100% for THIS award
@@ -1956,25 +1994,37 @@ function renderRequirementsTab(requirements, stats) {
                             }
                         }
                         
-                        // For supporting-docs, if manually checked, show count from allEvidence
+                        // For supporting-docs, always show auto-detected count (eligible documents only)
                         let autoDetectInfo = '';
-                        if (req.id === 'supporting-docs' && manualState === true) {
-                            const allDocsCount = (allEvidence.documents || []).length + (allEvidence.certificates || []).length;
-                            autoDetectInfo = `<p class="text-xs text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-xs">edit</span>Manually checked: ${allDocsCount} document(s) available</p>`;
+                        if (req.id === 'supporting-docs') {
+                            // Always show auto-detected count for supporting-docs (eligible documents only)
+                            if (autoChecked && docCount > 0) {
+                                autoDetectInfo = `<p class="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-xs">check_circle</span>Auto-detected: ${docCount} eligible document(s) found</p>`;
+                            } else {
+                                autoDetectInfo = `<p class="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-xs">info</span>No eligible documents found (requires match score ≥ 70% or auto-linked)</p>`;
+                            }
                         } else if (autoChecked) {
                             autoDetectInfo = `<p class="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-xs">check_circle</span>Auto-detected${autoStatus.detail ? `: ${autoStatus.detail}` : ''}</p>`;
                         }
                         
+                        // For supporting-docs, make it read-only (not manually checkable)
+                        // It should only be checked automatically based on eligible documents
+                        const isSupportingDocs = req.id === 'supporting-docs';
+                        const isClickable = !isSupportingDocs;
+                        const clickHandler = isClickable ? `onclick="toggleRequirement('${req.id}', this, ${autoChecked})"` : '';
+                        const cursorClass = isClickable ? 'cursor-pointer hover:border-blue-300 dark:hover:border-blue-600' : 'cursor-default';
+                        
                         return `
-                        <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border ${checked ? 'border-green-300 dark:border-green-700' : 'border-gray-200 dark:border-gray-700'} cursor-pointer hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
-                             onclick="toggleRequirement('${req.id}', this, ${autoChecked})">
-                            <div id="check-${req.id}" class="w-6 h-6 rounded-full border-2 ${checked ? 'border-green-500 bg-green-500' : 'border-gray-300 dark:border-gray-600 hover:border-blue-400'} flex items-center justify-center flex-shrink-0 transition-all">
+                        <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border ${checked ? 'border-green-300 dark:border-green-700' : 'border-gray-200 dark:border-gray-700'} ${cursorClass} transition-colors"
+                             ${clickHandler}>
+                            <div id="check-${req.id}" class="w-6 h-6 rounded-full border-2 ${checked ? 'border-green-500 bg-green-500' : 'border-gray-300 dark:border-gray-600'} ${isClickable ? 'hover:border-blue-400' : ''} flex items-center justify-center flex-shrink-0 transition-all">
                                 ${checked ? '<span class="material-symbols-outlined text-white text-sm">check</span>' : ''}
                             </div>
                             <div class="flex-1">
                                 <p class="text-sm font-medium text-text-light dark:text-text-dark">${req.label}</p>
                                 ${req.maxCount ? `<p class="text-xs text-text-muted-light dark:text-text-muted-dark">${docCount}/${req.maxCount} documents uploaded</p>` : ''}
                                 ${autoDetectInfo}
+                                ${isSupportingDocs ? '<p class="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-xs">info</span>Only eligible documents are counted automatically</p>' : ''}
                             </div>
                             ${req.required !== false ? '<span class="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs rounded-full">Required</span>' : '<span class="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs rounded-full">Optional</span>'}
                         </div>
@@ -2584,6 +2634,12 @@ function toggleCriteria(criteriaId, element, isAutoMatched) {
 
 // Toggle requirement checkbox
 function toggleRequirement(reqId, element, isAutoChecked) {
+    // Prevent manual toggling of supporting-docs - it should only be auto-checked based on eligible documents
+    if (reqId === 'supporting-docs') {
+        console.log('Supporting Documents cannot be manually toggled - it is automatically updated based on eligible documents');
+        return;
+    }
+    
     const state = getChecklistState(currentAwardId);
     const manualState = state[reqId];
     
@@ -2596,11 +2652,6 @@ function toggleRequirement(reqId, element, isAutoChecked) {
     const newState = !effectiveState;
     state[reqId] = newState;
     saveChecklistState(currentAwardId, state);
-    
-    // If toggling supporting-docs, refresh the requirements tab to update the count
-    if (reqId === 'supporting-docs') {
-        renderModalContent('requirements');
-    }
     
     // Update the UI
     const checkDiv = element.querySelector(`#check-${reqId}`);
@@ -2658,8 +2709,11 @@ function updateApplicationReadiness() {
         docPossible += 1;
         const manualState = state[req.id];
         const autoChecked = isRequirementAutoMet(req, stats);
-        // Use manual state if defined, otherwise use auto
-        const isChecked = manualState !== undefined ? manualState : autoChecked;
+        
+        // For supporting-docs, ALWAYS use auto state (ignore manual state)
+        // It should only be checked based on eligible documents
+        const isSupportingDocs = req.id === 'supporting-docs';
+        const isChecked = isSupportingDocs ? autoChecked : (manualState !== undefined ? manualState : autoChecked);
         
         if (isChecked) {
             docScore += 1;
@@ -2947,6 +3001,51 @@ function updateSelectedCount() {
     document.getElementById('selected-count').textContent = selectedAwardIds.size;
 }
 
+// Helper function to get documents for a specific requirement
+function getDocumentsForRequirement(req, stats, awardId) {
+    const documents = [];
+    const detectType = (req.autoDetect || req.id || '').toLowerCase();
+    const awardTitle = AWARDS_CONFIG.find(a => a.id === awardId)?.title || '';
+    
+    // Get all evidence for this award
+    const allCerts = allEvidence.certificates || [];
+    const allDocs = allEvidence.documents || [];
+    const allMous = allEvidence.mous || [];
+    const allEvents = allEvidence.events || [];
+    
+    if (detectType.includes('supporting') || detectType === 'documents' || detectType === 'supporting-docs') {
+        // For supporting-docs, get eligible certificates and documents
+        const eligibleCerts = allCerts.filter(cert => {
+            const matchPct = cert.match_percentage || cert.analysis?.match_percentage || cert.matchScore || 0;
+            const chedAward = cert.ched_award_category || '';
+            return (matchPct >= 70) || (chedAward === awardTitle);
+        });
+        
+        const eligibleDocs = (stats.documents || []).filter(doc => {
+            const matchPct = doc.matchScore || doc.match_percentage || 0;
+            return matchPct >= 70;
+        });
+        
+        documents.push(...eligibleCerts, ...eligibleDocs);
+    } else if (detectType.includes('video')) {
+        // For video requirement, get events with video attachments
+        const videoEvents = allEvents.filter(event => eventHasVideoAttachment(event));
+        documents.push(...videoEvents);
+    } else if (detectType.includes('mou') || detectType.includes('moa')) {
+        // For MOU/MOA requirement, get MOUs
+        documents.push(...(stats.mous || []));
+    } else if (detectType.includes('form') || detectType.includes('nomination')) {
+        // For nomination form, look for documents with "form" or "nomination" in title
+        const forms = allDocs.filter(doc => {
+            const title = (doc.title || '').toLowerCase();
+            return title.includes('form') || title.includes('nomination');
+        });
+        documents.push(...forms);
+    }
+    
+    return documents.slice(0, req.maxCount || 10); // Limit to max count
+}
+
 function generateReport() {
     if (selectedAwardIds.size === 0) {
         showNotificationModal('Please select at least one award to generate a report.', 'warning');
@@ -3015,20 +3114,43 @@ function generateReport() {
             html += `
                 <div class="mb-6">
                     <h3 class="text-xl font-bold text-gray-900 mb-3">Documentary Requirements</h3>
-                    <ul class="list-disc list-inside space-y-2 ml-4">
+                    <div class="space-y-4">
             `;
             requirements.documentaryRequirements.forEach(req => {
                 const state = getChecklistState(awardId);
                 const isChecked = state[req.id] || (req.id === 'supporting-docs' && stats.total > 0);
+                
+                // Get documents for this requirement
+                const reqDocuments = getDocumentsForRequirement(req, stats, awardId);
+                
                 html += `
-                    <li class="text-gray-700">
-                        ${isChecked ? '✓' : '○'} ${req.label} ${req.required ? '<span class="font-bold">(Required)</span>' : ''}
-                    </li>
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-300">
+                        <div class="flex items-start gap-2 mb-2">
+                            <span class="text-lg">${isChecked ? '✓' : '○'}</span>
+                            <div class="flex-1">
+                                <p class="font-semibold text-gray-900">
+                                    ${req.label} ${req.required ? '<span class="font-bold text-gray-700">(Required)</span>' : ''}
+                                </p>
+                                ${reqDocuments.length > 0 ? `
+                                    <p class="text-sm text-gray-600 mt-1">${reqDocuments.length} document(s) ready</p>
+                                    <ul class="list-disc list-inside space-y-1 mt-2 ml-4 text-sm text-gray-700">
+                                        ${reqDocuments.map(doc => {
+                                            const docTitle = doc.title || doc.file_name || 'Untitled Document';
+                                            const docType = doc.file_name ? (doc.file_name.split('.').pop() || '').toUpperCase() : '';
+                                            return `<li>${docTitle}${docType ? ` (${docType})` : ''}</li>`;
+                                        }).join('')}
+                                    </ul>
+                                ` : `
+                                    <p class="text-sm text-gray-500 italic mt-1">No documents uploaded yet</p>
+                                `}
+                            </div>
+                        </div>
+                    </div>
                 `;
             });
             html += `
-                    </ul>
-                    <p class="text-sm text-gray-600 mt-2"><strong>Implementation Period:</strong> ${requirements.implementationPeriod}</p>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-4"><strong>Implementation Period:</strong> ${requirements.implementationPeriod}</p>
                 </div>
             `;
             

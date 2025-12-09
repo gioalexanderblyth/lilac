@@ -1004,6 +1004,9 @@ No notifications yet
                                 <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700" aria-label="View" data-action="view" data-id="${id}" data-source="${sourceTable}" data-file="${filePath}">
                                     <span class="material-icons text-base text-text-muted-light dark:text-text-muted-dark">visibility</span>
                                 </button>
+                                <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700" aria-label="Analysis" data-action="analyze" data-id="${id}" data-source="${sourceTable}" data-file="${filePath}" data-title="${name}" title="View/Run Analysis">
+                                    <span class="material-icons text-base text-text-muted-light dark:text-text-muted-dark">psychology</span>
+                                </button>
                                 <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700" aria-label="Edit" data-action="edit" data-id="${id}" data-source="${sourceTable}">
                                     <span class="material-icons text-base text-text-muted-light dark:text-text-muted-dark">edit</span>
                                 </button>
@@ -2057,6 +2060,10 @@ No notifications yet
                         } else {
                             alert('File path not found');
                         }
+                    } else if (action === 'analyze') {
+                        // Show/run analysis for document
+                        const docTitle = target.getAttribute('data-title') || (doc && doc.title) || (doc && doc.name) || 'Untitled Document';
+                        await showDocumentAnalysis(id, filePath, docTitle, source);
                     } else if (action === 'edit') {
                         // Handle edit based on source
                         if (source === 'mou_moa') {
@@ -3105,6 +3112,76 @@ No notifications yet
                 } else {
                     // Reload page to show new document
                     location.reload();
+                }
+            }
+
+            // Show/Run analysis for a document (called from Actions button)
+            async function showDocumentAnalysis(docId, filePath, docTitle = '', source = 'other_documents') {
+                if (!window.awardAnalyzer) {
+                    console.error('Award analyzer not loaded');
+                    alert('Analysis feature is not available. Please refresh the page.');
+                    return;
+                }
+                
+                // Show loading notification
+                const loadingNotification = document.createElement('div');
+                loadingNotification.className = 'fixed top-4 right-4 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
+                loadingNotification.innerHTML = `
+                    <span class="material-symbols-outlined animate-spin">hourglass_empty</span>
+                    <span>Loading analysis...</span>
+                `;
+                document.body.appendChild(loadingNotification);
+                
+                try {
+                    // Ensure file path is in correct format for API
+                    let fullFilePath = filePath;
+                    if (!filePath.startsWith('uploads/') && !filePath.includes(':\\') && !filePath.startsWith('/')) {
+                        // If it's just a filename, prepend the uploads directory
+                        if (source === 'mou_moa') {
+                            fullFilePath = `uploads/mou/${filePath}`;
+                        } else {
+                            fullFilePath = `uploads/other_documents/${filePath}`;
+                        }
+                    }
+                    
+                    // Run analysis using award analyzer
+                    await window.awardAnalyzer.analyzeFile(null, {
+                        filePath: fullFilePath,
+                        document_id: docId,
+                        award_name: docTitle,
+                        source_page: 'documents',
+                        targetContainer: document.querySelector('.content-animate') || document.body
+                    });
+                    
+                    // Update notification to success
+                    loadingNotification.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
+                    loadingNotification.innerHTML = `
+                        <span class="material-symbols-outlined">check_circle</span>
+                        <span>Analysis complete! Scroll down to view results.</span>
+                    `;
+                    
+                    // Scroll to analysis results
+                    setTimeout(() => {
+                        const analysisContainer = document.querySelector('.award-analysis-results') || document.querySelector('[id*="analysis"]');
+                        if (analysisContainer) {
+                            analysisContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    }, 500);
+                    
+                    // Remove notification after 3 seconds
+                    setTimeout(() => {
+                        loadingNotification.remove();
+                    }, 3000);
+                } catch (error) {
+                    console.error('Analysis error:', error);
+                    loadingNotification.className = 'fixed top-4 right-4 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
+                    loadingNotification.innerHTML = `
+                        <span class="material-symbols-outlined">error</span>
+                        <span>Analysis failed: ${error.message}</span>
+                    `;
+                    setTimeout(() => {
+                        loadingNotification.remove();
+                    }, 5000);
                 }
             }
 

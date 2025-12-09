@@ -228,7 +228,13 @@ function getCombinedEvidence($pdo) {
         } catch (PDOException $e) {
             // Column might already exist, ignore
         }
-        $stmt = $pdo->query("SELECT id, user_id, title, description, file_name, file_path, status, created_at FROM awards WHERE deleted_at IS NULL ORDER BY created_at DESC");
+        // Include ched_award_category if column exists
+        try {
+            $stmt = $pdo->query("SELECT id, user_id, title, description, file_name, file_path, status, ched_award_category, created_at FROM awards WHERE deleted_at IS NULL ORDER BY created_at DESC");
+        } catch (PDOException $e) {
+            // Column might not exist yet, use query without it
+            $stmt = $pdo->query("SELECT id, user_id, title, description, file_name, file_path, status, created_at FROM awards WHERE deleted_at IS NULL ORDER BY created_at DESC");
+        }
         $evidence['certificates'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         error_log("Error fetching awards: " . $e->getMessage());
@@ -293,13 +299,31 @@ function calculateAwardStats($award, $evidence) {
     $weights = $award['weight'] ?? [];
     
     // Process certificates - from awards page
-    // Include ALL files, calculate match score to determine eligibility for this award
+    // If certificate has ched_award_category set, only include it for that specific award
+    // Otherwise, include all files and calculate match score
     foreach ($evidence['certificates'] as $item) {
+        $certChedAward = $item['ched_award_category'] ?? null;
+        $awardTitle = $award['title'] ?? '';
+        
+        // If certificate is linked to a specific CHED award, only show it for that award
+        if ($certChedAward && $certChedAward !== $awardTitle) {
+            // Skip this certificate - it's linked to a different award
+            continue;
+        }
+        
         $text = strtolower(($item['title'] ?? '') . ' ' . ($item['description'] ?? ''));
         $score = calculateMatchScore($text, $keywords, $weights);
+        
+        // If certificate is linked to this award via ched_award_category, mark it as eligible
+        if ($certChedAward && $certChedAward === $awardTitle) {
+            $score = 100; // Set high score for automatically linked certificates
+        }
+        
         // Include all files, but still calculate match score for display and eligibility
+        // Show certificates even with low match scores (they may still be relevant)
         $item['matchScore'] = $score;
         $item['aiDetected'] = $score >= 30; // Mark as AI-detected if score is >= 30
+        $item['autoLinked'] = ($certChedAward && $certChedAward === $awardTitle); // Mark as auto-linked
         $stats['certificates'][] = $item;
         $stats['total']++;
         if ($score >= 30) $stats['aiDetected']++;
