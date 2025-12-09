@@ -84,9 +84,11 @@ try {
     }
     
     // Get user's eligibility status distribution (for pie chart) - excluding deleted awards
+    // Include all analyzed awards (even with 0% match) to show accurate status
     $statusQuery = "
         SELECT
             CASE
+                WHEN aa.match_percentage IS NULL THEN 'Not Analyzed'
                 WHEN aa.match_percentage >= 90 THEN 'Eligible'
                 WHEN aa.match_percentage >= 70 THEN 'Almost Eligible'
                 ELSE 'Not Eligible'
@@ -95,7 +97,6 @@ try {
         FROM awards a
         LEFT JOIN award_analysis aa ON aa.award_id = a.id
         WHERE a.user_id = ? 
-          AND aa.match_percentage IS NOT NULL 
           AND (a.deleted_at IS NULL OR a.deleted_at = '')
           AND a.title IS NOT NULL 
           AND a.title != ''
@@ -159,42 +160,62 @@ try {
     }
     
     // Get user's eligible requirements per award category (optimized with JOIN)
-    // Only include awards that are NOT deleted (deleted_at IS NULL or empty)
-    // Use COALESCE to handle NULL deleted_at values and ensure we only get active awards
+    // Only include awards that have been analyzed (have award_analysis records)
+    // Use COALESCE to handle NULL values and provide fallbacks
     $requirementsQuery = "
         SELECT
-            aa.predicted_category as award_name,
+            COALESCE(aa.predicted_category, a.title, 'Not Analyzed') as award_name,
             a.title as submission_title,
-            aa.match_percentage,
+            COALESCE(aa.match_percentage, 0) as match_percentage,
             aa.matched_keywords,
             aa.all_matches,
             a.file_name,
             a.file_path,
             a.description,
             CASE
-                WHEN aa.all_matches IS NOT NULL THEN
+                WHEN aa.all_matches IS NOT NULL AND aa.all_matches != '' AND JSON_VALID(aa.all_matches) THEN
                     CASE
-                        WHEN JSON_VALID(aa.all_matches) THEN
-                            CASE
-                                WHEN JSON_TYPE(aa.all_matches) = 'OBJECT' THEN JSON_UNQUOTE(JSON_EXTRACT(aa.all_matches, '$.match_count'))
-                                WHEN JSON_TYPE(aa.all_matches) = 'ARRAY' THEN JSON_UNQUOTE(JSON_EXTRACT(aa.all_matches, '$[0].criteria_met'))
-                                ELSE 0
-                            END
+                        WHEN JSON_TYPE(aa.all_matches) = 'OBJECT' THEN 
+                            COALESCE(
+                                CAST(JSON_EXTRACT(aa.all_matches, '$.match_count') AS UNSIGNED),
+                                CAST(JSON_EXTRACT(aa.all_matches, '$.criteria_met') AS UNSIGNED),
+                                CAST(JSON_EXTRACT(aa.all_matches, '$.keyword_match_count') AS UNSIGNED),
+                                0
+                            )
+                        WHEN JSON_TYPE(aa.all_matches) = 'ARRAY' THEN 
+                            COALESCE(
+                                CAST(JSON_EXTRACT(aa.all_matches, '$[0].criteria_met') AS UNSIGNED),
+                                CAST(JSON_EXTRACT(aa.all_matches, '$[0].matched_count') AS UNSIGNED),
+                                CAST(JSON_EXTRACT(aa.all_matches, '$[0].keyword_match_count') AS UNSIGNED),
+                                0
+                            )
                         ELSE 0
                     END
+                WHEN aa.matched_keywords IS NOT NULL AND aa.matched_keywords != '' AND JSON_VALID(aa.matched_keywords) THEN
+                    JSON_LENGTH(aa.matched_keywords)
                 ELSE 0
             END as criteria_met,
             CASE
-                WHEN aa.all_matches IS NOT NULL THEN
+                WHEN aa.all_matches IS NOT NULL AND aa.all_matches != '' AND JSON_VALID(aa.all_matches) THEN
                     CASE
-                        WHEN JSON_VALID(aa.all_matches) THEN
-                            CASE
-                                WHEN JSON_TYPE(aa.all_matches) = 'OBJECT' THEN JSON_UNQUOTE(JSON_EXTRACT(aa.all_matches, '$.total_keywords'))
-                                WHEN JSON_TYPE(aa.all_matches) = 'ARRAY' THEN JSON_UNQUOTE(JSON_EXTRACT(aa.all_matches, '$[0].criteria_total'))
-                                ELSE 0
-                            END
+                        WHEN JSON_TYPE(aa.all_matches) = 'OBJECT' THEN 
+                            COALESCE(
+                                CAST(JSON_EXTRACT(aa.all_matches, '$.total_keywords') AS UNSIGNED),
+                                CAST(JSON_EXTRACT(aa.all_matches, '$.criteria_total') AS UNSIGNED),
+                                0
+                            )
+                        WHEN JSON_TYPE(aa.all_matches) = 'ARRAY' THEN 
+                            COALESCE(
+                                CAST(JSON_EXTRACT(aa.all_matches, '$[0].criteria_total') AS UNSIGNED),
+                                CAST(JSON_EXTRACT(aa.all_matches, '$[0].total_keywords') AS UNSIGNED),
+                                0
+                            )
                         ELSE 0
                     END
+                WHEN (aa.matched_keywords IS NOT NULL AND aa.matched_keywords != '' AND JSON_VALID(aa.matched_keywords))
+                     OR (aa.missing_keywords IS NOT NULL AND aa.missing_keywords != '' AND JSON_VALID(aa.missing_keywords)) THEN
+                    COALESCE(JSON_LENGTH(COALESCE(aa.matched_keywords, '[]')), 0) + 
+                    COALESCE(JSON_LENGTH(COALESCE(aa.missing_keywords, '[]')), 0)
                 ELSE 0
             END as criteria_total,
             a.status,
@@ -216,18 +237,108 @@ try {
         ORDER BY COALESCE(aa.match_percentage, 0) DESC, a.created_at DESC
     ";
 
-    $requirementsStmt = $pdo->prepare($requirementsQuery);
-    $requirementsStmt->execute([$userId]);
-    $requirements = $requirementsStmt->fetchAll(PDO::FETCH_ASSOC);
+    try {
+        // Simplified query - we'll process JSON in PHP
+        $requirementsQuerySimple = "
+            SELECT
+                COALESCE(aa.predicted_category, a.title, 'Not Analyzed') as award_name,
+                a.title as submission_title,
+                COALESCE(aa.match_percentage, 0) as match_percentage,
+                aa.matched_keywords,
+                aa.missing_keywords,
+                aa.all_matches,
+                a.file_name,
+                a.file_path,
+                a.description,
+                a.status,
+                a.created_at,
+                CASE
+                    WHEN a.status = 'approved' THEN 'Recognized'
+                    WHEN a.status = 'analyzed' THEN 'Processed'
+                    WHEN a.status = 'pending' THEN 'Pending Review'
+                    ELSE 'Unknown'
+                END as status_label
+            FROM awards a
+            LEFT JOIN award_analysis aa ON aa.award_id = a.id
+            LEFT JOIN award_criteria ac ON ac.category_name = aa.predicted_category
+            WHERE a.user_id = ? 
+              AND (a.deleted_at IS NULL OR a.deleted_at = '')
+              AND a.title IS NOT NULL 
+              AND a.title != ''
+              AND a.id IS NOT NULL
+            ORDER BY COALESCE(aa.match_percentage, 0) DESC, a.created_at DESC
+        ";
+        
+        $requirementsStmt = $pdo->prepare($requirementsQuerySimple);
+        $requirementsStmt->execute([$userId]);
+        $requirementsRaw = $requirementsStmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Process JSON in PHP to calculate criteria_met and criteria_total
+        $requirements = [];
+        foreach ($requirementsRaw as $req) {
+            $criteriaMet = 0;
+            $criteriaTotal = 0;
+            
+            // Try to extract from all_matches first
+            if (!empty($req['all_matches'])) {
+                $allMatches = json_decode($req['all_matches'], true);
+                if (is_array($allMatches)) {
+                    if (isset($allMatches[0])) {
+                        // Array format
+                        $criteriaMet = intval($allMatches[0]['criteria_met'] ?? $allMatches[0]['matched_count'] ?? $allMatches[0]['keyword_match_count'] ?? 0);
+                        $criteriaTotal = intval($allMatches[0]['criteria_total'] ?? $allMatches[0]['total_keywords'] ?? 0);
+                    } elseif (isset($allMatches['match_count'])) {
+                        // Object format
+                        $criteriaMet = intval($allMatches['match_count'] ?? $allMatches['criteria_met'] ?? $allMatches['keyword_match_count'] ?? 0);
+                        $criteriaTotal = intval($allMatches['total_keywords'] ?? $allMatches['criteria_total'] ?? 0);
+                    }
+                }
+            }
+            
+            // Fallback to matched_keywords and missing_keywords if all_matches didn't work
+            if ($criteriaTotal == 0) {
+                $matchedKeywords = [];
+                $missingKeywords = [];
+                
+                if (!empty($req['matched_keywords'])) {
+                    $matchedKeywords = json_decode($req['matched_keywords'], true);
+                    if (!is_array($matchedKeywords)) $matchedKeywords = [];
+                }
+                
+                if (!empty($req['missing_keywords'])) {
+                    $missingKeywords = json_decode($req['missing_keywords'], true);
+                    if (!is_array($missingKeywords)) $missingKeywords = [];
+                }
+                
+                $criteriaMet = count($matchedKeywords);
+                $criteriaTotal = count($matchedKeywords) + count($missingKeywords);
+            }
+            
+            $req['criteria_met'] = $criteriaMet;
+            $req['criteria_total'] = $criteriaTotal;
+            $requirements[] = $req;
+        }
+    } catch (PDOException $e) {
+        error_log('Error executing requirements query: ' . $e->getMessage());
+        $requirements = [];
+    }
 
     // Get user's KPIs (excluding deleted awards)
+    // Calculate success_rate only from analyzed awards (not NULL match_percentage)
+    // OCR Data Analyzed: Only count awards from awards progress page (not from documents page)
     $kpiQuery = "
         SELECT
             COUNT(DISTINCT a.id) as total_awards,
             COUNT(DISTINCT CASE WHEN aa.match_percentage >= 90 THEN a.id END) as awards_eligible,
             COUNT(DISTINCT CASE WHEN a.status = 'approved' THEN a.id END) as awards_recognized,
-            ROUND(AVG(aa.match_percentage), 2) as success_rate,
-            COUNT(DISTINCT a.id) as orc_data_analyzed
+            ROUND(AVG(CASE WHEN aa.match_percentage IS NOT NULL THEN aa.match_percentage END), 2) as success_rate,
+            COUNT(DISTINCT CASE 
+                WHEN aa.detected_text IS NOT NULL 
+                AND aa.detected_text != '' 
+                AND (aa.source_page = 'awards' OR aa.source_page IS NULL)
+                AND (aa.source_page IS NULL OR aa.source_page != 'documents')
+                THEN a.id 
+            END) as orc_data_analyzed
         FROM awards a
         LEFT JOIN award_analysis aa ON aa.award_id = a.id
         WHERE a.user_id = ? 

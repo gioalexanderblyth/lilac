@@ -2342,7 +2342,7 @@ try {
 
                                             </p>
 
-                                            <p class="text-xs font-medium text-gray-600 dark:text-gray-400 mt-1">ORC Data
+                                            <p class="text-xs font-medium text-gray-600 dark:text-gray-400 mt-1">OCR Data
 
                                                 Analyzed</p>
 
@@ -14737,7 +14737,7 @@ try {
 
             if (!data || !data.requirements) {
 
-                showModal('📄 ORC Data Analyzed', '<p class="text-gray-600">No awards data available.</p>');
+                showModal('📄 OCR Data Analyzed', '<p class="text-gray-600">No awards data available.</p>');
 
                 return;
 
@@ -14839,7 +14839,7 @@ try {
 
                     <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
 
-                        <h3 class="font-semibold text-blue-800 dark:text-blue-300 mb-3">ORC Data Analyzed (${totalCount})</h3>
+                        <h3 class="font-semibold text-blue-800 dark:text-blue-300 mb-3">OCR Data Analyzed (${totalCount})</h3>
 
                         <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
 
@@ -14913,7 +14913,7 @@ try {
 
             `;
 
-            showModal('📄 ORC Data Analyzed - Detailed View', content);
+            showModal('📄 OCR Data Analyzed - Detailed View', content);
 
         }
 
@@ -15990,9 +15990,25 @@ try {
 
 
             } catch (error) {
-
                 console.error('Error loading analytics data:', error);
-
+                
+                // Show error message in table
+                const tableBody = document.getElementById('analyticsTableBody');
+                if (tableBody) {
+                    const loadingRow = document.getElementById('loadingRow');
+                    if (loadingRow) {
+                        loadingRow.remove();
+                    }
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="py-8 text-center text-red-600 dark:text-red-400">
+                                <span class="material-symbols-outlined text-4xl mb-2 block">error</span>
+                                <p class="font-medium">Failed to load analytics data</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${error.message || 'Unknown error'}</p>
+                            </td>
+                        </tr>
+                    `;
+                }
             }
 
         }

@@ -20,6 +20,7 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/check-award-eligibility.php';
+require_once __DIR__ . '/award-analysis-functions.php';
 
 try {
     $pdo = getDatabaseConnection();
@@ -66,15 +67,58 @@ try {
             throw new Exception('Failed to upload file');
         }
 
-        // Extract text from file (OCR simulation)
-        $ocrText = extractTextFromFile($fullPath, $ext);
+        // Map file extension to MIME type for extractTextFromFile()
+        $mimeTypes = [
+            'pdf' => 'application/pdf',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png'
+        ];
+        $mimeType = $mimeTypes[$ext] ?? $file['type'];
+
+        // Extract text from file using the function from award-analysis-functions.php
+        $ocrText = extractTextFromFile($fullPath, $mimeType);
+        
+        // Handle JSON error responses from OCR (e.g., OCR disabled or failed)
+        $jsonError = json_decode($ocrText, true);
+        if ($jsonError && isset($jsonError['error'])) {
+            // If OCR returned an error JSON, throw an exception with user-friendly message
+            $userMessage = $jsonError['user_message'] ?? $jsonError['message'] ?? 'Failed to extract text from image';
+            throw new Exception($userMessage);
+        }
+        
+        // Log OCR extraction for debugging
+        error_log("OCR Extraction - File: $fileName, Extracted text length: " . strlen($ocrText));
+        if (strlen(trim($ocrText)) < 10) {
+            error_log("WARNING: OCR extracted very little text (less than 10 chars) for file: $fileName");
+        }
     }
 
-    // Combine all text sources
-    $combinedText = trim($awardName . ' ' . $description . ' ' . $keywords . ' ' . $ocrText);
+    // Combine all text sources - prioritize OCR text if available
+    $combinedText = '';
+    if (!empty($ocrText) && strlen(trim($ocrText)) > 10) {
+        // If OCR text is substantial, use it as primary source
+        $combinedText = trim($ocrText . ' ' . $awardName . ' ' . $description . ' ' . $keywords);
+    } else {
+        // Fallback to form fields if OCR failed
+        $combinedText = trim($awardName . ' ' . $description . ' ' . $keywords . ' ' . $ocrText);
+    }
+    
+    // Log combined text length for debugging
+    error_log("Combined text length: " . strlen($combinedText) . " chars");
 
     // Clean and normalize text
     $cleanedText = cleanText($combinedText);
+    
+    // Log cleaned text length
+    error_log("Cleaned text length: " . strlen($cleanedText) . " chars");
+    
+    // Validate that we have text to analyze
+    if (strlen(trim($cleanedText)) < 5) {
+        error_log("ERROR: Combined text is too short for analysis. Award: $awardName");
+        throw new Exception('Unable to extract sufficient text from the uploaded file. Please ensure the file contains readable text or provide more details in the form fields.');
+    }
 
     // Load all active award criteria
     $stmt = $pdo->query("
@@ -90,10 +134,20 @@ try {
     }
 
     // Perform weighted keyword matching
+    // Use calculateStrictWeightedMatch from award-analysis-functions.php for better matching
     $matchResults = [];
 
     foreach ($allCriteria as $criteria) {
-        $result = calculateWeightedMatch($cleanedText, $criteria);
+        // Try using the improved matching function first
+        if (function_exists('calculateStrictWeightedMatch')) {
+            $result = calculateStrictWeightedMatch($cleanedText, $criteria);
+        } else {
+            // Fallback to local function
+            $result = calculateWeightedMatch($cleanedText, $criteria);
+        }
+        
+        // Log match result for debugging
+        error_log("Match result for '{$criteria['category_name']}': {$result['match_percentage']}% (matched: " . count($result['matched_keywords'] ?? []) . " keywords)");
         
         // Add status field to each result based on match_percentage
         $matchPct = $result['match_percentage'];
@@ -250,123 +304,6 @@ try {
         'success' => false,
         'error' => $e->getMessage()
     ]);
-}
-
-/**
- * Extract text from uploaded file
- */
-function extractTextFromFile($filePath, $ext) {
-    $text = '';
-
-    if ($ext === 'pdf') {
-        // Try multiple methods for PDF text extraction
-
-        // Method 1: Try pdftotext command line tool
-        $output = @shell_exec("pdftotext \"$filePath\" - 2>&1");
-        if ($output && strlen(trim($output)) > 10) {
-            $text = $output;
-        } else {
-            // Method 2: Try using PHP PDF parser libraries
-            try {
-                // Simple PDF text extraction - read raw PDF content
-                $content = file_get_contents($filePath);
-
-                // Extract text between stream markers
-                if (preg_match_all('/BT\s+(.*?)\s+ET/s', $content, $matches)) {
-                    foreach ($matches[1] as $match) {
-                        // Extract text from PDF operators
-                        if (preg_match_all('/\((.*?)\)/s', $match, $textMatches)) {
-                            $text .= ' ' . implode(' ', $textMatches[1]);
-                        }
-                    }
-                }
-
-                // Clean up PDF encoding artifacts
-                $text = str_replace(['\\(', '\\)', '\\\\'], ['(', ')', '\\'], $text);
-
-                // If still no text, extract readable strings
-                if (strlen(trim($text)) < 10) {
-                    // Extract printable ASCII strings
-                    preg_match_all('/[\x20-\x7E]{4,}/', $content, $strings);
-                    $text = implode(' ', $strings[0]);
-                }
-            } catch (Exception $e) {
-                error_log("PDF text extraction error: " . $e->getMessage());
-            }
-
-            // Fallback: Use filename and common award terms
-            if (strlen(trim($text)) < 10) {
-                $text = basename($filePath) . ' award certificate document';
-            }
-        }
-    } elseif (in_array($ext, ['jpg', 'jpeg', 'png'])) {
-        // Image OCR (requires Tesseract OCR)
-
-        // Method 1: Try tesseract command
-        $output = @shell_exec("tesseract \"$filePath\" stdout 2>&1");
-        if ($output && strlen(trim($output)) > 10 && !stripos($output, 'error')) {
-            $text = $output;
-        } else {
-            // Method 2: Basic image text detection (extract filename and metadata)
-            $imageInfo = @getimagesize($filePath);
-            $text = basename($filePath) . ' ';
-
-            // Try to read EXIF data for additional context
-            if (function_exists('exif_read_data')) {
-                $exif = @exif_read_data($filePath);
-                if ($exif && isset($exif['ImageDescription'])) {
-                    $text .= $exif['ImageDescription'] . ' ';
-                }
-            }
-
-            // Add common award certificate terms to help matching
-            $text .= 'certificate award recognition achievement excellence';
-        }
-    } elseif ($ext === 'docx') {
-        // DOCX extraction using ZipArchive
-        try {
-            $zip = new ZipArchive();
-            if ($zip->open($filePath) === true) {
-                // Read document.xml which contains the text
-                $xml = $zip->getFromName('word/document.xml');
-                if ($xml) {
-                    // Parse XML and extract text
-                    $xml = simplexml_load_string($xml);
-                    $xml->registerXPathNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
-                    $textNodes = $xml->xpath('//w:t');
-
-                    foreach ($textNodes as $textNode) {
-                        $text .= ' ' . (string)$textNode;
-                    }
-                }
-                $zip->close();
-            }
-
-            // Fallback if extraction failed
-            if (strlen(trim($text)) < 10) {
-                $text = basename($filePath) . ' document award certificate';
-            }
-        } catch (Exception $e) {
-            error_log("DOCX extraction error: " . $e->getMessage());
-            $text = basename($filePath) . ' document award certificate';
-        }
-    }
-
-    return $text;
-}
-
-/**
- * Clean and normalize text for matching
- */
-function cleanText($text) {
-    // Convert to lowercase
-    $text = strtolower($text);
-
-    // Remove special characters and extra spaces
-    $text = preg_replace('/[^a-z0-9\s]/', ' ', $text);
-    $text = preg_replace('/\s+/', ' ', $text);
-
-    return trim($text);
 }
 
 /**

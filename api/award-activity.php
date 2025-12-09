@@ -114,6 +114,9 @@ try {
         FROM awards a
         LEFT JOIN award_analysis aa ON aa.award_id = a.id
         WHERE a.user_id = ?
+          AND (a.deleted_at IS NULL OR a.deleted_at = '')
+          AND a.title IS NOT NULL 
+          AND a.title != ''
         ORDER BY COALESCE(aa.updated_at, a.updated_at, a.created_at) DESC
         LIMIT ?
     ";
