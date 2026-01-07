@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 06, 2025 at 12:47 PM
+-- Generation Time: Jan 07, 2026 at 12:36 PM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.0.30
+-- PHP Version: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -18,8 +18,28 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `lilac_awards`
+-- Database: `lilac`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `activity_history`
+--
+
+CREATE TABLE `activity_history` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `action_type` varchar(50) NOT NULL,
+  `entity_type` varchar(50) NOT NULL,
+  `entity_id` int(11) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `old_value` text DEFAULT NULL,
+  `new_value` text DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -42,22 +62,68 @@ CREATE TABLE `activity_log` (
 --
 
 INSERT INTO `activity_log` (`id`, `user_id`, `action`, `description`, `ip_address`, `user_agent`, `created_at`) VALUES
-(1, 2, 'login', NULL, '::1', NULL, '2025-11-06 00:27:33'),
-(2, 2, 'login', NULL, '::1', NULL, '2025-11-06 00:33:06'),
-(3, 2, 'login', NULL, '::1', NULL, '2025-11-06 00:48:00'),
+(1, NULL, 'login', NULL, '::1', NULL, '2025-11-06 00:27:33'),
+(2, NULL, 'login', NULL, '::1', NULL, '2025-11-06 00:33:06'),
+(3, NULL, 'login', NULL, '::1', NULL, '2025-11-06 00:48:00'),
 (4, 1, 'login', NULL, '::1', NULL, '2025-11-06 01:16:36'),
 (5, 1, 'login', NULL, '::1', NULL, '2025-11-06 01:25:19'),
-(6, 2, 'login', NULL, '::1', NULL, '2025-11-06 05:14:14'),
+(6, NULL, 'login', NULL, '::1', NULL, '2025-11-06 05:14:14'),
 (7, NULL, 'registration', NULL, '::1', NULL, '2025-11-06 05:57:05'),
 (8, NULL, 'login', NULL, '::1', NULL, '2025-11-06 05:57:21'),
-(9, 11, 'registration', NULL, '::1', NULL, '2025-11-06 06:28:46'),
-(10, 11, 'login', NULL, '::1', NULL, '2025-11-06 06:29:04'),
-(11, 11, 'login', NULL, '::1', NULL, '2025-11-06 07:27:43'),
-(12, 11, 'login', NULL, '::1', NULL, '2025-11-06 07:56:30'),
+(9, NULL, 'registration', NULL, '::1', NULL, '2025-11-06 06:28:46'),
+(10, NULL, 'login', NULL, '::1', NULL, '2025-11-06 06:29:04'),
+(11, NULL, 'login', NULL, '::1', NULL, '2025-11-06 07:27:43'),
+(12, NULL, 'login', NULL, '::1', NULL, '2025-11-06 07:56:30'),
 (13, 1, 'login', NULL, '::1', NULL, '2025-11-06 08:07:34'),
 (14, 1, 'login', NULL, '::1', NULL, '2025-11-06 09:52:12'),
-(15, 11, 'login', NULL, '::1', NULL, '2025-11-06 10:23:29'),
-(16, 1, 'login', NULL, '::1', NULL, '2025-11-06 10:30:58');
+(15, NULL, 'login', NULL, '::1', NULL, '2025-11-06 10:23:29'),
+(16, 1, 'login', NULL, '::1', NULL, '2025-11-06 10:30:58'),
+(17, 1, 'login', NULL, '::1', NULL, '2025-11-14 13:01:02'),
+(18, 1, 'login', NULL, '::1', NULL, '2025-11-14 13:01:56'),
+(19, NULL, 'registration', NULL, '::1', NULL, '2025-11-14 17:12:10'),
+(20, NULL, 'login', NULL, '::1', NULL, '2025-11-14 17:12:20'),
+(21, NULL, 'login', NULL, '::1', NULL, '2025-11-15 15:44:57'),
+(22, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 02:26:39'),
+(23, NULL, 'login', NULL, '::1', NULL, '2025-11-16 02:30:30'),
+(24, NULL, 'login', NULL, '::1', NULL, '2025-11-16 02:32:45'),
+(25, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 02:32:58'),
+(26, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 02:35:49'),
+(27, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 02:37:43'),
+(28, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 02:37:54'),
+(29, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 02:37:58'),
+(30, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 02:41:17'),
+(31, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 02:41:25'),
+(32, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 02:41:55'),
+(33, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 03:15:51'),
+(34, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 03:15:55'),
+(35, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 03:16:01'),
+(36, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 03:18:22'),
+(37, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 03:18:29'),
+(38, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 03:21:32'),
+(39, NULL, 'password_reset_request', 'Password reset requested', '::1', NULL, '2025-11-16 03:32:10'),
+(40, NULL, 'login', NULL, '::1', NULL, '2025-11-16 03:33:04'),
+(41, NULL, 'login', NULL, '::1', NULL, '2025-11-18 05:27:28'),
+(42, 1, 'login', NULL, '::1', NULL, '2025-11-18 06:12:10'),
+(43, NULL, 'login', NULL, '::1', NULL, '2025-11-18 06:16:28'),
+(44, NULL, 'login', NULL, '::1', NULL, '2025-11-18 12:44:10'),
+(45, 1, 'login', NULL, '::1', NULL, '2025-11-18 14:52:52'),
+(46, NULL, 'login', NULL, '::1', NULL, '2025-11-18 14:58:06'),
+(47, 1, 'login', NULL, '::1', NULL, '2025-11-18 14:58:52'),
+(48, NULL, 'login', NULL, '::1', NULL, '2025-11-18 14:59:28'),
+(49, 1, 'login', NULL, '::1', NULL, '2025-11-18 15:43:58'),
+(50, NULL, 'login', NULL, '::1', NULL, '2025-11-18 15:44:48'),
+(51, 1, 'login', NULL, '::1', NULL, '2025-11-18 16:10:34'),
+(52, NULL, 'login', NULL, '::1', NULL, '2025-11-18 22:59:57'),
+(53, 13, 'registration', NULL, '::1', NULL, '2025-11-18 23:01:32'),
+(54, 13, 'login', NULL, '::1', NULL, '2025-11-18 23:01:43'),
+(55, 13, 'login', NULL, '::1', NULL, '2025-11-18 23:11:06'),
+(56, 13, 'login', NULL, '::1', NULL, '2025-11-19 04:08:42'),
+(57, 13, 'login', NULL, '::1', NULL, '2025-11-19 04:44:41'),
+(58, 13, 'login', NULL, '::1', NULL, '2025-11-24 00:52:30'),
+(59, 13, 'login', NULL, '::1', NULL, '2025-12-01 04:07:59'),
+(60, 13, 'login', NULL, '::1', NULL, '2025-12-03 00:43:38'),
+(61, 13, 'login', NULL, '::1', NULL, '2026-01-07 07:03:17'),
+(62, 13, 'login', NULL, '::1', NULL, '2026-01-07 07:59:03');
 
 -- --------------------------------------------------------
 
@@ -72,29 +138,15 @@ CREATE TABLE `awards` (
   `description` text DEFAULT NULL,
   `file_name` varchar(255) DEFAULT NULL,
   `file_path` varchar(500) DEFAULT NULL,
+  `ocr_text` longtext DEFAULT NULL,
   `file_type` varchar(50) DEFAULT NULL,
   `file_size` int(11) DEFAULT NULL,
   `award_date` date DEFAULT NULL,
   `status` enum('pending','analyzed','approved','rejected') DEFAULT 'pending',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `deleted_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `awards`
---
-
-INSERT INTO `awards` (`id`, `user_id`, `title`, `description`, `file_name`, `file_path`, `file_type`, `file_size`, `award_date`, `status`, `created_at`, `updated_at`) VALUES
-(29, 8, 'Eco-Friendly Campus Transportation', 'Promoting bike sharing, electric shuttles, and reduced carbon emissions.', NULL, NULL, NULL, NULL, NULL, 'pending', '2025-11-06 03:38:07', '2025-11-06 03:38:07'),
-(35, 6, 'ASEAN Business Leaders Network', 'Networking platform for young entrepreneurs across ASEAN countries.', NULL, NULL, NULL, NULL, NULL, 'pending', '2025-11-06 03:38:07', '2025-11-06 05:00:11'),
-(36, 9, 'International Education Excellence Program', 'Comprehensive program to internationalize curriculum and enhance global competency.', NULL, NULL, NULL, NULL, NULL, 'approved', '2025-11-06 03:38:07', '2025-11-06 05:00:11'),
-(37, 5, 'Global Learning Experience Program', 'Study abroad and international internship opportunities for all students.', NULL, NULL, NULL, NULL, NULL, 'pending', '2025-11-06 03:38:07', '2025-11-06 05:00:11'),
-(48, 11, 'Sustainability Award', 'Our university implemented a comprehensive campus-wide sustainability program that reduced carbon emissions by 35%. We established recycling systems across all buildings, installed solar panels on 5 major facilities, and achieved ISO 14001 environmental certification. The initiative promotes green practices and renewable energy adoption throughout the campus community.', 'award_11_690c40a66a2e1.docx', 'uploads/awards/2025/11/award_11_690c40a66a2e1.docx', NULL, NULL, NULL, 'pending', '2025-11-06 06:31:02', '2025-11-06 06:44:57'),
-(49, 11, 'Global Citizenship Award', 'Outstanding leadership in internationalization initiatives', 'award_11_690c4591ee608.docx', 'uploads/awards/2025/11/award_11_690c4591ee608.docx', NULL, NULL, NULL, 'pending', '2025-11-06 06:52:01', '2025-11-06 06:54:38'),
-(50, 11, 'Most Promising ', 'Recognition for promising International Relations Office or community initiatives', 'award_11_690c481a45c74.docx', 'uploads/awards/2025/11/award_11_690c481a45c74.docx', NULL, NULL, NULL, 'analyzed', '2025-11-06 07:02:50', '2025-11-06 07:02:50'),
-(51, 2, 'Global Citizenship Award', 'Recognizes individuals who demonstrate outstanding global citizenship through international engagement and cultural awareness.', 'award_2_690c6e7c38e43.docx', 'uploads/awards/2025/11/award_2_690c6e7c38e43.docx', NULL, NULL, NULL, 'approved', '2025-11-06 09:46:36', '2025-11-06 09:49:57'),
-(52, 11, 'Outstanding International Education Program Award', 'Outstanding International Education Program Award', 'award_11_690c839114b03.docx', 'uploads/awards/2025/11/award_11_690c839114b03.docx', NULL, NULL, NULL, 'analyzed', '2025-11-06 11:16:33', '2025-11-06 11:16:33'),
-(53, 11, 'Global Citizenship Award', 'Global Citizenship Award', 'award_11_690c88b4dcb41.docx', 'uploads/awards/2025/11/award_11_690c88b4dcb41.docx', NULL, NULL, NULL, 'analyzed', '2025-11-06 11:38:28', '2025-11-06 11:38:28');
 
 -- --------------------------------------------------------
 
@@ -105,6 +157,9 @@ INSERT INTO `awards` (`id`, `user_id`, `title`, `description`, `file_name`, `fil
 CREATE TABLE `award_analysis` (
   `id` int(11) NOT NULL,
   `award_id` int(11) NOT NULL,
+  `source_page` enum('documents','events','awards') DEFAULT 'awards',
+  `document_id` int(11) DEFAULT NULL,
+  `event_id` int(11) DEFAULT NULL,
   `predicted_category` varchar(255) DEFAULT NULL,
   `match_percentage` decimal(5,2) DEFAULT NULL,
   `confidence` varchar(20) DEFAULT 'medium',
@@ -117,22 +172,6 @@ CREATE TABLE `award_analysis` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `award_analysis`
---
-
-INSERT INTO `award_analysis` (`id`, `award_id`, `predicted_category`, `match_percentage`, `confidence`, `status`, `detected_text`, `matched_keywords`, `all_matches`, `recommendations`, `analysis_metadata`, `created_at`, `updated_at`) VALUES
-(29, 29, 'Sustainability Award', 72.00, 'medium', 'Almost Eligible', NULL, NULL, '[{\"category\":\"Sustainability Award\",\"met_criteria\":[\"Environmental impact\",\"Carbon reduction\"],\"unmet_criteria\":[\"Recycling program\",\"Waste reduction\",\"Community engagement\"],\"criteria_met\":2,\"criteria_total\":5,\"similarity_score\":0.72,\"keyword_score\":0.648,\"final_score\":72}]', NULL, NULL, '2025-11-06 03:38:07', '2025-11-06 03:38:07'),
-(35, 35, 'Best ASEAN Awareness Initiative Award', 84.00, 'medium', 'Almost Eligible', NULL, '[\"sustainability\",\"environmental\",\"green\",\"carbon\",\"renewable\"]', '[{\"category\":\"Best ASEAN Awareness Initiative Award\",\"met_criteria\":[\"ASEAN engagement\",\"Regional cooperation\",\"Youth leadership\"],\"unmet_criteria\":[\"Cultural exchange\",\"Policy dialogue\"],\"criteria_met\":3,\"criteria_total\":5,\"similarity_score\":0.84,\"keyword_score\":0.756,\"final_score\":84}]', NULL, NULL, '2025-11-06 03:38:07', '2025-11-06 06:32:28'),
-(36, 36, 'Outstanding International Education Program Award', 93.00, 'medium', 'Eligible', NULL, '[\"sustainability\",\"environmental\",\"green\",\"carbon\",\"renewable\"]', '[{\"category\":\"Outstanding International Education Program Award\",\"met_criteria\":[\"Curriculum internationalization\",\"Faculty development\",\"Student mobility\",\"Quality assurance\",\"Partnership network\"],\"unmet_criteria\":[\"Research collaboration\"],\"criteria_met\":5,\"criteria_total\":6,\"similarity_score\":0.93,\"keyword_score\":0.8370000000000001,\"final_score\":93}]', NULL, NULL, '2025-11-06 03:38:07', '2025-11-06 06:32:26'),
-(37, 37, 'Outstanding International Education Program Award', 78.00, 'medium', 'Almost Eligible', NULL, '[\"sustainability\",\"environmental\",\"green\",\"carbon\",\"renewable\"]', '[{\"category\":\"Outstanding International Education Program Award\",\"met_criteria\":[\"Student mobility\",\"Partnership network\",\"Global competency\"],\"unmet_criteria\":[\"Curriculum internationalization\",\"Faculty development\",\"Research collaboration\"],\"criteria_met\":3,\"criteria_total\":6,\"similarity_score\":0.78,\"keyword_score\":0.7020000000000001,\"final_score\":78}]', NULL, NULL, '2025-11-06 03:38:07', '2025-11-06 06:32:23'),
-(44, 48, 'Sustainability Award', 83.33, 'high', 'Not Eligible', ' Global Citizenship Award 2024 CERTIFICATE OF RECOGNITION This certificate is proudly presented to John D. Cruz in recognition of outstanding commitment to global awareness, social responsibility, and active engagement in fostering cultural understanding as part of the Global Citizenship Award 2024. Your efforts exemplify the values of empathy, inclusivity, and leadership in the global community. Given this 6th day of November, 2024. Dr. Maria Santos Program Director Engr. Steven Felizardo Coordinator', '[\"sustainability\",\"environmental\",\"green\",\"carbon\",\"renewable\"]', '{\"matched\":[\"sustainability\",\"environmental\",\"green\",\"carbon\",\"renewable\"],\"missing\":[\"conservation\"],\"match_count\":5,\"total_keywords\":6}', NULL, NULL, '2025-11-06 06:31:02', '2025-11-06 06:31:02'),
-(45, 49, 'Global Citizenship Award', 75.00, 'medium', 'Not Eligible', ' Global Citizenship Award 2024 CERTIFICATE OF RECOGNITION This certificate is proudly presented to John D. Cruz in recognition of outstanding commitment to global awareness, social responsibility, and active engagement in fostering cultural understanding as part of the Global Citizenship Award 2024. Your efforts exemplify the values of empathy, inclusivity, and leadership in the global community. Given this 6th day of November, 2024. Dr. Maria Santos Program Director Engr. Steven Felizardo Coordinator', '[\"global\",\"citizenship\",\"international\"]', '{\"matched\":[\"global\",\"citizenship\",\"international\"],\"missing\":[\"intercultural\"],\"match_count\":3,\"total_keywords\":4}', NULL, NULL, '2025-11-06 06:52:01', '2025-11-06 06:52:01'),
-(46, 50, 'Outstanding International Education Program Award', 75.00, 'medium', 'Not Eligible', ' Most Promising IRO/Community Award 2024 CERTIFICATE OF RECOGNITION This certificate is proudly presented to John D. Cruz in recognition of exemplary potential and dedication to fostering international relations and community development. As a recipient of the  Most Promising IRO/Community Award 2024 , you have shown initiative, leadership, and passion in promoting collaboration and meaningful engagement within and beyond your community. Given this 6th day of November, 2024. Dr. Maria Santos Program Director Engr. Steven Felizardo Coordinator', '[\"education\",\"international\",\"program\"]', '{\"matched\":[\"education\",\"international\",\"program\"],\"missing\":[\"exchange\"],\"match_count\":3,\"total_keywords\":4}', NULL, NULL, '2025-11-06 07:02:50', '2025-11-06 07:02:50'),
-(47, 51, 'Global Citizenship Award', 100.00, 'high', 'Not Eligible', ' Global Citizenship Award 2024 CERTIFICATE OF RECOGNITION This certificate is proudly presented to John D. Cruz in recognition of outstanding commitment to global awareness, social responsibility, and active engagement in fostering cultural understanding as part of the Global Citizenship Award 2024. Your efforts exemplify the values of empathy, inclusivity, and leadership in the global community. Given this 6th day of November, 2024. Dr. Maria Santos Program Director Engr. Steven Felizardo Coordinator', '[\"global\",\"citizenship\",\"international\",\"intercultural\"]', '{\"matched\":[\"global\",\"citizenship\",\"international\",\"intercultural\"],\"missing\":[],\"match_count\":4,\"total_keywords\":4}', NULL, NULL, '2025-11-06 09:46:36', '2025-11-06 09:46:36'),
-(48, 52, 'Outstanding International Education Program Award', 75.00, 'medium', 'Not Eligible', ' Most Promising IRO/Community Award 2024 CERTIFICATE OF RECOGNITION This certificate is proudly presented to John D. Cruz in recognition of exemplary potential and dedication to fostering international relations and community development. As a recipient of the  Most Promising IRO/Community Award 2024 , you have shown initiative, leadership, and passion in promoting collaboration and meaningful engagement within and beyond your community. Given this 6th day of November, 2024. Dr. Maria Santos Program Director Engr. Steven Felizardo Coordinator', '[\"education\",\"international\",\"program\"]', '{\"matched\":[\"education\",\"international\",\"program\"],\"missing\":[\"exchange\"],\"match_count\":3,\"total_keywords\":4}', NULL, NULL, '2025-11-06 11:16:33', '2025-11-06 11:16:33'),
-(49, 53, 'Global Citizenship Award', 75.00, 'medium', 'Not Eligible', ' Most Promising IRO/Community Award 2024 CERTIFICATE OF RECOGNITION This certificate is proudly presented to John D. Cruz in recognition of exemplary potential and dedication to fostering international relations and community development. As a recipient of the  Most Promising IRO/Community Award 2024 , you have shown initiative, leadership, and passion in promoting collaboration and meaningful engagement within and beyond your community. Given this 6th day of November, 2024. Dr. Maria Santos Program Director Engr. Steven Felizardo Coordinator', '[\"global\",\"citizenship\",\"international\"]', '{\"matched\":[\"global\",\"citizenship\",\"international\"],\"missing\":[\"intercultural\"],\"match_count\":3,\"total_keywords\":4}', NULL, NULL, '2025-11-06 11:38:28', '2025-11-06 11:38:28');
 
 -- --------------------------------------------------------
 
@@ -192,9 +231,14 @@ CREATE TABLE `award_criteria` (
 --
 
 INSERT INTO `award_criteria` (`id`, `category_name`, `award_type`, `department`, `description`, `requirements`, `keywords`, `min_match_percentage`, `weight`, `status`, `created_by`, `assignee_id`, `created_at`, `updated_at`) VALUES
-(1, 'Global Citizenship Award', 'Individual', NULL, 'Recognizes individuals who demonstrate outstanding global citizenship through international engagement and cultural awareness.', '[\"Demonstrated participation in international programs or exchanges\",\"Evidence of cross-cultural collaboration\",\"Community service with international impact\",\"Leadership in promoting global awareness\",\"Documented international partnerships or projects\"]', 'global, citizenship, international, intercultural', 60, 10, 'active', NULL, NULL, '2025-11-06 01:21:48', '2025-11-06 09:46:08'),
-(2, 'Outstanding International Education Program Award', 'Institutional', NULL, 'Honors institutions with exemplary international education programs that foster global learning.', '[\"Established international education curriculum\",\"Student exchange programs with foreign institutions\",\"International faculty collaboration\",\"Research projects with global scope\",\"Cultural diversity initiatives\",\"International student support services\"]', 'education, international, exchange, program', 70, 50, 'active', NULL, NULL, '2025-11-06 01:21:48', '2025-11-06 06:06:02'),
-(3, 'Sustainability Award', 'Institutional', NULL, 'Recognizes organizations committed to sustainability and environmental responsibility.', '[\"Environmental sustainability initiatives\",\"Green campus programs or practices\",\"Waste reduction and recycling programs\",\"Energy efficiency measures\",\"Community environmental outreach\"]', 'sustainability, environmental, green, carbon, renewable, conservation', 65, 50, 'active', NULL, NULL, '2025-11-06 01:21:48', '2025-11-06 06:06:02');
+(9, 'Emerging Leadership Award', 'Individual', NULL, 'This award celebrates these rising leaders who are shaping the future of internationalization and making a significant difference in our increasingly interconnected world.', '[\"leads innovative\"]', 'leadership, leadership accessibility institution, inspiring leadership, internationalization efforts, dedication, innovative practices', 60, 6, 'active', 12, NULL, '2025-11-18 11:57:26', '2025-12-09 05:59:19'),
+(10, 'Global Citizenship Award', 'Individual', NULL, 'Honors changemakers who model global citizenship—fostering cross-border understanding, advancing social responsibility, and driving measurable impact that improves lives worldwide.\n', '[\"programs ignite\"]', 'global, citizenship, culturally inclusive programs, responsible global citizens, community, international, sustainability, vision, institution\'s global engagement.', 60, 5, 'active', 12, NULL, '2025-11-18 14:20:04', '2025-12-09 05:59:29'),
+(11, 'Sustainability Award', 'Institutional', NULL, 'The Sustainability Award recognizes and honors higher education institutions that demonstrate outstanding commitment to sustainability. We seek to highlight programs and initiatives that exemplify pioneering integration, impactful projects, and long-term commitment.\n\n', '[\"Demonstrated outstanding commitment to sustainability initiatives\",\"Implementation of pioneering or innovative sustainability programs\",\"Evidence of impactful environmental projects within the institution or community\",\"Long-term commitment to environmental stewardship and sustainability practices\",\"Active participation in community engagement or outreach related to sustainability\",\"Submission of documentation showing measurable outcomes or improvements\",\"Integration of sustainability principles into institutional operations or activities\"]', 'dedication, vision, innovative', 60, 5, 'active', 13, NULL, '2025-12-09 03:16:42', '2025-12-09 03:23:13'),
+(12, 'Outstanding International Education Program Awards', 'Institutional', NULL, 'The Outstanding International Education Program Awards honor higher education institutions that champion inclusive internationalization. We recognize programs that expand access to global opportunites, foster collaborative innovation, and embrace inclusivity and beyond.\n\n', '[\"excellence\"]', 'international education, global learning, strong global partnerships, exchange programs, cross-cultural engagement , global competence, collaboration, academic exchange, global engagement', 60, 5, 'active', 13, NULL, '2025-12-09 03:42:34', '2025-12-09 05:59:08'),
+(13, 'Best ASEAN Awareness Initiative Awards', 'Institutional', NULL, 'The Best ASEAN Awareness Initiative Award honors higher education institutions that have implemented initiatives that boost understanding and awareness of the Association of Southeast Asian Nations (ASEAN). We recognize programs that promote regional identity and solidarity, cross-cultural initiative programs, and measurable outreach and sustained commitment.', '[\"awareness\"]', 'ASEAN awareness, regional identity, integration, cross-cultural, ASEAN cooperation', 60, 5, 'active', 13, NULL, '2025-12-09 03:53:50', '2025-12-09 05:56:31'),
+(14, 'Internationalization Leadership Award', 'Individual', NULL, 'The Internationalization (IZN) Leadership Award honors transformative leaders who are shaping the future of Philippine Higher Education Leaders who demonstrate excellence in strategic vision and integration; ethical leadership and governance; and sustained impact and development.\n\nThis award celebrates leaders who embody resilience, humility, and a development-driven mindset. They are the architects of a more connected and impactful higher education landscape.', '[\"Demonstrate\"]', 'exceptional leadership, innovative strategies, impactful global initiatives, international partnerships, institution’s global standing', 60, 5, 'active', 13, NULL, '2025-12-09 04:07:09', '2025-12-09 05:58:14'),
+(15, 'Most Promising Regional IRO Community Award', 'Regional', NULL, 'This recognizes the Regional IRO Community, or Group, or Network, or Association that demonstrates  the most significant vision, early progress, and clear potential to strengthen internationalization capacity among Higher Education Institutions (HEIs) within its region. This award celebrates effective collaboration, resource-sharing, and future impact, honoring communities that are paving the way for a more connected and skilled regional internationalization ecosystem.\n\n', '[\"Global\"]', 'active collaboration, community-driven initiatives, international relations, global engagement, excellence in internationalization', 60, 5, 'active', 13, NULL, '2025-12-09 04:11:18', '2025-12-09 05:57:56'),
+(16, 'No Poverty SDG', 'Individual', NULL, 'No poverty', '[\"outreach\"]', 'outreach, community extension', 60, 5, 'active', 13, NULL, '2025-12-09 06:18:22', '2025-12-09 06:18:22');
 
 -- --------------------------------------------------------
 
@@ -297,10 +341,20 @@ CREATE TABLE `events` (
   `start_time` time DEFAULT NULL,
   `end_time` time DEFAULT NULL,
   `location` varchar(255) DEFAULT NULL,
+  `image_path` varchar(255) DEFAULT NULL,
   `status` enum('planned','ongoing','completed','cancelled') DEFAULT 'planned',
+  `document_id` int(11) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `deleted_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `events`
+--
+
+INSERT INTO `events` (`id`, `user_id`, `title`, `description`, `event_date`, `start_time`, `end_time`, `location`, `image_path`, `status`, `document_id`, `created_at`, `updated_at`, `deleted_at`) VALUES
+(31, 13, 'Test 1', '', '2025-12-10', '00:00:00', '00:30:00', 'AVR', NULL, 'planned', NULL, '2025-12-09 06:09:11', '2026-01-07 07:25:27', NULL);
 
 -- --------------------------------------------------------
 
@@ -318,6 +372,8 @@ CREATE TABLE `mou_moa` (
   `sign_date` date DEFAULT NULL,
   `end_date` date DEFAULT NULL,
   `status` enum('Active','Expired','Expires Soon','Pending') DEFAULT 'Active',
+  `renewal_confirmed` tinyint(1) DEFAULT 0,
+  `renewal_confirmed_at` timestamp NULL DEFAULT NULL,
   `file_name` varchar(255) DEFAULT NULL,
   `file_path` varchar(500) DEFAULT NULL,
   `title` varchar(255) DEFAULT NULL,
@@ -325,15 +381,136 @@ CREATE TABLE `mou_moa` (
   `type` varchar(255) DEFAULT NULL,
   `description` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `deleted_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `notifications`
+--
+
+CREATE TABLE `notifications` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `type` enum('mou_expiring','mou_expired','event_upcoming','event_today','system') DEFAULT 'system',
+  `title` varchar(255) NOT NULL,
+  `message` text NOT NULL,
+  `related_id` int(11) DEFAULT NULL,
+  `related_type` varchar(50) DEFAULT NULL,
+  `is_read` tinyint(1) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `read_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `mou_moa`
+-- Dumping data for table `notifications`
 --
 
-INSERT INTO `mou_moa` (`id`, `user_id`, `institution`, `location`, `contact_email`, `term`, `sign_date`, `end_date`, `status`, `file_name`, `file_path`, `title`, `partner`, `type`, `description`, `created_at`, `updated_at`) VALUES
-(18, 1, 'dsad', 'Iloilo City', 'asdas@gmail.com', '1', '2025-11-21', '2026-11-21', 'Active', 'Global_Outreach_Program_2024_Certificate (2) (2).docx', 'uploads/mou/mou_690c7b195de91_1762425625.docx', 'dsad', NULL, 'MOU (Memorandum of Understanding)', NULL, '2025-11-06 10:40:25', '2025-11-06 10:40:25');
+INSERT INTO `notifications` (`id`, `user_id`, `type`, `title`, `message`, `related_id`, `related_type`, `is_read`, `created_at`, `read_at`) VALUES
+(1, NULL, 'event_upcoming', 'Upcoming Event: FINAL DEFENSE', 'The event \'FINAL DEFENSE\' is happening in 4 day(s) on November 19, 2025 at 12:00 AM at Central Philippine University, Iloilo City, Philippines.', 3, 'event', 0, '2025-11-15 02:18:45', NULL),
+(2, NULL, 'event_today', 'Event Today: LUNCH', 'The event \'LUNCH\' is happening today at 12:00 AM at Sugbaha ko Gha.', 4, 'event', 0, '2025-11-15 02:30:18', NULL),
+(3, NULL, 'event_today', 'Event Today: TEST', 'The event \'TEST\' is happening today at 12:00 AM at Santa Barbara, Iloilo, Philippines.', 5, 'event', 0, '2025-11-15 02:53:24', NULL),
+(4, NULL, 'event_today', 'Event Today: Test', 'The event \'Test\' is happening today at 12:00 AM at Central Philippine University, Iloilo City, Philippines.', 6, 'event', 0, '2025-11-15 02:58:34', NULL),
+(5, NULL, 'event_today', 'Event Today: Test', 'The event \'Test\' is happening today at 12:00 AM at Central Philippine University, Iloilo City, Philippines.', 7, 'event', 0, '2025-11-15 04:01:46', NULL),
+(6, NULL, 'mou_expired', 'MOU/MOA Expired: Central', 'The MOU/MOA with Central expired on November 15, 2025.', 25, 'mou_moa', 0, '2025-11-15 05:38:36', NULL),
+(7, NULL, 'mou_expired', 'MOU/MOA Expired: TEST', 'The MOU/MOA with TEST expired on November 16, 2025.', 26, 'mou_moa', 0, '2025-11-16 01:22:27', NULL),
+(8, NULL, 'mou_expiring', 'MOU/MOA Expiring Soon: TEST', 'The MOU/MOA with TEST will expire in 2 day(s) on November 20, 2025.', 27, 'mou_moa', 0, '2025-11-18 16:09:12', NULL),
+(9, NULL, 'mou_expiring', 'MOU/MOA Expiring Soon: kuma', 'The MOU/MOA with kuma will expire in 1 day(s) on November 20, 2025.', 28, 'mou_moa', 0, '2025-11-19 02:41:06', NULL),
+(10, NULL, 'event_today', 'Event Today: FINAL DEFENSE', 'The event \'FINAL DEFENSE\' is happening today at 3:00 AM at Central Philippine University, Iloilo City, Philippines.', 8, 'event', 0, '2025-11-19 02:54:06', NULL),
+(11, NULL, 'mou_expiring', 'MOU/MOA Expiring Soon: xyz', 'The MOU/MOA with xyz will expire in 1 day(s) on November 20, 2025.', 29, 'mou_moa', 0, '2025-11-19 04:24:44', NULL),
+(12, NULL, 'event_upcoming', 'Upcoming Event: test', 'The event \'test\' is happening in 7 day(s) on December 3, 2025 at 12:00 AM.', 12, 'event', 0, '2025-11-26 02:12:13', NULL),
+(13, NULL, 'event_upcoming', 'Upcoming Event: test', 'The event \'test\' is happening in 7 day(s) on December 4, 2025 at 12:00 AM.', 17, 'event', 0, '2025-11-27 01:24:46', NULL),
+(14, NULL, 'event_upcoming', 'Upcoming Event: test', 'The event \'test\' is happening in 7 day(s) on December 4, 2025 at 12:00 AM.', 18, 'event', 0, '2025-11-27 01:35:32', NULL),
+(15, NULL, 'event_upcoming', 'Upcoming Event: test', 'The event \'test\' is happening in 7 day(s) on December 4, 2025 at 12:00 AM.', 19, 'event', 0, '2025-11-27 01:42:22', NULL),
+(16, NULL, 'event_upcoming', 'Upcoming Event: test', 'The event \'test\' is happening in 7 day(s) on December 4, 2025 at 12:00 AM.', 20, 'event', 0, '2025-11-27 01:44:48', NULL),
+(17, NULL, 'event_upcoming', 'Upcoming Event: test', 'The event \'test\' is happening in 7 day(s) on December 4, 2025 at 12:45 AM.', 21, 'event', 0, '2025-11-27 01:48:10', NULL),
+(18, NULL, 'event_upcoming', 'Upcoming Event: test', 'The event \'test\' is happening in 7 day(s) on December 4, 2025 at 12:00 AM.', 22, 'event', 0, '2025-11-27 01:48:55', NULL),
+(19, NULL, 'event_upcoming', 'Upcoming Event: test A', 'The event \'test A\' is happening in 7 day(s) on December 4, 2025 at 12:00 AM.', 23, 'event', 0, '2025-11-27 01:50:36', NULL),
+(20, NULL, 'event_upcoming', 'Upcoming Event: test b', 'The event \'test b\' is happening in 7 day(s) on December 4, 2025 at 12:00 AM.', 24, 'event', 0, '2025-11-27 02:03:19', NULL),
+(21, NULL, 'event_upcoming', 'Upcoming Event: tst', 'The event \'tst\' is happening in 7 day(s) on December 4, 2025 at 12:00 AM.', 25, 'event', 0, '2025-11-27 06:33:48', NULL),
+(22, NULL, 'event_upcoming', 'Upcoming Event: stest', 'The event \'stest\' is happening in 1 day(s) on December 4, 2025 at 12:00 AM at Central Philippine University, Iloilo City, Philippines.', 26, 'event', 0, '2025-12-03 00:19:02', NULL),
+(23, NULL, 'event_today', 'Event Today: tst', 'The event \'tst\' is happening today at 12:00 AM.', 27, 'event', 0, '2025-12-03 00:19:52', NULL),
+(24, NULL, 'mou_expiring', 'MOU/MOA Expiring Soon: test', 'The MOU/MOA with test will expire in 1 day(s) on December 4, 2025.', 36, 'mou_moa', 0, '2025-12-03 00:27:51', NULL),
+(26, NULL, 'event_upcoming', 'Upcoming Event: test', 'The event \'test\' is happening in 1 day(s) on December 10, 2025 at 12:00 AM at test.', 28, 'event', 0, '2025-12-09 01:56:19', NULL),
+(27, NULL, 'event_upcoming', 'Upcoming Event: try', 'The event \'try\' is happening in 1 day(s) on December 10, 2025 at 12:00 AM at AVR.', 29, 'event', 0, '2025-12-09 01:57:48', NULL),
+(28, NULL, 'event_upcoming', 'Upcoming Event: test', 'The event \'test\' is happening in 1 day(s) on December 10, 2025 at 12:00 AM at tst.', 30, 'event', 0, '2025-12-09 02:35:22', NULL),
+(29, NULL, 'event_upcoming', 'Upcoming Event: Test 1', 'The event \'Test 1\' is happening in 1 day(s) on December 10, 2025 at 12:00 AM at AVR.', 31, 'event', 0, '2025-12-09 06:14:50', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `notification_confirmations`
+--
+
+CREATE TABLE `notification_confirmations` (
+  `id` int(11) NOT NULL,
+  `notification_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `renewal_status` enum('renewed','not_renewed') NOT NULL,
+  `confirmed_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `notification_confirmations`
+--
+
+INSERT INTO `notification_confirmations` (`id`, `notification_id`, `user_id`, `renewal_status`, `confirmed_at`) VALUES
+(1, 8, 1, 'not_renewed', '2025-11-18 22:54:12'),
+(2, 9, 1, 'renewed', '2025-11-19 02:42:31');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `notification_reads`
+--
+
+CREATE TABLE `notification_reads` (
+  `id` int(11) NOT NULL,
+  `notification_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `read_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `notification_reads`
+--
+
+INSERT INTO `notification_reads` (`id`, `notification_id`, `user_id`, `read_at`) VALUES
+(15, 7, 1, '2025-11-18 15:44:31'),
+(26, 8, 1, '2025-11-19 02:22:34'),
+(30, 1, 1, '2025-11-19 02:22:41'),
+(31, 2, 1, '2025-11-19 02:22:41'),
+(32, 3, 1, '2025-11-19 02:22:41'),
+(33, 4, 1, '2025-11-19 02:22:41'),
+(34, 5, 1, '2025-11-19 02:22:41'),
+(35, 6, 1, '2025-11-19 02:22:41'),
+(36, 1, 13, '2025-12-01 11:23:14'),
+(37, 2, 13, '2025-12-01 11:23:14'),
+(38, 3, 13, '2025-12-01 11:23:14'),
+(39, 4, 13, '2025-12-01 11:23:14'),
+(40, 5, 13, '2025-12-01 11:23:14'),
+(41, 6, 13, '2025-12-01 11:23:14'),
+(42, 7, 13, '2025-12-01 11:23:14'),
+(43, 8, 13, '2025-12-01 11:23:14'),
+(44, 9, 13, '2025-12-01 11:23:14'),
+(45, 10, 13, '2025-12-01 11:23:14'),
+(46, 11, 13, '2025-12-01 11:23:14'),
+(47, 12, 13, '2025-12-01 11:23:14'),
+(48, 13, 13, '2025-12-01 11:23:14'),
+(49, 14, 13, '2025-12-01 11:23:14'),
+(50, 15, 13, '2025-12-01 11:23:14'),
+(51, 16, 13, '2025-12-01 11:23:14'),
+(52, 17, 13, '2025-12-01 11:23:14'),
+(53, 18, 13, '2025-12-01 11:23:14'),
+(54, 19, 13, '2025-12-01 11:23:14'),
+(55, 20, 13, '2025-12-01 11:23:14'),
+(56, 21, 13, '2025-12-01 11:23:14'),
+(57, 22, 13, '2025-12-03 00:20:13'),
+(58, 23, 13, '2025-12-03 00:30:29'),
+(61, 24, 13, '2025-12-03 00:36:43'),
+(62, 29, 13, '2025-12-09 06:22:36');
 
 -- --------------------------------------------------------
 
@@ -349,16 +526,12 @@ CREATE TABLE `other_documents` (
   `file_name` varchar(255) NOT NULL,
   `file_path` varchar(500) NOT NULL,
   `category` varchar(100) DEFAULT 'Other Documents',
+  `award_id` int(11) DEFAULT NULL,
+  `source_page` enum('documents','events','awards') DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `deleted_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `other_documents`
---
-
-INSERT INTO `other_documents` (`id`, `user_id`, `title`, `description`, `file_name`, `file_path`, `category`, `created_at`, `updated_at`) VALUES
-(2, 1, 'WS', 'asda', 'Global_Outreach_Program_2024_Certificate (4).docx', 'uploads/other_documents/doc_690c81c47c2fb_1762427332.docx', 'Other Documents', '2025-11-06 11:08:52', '2025-11-06 11:08:52');
 
 -- --------------------------------------------------------
 
@@ -399,19 +572,44 @@ CREATE TABLE `sessions` (
 --
 
 INSERT INTO `sessions` (`id`, `user_id`, `session_token`, `ip_address`, `user_agent`, `created_at`, `expires_at`, `is_active`) VALUES
-(1, 2, '63386b57243aa27a476d96f7bda674d1366c0536c3d1bdff54427e914e98e2d2', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-06 00:27:33', '2025-11-06 17:27:33', 1),
-(2, 2, '728761301f789857b8e986a5883f634f46a765d1425832ad8d43de327e80cb73', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-06 00:33:06', '2025-11-06 17:33:06', 1),
-(3, 2, '78d90083bb2954a2d8a70d380f65c3b8472d46e0e3e22da24a51648b3b191722', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-06 00:48:00', '2025-11-06 17:48:00', 1),
 (4, 1, '9b8c32c6b4a344238f3bc021d8f2dbd611cc3d9ad4a64653144b16cf5e9f0472', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-06 01:16:36', '2025-11-06 18:16:36', 1),
 (5, 1, '259ffbe84b47eeb0dcfdb2077358b01b9d5e1a182248d36b94f9f173912cf423', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-06 01:25:19', '2025-11-06 18:25:19', 1),
-(6, 2, 'ac3d0efa1c644750d5b0d3a16069f04785d089ad37d2bc19d50a9aa3bd0623f0', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-06 05:14:14', '2025-11-06 22:14:14', 1),
-(8, 11, '45689c3fd2547404545ab363a80d4c60ab7bc2425b5b9b7a939721ec6b33f604', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-06 06:29:04', '2025-11-06 23:29:04', 1),
-(9, 11, 'ed2b5606a214be621758d948ba018154de81ed37821e6b74511c1dffc5250c6d', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-06 07:27:43', '2025-11-07 00:27:43', 1),
-(10, 11, '90da31cd922c1473710993082e090547741738b9f6f0293a6df5129ab9bf946e', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-06 07:56:30', '2025-11-07 00:56:30', 1),
 (11, 1, '467abb84b1889b45ca583976943f869e48ab8026e0a6934e60af3ee04031653a', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-06 08:07:34', '2025-11-07 01:07:34', 1),
 (12, 1, '352c385365f40817cf7c62b3b3bb87175c5a2a38cbc4d889c8a28754041158ab', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-06 09:52:12', '2025-11-07 02:52:12', 1),
-(13, 11, '6832bcbe63ba1e8032930a41c0e3f037040c7ad99fd59b15f89a6bcb290500a8', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-06 10:23:29', '2025-11-07 03:23:29', 1),
-(14, 1, 'd71e312c43f242277e9be1a8a8529512ed763e919c04defda9476a1861ae9033', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-06 10:30:58', '2025-11-07 03:30:58', 1);
+(14, 1, 'd71e312c43f242277e9be1a8a8529512ed763e919c04defda9476a1861ae9033', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-06 10:30:58', '2025-11-07 03:30:58', 1),
+(15, 1, 'c4e9e3f1bc3cc9d73541ddb00b69db232281679ddc1ed4b8748f29017058663f', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-14 13:01:02', '2025-11-15 06:01:02', 1),
+(16, 1, '2ecc72847cbe60a028b8b08e11859491a534361974052245e5dd559b8ed2bdbe', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-14 13:01:56', '2025-11-15 06:01:56', 1),
+(23, 1, 'a041f5501d2802e186e393f0635054d2d2c3fa924751bd171f5a815faec41333', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-18 06:12:10', '2025-11-18 23:12:10', 1),
+(26, 1, '3b72c9af7b429a0771bc351074ac831b2f3844be09cb363877c2bf5f773db543', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-18 14:52:52', '2025-11-19 07:52:52', 1),
+(28, 1, '254a63857b05a4adc4eba94861d950527598f1bfd4d344879e770c98f62072a0', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-18 14:58:52', '2025-11-19 07:58:52', 1),
+(30, 1, 'e82f9d5f359bfdf0d6d76a27d2c472b478451b5ef9e1bde60856e69711c9a300', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-18 15:43:58', '2025-11-19 08:43:58', 1),
+(32, 1, 'd467a2ee6eb8372a7d2fec7753124159075bbecea316f23cc12406c3d0706b6b', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-18 16:10:34', '2025-11-19 09:10:34', 1),
+(34, 13, 'c7ea509e4a9fee37d8be1b7791c365d3a5abd8e46102dbfc7e4253bce50f5c8d', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-18 23:01:43', '2025-11-19 16:01:43', 1),
+(35, 13, '557a17a1f8740bd56f0d1a37ee4c35b9cc76d3ed392189cc2a5d00dc1310a86a', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-18 23:11:06', '2025-11-19 16:11:06', 1),
+(36, 13, 'e77e139a8d62bd66f3000c59647fa3eab0f7d987fec58198c7526f8d2e5d12d2', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-19 04:08:42', '2025-11-19 21:08:42', 1),
+(37, 13, '3f4b8e64562bbd5ba2933472a070f0283faa0725fbe395671f7fd5b3e82c427e', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-19 04:44:41', '2025-11-19 21:44:41', 1),
+(38, 13, '30dd058e5e8fc191d58eaa0e4f4a65ff759d7b343d5eeb8fa97222b235143b06', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-11-24 00:52:30', '2025-11-24 17:52:30', 1),
+(39, 13, '5188e86de5770527653dbefa1d8daf595c8725953d8f63d0dfd04171a989fe89', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-12-01 04:07:59', '2025-12-01 21:07:59', 1),
+(40, 13, '3e3e953c8ce6472fa5bc9fd022af0e91b07c30c638ab52bc74da8876ff21b00a', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36', '2025-12-03 00:43:38', '2025-12-03 17:43:38', 1),
+(41, 13, 'b1766de8b39d6a87553e6f24ed06c640420e3fbc0bb4dde72d07cb1ce19288a0', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', '2026-01-07 07:03:17', '2026-01-08 00:03:17', 1),
+(42, 13, '23f3ed530d64bc2d92d2fc109d3793aab85255dd9a3fef30f3424bb459055612', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', '2026-01-07 07:59:03', '2026-02-06 00:59:03', 1);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `site_settings`
+--
+
+CREATE TABLE `site_settings` (
+  `id` int(11) NOT NULL,
+  `setting_key` varchar(100) NOT NULL,
+  `setting_value` longblob DEFAULT NULL,
+  `mime_type` varchar(100) DEFAULT NULL,
+  `file_name` varchar(255) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -425,7 +623,10 @@ CREATE TABLE `users` (
   `email` varchar(100) NOT NULL,
   `phone` varchar(20) DEFAULT NULL,
   `password_hash` varchar(255) NOT NULL,
+  `reset_token` varchar(255) DEFAULT NULL,
+  `reset_token_expires` datetime DEFAULT NULL,
   `full_name` varchar(100) DEFAULT NULL,
+  `profile_picture` varchar(255) DEFAULT NULL,
   `department` varchar(100) DEFAULT NULL,
   `role` enum('admin','user','viewer') DEFAULT 'user',
   `status` enum('active','inactive','suspended') DEFAULT 'active',
@@ -436,24 +637,48 @@ CREATE TABLE `users` (
 
 --
 -- Dumping data for table `users`
--- Default admin account for maintenance access
 --
 
-INSERT INTO `users` (`id`, `username`, `email`, `phone`, `password_hash`, `full_name`, `department`, `role`, `status`, `created_at`, `updated_at`, `last_login`) VALUES
-(1, 'admin', 'admin@cpu.edu.ph', NULL, '$2y$10$sVoVWIn8azmDdAgCBHXR3eTQSbbVqqBoYFs6SJ8THBXahh9kqaWiq', 'System Administrator', 'College of Arts and Sciences', 'admin', 'active', '2025-11-06 00:27:13', '2025-11-06 10:30:58', '2025-11-06 10:30:58');
+INSERT INTO `users` (`id`, `username`, `email`, `phone`, `password_hash`, `reset_token`, `reset_token_expires`, `full_name`, `profile_picture`, `department`, `role`, `status`, `created_at`, `updated_at`, `last_login`) VALUES
+(1, 'admin', 'admin@cpu.edu.ph', NULL, '$2y$10$sVoVWIn8azmDdAgCBHXR3eTQSbbVqqBoYFs6SJ8THBXahh9kqaWiq', NULL, NULL, 'System Administrator', NULL, 'College of Arts and Sciences', 'admin', 'active', '2025-11-06 00:27:13', '2025-11-18 16:10:34', '2025-11-18 16:10:34'),
+(13, 'lesley', 'lesley.dignadice@cpu.edu.ph', NULL, '$2y$10$GcBInWiG0QehcKJA3dzc4eVJPssxF8rqoC/LAEZvt3p8I10.QFse6', NULL, NULL, 'Lesley Dignadice', NULL, 'Administration', 'admin', 'active', '2025-11-18 23:01:32', '2026-01-07 07:59:03', '2026-01-07 07:59:03');
 
--- Sample test users (also removed - create users through signup)
--- INSERT INTO `users` (`id`, `username`, `email`, `phone`, `password_hash`, `full_name`, `department`, `role`, `status`, `created_at`, `updated_at`, `last_login`) VALUES
--- (5, 'john_doe', 'john.doe@cpu.edu.ph', NULL, '', NULL, 'College of Medicine', 'user', 'active', '2025-11-06 03:38:07', '2025-11-06 05:42:17', NULL),
--- (6, 'maria_santos', 'maria.santos@cpu.edu.ph', NULL, '', NULL, 'College of Business Administration', 'user', 'active', '2025-11-06 03:38:07', '2025-11-06 05:42:17', NULL),
--- (7, 'robert_lee', 'robert.lee@cpu.edu.ph', NULL, '', NULL, 'Graduate School', 'user', 'active', '2025-11-06 03:38:07', '2025-11-06 05:42:17', NULL),
--- (8, 'sarah_kim', 'sarah.kim@cpu.edu.ph', NULL, '', NULL, 'College of Arts and Sciences', 'user', 'active', '2025-11-06 03:38:07', '2025-11-06 05:42:17', NULL),
--- (9, 'david_chen', 'david.chen@cpu.edu.ph', NULL, '', NULL, 'Graduate School', 'user', 'active', '2025-11-06 03:38:07', '2025-11-06 05:42:17', NULL),
--- (11, 'juan_dela', 'juandela@cpu.edu.ph', '9234534545', '$2y$10$8sPXn0TDi2ylhyXr6sggD.7eO4fuZBT.MBKY7zweQmKsXjlZlBH7W', 'Juan Dela Cruz', 'College of Arts and Sciences', 'user', 'active', '2025-11-06 06:28:46', '2025-11-06 11:45:31', '2025-11-06 10:23:29');
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `user_preferences`
+--
+
+CREATE TABLE `user_preferences` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `preference_key` varchar(100) NOT NULL,
+  `preference_value` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `user_preferences`
+--
+
+INSERT INTO `user_preferences` (`id`, `user_id`, `preference_key`, `preference_value`, `created_at`, `updated_at`) VALUES
+(22, 1, 'ched_requirement_tracker', '{\"videos\":false,\"supporting-docs\":false,\"nomination-form\":false,\"impact-metrics\":false,\"deadline-plan\":false}', '2025-11-18 14:53:00', '2025-11-18 14:53:00'),
+(23, 13, 'ched_requirement_tracker', '{\"videos\":false,\"supporting-docs\":false,\"nomination-form\":false,\"impact-metrics\":false,\"deadline-plan\":false}', '2025-11-18 23:12:31', '2025-11-24 01:56:19');
 
 --
 -- Indexes for dumped tables
 --
+
+--
+-- Indexes for table `activity_history`
+--
+ALTER TABLE `activity_history`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_user_id` (`user_id`),
+  ADD KEY `idx_entity_type` (`entity_type`),
+  ADD KEY `idx_entity_id` (`entity_id`),
+  ADD KEY `idx_created_at` (`created_at`);
 
 --
 -- Indexes for table `activity_log`
@@ -481,7 +706,9 @@ ALTER TABLE `award_analysis`
   ADD KEY `idx_award_id` (`award_id`),
   ADD KEY `idx_predicted_category` (`predicted_category`),
   ADD KEY `idx_status` (`status`),
-  ADD KEY `idx_match_percentage` (`match_percentage`);
+  ADD KEY `idx_match_percentage` (`match_percentage`),
+  ADD KEY `idx_document_id` (`document_id`),
+  ADD KEY `idx_source_page` (`source_page`);
 
 --
 -- Indexes for table `award_categories`
@@ -536,7 +763,8 @@ ALTER TABLE `events`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_user_id` (`user_id`),
   ADD KEY `idx_event_date` (`event_date`),
-  ADD KEY `idx_status` (`status`);
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_document_id` (`document_id`);
 
 --
 -- Indexes for table `mou_moa`
@@ -546,11 +774,41 @@ ALTER TABLE `mou_moa`
   ADD KEY `idx_user_id` (`user_id`);
 
 --
+-- Indexes for table `notifications`
+--
+ALTER TABLE `notifications`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_user_id` (`user_id`),
+  ADD KEY `idx_is_read` (`is_read`),
+  ADD KEY `idx_created_at` (`created_at`),
+  ADD KEY `idx_type` (`type`);
+
+--
+-- Indexes for table `notification_confirmations`
+--
+ALTER TABLE `notification_confirmations`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_user_notification_confirmation` (`notification_id`,`user_id`),
+  ADD KEY `idx_notification_id` (`notification_id`),
+  ADD KEY `idx_user_id` (`user_id`);
+
+--
+-- Indexes for table `notification_reads`
+--
+ALTER TABLE `notification_reads`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_user_notification` (`notification_id`,`user_id`),
+  ADD KEY `idx_notification_id` (`notification_id`),
+  ADD KEY `idx_user_id` (`user_id`);
+
+--
 -- Indexes for table `other_documents`
 --
 ALTER TABLE `other_documents`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_user_id` (`user_id`);
+  ADD KEY `idx_user_id` (`user_id`),
+  ADD KEY `idx_award_id` (`award_id`),
+  ADD KEY `idx_source_page` (`source_page`);
 
 --
 -- Indexes for table `schedules`
@@ -570,6 +828,13 @@ ALTER TABLE `sessions`
   ADD KEY `idx_expires_at` (`expires_at`);
 
 --
+-- Indexes for table `site_settings`
+--
+ALTER TABLE `site_settings`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `setting_key` (`setting_key`);
+
+--
 -- Indexes for table `users`
 --
 ALTER TABLE `users`
@@ -581,26 +846,40 @@ ALTER TABLE `users`
   ADD KEY `idx_status` (`status`);
 
 --
+-- Indexes for table `user_preferences`
+--
+ALTER TABLE `user_preferences`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_user_preference` (`user_id`,`preference_key`),
+  ADD KEY `idx_user_id` (`user_id`);
+
+--
 -- AUTO_INCREMENT for dumped tables
 --
+
+--
+-- AUTO_INCREMENT for table `activity_history`
+--
+ALTER TABLE `activity_history`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `activity_log`
 --
 ALTER TABLE `activity_log`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=63;
 
 --
 -- AUTO_INCREMENT for table `awards`
 --
 ALTER TABLE `awards`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=54;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=184;
 
 --
 -- AUTO_INCREMENT for table `award_analysis`
 --
 ALTER TABLE `award_analysis`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=180;
 
 --
 -- AUTO_INCREMENT for table `award_categories`
@@ -612,7 +891,7 @@ ALTER TABLE `award_categories`
 -- AUTO_INCREMENT for table `award_criteria`
 --
 ALTER TABLE `award_criteria`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `award_event_links`
@@ -642,41 +921,77 @@ ALTER TABLE `documents`
 -- AUTO_INCREMENT for table `events`
 --
 ALTER TABLE `events`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT for table `mou_moa`
 --
 ALTER TABLE `mou_moa`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+
+--
+-- AUTO_INCREMENT for table `notifications`
+--
+ALTER TABLE `notifications`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
+
+--
+-- AUTO_INCREMENT for table `notification_confirmations`
+--
+ALTER TABLE `notification_confirmations`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `notification_reads`
+--
+ALTER TABLE `notification_reads`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=63;
 
 --
 -- AUTO_INCREMENT for table `other_documents`
 --
 ALTER TABLE `other_documents`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=70;
 
 --
 -- AUTO_INCREMENT for table `schedules`
 --
 ALTER TABLE `schedules`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `sessions`
 --
 ALTER TABLE `sessions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
+
+--
+-- AUTO_INCREMENT for table `site_settings`
+--
+ALTER TABLE `site_settings`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+
+--
+-- AUTO_INCREMENT for table `user_preferences`
+--
+ALTER TABLE `user_preferences`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
 
 --
 -- Constraints for dumped tables
 --
+
+--
+-- Constraints for table `activity_history`
+--
+ALTER TABLE `activity_history`
+  ADD CONSTRAINT `activity_history_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `activity_log`
@@ -694,7 +1009,8 @@ ALTER TABLE `awards`
 -- Constraints for table `award_analysis`
 --
 ALTER TABLE `award_analysis`
-  ADD CONSTRAINT `award_analysis_ibfk_1` FOREIGN KEY (`award_id`) REFERENCES `awards` (`id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `award_analysis_ibfk_1` FOREIGN KEY (`award_id`) REFERENCES `awards` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_award_analysis_document_id` FOREIGN KEY (`document_id`) REFERENCES `other_documents` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
 -- Constraints for table `award_event_links`
@@ -719,7 +1035,8 @@ ALTER TABLE `documents`
 -- Constraints for table `events`
 --
 ALTER TABLE `events`
-  ADD CONSTRAINT `events_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `events_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_events_document_id` FOREIGN KEY (`document_id`) REFERENCES `other_documents` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
 -- Constraints for table `mou_moa`
@@ -728,9 +1045,30 @@ ALTER TABLE `mou_moa`
   ADD CONSTRAINT `mou_moa_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
+-- Constraints for table `notifications`
+--
+ALTER TABLE `notifications`
+  ADD CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `notification_confirmations`
+--
+ALTER TABLE `notification_confirmations`
+  ADD CONSTRAINT `notification_confirmations_ibfk_1` FOREIGN KEY (`notification_id`) REFERENCES `notifications` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `notification_confirmations_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `notification_reads`
+--
+ALTER TABLE `notification_reads`
+  ADD CONSTRAINT `notification_reads_ibfk_1` FOREIGN KEY (`notification_id`) REFERENCES `notifications` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `notification_reads_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
 -- Constraints for table `other_documents`
 --
 ALTER TABLE `other_documents`
+  ADD CONSTRAINT `fk_other_documents_award_id` FOREIGN KEY (`award_id`) REFERENCES `awards` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `other_documents_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
@@ -745,23 +1083,11 @@ ALTER TABLE `schedules`
 ALTER TABLE `sessions`
   ADD CONSTRAINT `sessions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
--- --------------------------------------------------------
-
 --
-
-CREATE TABLE IF NOT EXISTS `site_settings` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `setting_key` varchar(100) NOT NULL,
-  `setting_value` longblob DEFAULT NULL,
-  `mime_type` varchar(100) DEFAULT NULL,
-  `file_name` varchar(255) DEFAULT NULL,
-  `description` text DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `setting_key` (`setting_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
+-- Constraints for table `user_preferences`
+--
+ALTER TABLE `user_preferences`
+  ADD CONSTRAINT `user_preferences_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

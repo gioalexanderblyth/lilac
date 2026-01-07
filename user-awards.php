@@ -382,22 +382,7 @@ try {
         }
         
         .sidebar {
-            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease !important;
-            animation: none !important;
-            -webkit-animation: none !important;
-            -moz-animation: none !important;
-            -o-animation: none !important;
-        }
-        
-        .sidebar * {
-            transition: none !important;
-            animation: none !important;
-            -webkit-transition: none !important;
-            -moz-transition: none !important;
-            -o-transition: none !important;
-            -webkit-animation: none !important;
-            -moz-animation: none !important;
-            -o-animation: none !important;
+            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
         }
 
         .sidebar-collapsed .sidebar-text {
@@ -1206,7 +1191,7 @@ try {
     })();
 </script>
         <aside
-            class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col fixed h-full z-40" style="animation: none !important; -webkit-animation: none !important; -moz-animation: none !important; -o-animation: none !important;">
+            class="sidebar bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col fixed h-full z-40 transition-all duration-300">
 
             <div class="flex items-center justify-start px-4 h-20 border-b border-border-light dark:border-border-dark flex-shrink-0">
                 <div class="flex items-center gap-3 overflow-hidden">
@@ -5162,23 +5147,6 @@ try {
 
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Remove animations from sidebar (but keep width transition for toggle)
-            const sidebar = document.querySelector('.sidebar');
-            if (sidebar) {
-                sidebar.style.animation = 'none';
-                sidebar.style.webkitAnimation = 'none';
-                sidebar.style.mozAnimation = 'none';
-                sidebar.style.oAnimation = 'none';
-                // Remove animations from all children
-                const sidebarChildren = sidebar.querySelectorAll('*');
-                sidebarChildren.forEach(child => {
-                    child.style.animation = 'none';
-                    child.style.webkitAnimation = 'none';
-                    child.style.mozAnimation = 'none';
-                    child.style.oAnimation = 'none';
-                });
-            }
-
             const themeToggle = document.getElementById('theme-toggle');
 
             const sidebarToggle = document.getElementById('sidebar-toggle');
