@@ -458,11 +458,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 <div class="group" onclick="showImagePreview(this)">
                     <div class="relative h-[400px] sm:h-[500px] lg:h-[600px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl transform transition-all duration-700 hover:scale-[1.02] active:scale-[0.98] cursor-pointer touch-manipulation">
                         <img id="featured-image" src="assets/Events & Activities/1.jpg" alt="Campus Life" class="w-full h-full object-cover transition-all duration-1000 ease-in-out group-hover:scale-110">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                        <div class="absolute bottom-6 sm:bottom-8 left-6 sm:left-8 right-6 sm:right-8">
-                            <h3 id="featured-title" class="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 sm:mb-3 transition-all duration-700">Campus Life</h3>
-                            <p id="featured-description" class="text-gray-200 text-sm sm:text-base lg:text-lg transition-all duration-700">Vibrant student community and academic excellence in action</p>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -541,7 +536,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         <svg class="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                         </svg>
-                        <span>Explore Complete Gallery</span>
+                        <span>Explore Gallery</span>
                         <div class="bg-white/20 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium backdrop-blur-sm">
                             6 Photos
                         </div>
@@ -885,7 +880,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         <!-- Modal Header -->
                         <div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 flex justify-between items-center">
                             <div>
-                                <h3 class="text-2xl font-bold">Complete Image Gallery</h3>
+                                <h3 class="text-2xl font-bold">Gallery</h3>
                                 <p class="text-purple-100">Central Philippine University - ${allImages.length} Photos</p>
                             </div>
                             <button onclick="closeGalleryModal()" class="text-white hover:bg-white/20 p-2 rounded-full transition-all duration-300">
@@ -902,11 +897,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                     <div class="group cursor-pointer" onclick="openLightbox(${index})">
                                         <div class="relative overflow-hidden rounded-xl shadow-lg group-hover:shadow-2xl transition-all duration-300">
                                             <img src="${image.src}" alt="${image.title}" class="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500">
-                                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                            <div class="absolute bottom-3 left-3 right-3 text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                                                <h4 class="font-semibold text-sm">${image.title}</h4>
-                                                <p class="text-xs opacity-75">Photo ${index + 1} of ${allImages.length}</p>
-                                            </div>
                                             <!-- Zoom icon -->
                                             <div class="absolute top-3 right-3 bg-white/20 backdrop-blur-md p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100">
                                                 <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -965,9 +955,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             
             const lightboxHTML = `
                 <div id="lightbox-modal" class="fixed inset-0 z-[110] bg-black bg-opacity-95 backdrop-blur-sm flex items-center justify-center p-4" onclick="closeLightbox(event)">
-                    <div class="relative max-w-5xl w-full" onclick="event.stopPropagation()">
+                    <div class="relative max-w-5xl w-full h-full flex items-center justify-center" onclick="event.stopPropagation()">
                         <!-- Close button -->
-                        <button onclick="closeLightbox()" class="absolute -top-12 right-0 text-white hover:bg-white/20 p-2 rounded-full transition-all duration-300 z-10">
+                        <button onclick="closeLightbox()" class="absolute top-4 right-4 text-white hover:bg-white/20 p-2 rounded-full transition-all duration-300 z-10">
                             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
@@ -987,12 +977,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         </button>
                         
                         <!-- Image -->
-                        <div class="text-center">
-                            <img src="${image.src}" alt="${image.title}" class="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl">
-                            <div class="mt-4 text-white">
-                                <h3 class="text-2xl font-bold mb-2">${image.title}</h3>
-                                <p class="text-gray-300">Photo ${imageIndex + 1} of ${allImages.length}</p>
-                            </div>
+                        <div class="flex items-center justify-center w-full h-full">
+                            <img src="${image.src}" alt="${image.title}" class="max-w-full max-h-[85vh] w-auto h-auto object-contain rounded-2xl shadow-2xl mx-auto transition-opacity duration-300">
                         </div>
                     </div>
                 </div>
@@ -1042,32 +1028,104 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
 
         function nextLightboxImage(currentIndex) {
+            const allImages = [
+                { src: 'assets/Events & Activities/1.jpg', title: 'Campus Life' },
+                { src: 'assets/Events & Activities/2.jpg', title: 'University Activities' },
+                { src: 'assets/Events & Activities/3.jpg', title: 'Academic Excellence' },
+                { src: 'assets/Events & Activities/4.jpg', title: 'Student Life' },
+                { src: 'assets/Events & Activities/5.png', title: 'Campus Events' },
+                { src: 'assets/Events & Activities/6.jpg', title: 'University Programs' }
+            ];
             const nextIndex = (currentIndex + 1) % 6;
             const lightbox = document.getElementById('lightbox-modal');
             if (lightbox) {
-                lightbox.style.opacity = '0';
-                setTimeout(() => {
-                    if (lightbox && lightbox.parentNode) {
-                        lightbox.remove();
-                    }
-                    setTimeout(() => openLightbox(nextIndex), 50);
-                }, 300);
+                // Ensure modal stays visible (opacity 1) during navigation
+                lightbox.style.opacity = '1';
+                
+                // Update image source smoothly without closing modal
+                const img = lightbox.querySelector('img');
+                if (img) {
+                    // Quick fade out
+                    img.style.opacity = '0';
+                    img.style.transition = 'opacity 0.2s ease-in-out';
+                    
+                    setTimeout(() => {
+                        // Update image
+                        img.src = allImages[nextIndex].src;
+                        img.alt = allImages[nextIndex].title;
+                        
+                        // Wait for image to load, then fade in
+                        img.onload = function() {
+                            img.style.opacity = '1';
+                        };
+                        // If image is cached, fade in immediately
+                        if (img.complete) {
+                            img.style.opacity = '1';
+                        }
+                        
+                        // Update navigation buttons with new index
+                        const prevBtn = lightbox.querySelector('button[onclick*="previousLightboxImage"]');
+                        const nextBtn = lightbox.querySelector('button[onclick*="nextLightboxImage"]');
+                        if (prevBtn) {
+                            prevBtn.setAttribute('onclick', `previousLightboxImage(${nextIndex})`);
+                        }
+                        if (nextBtn) {
+                            nextBtn.setAttribute('onclick', `nextLightboxImage(${nextIndex})`);
+                        }
+                    }, 200);
+                }
             } else {
                 openLightbox(nextIndex);
             }
         }
 
         function previousLightboxImage(currentIndex) {
+            const allImages = [
+                { src: 'assets/Events & Activities/1.jpg', title: 'Campus Life' },
+                { src: 'assets/Events & Activities/2.jpg', title: 'University Activities' },
+                { src: 'assets/Events & Activities/3.jpg', title: 'Academic Excellence' },
+                { src: 'assets/Events & Activities/4.jpg', title: 'Student Life' },
+                { src: 'assets/Events & Activities/5.png', title: 'Campus Events' },
+                { src: 'assets/Events & Activities/6.jpg', title: 'University Programs' }
+            ];
             const prevIndex = (currentIndex - 1 + 6) % 6;
             const lightbox = document.getElementById('lightbox-modal');
             if (lightbox) {
-                lightbox.style.opacity = '0';
-                setTimeout(() => {
-                    if (lightbox && lightbox.parentNode) {
-                        lightbox.remove();
-                    }
-                    setTimeout(() => openLightbox(prevIndex), 50);
-                }, 300);
+                // Ensure modal stays visible (opacity 1) during navigation
+                lightbox.style.opacity = '1';
+                
+                // Update image source smoothly without closing modal
+                const img = lightbox.querySelector('img');
+                if (img) {
+                    // Quick fade out
+                    img.style.opacity = '0';
+                    img.style.transition = 'opacity 0.2s ease-in-out';
+                    
+                    setTimeout(() => {
+                        // Update image
+                        img.src = allImages[prevIndex].src;
+                        img.alt = allImages[prevIndex].title;
+                        
+                        // Wait for image to load, then fade in
+                        img.onload = function() {
+                            img.style.opacity = '1';
+                        };
+                        // If image is cached, fade in immediately
+                        if (img.complete) {
+                            img.style.opacity = '1';
+                        }
+                        
+                        // Update navigation buttons with new index
+                        const prevBtn = lightbox.querySelector('button[onclick*="previousLightboxImage"]');
+                        const nextBtn = lightbox.querySelector('button[onclick*="nextLightboxImage"]');
+                        if (prevBtn) {
+                            prevBtn.setAttribute('onclick', `previousLightboxImage(${prevIndex})`);
+                        }
+                        if (nextBtn) {
+                            nextBtn.setAttribute('onclick', `nextLightboxImage(${prevIndex})`);
+                        }
+                    }, 200);
+                }
             } else {
                 openLightbox(prevIndex);
             }

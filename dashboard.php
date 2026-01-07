@@ -123,12 +123,16 @@ if (!function_exists('getDefaultRecentActivity')) {
         ];
 
         return array_map(static function ($activity) {
+            // For default activities, show current date
+            $currentDate = date('M d, Y H:i');
+            $subtitle = 'Recently • ' . $currentDate;
+            
             return [
                 'icon' => $activity['meta']['icon'],
                 'icon_bg' => $activity['meta']['bg'],
                 'icon_color' => $activity['meta']['color'],
                 'title' => $activity['title'],
-                'subtitle' => $activity['subtitle'],
+                'subtitle' => $subtitle,
             ];
         }, $defaults);
     }
@@ -262,7 +266,7 @@ try {
         $statsData['recent_uploads'] = array_slice($statsData['recent_uploads'], 0, 5);
         $statsData['avg_match_percentage'] = count($awards) > 0 ?
             array_sum(array_column(array_column($awards, 'analysis_result'), 'match_percentage')) / count($awards) : 0;
-        $statsData['recent_activity'] = getDefaultRecentActivity($user);
+        $statsData['recent_activity'] = [];
 
     } else {
         // Ensure deleted_at column exists
@@ -664,8 +668,8 @@ try {
         $stmt = $pdo->query("SELECT title, event_date, location, status FROM events WHERE event_date >= CURDATE() AND deleted_at IS NULL ORDER BY event_date ASC LIMIT 4");
         $statsData['upcoming_events_list'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Get recent activity feed
-        $statsData['recent_activity'] = getDefaultRecentActivity($user);
+        // Get recent activity feed - only show real activities, no defaults
+        $statsData['recent_activity'] = [];
         try {
             $activityStmt = $pdo->prepare("
                 SELECT 
@@ -688,7 +692,24 @@ try {
                     $meta = getActivityMeta($activity['action_type'] ?? null);
                     $actor = $activity['full_name'] ?? $activity['username'] ?? 'System';
                     $description = $activity['description'] ?: sprintf('%s activity', ucfirst($activity['action_type'] ?? 'Recent'));
-                    $subtitle = formatTimeAgo($activity['created_at'] ?? null);
+                    
+                    // Format date - show both time ago and actual date
+                    $createdAt = $activity['created_at'] ?? null;
+                    $timeAgo = formatTimeAgo($createdAt);
+                    $actualDate = '';
+                    if ($createdAt) {
+                        try {
+                            $dateObj = new DateTime($createdAt);
+                            $actualDate = $dateObj->format('M d, Y H:i');
+                        } catch (Exception $e) {
+                            $actualDate = date('M d, Y H:i', strtotime($createdAt));
+                        }
+                    }
+                    
+                    $subtitle = $timeAgo;
+                    if (!empty($actualDate)) {
+                        $subtitle .= ' • ' . $actualDate;
+                    }
                     if (!empty($actor)) {
                         $subtitle .= ' • ' . $actor;
                     }
@@ -708,6 +729,7 @@ try {
             }
         } catch (Exception $activityError) {
             error_log('Failed to load recent activity: ' . $activityError->getMessage());
+            $statsData['recent_activity'] = [];
         }
     }
 } catch (Exception $e) {
@@ -1347,13 +1369,54 @@ Recent Activity
 </li>
 <?php endforeach; ?>
 <?php else: ?>
-<li class="text-sm text-slate-500 dark:text-slate-400">No recent activity.</li>
+<li class="flex flex-col items-center justify-center py-12 text-center">
+<div class="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+<span class="material-symbols-outlined text-3xl text-slate-400 dark:text-slate-500">history</span>
+</div>
+<p class="text-base font-medium text-slate-700 dark:text-slate-300 mb-1">No Recent Activity</p>
+<p class="text-sm text-slate-500 dark:text-slate-400">Activity history will appear here as actions are performed</p>
+</li>
 <?php endif; ?>
 </ul>
 </div>
 </div>
 </div>
 </div>
+</div>
+
+<!-- Clear Activity Confirmation Modal -->
+<div id="clear-activity-confirm-modal" class="fixed inset-0 z-[60] hidden overflow-y-auto">
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" onclick="closeClearConfirmModal()"></div>
+
+        <!-- Modal Content -->
+        <div class="relative w-full max-w-md bg-white dark:bg-background-dark rounded-xl shadow-2xl">
+            <div class="p-6">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-red-600 dark:text-red-400 text-xl">warning</span>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-900 dark:text-slate-50">Clear All Activity</h3>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">This action cannot be undone</p>
+                    </div>
+                </div>
+                <p class="text-slate-700 dark:text-slate-300 mb-6">
+                    Are you sure you want to clear all activity history? This will permanently delete all activity records.
+                </p>
+                <div class="flex gap-3 justify-end">
+                    <button type="button" id="cancel-clear-activity-btn" class="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 dark:bg-slate-800 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="button" id="confirm-clear-activity-btn" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2">
+                        <span class="material-symbols-outlined text-base">delete_sweep</span>
+                        Clear All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Activity Log Modal (matches full-screen modal style) -->
@@ -1369,14 +1432,22 @@ Recent Activity
                     <h3 class="text-xl font-bold text-slate-900 dark:text-slate-50">Recent Activity</h3>
                     <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Latest actions in your LILAC workspace</p>
                 </div>
-                <button type="button" id="activity-log-close" class="flex size-10 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-50 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="modal-refresh-activity-btn" class="p-2 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors" title="Refresh Activity">
+                        <span class="material-symbols-outlined text-base">refresh</span>
+                    </button>
+                    <button type="button" id="modal-clear-activity-btn" class="p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors" title="Clear All Activity">
+                        <span class="material-symbols-outlined text-base">delete_sweep</span>
+                    </button>
+                    <button type="button" id="activity-log-close" class="flex size-10 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-50 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
             </div>
-            <div class="px-8 py-6 overflow-y-auto max-h-[80vh] bg-slate-50 dark:bg-slate-900/40 rounded-b-xl">
+            <div class="px-8 py-6 overflow-y-auto max-h-[80vh] bg-slate-50 dark:bg-slate-900/40 rounded-b-xl" id="activity-modal-content">
                 <?php $modalActivities = $statsData['recent_activity'] ?? []; ?>
                 <?php if (!empty($modalActivities)): ?>
-                    <ul class="space-y-4">
+                    <ul class="space-y-4" id="activity-list">
                         <?php foreach ($modalActivities as $activity): ?>
                             <li class="flex items-start gap-3">
                                 <div class="<?php echo htmlspecialchars($activity['icon_bg'] ?? 'bg-slate-100 dark:bg-slate-800/50'); ?> p-2 rounded-full shrink-0">
@@ -1392,7 +1463,7 @@ Recent Activity
                         <?php endforeach; ?>
                     </ul>
                 <?php else: ?>
-                    <p class="text-sm text-slate-600 dark:text-slate-300">No recent activity.</p>
+                    <p class="text-sm text-slate-600 dark:text-slate-300" id="activity-empty-state">No recent activity.</p>
                 <?php endif; ?>
             </div>
         </div>
@@ -1534,6 +1605,473 @@ Recent Activity
                     }
                 });
             }
+
+            // Function to refresh dashboard widget
+            async function refreshDashboardWidget() {
+                try {
+                    // Fetch fresh activity from API
+                    const response = await fetch('api/activity-history.php?limit=5');
+                    const result = await response.json();
+
+                    // Find the Recent Activity widget - look for the h3 with "Recent Activity" text
+                    const activityHeader = Array.from(document.querySelectorAll('h3')).find(h3 => 
+                        h3.textContent.includes('Recent Activity') && !h3.closest('#activity-log-modal')
+                    );
+                    
+                    if (!activityHeader) {
+                        console.log('Recent Activity widget header not found');
+                        return;
+                    }
+
+                    // Find the activity list in the widget (ul inside the widget container)
+                    const widgetContainer = activityHeader.closest('.bg-white, .dark\\:bg-card-dark') || 
+                                          activityHeader.closest('[class*="col-span"]');
+                    
+                    if (!widgetContainer) {
+                        console.log('Widget container not found');
+                        return;
+                    }
+
+                    const activityList = widgetContainer.querySelector('ul.space-y-4');
+                    if (!activityList) {
+                        console.log('Activity list not found in widget');
+                        return;
+                    }
+
+                    let activities = [];
+                    const wasJustCleared = sessionStorage.getItem('activityJustCleared') === 'true';
+                    
+                    if (result.success && result.data && result.data.length > 0) {
+                        // Format activities to match PHP format
+                        activities = result.data.slice(0, 5).map(activity => {
+                            const meta = getActivityMetaJS(activity.action_type || null);
+                            const actor = activity.full_name || activity.username || 'System';
+                            const description = activity.description || `${(activity.action_type || 'Recent').charAt(0).toUpperCase() + (activity.action_type || 'Recent').slice(1)} activity`;
+                            
+                            // Format date
+                            const timeAgo = formatTimeAgoJS(activity.created_at);
+                            let actualDate = '';
+                            if (activity.created_at) {
+                                try {
+                                    const dateObj = new Date(activity.created_at);
+                                    actualDate = formatDateJS(dateObj);
+                                } catch (e) {
+                                    actualDate = '';
+                                }
+                            }
+                            
+                            let subtitle = timeAgo;
+                            if (actualDate) {
+                                subtitle += ' • ' + actualDate;
+                            }
+                            if (actor && actor !== 'System') {
+                                subtitle += ' • ' + actor;
+                            }
+                            
+                            return {
+                                icon: meta.icon,
+                                icon_bg: meta.bg,
+                                icon_color: meta.color,
+                                title: description,
+                                subtitle: subtitle
+                            };
+                        });
+                    }
+                    // If no activities, leave empty array to show empty state
+
+                    // Update widget content
+                    if (activities.length > 0) {
+                        const formattedActivities = activities.map(activity => {
+                            return `
+                                <li class="flex items-start gap-4">
+                                    <div class="${activity.icon_bg} p-2 rounded-full">
+                                        <span class="material-symbols-outlined ${activity.icon_color} text-base">${activity.icon}</span>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-slate-800 dark:text-slate-200">${escapeHtml(activity.title)}</p>
+                                        <p class="text-xs text-slate-500 dark:text-slate-400">${escapeHtml(activity.subtitle)}</p>
+                                    </div>
+                                </li>
+                            `;
+                        }).join('');
+
+                        activityList.innerHTML = formattedActivities;
+                    } else {
+                        // Show empty state with modern design
+                        activityList.innerHTML = `
+                            <li class="flex flex-col items-center justify-center py-12 text-center">
+                                <div class="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                                    <span class="material-symbols-outlined text-3xl text-slate-400 dark:text-slate-500">history</span>
+                                </div>
+                                <p class="text-base font-medium text-slate-700 dark:text-slate-300 mb-1">No Recent Activity</p>
+                                <p class="text-sm text-slate-500 dark:text-slate-400">Activity history has been cleared</p>
+                            </li>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('Error refreshing dashboard widget:', error);
+                }
+            }
+
+            // Function to load and refresh activity in modal
+            async function refreshModalActivity() {
+                const activityContent = document.getElementById('activity-modal-content');
+                
+                try {
+                    // Show loading state
+                    if (activityContent) {
+                        activityContent.innerHTML = '<div class="text-center py-8"><span class="text-sm text-slate-500 dark:text-slate-400">Loading...</span></div>';
+                    }
+
+                    // Fetch fresh activity from API
+                    const response = await fetch('api/activity-history.php?limit=50');
+                    const result = await response.json();
+
+                    let activities = [];
+                    let useDefaults = false;
+                    
+                    if (result.success && result.data && result.data.length > 0) {
+                        // Format activities to match PHP format
+                        activities = result.data.map(activity => {
+                            const meta = getActivityMetaJS(activity.action_type || null);
+                            const actor = activity.full_name || activity.username || 'System';
+                            const description = activity.description || `${(activity.action_type || 'Recent').charAt(0).toUpperCase() + (activity.action_type || 'Recent').slice(1)} activity`;
+                            
+                            // Format date - show both time ago and actual date
+                            const timeAgo = formatTimeAgoJS(activity.created_at);
+                            let actualDate = '';
+                            if (activity.created_at) {
+                                try {
+                                    const dateObj = new Date(activity.created_at);
+                                    actualDate = formatDateJS(dateObj);
+                                } catch (e) {
+                                    actualDate = '';
+                                }
+                            }
+                            
+                            let subtitle = timeAgo;
+                            if (actualDate) {
+                                subtitle += ' • ' + actualDate;
+                            }
+                            if (actor && actor !== 'System') {
+                                subtitle += ' • ' + actor;
+                            }
+                            
+                            return {
+                                icon: meta.icon,
+                                icon_bg: meta.bg,
+                                icon_color: meta.color,
+                                title: description,
+                                subtitle: subtitle
+                            };
+                        });
+                    } else {
+                        // No real activity from database - always show empty state (never show defaults on refresh)
+                        activities = [];
+                    }
+
+                    // Render activities
+                    if (activities.length > 0) {
+                        const formattedActivities = activities.map(activity => {
+                            return `
+                                <li class="flex items-start gap-3">
+                                    <div class="${activity.icon_bg} p-2 rounded-full shrink-0">
+                                        <span class="material-symbols-outlined ${activity.icon_color} text-base">${activity.icon}</span>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-slate-800 dark:text-slate-200">${escapeHtml(activity.title)}</p>
+                                        <p class="text-xs text-slate-500 dark:text-slate-400">${escapeHtml(activity.subtitle)}</p>
+                                    </div>
+                                </li>
+                            `;
+                        }).join('');
+
+                        if (activityContent) {
+                            activityContent.innerHTML = `<ul class="space-y-4" id="activity-list">${formattedActivities}</ul>`;
+                        }
+                    } else {
+                        // Show empty state with modern design
+                        if (activityContent) {
+                            activityContent.innerHTML = `
+                                <div class="flex flex-col items-center justify-center py-16 text-center">
+                                    <div class="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-5">
+                                        <span class="material-symbols-outlined text-4xl text-slate-400 dark:text-slate-500">history</span>
+                                    </div>
+                                    <p class="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">No Recent Activity</p>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400 max-w-sm">Activity history has been cleared. New activities will appear here as they occur.</p>
+                                </div>
+                            `;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error refreshing activity:', error);
+                    // On error, show error message (never show defaults)
+                    if (activityContent) {
+                        activityContent.innerHTML = '<div class="text-center py-8"><span class="text-sm text-red-500">Error loading activity</span></div>';
+                    }
+                }
+            }
+
+            // Function to get default activities (matches PHP getDefaultRecentActivity)
+            function getDefaultActivitiesJS() {
+                // Try to get user info from page (if available)
+                const userDisplayName = 'You'; // Could be enhanced to get from a data attribute or API
+                
+                // Format current date
+                const now = new Date();
+                const currentDate = formatDateJS(now);
+                
+                return [
+                    {
+                        icon: 'upload_file',
+                        icon_bg: 'bg-blue-100 dark:bg-blue-900/50',
+                        icon_color: 'text-blue-600 dark:text-blue-300',
+                        title: userDisplayName + ' uploaded a new MOU.',
+                        subtitle: 'Recently • ' + currentDate
+                    },
+                    {
+                        icon: 'add_circle',
+                        icon_bg: 'bg-blue-100 dark:bg-blue-900/50',
+                        icon_color: 'text-blue-600 dark:text-blue-300',
+                        title: 'Award submission was processed.',
+                        subtitle: 'Recently • ' + currentDate
+                    },
+                    {
+                        icon: 'task_alt',
+                        icon_bg: 'bg-amber-100 dark:bg-amber-900/50',
+                        icon_color: 'text-amber-600 dark:text-amber-300',
+                        title: 'New event was scheduled.',
+                        subtitle: 'Recently • ' + currentDate
+                    }
+                ];
+            }
+
+            // Helper function to format date (matches PHP format: M d, Y H:i)
+            function formatDateJS(date) {
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const month = months[date.getMonth()];
+                const day = date.getDate();
+                const year = date.getFullYear();
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                return `${month} ${day}, ${year} ${hours}:${minutes}`;
+            }
+
+            // Helper function to escape HTML
+            function escapeHtml(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // Helper function to format time ago (matches PHP formatTimeAgo)
+            function formatTimeAgoJS(datetime) {
+                if (!datetime) {
+                    return 'Just now';
+                }
+
+                const timestamp = typeof datetime === 'string' ? new Date(datetime).getTime() / 1000 : datetime;
+                if (!timestamp || isNaN(timestamp)) {
+                    return 'Just now';
+                }
+
+                const now = Math.floor(Date.now() / 1000);
+                const diff = now - timestamp;
+                
+                if (diff < 60) {
+                    return 'Just now';
+                }
+
+                const periods = {
+                    31536000: 'year',
+                    2592000: 'month',
+                    604800: 'week',
+                    86400: 'day',
+                    3600: 'hour',
+                    60: 'minute',
+                };
+
+                for (const [seconds, label] of Object.entries(periods)) {
+                    const secs = parseInt(seconds);
+                    if (diff >= secs) {
+                        const value = Math.floor(diff / secs);
+                        return value + ' ' + label + (value > 1 ? 's' : '') + ' ago';
+                    }
+                }
+
+                return 'Just now';
+            }
+
+            // Helper function to get activity meta (matches PHP getActivityMeta)
+            function getActivityMetaJS(actionType) {
+                const map = {
+                    'create': {
+                        'icon': 'add_circle',
+                        'bg': 'bg-blue-100 dark:bg-blue-900/50',
+                        'color': 'text-blue-600 dark:text-blue-300',
+                    },
+                    'update': {
+                        'icon': 'sync',
+                        'bg': 'bg-purple-100 dark:bg-purple-900/50',
+                        'color': 'text-purple-600 dark:text-purple-300',
+                    },
+                    'delete': {
+                        'icon': 'delete',
+                        'bg': 'bg-red-100 dark:bg-red-900/50',
+                        'color': 'text-red-600 dark:text-red-300',
+                    },
+                    'upload': {
+                        'icon': 'upload_file',
+                        'bg': 'bg-blue-100 dark:bg-blue-900/50',
+                        'color': 'text-blue-600 dark:text-blue-300',
+                    },
+                    'comment': {
+                        'icon': 'chat',
+                        'bg': 'bg-emerald-100 dark:bg-emerald-900/50',
+                        'color': 'text-emerald-600 dark:text-emerald-300',
+                    },
+                    'status_change': {
+                        'icon': 'task_alt',
+                        'bg': 'bg-amber-100 dark:bg-amber-900/50',
+                        'color': 'text-amber-600 dark:text-amber-300',
+                    },
+                    'default': {
+                        'icon': 'info',
+                        'bg': 'bg-slate-100 dark:bg-slate-800/50',
+                        'color': 'text-slate-600 dark:text-slate-300',
+                    },
+                };
+
+                const key = (actionType || '').toLowerCase();
+                return map[key] || map['default'];
+            }
+
+
+            // Modal refresh activity button
+            const modalRefreshActivityBtn = document.getElementById('modal-refresh-activity-btn');
+            if (modalRefreshActivityBtn) {
+                modalRefreshActivityBtn.addEventListener('click', async () => {
+                    // Add rotation animation
+                    modalRefreshActivityBtn.classList.add('animate-spin');
+                    await refreshModalActivity();
+                    // Remove animation after a short delay
+                    setTimeout(() => {
+                        modalRefreshActivityBtn.classList.remove('animate-spin');
+                    }, 500);
+                });
+            }
+
+            // Clear Activity Confirmation Modal functions
+            const clearConfirmModal = document.getElementById('clear-activity-confirm-modal');
+            const cancelClearBtn = document.getElementById('cancel-clear-activity-btn');
+            const confirmClearBtn = document.getElementById('confirm-clear-activity-btn');
+            const modalClearActivityBtn = document.getElementById('modal-clear-activity-btn');
+
+            function openClearConfirmModal() {
+                if (clearConfirmModal) {
+                    clearConfirmModal.classList.remove('hidden');
+                }
+            }
+
+            function closeClearConfirmModal() {
+                if (clearConfirmModal) {
+                    clearConfirmModal.classList.add('hidden');
+                }
+            }
+
+            // Make function available globally for backdrop click
+            window.closeClearConfirmModal = closeClearConfirmModal;
+
+            // Cancel button
+            if (cancelClearBtn) {
+                cancelClearBtn.addEventListener('click', closeClearConfirmModal);
+            }
+
+            // Confirm button - handle the actual clearing
+            if (confirmClearBtn) {
+                confirmClearBtn.addEventListener('click', async () => {
+                    // Close the confirmation modal first
+                    closeClearConfirmModal();
+
+                    try {
+                        // Show loading state on both buttons
+                        if (modalClearActivityBtn) {
+                            modalClearActivityBtn.disabled = true;
+                            modalClearActivityBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">hourglass_empty</span>';
+                        }
+
+                        if (confirmClearBtn) {
+                            confirmClearBtn.disabled = true;
+                            const originalHTML = confirmClearBtn.innerHTML;
+                            confirmClearBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">hourglass_empty</span> Clearing...';
+                        }
+
+                        console.log('Sending DELETE request to clear activity...');
+                        const response = await fetch('api/activity-history.php?action=clear', {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        console.log('Response status:', response.status);
+                        const responseText = await response.text();
+                        console.log('Response text:', responseText);
+
+                        let result;
+                        try {
+                            result = JSON.parse(responseText);
+                        } catch (parseError) {
+                            console.error('Failed to parse JSON:', parseError);
+                            throw new Error('Invalid response from server: ' + responseText.substring(0, 100));
+                        }
+
+                        console.log('Parsed result:', result);
+
+                        if (result.success) {
+                            console.log('Activity cleared successfully');
+                            // Refresh modal content to show cleared state (will show empty state)
+                            await refreshModalActivity();
+                            // Also refresh the dashboard widget
+                            await refreshDashboardWidget();
+                        } else {
+                            console.error('Clear failed:', result.error);
+                            alert('Failed to clear activity: ' + (result.error || 'Unknown error'));
+                        }
+                    } catch (error) {
+                        console.error('Error clearing activity:', error);
+                        alert('Error clearing activity: ' + error.message);
+                    } finally {
+                        // Reset button states
+                        if (modalClearActivityBtn) {
+                            modalClearActivityBtn.disabled = false;
+                            modalClearActivityBtn.innerHTML = '<span class="material-symbols-outlined text-base">delete_sweep</span>';
+                        }
+                        if (confirmClearBtn) {
+                            confirmClearBtn.disabled = false;
+                            confirmClearBtn.innerHTML = '<span class="material-symbols-outlined text-base">delete_sweep</span> Clear All';
+                        }
+                    }
+                });
+            }
+
+            // Modal clear all activity button - opens confirmation modal
+            if (modalClearActivityBtn) {
+                modalClearActivityBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Clear button clicked, opening confirmation modal');
+                    openClearConfirmModal();
+                });
+            }
+
+            // Close modal on Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && clearConfirmModal && !clearConfirmModal.classList.contains('hidden')) {
+                    closeClearConfirmModal();
+                }
+            });
             // Function to toggle dark mode
             const toggleDarkMode = (enable) => {
                 if (enable) {

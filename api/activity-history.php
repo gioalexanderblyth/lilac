@@ -8,7 +8,7 @@ session_start();
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 // Handle preflight requests
@@ -68,7 +68,54 @@ try {
     $method = $_SERVER['REQUEST_METHOD'];
     $action = $_GET['action'] ?? '';
 
-    if ($method === 'GET') {
+    if ($method === 'DELETE') {
+        if ($action === 'clear') {
+            // Clear all activity history
+            try {
+                // Ensure table exists first
+                $pdo->exec("
+                    CREATE TABLE IF NOT EXISTS activity_history (
+                        id INT(11) NOT NULL AUTO_INCREMENT,
+                        user_id INT(11) DEFAULT NULL,
+                        action_type VARCHAR(50) NOT NULL,
+                        entity_type VARCHAR(50) NOT NULL,
+                        entity_id INT(11) DEFAULT NULL,
+                        description TEXT,
+                        old_value TEXT,
+                        new_value TEXT,
+                        ip_address VARCHAR(45),
+                        user_agent VARCHAR(255),
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (id),
+                        KEY idx_user_id (user_id),
+                        KEY idx_entity_type (entity_type),
+                        KEY idx_entity_id (entity_id),
+                        KEY idx_created_at (created_at),
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+                
+                $stmt = $pdo->prepare("DELETE FROM activity_history");
+                $stmt->execute();
+                $deletedCount = $stmt->rowCount();
+                
+                echo json_encode([
+                    'success' => true,
+                    'message' => "Cleared $deletedCount activity record(s)",
+                    'deleted' => $deletedCount
+                ]);
+                exit();
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode(['success' => false, 'error' => 'Failed to clear activity: ' . $e->getMessage()]);
+                exit();
+            }
+        } else {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Invalid action. Use ?action=clear']);
+            exit();
+        }
+    } else if ($method === 'GET') {
         if ($action === 'list' || $action === '') {
             // Get activity history
             $entityType = $_GET['entity_type'] ?? null;

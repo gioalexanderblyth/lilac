@@ -100,6 +100,13 @@ try {
         exit();
     }
 
+    // Ensure deleted_at column exists
+    try {
+        $pdo->exec("ALTER TABLE awards ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+    } catch (PDOException $e) {
+        // Column might already exist, continue
+    }
+
     $sql = "
         SELECT 
             a.id AS award_id,
@@ -114,7 +121,7 @@ try {
         FROM awards a
         LEFT JOIN award_analysis aa ON aa.award_id = a.id
         WHERE a.user_id = ?
-          AND (a.deleted_at IS NULL OR a.deleted_at = '')
+          AND (a.deleted_at IS NULL OR a.deleted_at = '' OR a.deleted_at = '0000-00-00 00:00:00')
           AND a.title IS NOT NULL 
           AND a.title != ''
         ORDER BY COALESCE(aa.updated_at, a.updated_at, a.created_at) DESC

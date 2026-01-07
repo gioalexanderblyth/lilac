@@ -3102,47 +3102,6 @@ try {
 
                         </div>
 
-                        <div class="flex items-center justify-center mt-6">
-
-                            <nav class="flex items-center gap-2">
-
-                                <a class="p-2 rounded-full hover:bg-primary/10 text-text-muted-light dark:text-text-muted-dark"
-
-                                    href="#">
-
-                                    <span class="material-symbols-outlined text-base">chevron_left</span>
-
-                                </a>
-
-                                <a class="w-8 h-8 flex items-center justify-center rounded-full bg-primary text-white font-semibold text-sm"
-
-                                    href="#">1</a>
-
-                                <a class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-primary/10 text-text-muted-light dark:text-text-muted-dark font-medium text-sm"
-
-                                    href="#">2</a>
-
-                                <a class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-primary/10 text-text-muted-light dark:text-text-muted-dark font-medium text-sm"
-
-                                    href="#">3</a>
-
-                                <span class="text-text-muted-light dark:text-text-muted-dark">...</span>
-
-                                <a class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-primary/10 text-text-muted-light dark:text-text-muted-dark font-medium text-sm"
-
-                                    href="#">10</a>
-
-                                <a class="p-2 rounded-full hover:bg-primary/10 text-text-muted-light dark:text-text-muted-dark"
-
-                                    href="#">
-
-                                    <span class="material-symbols-outlined text-base">chevron_right</span>
-
-                                </a>
-
-                            </nav>
-
-                        </div>
 
                     </div>
 
@@ -16684,10 +16643,14 @@ try {
 
         window.deleteAward = async function (awardId) {
 
-            if (!confirm('Are you sure you want to delete this award?')) {
-
+            const shouldDelete = await showConfirm(
+                'Are you sure you want to delete this award?',
+                'Delete award',
+                'Delete',
+                'Cancel'
+            );
+            if (!shouldDelete) {
                 return false;
-
             }
 
 
@@ -16713,27 +16676,17 @@ try {
 
 
                 if (result.success) {
-
-                    alert('Award deleted successfully');
-
+                    showNotification('Award deleted successfully', 'success');
                     if (typeof loadAwards === 'function') loadAwards();
-
                     return true;
-
-                } else {
-
-                    alert('Error: ' + (result.error || 'Delete failed'));
-
-                    return false;
-
                 }
 
-            } catch (error) {
-
-                alert('Error: ' + error.message);
-
+                showNotification('Failed to delete award: ' + (result.error || 'Delete failed'), 'error');
                 return false;
 
+            } catch (error) {
+                showNotification('Failed to delete award: ' + error.message, 'error');
+                return false;
             }
 
         };
@@ -17372,10 +17325,14 @@ try {
 
         window.deleteCriteria = async function (criteriaId) {
 
-            if (!confirm('Are you sure you want to delete this award criteria? This action cannot be undone.')) {
-
+            const shouldDelete = await showConfirm(
+                'Are you sure you want to delete this award criteria?\nThis action cannot be undone.',
+                'Delete criteria',
+                'Delete',
+                'Cancel'
+            );
+            if (!shouldDelete) {
                 return;
-
             }
 
 
