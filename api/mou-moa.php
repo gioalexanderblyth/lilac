@@ -106,19 +106,54 @@ function handleFileUpload($file) {
         throw new Exception('File size exceeds maximum limit of 10MB');
     }
 
-    // Validate file type (PDF only for MOUs/MOAs)
-    $allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    // Validate file type (PDF, Word documents, and images for MOUs/MOAs)
+    $allowedTypes = [
+        'application/pdf',
+        'application/msword', // .doc
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+        'application/x-zip-compressed', // Sometimes .docx files are detected as zip
+        'application/zip', // Sometimes .docx files are detected as zip
+
+        // Common image types (scanned/photographed documents)
+        'image/jpeg',
+        'image/png',
+        'image/webp'
+    ];
+    
+    // Get file extension (preserve original case for filename, use lowercase for validation)
+    $originalExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $extension = strtolower($originalExtension);
+    $allowedExtensions = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'webp'];
+    
+    // Validate by MIME type
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
     $mimeType = finfo_file($finfo, $file['tmp_name']);
     finfo_close($finfo);
-
-    if (!in_array($mimeType, $allowedTypes)) {
-        throw new Exception('Invalid file type. Only PDF and Word documents are allowed.');
+    
+    // Check if MIME type is valid
+    $isValidMimeType = in_array($mimeType, $allowedTypes);
+    
+    // Check if extension is valid
+    $isValidExtension = in_array($extension, $allowedExtensions);
+    
+    // Accept file if either MIME type or extension is valid
+    // This handles cases where MIME detection might be inconsistent (especially for .docx files)
+    if (!$isValidMimeType && !$isValidExtension) {
+        // Log the detected MIME type for debugging
+        error_log("MOU file upload rejected - Detected MIME type: $mimeType, Extension: $extension, File name: " . $file['name']);
+        throw new Exception('Invalid file type. Only PDF, Word, and image files (.pdf, .doc, .docx, .jpg, .jpeg, .png, .webp) are allowed. Detected type: ' . $mimeType);
+    }
+    
+    // Additional safety check: if extension is .docx but MIME type is not recognized,
+    // allow it since .docx files can have various MIME types depending on the system
+    // (The main validation above already handles this, but this provides better error messages)
+    if ($extension === 'docx' && !$isValidMimeType && !in_array($mimeType, ['application/x-zip-compressed', 'application/zip'])) {
+        // This case is already handled by the extension check above, but log for debugging
+        error_log("MOU file upload - .docx file with unusual MIME type: $mimeType (accepted based on extension)");
     }
 
-    // Generate unique filename
-    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-    $fileName = uniqid('mou_') . '_' . time() . '.' . $extension;
+    // Generate unique filename (use original extension to preserve case)
+    $fileName = uniqid('mou_') . '_' . time() . '.' . $originalExtension;
     $filePath = $uploadDir . $fileName;
 
     // Move uploaded file

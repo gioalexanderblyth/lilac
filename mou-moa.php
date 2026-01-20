@@ -633,6 +633,7 @@ try {
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="institution">Institution</label>
                     <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary uppercase-input" id="institution" placeholder="e.g., CENTRAL PHILIPPINE UNIVERSITY" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="text-transform: uppercase;"/>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400" id="autoInstitutionText">Will auto-detect from document</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="location">Location</label>
@@ -677,8 +678,8 @@ try {
                         <option value="MOU (Memorandum of Understanding)">MOU (Memorandum of Understanding)</option>
                         <option value="MOA (Memorandum of Agreement)">MOA (Memorandum of Agreement)</option>
                     </select>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        <span id="autoCategoryText">Will auto-detect from filename</span>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400 hidden" aria-hidden="true">
+                        <span id="autoCategoryText"></span>
                     </p>
                 </div>
             </div>
@@ -691,7 +692,7 @@ try {
                         <div class="mt-2 flex text-sm leading-6 text-gray-600 dark:text-gray-400">
                             <label class="relative cursor-pointer rounded-md font-semibold text-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 dark:focus-within:ring-offset-background-dark hover:text-primary/80" for="file-upload">
                                 <span>Upload a file</span>
-                                <input class="sr-only" id="file-upload" name="file-upload" type="file" accept=".pdf,.docx"/>
+                                <input class="sr-only" id="file-upload" name="file-upload" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"/>
                             </label>
                             <p class="pl-1">or drag and drop</p>
                         </div>
@@ -1323,6 +1324,11 @@ try {
             let currentPage = 1;
             const itemsPerPage = 6;
             let allEntries = [];
+            
+            // OCR field extraction endpoint (auto-fill)
+            const MOU_FIELDS_OCR_URL = 'api/mou-moa-ocr.php';
+            let institutionTouched = false;
+            let locationTouched = false;
 
             // Show modal when Add File button is clicked
             if (addFileBtn && modal) {
@@ -1339,6 +1345,7 @@ try {
                     modal.classList.remove('hidden');
                     // Clear selected file display when opening modal
                     updateSelectedFileDisplay(null);
+                    resetInstitutionDetection();
                 });
             }
 
@@ -1348,6 +1355,7 @@ try {
                     modal.classList.add('hidden');
                     // Clear selected file display when closing modal
                     updateSelectedFileDisplay(null);
+                    resetInstitutionDetection();
                 });
             }
 
@@ -1358,6 +1366,7 @@ try {
                         modal.classList.add('hidden');
                         // Clear selected file display when closing modal
                         updateSelectedFileDisplay(null);
+                        resetInstitutionDetection();
                     }
                 });
             }
@@ -1372,26 +1381,311 @@ try {
                     selectedFileDisplay.classList.add('hidden');
                 }
             }
+
+            function setInstitutionHint(text, kind = 'neutral') {
+                const el = document.getElementById('autoInstitutionText');
+                if (!el) return;
+                // Per request: keep the UI silent (no status/hint text shown)
+                el.textContent = '';
+                el.className = 'mt-1 text-xs text-gray-500 dark:text-gray-400';
+            }
+
+            function resetInstitutionDetection() {
+                institutionTouched = false;
+                locationTouched = false;
+                setInstitutionHint('Will auto-detect from document', 'neutral');
+            }
+
+            async function analyzeInstitution(file) {
+                const institutionInput = document.getElementById('institution');
+                const locationInput = document.getElementById('location');
+                if (!institutionInput || !file) return;
+
+                setInstitutionHint('Scanning institution...', 'loading');
+
+                // Speed optimization: for OCR, downscale/compress images before sending to server/browser OCR.
+                // This does NOT affect the actual file you will save—only the temporary OCR request.
+                async function createOcrOptimizedFile(originalFile) {
+                    try {
+                        if (!originalFile || !originalFile.type || !originalFile.type.startsWith('image/')) return originalFile;
+
+                        const MAX_DIM = 1400; // tuned for speed + accuracy on typical scanned documents
+                        const QUALITY = 0.75;
+
+                        let w = 0;
+                        let h = 0;
+                        let drawSource = null;
+
+                        if (typeof createImageBitmap === 'function') {
+                            const bmp = await createImageBitmap(originalFile);
+                            w = bmp.width;
+                            h = bmp.height;
+                            drawSource = bmp;
+                        } else {
+                            const url = URL.createObjectURL(originalFile);
+                            const img = await new Promise((resolve, reject) => {
+                                const i = new Image();
+                                i.onload = () => resolve(i);
+                                i.onerror = reject;
+                                i.src = url;
+                            });
+                            URL.revokeObjectURL(url);
+                            w = img.naturalWidth || img.width;
+                            h = img.naturalHeight || img.height;
+                            drawSource = img;
+                        }
+
+                        if (!w || !h || !drawSource) return originalFile;
+
+                        const scale = Math.min(1, MAX_DIM / Math.max(w, h));
+                        const outW = Math.max(1, Math.round(w * scale));
+                        const outH = Math.max(1, Math.round(h * scale));
+
+                        // If already small enough, avoid extra work
+                        if (scale === 1 && (originalFile.type === 'image/jpeg' || originalFile.type === 'image/jpg')) {
+                            return originalFile;
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = outW;
+                        canvas.height = outH;
+                        const ctx = canvas.getContext('2d');
+                        if (!ctx) return originalFile;
+                        ctx.drawImage(drawSource, 0, 0, outW, outH);
+
+                        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', QUALITY));
+                        if (!blob) return originalFile;
+
+                        const baseName = (originalFile.name || 'ocr').replace(/\.[^/.]+$/, '');
+                        return new File([blob], `${baseName}_ocr.jpg`, { type: 'image/jpeg' });
+                    } catch (e) {
+                        console.warn('OCR optimization failed, using original file', e);
+                        return originalFile;
+                    }
+                }
+
+                // Helper: parse partner institution (second party) from OCR text
+                function extractPartnerInstitutionFromText(text) {
+                    const raw = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                    const lower = raw.toLowerCase();
+                    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+
+                    // Prefer explicit "between A and B"
+                    const m = raw.match(/\bbetween\b\s+([\s\S]{0,200}?)\s+(?:and|&)\s+([\s\S]{0,200}?)(?:\n|,|\.|;)/i);
+                    if (m && m[2]) return String(m[2]).trim();
+
+                    // Scanned layout: between (line), A (line), and (line), B (line)
+                    let idxBetween = lines.findIndex(l => /\bbetween\b/i.test(l));
+                    if (idxBetween >= 0) {
+                        // Inline between line: "between A and B"
+                        const inline = lines[idxBetween];
+                        const m2 = inline.match(/\bbetween\b\s+(.+?)\s+(?:and|&)\s+(.+)\s*$/i);
+                        if (m2 && m2[2]) return String(m2[2]).trim();
+
+                        // Seek next meaningful lines
+                        let partyA = '';
+                        let partyB = '';
+                        let state = 'seekA';
+                        for (let j = idxBetween + 1; j < Math.min(lines.length, idxBetween + 12); j++) {
+                            const l = lines[j];
+                            if (!l) continue;
+                            if (/\bmemorandum\b/i.test(l)) continue;
+
+                            if (state === 'seekA') {
+                                partyA = l;
+                                state = 'seekAnd';
+                                continue;
+                            }
+                            if (state === 'seekAnd') {
+                                if (/^(and|&)$/i.test(l)) {
+                                    state = 'seekB';
+                                    continue;
+                                }
+                                // OCR sometimes misses standalone "and"
+                                partyB = l;
+                                break;
+                            }
+                            if (state === 'seekB') {
+                                partyB = l;
+                                break;
+                            }
+                        }
+                        if (partyB) return partyB;
+                    }
+
+                    // As last resort, pick the best-looking "school/university/college..." line
+                    const keywords = /(university|college|institute|school|academy|polytechnic)/i;
+                    const best = lines.filter(l => keywords.test(l) && l.length >= 6 && l.length <= 120);
+                    return best[0] ? best[0] : '';
+                }
+
+                function detectCountryFromText(text) {
+                    const lower = String(text || '').toLowerCase();
+                    if (!lower) return '';
+                    if (lower.includes('japan')) return 'Japan';
+                    if (lower.includes('philippines') || lower.includes('philippine')) return 'Philippines';
+                    if (lower.includes('united states') || lower.includes('usa') || lower.includes('u.s.a')) return 'United States';
+                    if (lower.includes('korea')) return 'Korea';
+                    if (lower.includes('canada')) return 'Canada';
+                    if (lower.includes('australia')) return 'Australia';
+                    if (lower.includes('singapore')) return 'Singapore';
+                    if (lower.includes('malaysia')) return 'Malaysia';
+                    if (lower.includes('thailand')) return 'Thailand';
+                    if (lower.includes('vietnam')) return 'Vietnam';
+                    if (lower.includes('indonesia')) return 'Indonesia';
+                    if (lower.includes('china')) return 'China';
+                    if (lower.includes('india')) return 'India';
+                    if (lower.includes('taiwan')) return 'Taiwan';
+                    return '';
+                }
+
+                function normalizeLocationToCountry(loc) {
+                    const raw = String(loc || '').trim();
+                    if (!raw) return raw;
+                    const lower = raw.toLowerCase();
+                    if (lower.includes('japan')) return 'Japan';
+                    if (lower.includes('philippine')) return 'Philippines';
+                    if (lower.includes('united states') || lower.includes('usa') || lower.includes('u.s.a')) return 'United States';
+                    if (lower.includes('korea')) return 'Korea';
+                    if (lower.includes('canada')) return 'Canada';
+                    if (lower.includes('australia')) return 'Australia';
+                    if (lower.includes('singapore')) return 'Singapore';
+                    if (lower.includes('malaysia')) return 'Malaysia';
+                    if (lower.includes('thailand')) return 'Thailand';
+                    if (lower.includes('vietnam')) return 'Vietnam';
+                    if (lower.includes('indonesia')) return 'Indonesia';
+                    if (lower.includes('china')) return 'China';
+                    if (lower.includes('india')) return 'India';
+                    if (lower.includes('taiwan')) return 'Taiwan';
+                    const detected = detectCountryFromText(raw);
+                    if (detected) return detected;
+                    // No country detected — return empty to avoid filling with cities/regions
+                    return '';
+                }
+
+                // Helper: parse partner location (second located-at) from OCR text
+                function extractPartnerLocationFromText(text) {
+                    const raw = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                    const locations = [];
+
+                    const locRegex = /([\w\s\.,\-\&()]+?)\s+located\s+at\s+([^\.;\n]+)(?:[\.;\n]|,\s*hereinafter|\s+hereinafter|\s+and\s)/gi;
+                    let m;
+                    while ((m = locRegex.exec(raw)) !== null) {
+                        const loc = (m[2] || '').trim().replace(/\s+/g, ' ').replace(/\s*(hereinafter.*)$/i, '');
+                        if (loc) locations.push(loc);
+                    }
+                    if (locations.length === 0) {
+                        const locRegex2 = /located\s+at\s+([^\.;\n]+)(?:[\.;\n]|,\s*hereinafter|\s+hereinafter|\s+and\s)/gi;
+                        while ((m = locRegex2.exec(raw)) !== null) {
+                            const loc = (m[1] || '').trim().replace(/\s+/g, ' ').replace(/\s*(hereinafter.*)$/i, '');
+                            if (loc) locations.push(loc);
+                        }
+                    }
+                    return locations[1] || locations[0] || '';
+                }
+
+                try {
+                    const ocrFile = await createOcrOptimizedFile(file);
+                    const fd = new FormData();
+                    fd.append('file', ocrFile);
+                    const resp = await fetch(MOU_FIELDS_OCR_URL, { method: 'POST', body: fd });
+                    const result = await resp.json();
+
+                    if (!result || !result.success) {
+                        throw new Error((result && result.error) ? result.error : 'Server OCR failed');
+                    }
+
+                    const detected = (result.fields && result.fields.institution) ? String(result.fields.institution).trim() : '';
+                    if (!detected) {
+                        throw new Error('No institution detected from server OCR');
+                    }
+
+                    // Force country-only location
+                    const detectedLocation = 'location' in (result.fields || {}) && result.fields.location
+                        ? normalizeLocationToCountry(String(result.fields.location).trim())
+                        : '';
+
+                    // Auto-fill only if user hasn't typed anything meaningful yet
+                    const current = String(institutionInput.value || '').trim();
+                    if (!current && !institutionTouched) {
+                        institutionInput.value = detected.toUpperCase();
+                        setInstitutionHint(`Auto-filled: ${detected}`, 'success');
+                    } else {
+                        // Don't overwrite user input; still show what we detected
+                        setInstitutionHint(`Detected: ${detected} (not applied)`, 'warning');
+                    }
+
+                    // Auto-fill location if present and empty
+                    if (locationInput && detectedLocation && !locationTouched && !String(locationInput.value || '').trim()) {
+                        locationInput.value = detectedLocation;
+                    }
+                } catch (e) {
+                    console.warn('Institution OCR (server) failed', e);
+
+                    // Fallback: for images, do browser OCR (Tesseract.js) and parse locally
+                    if (file && file.type && file.type.startsWith('image/')) {
+                        try {
+                            const ocrFile = await createOcrOptimizedFile(file);
+                            await loadTesseract();
+                            const imageUrl = URL.createObjectURL(ocrFile);
+                            const { data } = await window.Tesseract.recognize(imageUrl, 'eng', { logger: () => {} });
+                            URL.revokeObjectURL(imageUrl);
+                            const text = (data && data.text) ? data.text : '';
+                            const partner = extractPartnerInstitutionFromText(text);
+                            const countryFromText = detectCountryFromText(text);
+                            const partnerLocRaw = extractPartnerLocationFromText(text);
+                            const partnerLoc = countryFromText || normalizeLocationToCountry(partnerLocRaw);
+
+                            if (partner) {
+                                const current = String(institutionInput.value || '').trim();
+                                if (!current && !institutionTouched) {
+                                    institutionInput.value = partner.toUpperCase();
+                                    setInstitutionHint(`Auto-filled: ${partner}`, 'success');
+                                } else {
+                                    setInstitutionHint(`Detected: ${partner} (not applied)`, 'warning');
+                                }
+                                if (locationInput && partnerLoc && !locationTouched && !String(locationInput.value || '').trim()) {
+                                    locationInput.value = partnerLoc;
+                                }
+                                return;
+                            }
+                        } catch (e2) {
+                            console.warn('Institution OCR (browser) failed', e2);
+                        }
+                    }
+
+                    setInstitutionHint('Could not scan institution (please type manually)', 'neutral');
+                }
+            }
             
             // Function to analyze document type (MOU vs MOA)
             async function analyzeDocumentType(file) {
-                const autoCategoryText = document.getElementById('autoCategoryText');
-                autoCategoryText.textContent = 'Analyzing document...';
-                autoCategoryText.className = 'text-primary-600 dark:text-primary-400';
-                
                 try {
                     let detectedType = 'Unknown';
+
+                    // Prefer server-side detection (more reliable than browser-only heuristics/OCR)
+                    try {
+                        const fd = new FormData();
+                        fd.append('file', file);
+                        const resp = await fetch(TYPE_DETECT_URL, { method: 'POST', body: fd });
+                        const result = await resp.json();
+                        if (result && result.success && (result.type === 'MOU' || result.type === 'MOA')) {
+                            detectedType = result.type;
+                        }
+                    } catch (e) {
+                        console.warn('Server-side type detection failed, falling back to local analysis', e);
+                    }
                     
                     // For PDF files, we'll use text extraction
-                    if (file.type === 'application/pdf') {
+                    if (detectedType === 'Unknown' && file.type === 'application/pdf') {
                         detectedType = await analyzePDFContent(file);
                     } 
                     // For DOCX files, we'll analyze the filename and basic content
-                    else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                    else if (detectedType === 'Unknown' && file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
                         detectedType = await analyzeDOCXContent(file);
                     }
                     // For Images, run OCR (Tesseract.js)
-                    else if (file.type.startsWith('image/')) {
+                    else if (detectedType === 'Unknown' && file.type.startsWith('image/')) {
                         detectedType = await analyzeImageContent(file);
                     }
                     
@@ -1433,6 +1727,20 @@ try {
 
             // OCR for images to detect MOU/MOA
             async function analyzeImageContent(file) {
+                // 1) Try server-side detection first (more reliable, works even if CDN/worker downloads are blocked)
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    const resp = await fetch(TYPE_DETECT_URL, { method: 'POST', body: formData });
+                    const result = await resp.json();
+                    if (result && result.success && (result.type === 'MOU' || result.type === 'MOA')) {
+                        return result.type;
+                    }
+                } catch (e) {
+                    console.warn('Server-side type detection failed, falling back to browser OCR', e);
+                }
+
+                // 2) Fallback: browser OCR (Tesseract.js)
                 try {
                     await loadTesseract();
                     const imageUrl = URL.createObjectURL(file);
@@ -1440,16 +1748,20 @@ try {
                     URL.revokeObjectURL(imageUrl);
                     const text = (data && data.text ? data.text : '').toLowerCase();
                     if (!text) return analyzeFilename(file.name);
-                    const hasMou = text.includes('memorandum of understanding') || /\bmou\b/.test(text);
-                    const hasMoa = text.includes('memorandum of agreement') || /\bmoa\b/.test(text);
+
+                    // More tolerant acronym matching ("M O U" / "M O A")
+                    const hasMou = text.includes('memorandum of understanding') || /\bm\s*o\s*u\b/.test(text);
+                    const hasMoa = text.includes('memorandum of agreement') || /\bm\s*o\s*a\b/.test(text);
+
                     if (hasMou && !hasMoa) return 'MOU';
                     if (hasMoa && !hasMou) return 'MOA';
+
                     // Tie-breaker: prefer exact phrases over acronyms
                     if (text.indexOf('memorandum of understanding') !== -1 && text.indexOf('memorandum of agreement') === -1) return 'MOU';
                     if (text.indexOf('memorandum of agreement') !== -1 && text.indexOf('memorandum of understanding') === -1) return 'MOA';
                     return 'Unknown';
                 } catch (e) {
-                    console.warn('OCR failed, falling back to filename heuristic', e);
+                    console.warn('Browser OCR failed, falling back to filename heuristic', e);
                     return analyzeFilename(file.name);
                 }
             }
@@ -1490,7 +1802,6 @@ try {
             // Function to update category display
             function updateCategoryDisplay(detectedType) {
                 const categorySelect = document.getElementById('category');
-                const autoCategoryText = document.getElementById('autoCategoryText');
 
                 // Update the select dropdown with full text
                 if (categorySelect && detectedType) {
@@ -1501,22 +1812,6 @@ try {
                     }
                 }
 
-                // Update the hint text
-                switch (detectedType) {
-                    case 'MOU':
-                        autoCategoryText.textContent = 'Auto-detected: MOU';
-                        autoCategoryText.className = 'text-green-600 dark:text-green-400';
-                        break;
-                    case 'MOA':
-                        autoCategoryText.textContent = 'Auto-detected: MOA';
-                        autoCategoryText.className = 'text-primary-600 dark:text-primary-400';
-                        break;
-                    default:
-                        autoCategoryText.textContent = 'Please select document type';
-                        autoCategoryText.className = 'text-gray-500 dark:text-gray-400';
-                        break;
-                }
-
                 // Store the detected type for saving
                 window.detectedDocumentType = detectedType;
             }
@@ -1524,11 +1819,8 @@ try {
             // Function to reset category detection
             function resetCategoryDetection() {
                 const categorySelect = document.getElementById('category');
-                const autoCategoryText = document.getElementById('autoCategoryText');
 
                 if (categorySelect) categorySelect.value = '';
-                autoCategoryText.textContent = 'Please select document type';
-                autoCategoryText.className = 'text-gray-500 dark:text-gray-400';
                 window.detectedDocumentType = null;
             }
 
@@ -1560,9 +1852,13 @@ try {
                         
                         // Analyze file content to detect MOU vs MOA
                         analyzeDocumentType(file);
+                        
+                        // Analyze file content to auto-fill Institution
+                        analyzeInstitution(file);
                     } else {
                         updateSelectedFileDisplay(null);
                         resetCategoryDetection();
+                        resetInstitutionDetection();
                     }
                 });
             }
@@ -1573,6 +1869,34 @@ try {
                     fileUploadInput.value = ''; // Clear the file input
                     updateSelectedFileDisplay(null); // Hide the display
                     resetCategoryDetection();
+                    resetInstitutionDetection();
+                });
+            }
+
+            // Track manual edits and force uppercase so OCR doesn't overwrite user input
+            const institutionInput = document.getElementById('institution');
+            if (institutionInput) {
+                institutionInput.addEventListener('input', function(e) {
+                    const cursorPosition = e.target.selectionStart;
+                    e.target.value = e.target.value.toUpperCase();
+                    e.target.setSelectionRange(cursorPosition, cursorPosition);
+                    if (String(e.target.value || '').trim().length > 0) {
+                        institutionTouched = true;
+                    }
+                });
+
+                institutionInput.addEventListener('paste', function(e) {
+                    e.preventDefault();
+                    const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                    const cursorPosition = e.target.selectionStart;
+                    const textBefore = e.target.value.substring(0, cursorPosition);
+                    const textAfter = e.target.value.substring(e.target.selectionEnd);
+                    e.target.value = textBefore + pastedText.toUpperCase() + textAfter;
+                    const newCursorPosition = cursorPosition + pastedText.length;
+                    e.target.setSelectionRange(newCursorPosition, newCursorPosition);
+                    if (String(e.target.value || '').trim().length > 0) {
+                        institutionTouched = true;
+                    }
                 });
             }
 
@@ -1751,30 +2075,7 @@ try {
             termInput.addEventListener('change', autoCalculateEndDate);
             termInput.addEventListener('input', autoCalculateEndDate);
             
-            // Force institution field to uppercase
-            const institutionInput = document.getElementById('institution');
-            if (institutionInput) {
-                // Convert to uppercase on input
-                institutionInput.addEventListener('input', function(e) {
-                    const cursorPosition = e.target.selectionStart;
-                    e.target.value = e.target.value.toUpperCase();
-                    // Restore cursor position after conversion
-                    e.target.setSelectionRange(cursorPosition, cursorPosition);
-                });
-                
-                // Convert to uppercase on paste
-                institutionInput.addEventListener('paste', function(e) {
-                    e.preventDefault();
-                    const pastedText = (e.clipboardData || window.clipboardData).getData('text');
-                    const cursorPosition = e.target.selectionStart;
-                    const textBefore = e.target.value.substring(0, cursorPosition);
-                    const textAfter = e.target.value.substring(e.target.selectionEnd);
-                    e.target.value = textBefore + pastedText.toUpperCase() + textAfter;
-                    // Set cursor position after pasted text
-                    const newCursorPosition = cursorPosition + pastedText.length;
-                    e.target.setSelectionRange(newCursorPosition, newCursorPosition);
-                });
-            }
+            // (Institution uppercase + manual tracking handled above)
             
             // Handle Save button
             if (saveBtn) {
@@ -2284,6 +2585,7 @@ try {
 
             // API-based Database Integration
             const API_BASE_URL = 'api/mou-moa.php';
+            const TYPE_DETECT_URL = 'api/detect-mou-moa-type.php';
 
             // Function to get all entries from API
             window.getAllEntries = async function() {
@@ -2842,18 +3144,8 @@ try {
                     if (entryToEdit.category) {
                         window.detectedDocumentType = entryToEdit.category;
                         // Directly update category display without function dependency
-                        const autoCategoryText = document.getElementById('autoCategoryText');
-                        if (autoCategoryText) {
-                            autoCategoryText.textContent = `Auto-detected: ${entryToEdit.category}`;
-                            autoCategoryText.className = 'text-primary-600 dark:text-primary-400';
-                        }
                     } else {
-                        // Reset category display
-                        const autoCategoryText = document.getElementById('autoCategoryText');
-                        if (autoCategoryText) {
-                            autoCategoryText.textContent = 'Auto-detected';
-                            autoCategoryText.className = 'text-gray-500 dark:text-gray-400';
-                        }
+                        // No UI hint needed
                     }
                 } catch (error) {
                     console.error('Error setting category display:', error);

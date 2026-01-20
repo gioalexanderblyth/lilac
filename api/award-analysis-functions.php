@@ -688,7 +688,8 @@ function extractTextFromImage($filePath) {
     
     // Method 1: Direct stdout capture with error handling
     try {
-        $command = escapeshellcmd($tesseractPath) . ' ' . escapeshellarg($filePath) . ' stdout -l eng 2>&1';
+        // Quote the tesseract binary path to handle spaces in "Program Files"
+        $command = escapeshellarg($tesseractPath) . ' ' . escapeshellarg($filePath) . ' stdout -l eng 2>&1';
         logActivity("Executing OCR command: $command", 'DEBUG');
         
         $extractedText = shell_exec($command);
@@ -738,7 +739,7 @@ function extractTextFromImage($filePath) {
     
     // Method 3: Try with different language settings and options
     try {
-        $command = escapeshellcmd($tesseractPath) . ' ' . escapeshellarg($filePath) . ' stdout --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 2>&1';
+        $command = escapeshellarg($tesseractPath) . ' ' . escapeshellarg($filePath) . ' stdout --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 2>&1';
         $extractedText = shell_exec($command);
         
         if ($extractedText && !empty(trim($extractedText))) {
@@ -793,7 +794,7 @@ function extractTextFromImageFallback($filePath, $tesseractPath) {
     
     try {
         // Run Tesseract OCR with temporary file output and proper language settings
-        $command = escapeshellcmd($tesseractPath) . ' ' . escapeshellarg($filePath) . ' ' . escapeshellarg($outputFile) . ' -l eng 2>&1';
+        $command = escapeshellarg($tesseractPath) . ' ' . escapeshellarg($filePath) . ' ' . escapeshellarg($outputFile) . ' -l eng 2>&1';
         logActivity("Fallback OCR command: $command", 'DEBUG');
         
         $commandOutput = shell_exec($command);
