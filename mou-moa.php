@@ -632,7 +632,7 @@ try {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="institution">Institution</label>
-                    <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary uppercase-input" id="institution" placeholder="e.g., CENTRAL PHILIPPINE UNIVERSITY" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="text-transform: uppercase;"/>
+                    <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="institution" placeholder="e.g., Central Philippine University" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"/>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400" id="autoInstitutionText">Will auto-detect from document</p>
                 </div>
                 <div>
@@ -1608,7 +1608,7 @@ try {
                     // Auto-fill only if user hasn't typed anything meaningful yet
                     const current = String(institutionInput.value || '').trim();
                     if (!current && !institutionTouched) {
-                        institutionInput.value = detected.toUpperCase();
+                        institutionInput.value = detected;
                         setInstitutionHint(`Auto-filled: ${detected}`, 'success');
                     } else {
                         // Don't overwrite user input; still show what we detected

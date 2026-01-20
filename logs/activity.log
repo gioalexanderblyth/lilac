@@ -7109,3 +7109,85 @@ M
 [2026-01-20 09:46:09] [INFO] MySQL database connection established successfully
 [2026-01-20 09:46:15] [INFO] MySQL database connection established successfully
 [2026-01-20 09:46:15] [INFO] MySQL database connection established successfully
+[2026-01-20 09:46:44] [INFO] MySQL database connection established successfully
+[2026-01-20 09:46:46] [INFO] MySQL database connection established successfully
+[2026-01-20 09:46:48] [INFO] MySQL database connection established successfully
+[2026-01-20 09:46:48] [INFO] MySQL database connection established successfully
+[2026-01-20 09:46:57] [INFO] MySQL database connection established successfully
+[2026-01-20 09:46:57] [INFO] MySQL database connection established successfully
+[2026-01-20 09:46:57] [INFO] MySQL database connection established successfully
+[2026-01-20 09:46:57] [INFO] MySQL database connection established successfully
+[2026-01-20 09:46:57] [INFO] MySQL database connection established successfully
+[2026-01-20 09:46:57] [INFO] MySQL database connection established successfully
+[2026-01-20 09:46:57] [INFO] MySQL database connection established successfully
+[2026-01-20 09:46:57] [INFO] MySQL database connection established successfully
+[2026-01-20 09:47:06] [INFO] MySQL database connection established successfully
+[2026-01-20 09:47:24] [INFO] MySQL database connection established successfully
+[2026-01-20 09:47:24] [INFO] MySQL database connection established successfully
+[2026-01-20 09:47:28] [INFO] MySQL database connection established successfully
+[2026-01-20 09:47:28] [INFO] MySQL database connection established successfully
+[2026-01-20 09:47:39] [INFO] MySQL database connection established successfully
+[2026-01-20 09:47:39] [INFO] MySQL database connection established successfully
+[2026-01-20 09:47:39] [INFO] Starting OCR extraction for image: C:\Users\Victus\AppData\Local\Temp\mouC8F7.tmp.jpg
+[2026-01-20 09:47:39] [DEBUG] Executing OCR command: "C:\Program Files\Tesseract-OCR\tesseract.exe" "C:\Users\Victus\AppData\Local\Temp\mouC8F7.tmp.jpg" stdout -l eng 2>&1
+[2026-01-20 09:47:42] [INFO] OCR extracted: 2375 characters, 339 words. Sample: FINS Steet A rn!
+Ing,- Qe mon ty, “an. ~ehy, Z
+tn, vin Pro, RO Ree fan = Rin eng ie
+
+IKUEI KOBE
+
+M
+[2026-01-20 09:47:42] [INFO] OCR extraction successful via stdout, extracted 2375 characters
+[2026-01-20 09:48:42] [INFO] MySQL database connection established successfully
+[2026-01-20 09:48:42] [INFO] MySQL database connection established successfully
+[2026-01-20 09:48:42] [INFO] MySQL database connection established successfully
+[2026-01-20 09:48:42] [INFO] MySQL database connection established successfully
+[2026-01-20 09:48:42] [INFO] MySQL database connection established successfully
+[2026-01-20 09:48:42] [INFO] MySQL database connection established successfully
+[2026-01-20 09:48:42] [INFO] MySQL database connection established successfully
+[2026-01-20 09:49:31] [INFO] MySQL database connection established successfully
+[2026-01-20 09:49:31] [INFO] MySQL database connection established successfully
+[2026-01-20 09:49:46] [INFO] MySQL database connection established successfully
+[2026-01-20 09:49:46] [INFO] MySQL database connection established successfully
+[2026-01-20 09:51:28] [INFO] MySQL database connection established successfully
+[2026-01-20 09:51:28] [INFO] MySQL database connection established successfully
+[2026-01-20 09:51:29] [INFO] MySQL database connection established successfully
+[2026-01-20 09:51:29] [INFO] MySQL database connection established successfully
+[2026-01-20 09:51:30] [INFO] MySQL database connection established successfully
+[2026-01-20 09:51:30] [INFO] MySQL database connection established successfully
+[2026-01-20 09:51:30] [INFO] MySQL database connection established successfully
+[2026-01-20 09:51:30] [INFO] MySQL database connection established successfully
+[2026-01-20 09:51:30] [INFO] MySQL database connection established successfully
+[2026-01-20 09:51:30] [INFO] MySQL database connection established successfully
+[2026-01-20 09:51:35] [INFO] MySQL database connection established successfully
+[2026-01-20 09:51:35] [INFO] MySQL database connection established successfully
+[2026-01-20 09:51:35] [INFO] Starting OCR extraction for image: C:\Users\Victus\AppData\Local\Temp\mou6155.tmp.jpg
+[2026-01-20 09:51:35] [DEBUG] Executing OCR command: "C:\Program Files\Tesseract-OCR\tesseract.exe" "C:\Users\Victus\AppData\Local\Temp\mou6155.tmp.jpg" stdout -l eng 2>&1
+[2026-01-20 09:51:36] [INFO] OCR extracted: 1692 characters, 256 words. Sample: MEMORANDUM OF UNDERSTANDING
+between
+(CENTRAL PHILIPPINE UNIVERSITY
+‘and
+MATSUGAYA HIGH SCHOOL
+
+cat
+[2026-01-20 09:51:36] [INFO] OCR extraction successful via stdout, extracted 1692 characters
+[2026-01-20 09:53:06] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:06] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:08] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:08] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:08] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:08] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:08] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:09] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:10] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:10] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:10] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:10] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:10] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:10] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:10] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:10] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:15] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:15] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:15] [INFO] MySQL database connection established successfully
+[2026-01-20 09:53:15] [INFO] MySQL database connection established successfully
