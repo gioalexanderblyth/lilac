@@ -6,12 +6,20 @@
  * Currently supported fields:
  * - institution
  */
+
+// Suppress error display and use output buffering to catch any accidental output
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+ob_start();
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    ob_end_clean();
     http_response_code(200);
     exit();
 }
@@ -19,12 +27,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 session_start();
 
 if (!isset($_SESSION['user_id'])) {
+    ob_end_clean();
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'Unauthorized. Please login.']);
     exit();
 }
 
-require_once __DIR__ . '/award-analysis-functions.php';
+try {
+    require_once __DIR__ . '/award-analysis-functions.php';
+} catch (Throwable $e) {
+    ob_end_clean();
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Failed to load required functions: ' . $e->getMessage()]);
+    exit();
+}
+
+// Clear any output that might have been generated during includes
+ob_clean();
 
 function normalizeWhitespaceKeepNewlines($text) {
     $text = (string)($text ?? '');
@@ -48,12 +67,59 @@ function cleanInstitutionCandidate($s) {
     $s = preg_replace('/\s*,?\s*(hereinafter|herein after)\b.*$/i', '', $s);
     $s = preg_replace('/\s*[\.\,\;\:\-]+$/', '', $s);
 
-    // Remove surrounding quotes
-    $s = trim($s, " \t\n\r\0\x0B\"“”'");
+    // Remove location/address information - stop at location indicators
+    // Remove anything after patterns like ", located", ", in [city]", ", [country]", etc.
+    $s = preg_replace('/\s*,\s*(located\s+(?:at|in)|in\s+[A-Z][a-z]+|at\s+[A-Z][a-z]+).*$/i', '', $s);
+    
+    // Remove country/city names at the end (common pattern: "University, City, Country")
+    // List of common location keywords that shouldn't be in institution name
+    $locationPatterns = [
+        '/\s*,\s*(china|japan|philippines|philippine|united\s+states|usa|korea|canada|australia|singapore|malaysia|thailand|vietnam|indonesia|india|taiwan).*$/i',
+        '/\s*,\s*([A-Z][a-z]+\s*(?:city|province|state|region|prefecture|county)).*$/i',
+        '/\s*,\s*([A-Z][a-z]+,\s*(?:china|japan|philippines|philippine|united\s+states|usa|korea|canada|australia|singapore|malaysia|thailand|vietnam|indonesia|india|taiwan)).*$/i',
+    ];
+    foreach ($locationPatterns as $pattern) {
+        $s = preg_replace($pattern, '', $s);
+    }
+    
+    // If there are multiple commas, likely has address info - take only first part
+    // But be careful: some institution names legitimately have commas (e.g., "X, Inc.")
+    // Only split if we detect location keywords
+    if (preg_match('/^([^,]+(?:,\s*[^,]+)*?)(?:,\s*[^,]*?(?:located|address|in\s+[A-Z]|city|province|state|country|china|japan|philippines|usa|korea|canada|australia))/i', $s, $m)) {
+        $s = $m[1];
+    }
+    
+    // Remove surrounding quotes (including curly quotes)
+    $s = trim($s);
+    $s = preg_replace('/^["\x{201C}\x{201D}\x{201E}\x{201F}]+|["\x{201C}\x{201D}\x{201E}\x{201F}]+$/u', '', $s);
+    $s = preg_replace("/^['\x{2018}\x{2019}\x{201A}\x{201B}]+|['\x{2018}\x{2019}\x{201A}\x{201B}]+$/u", '', $s);
 
     // Guardrails: avoid returning generic words
     if (strlen($s) < 4) return '';
     if (preg_match('/^(memorandum|agreement|understanding|contract|page)\b/i', $s)) return '';
+    
+    // Reject person names: patterns like "nee", initials only, or name-like patterns
+    $lower = strtolower($s);
+    if (preg_match('/\bnee\b/i', $s)) return ''; // "nee" indicates a person's name (maiden name)
+    if (preg_match('/^(mr|mrs|ms|dr|prof|professor)\s+/i', $s)) return ''; // Titles indicate person names
+    if (preg_match('/\b(sr|jr|iii|iv|ii)\b/i', $s)) return ''; // Suffixes indicate person names
+    
+    // Reject if it looks like initials or very short name patterns (e.g., "KM SANG")
+    // But allow if it contains institution keywords
+    $hasInstitutionKeyword = preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $s);
+    if (!$hasInstitutionKeyword) {
+        // If it's mostly uppercase initials/words without institution keywords, likely a person name
+        $words = preg_split('/\s+/', $s);
+        $shortWords = 0;
+        foreach ($words as $word) {
+            $cleanWord = preg_replace('/[^A-Za-z]/', '', $word);
+            if (strlen($cleanWord) <= 3) $shortWords++;
+        }
+        // If more than half are short words, likely initials/name
+        if (count($words) > 0 && $shortWords >= ceil(count($words) / 2) && count($words) <= 6) {
+            return '';
+        }
+    }
 
     return trim($s);
 }
@@ -118,14 +184,37 @@ function scoreInstitutionLine($line) {
     if (preg_match('/\bmemorandum\b|\bof\b\s+\b(understanding|agreement)\b/i', $line)) return 0;
     if (preg_match('/\bdate\b|\bday\b|\bmonth\b|\byear\b/i', $line)) return 0;
     if (preg_match('/\b(signature|signatory|witness|whereas|therefore)\b/i', $line)) return 0;
+    
+    // Reject person names
+    if (preg_match('/\bnee\b/i', $line)) return 0; // "nee" indicates person name
+    if (preg_match('/^(mr|mrs|ms|dr|prof|professor)\s+/i', $line)) return 0; // Titles
+    if (preg_match('/\b(sr|jr|iii|iv|ii)\b/i', $line)) return 0; // Name suffixes
 
     $len = strlen($line);
     if ($len < 8 || $len > 160) return 0;
 
     $score = 0;
 
-    // Keyword boosts
-    if (preg_match('/\b(university|college|institute|institution|school|academy|polytechnic)\b/i', $line)) $score += 6;
+    // Keyword boosts (REQUIRED for valid institution)
+    $hasInstitutionKeyword = preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $line);
+    if ($hasInstitutionKeyword) {
+        $score += 8; // Strong boost for institution keywords
+    } else {
+        // Without institution keywords, heavily penalize (likely a person name)
+        // Check if it looks like initials/name pattern
+        $words = preg_split('/\s+/', $line);
+        $shortWords = 0;
+        foreach ($words as $word) {
+            $cleanWord = preg_replace('/[^A-Za-z]/', '', $word);
+            if (strlen($cleanWord) <= 3) $shortWords++;
+        }
+        if (count($words) > 0 && $shortWords >= ceil(count($words) / 2) && count($words) <= 6) {
+            return 0; // Reject initials/name patterns without institution keywords
+        }
+        // If no institution keyword and doesn't look like name, give very low score
+        $score -= 5;
+    }
+    
     if (preg_match('/\b(department|center|centre|office)\b/i', $line)) $score += 2;
     if (preg_match('/\b(philippines|philippine)\b/i', $line)) $score += 1;
 
@@ -295,7 +384,46 @@ function extractInstitutionFromText($text) {
         $key = strtolower(preg_replace('/\s+/', ' ', $c['value']));
         if (isset($seen[$key])) continue;
         $seen[$key] = true;
-        $unique[] = $c;
+        
+        // Final validation: reject person names even from "between" clauses
+        $cleaned = cleanInstitutionCandidate($c['value']);
+        if ($cleaned === '') continue; // Rejected by cleanup
+        
+        // Check for institution keywords
+        $hasKeyword = preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $cleaned);
+        
+        // Validation rules:
+        // 1. "label" method: always accept (user explicitly labeled it)
+        // 2. "between" method: accept if has keywords OR if no person name indicators and reasonable length
+        // 3. "lines" method: require keywords (too noisy otherwise)
+        if ($c['method'] === 'label') {
+            // Always accept labeled institutions
+            $unique[] = ['value' => $cleaned, 'method' => $c['method']];
+        } elseif ($c['method'] === 'between' || $c['method'] === 'between_lines') {
+            // For between clauses: accept if has keywords OR if it's not obviously a person name
+            if ($hasKeyword) {
+                $unique[] = ['value' => $cleaned, 'method' => $c['method']];
+            } else {
+                // Without keywords, check it's not a person name pattern
+                // If it's long enough and doesn't look like initials/name, allow it
+                $len = strlen($cleaned);
+                $words = preg_split('/\s+/', $cleaned);
+                $shortWords = 0;
+                foreach ($words as $word) {
+                    $cleanWord = preg_replace('/[^A-Za-z]/', '', $word);
+                    if (strlen($cleanWord) <= 3) $shortWords++;
+                }
+                // Allow if: reasonable length AND not mostly short words (initials)
+                if ($len >= 8 && $len <= 160 && !($shortWords >= ceil(count($words) / 2) && count($words) <= 6)) {
+                    $unique[] = ['value' => $cleaned, 'method' => $c['method']];
+                }
+            }
+        } else {
+            // For line-based detection: require keywords (too noisy otherwise)
+            if ($hasKeyword) {
+                $unique[] = ['value' => $cleaned, 'method' => $c['method']];
+            }
+        }
     }
 
     // Choose first (label/between often strongest), fallback to best line-based
@@ -305,12 +433,23 @@ function extractInstitutionFromText($text) {
     $chosen = '';
     $method = 'none';
     if (is_array($betweenParties) && count($betweenParties) === 2 && !empty($betweenParties[1])) {
-        $chosen = $betweenParties[1];
-        $method = 'between';
-    } else {
+        $cleanedParty = cleanInstitutionCandidate($betweenParties[1]);
+        // Use if it passes validation (cleaned successfully - already filtered person names)
+        // Don't require keywords here - allow legitimate institutions without keywords
+        if ($cleanedParty !== '') {
+            $chosen = $cleanedParty;
+            $method = 'between';
+        }
+    }
+    
+    // Fallback to first valid candidate if between didn't yield valid result
+    if ($chosen === '' && !empty($unique)) {
         $chosen = $unique[0]['value'] ?? '';
         $method = $unique[0]['method'] ?? 'none';
     }
+
+    // Final cleanup pass: ensure institution name doesn't contain location info
+    $chosen = cleanInstitutionCandidate($chosen);
 
     // Confidence heuristic
     $confidence = 'low';
@@ -386,40 +525,31 @@ function extractInstitutionLocationFromText($text, $instData) {
 
 /**
  * Normalize location down to country-level to keep it short (e.g., "Nagata-ku, Kobe-shi, Japan" -> "Japan").
+ * Uses the enhanced rule-based country detector.
  */
 function normalizeLocationToCountry($location) {
     $loc = trim((string)$location);
     if ($loc === '') return $loc;
 
-    $lower = strtolower($loc);
-
-    // Explicit country cues
-    if (strpos($lower, 'japan') !== false) return 'Japan';
-    if (strpos($lower, 'philippine') !== false) return 'Philippines';
-    if (strpos($lower, 'united states') !== false || strpos($lower, 'usa') !== false || strpos($lower, 'u.s.a') !== false) return 'United States';
-    if (strpos($lower, 'korea') !== false) return 'Korea';
-    if (strpos($lower, 'canada') !== false) return 'Canada';
-    if (strpos($lower, 'australia') !== false) return 'Australia';
-    if (strpos($lower, 'singapore') !== false) return 'Singapore';
-    if (strpos($lower, 'malaysia') !== false) return 'Malaysia';
-    if (strpos($lower, 'thailand') !== false) return 'Thailand';
-    if (strpos($lower, 'vietnam') !== false) return 'Vietnam';
-    if (strpos($lower, 'indonesia') !== false) return 'Indonesia';
-    if (strpos($lower, 'china') !== false) return 'China';
-    if (strpos($lower, 'india') !== false) return 'India';
-    if (strpos($lower, 'taiwan') !== false) return 'Taiwan';
-
-    // Use the broader detector (works on single strings too)
+    // First try: detect country from the full location string
     $detected = detectCountryFromText($loc);
     if ($detected) return $detected;
 
-    // Try comma-separated: take the last segment
+    // Second try: if location has commas, check the last segment (common pattern: "City, Country")
     $parts = array_filter(array_map('trim', explode(',', $loc)));
-    if (!empty($parts)) {
-        // Prefer the last comma segment only if it contains a country keyword
+    if (!empty($parts) && count($parts) > 1) {
+        // Try last segment first (most common pattern)
         $last = end($parts);
         $lastCountry = detectCountryFromText($last);
         if ($lastCountry) return $lastCountry;
+        
+        // Also check second-to-last segment (some formats: "City, State, Country")
+        if (count($parts) >= 2) {
+            $partsArray = array_values($parts);
+            $secondLast = $partsArray[count($partsArray) - 2];
+            $secondLastCountry = detectCountryFromText($secondLast);
+            if ($secondLastCountry) return $secondLastCountry;
+        }
     }
 
     // No country detected — return empty to avoid populating with city/region
@@ -427,54 +557,435 @@ function normalizeLocationToCountry($location) {
 }
 
 /**
- * Detect a country from the full extracted text (broad scan).
+ * Rule-based country detector with comprehensive patterns, cities, and variations.
+ * Detects countries from text using multiple strategies:
+ * 1. Direct country name matches (with variations)
+ * 2. City-to-country mappings
+ * 3. Province/state-to-country mappings
+ * 4. Country codes and abbreviations
+ * 5. Region-to-country mappings
  */
 function detectCountryFromText($text) {
-    $lower = strtolower((string)$text);
-    if ($lower === '') return '';
-    if (strpos($lower, 'japan') !== false) return 'Japan';
-    if (strpos($lower, 'philippines') !== false || strpos($lower, 'philippine') !== false) return 'Philippines';
-    if (strpos($lower, 'united states') !== false || strpos($lower, 'usa') !== false || strpos($lower, 'u.s.a') !== false) return 'United States';
-    if (strpos($lower, 'korea') !== false) return 'Korea';
-    if (strpos($lower, 'canada') !== false) return 'Canada';
-    if (strpos($lower, 'australia') !== false) return 'Australia';
-    if (strpos($lower, 'singapore') !== false) return 'Singapore';
-    if (strpos($lower, 'malaysia') !== false) return 'Malaysia';
-    if (strpos($lower, 'thailand') !== false) return 'Thailand';
-    if (strpos($lower, 'vietnam') !== false) return 'Vietnam';
-    if (strpos($lower, 'indonesia') !== false) return 'Indonesia';
-    if (strpos($lower, 'china') !== false) return 'China';
-    if (strpos($lower, 'india') !== false) return 'India';
-    if (strpos($lower, 'taiwan') !== false) return 'Taiwan';
+    $text = trim((string)$text);
+    if ($text === '') return '';
+    
+    $lower = strtolower($text);
+    $normalized = preg_replace('/[^\w\s]/', ' ', $lower); // Remove punctuation, keep words
+    $normalized = preg_replace('/\s+/', ' ', $normalized); // Normalize whitespace
+    
+    // Comprehensive country detection rules
+    $countryRules = [
+        // China - high priority for Fujian/Zhangzhou
+        'China' => [
+            'patterns' => [
+                '/\bchina\b/',
+                '/\bfujian\b/',
+                '/\bzhangzhou\b/',
+                '/\bchinese\b/',
+                '/\bprc\b/', // People's Republic of China
+                '/\bcn\b/',  // Country code (with word boundaries)
+            ],
+            'cities' => [
+                'beijing', 'shanghai', 'guangzhou', 'shenzhen', 'chengdu', 'hangzhou',
+                'wuhan', 'xian', 'nanjing', 'tianjin', 'chongqing', 'dalian',
+                'xiamen', 'qingdao', 'fuzhou', 'suzhou', 'ningbo', 'wenzhou'
+            ],
+            'provinces' => [
+                'guangdong', 'jiangsu', 'zhejiang', 'shandong', 'henan', 'sichuan',
+                'hubei', 'hunan', 'fujian', 'anhui', 'liaoning', 'hebei',
+                'shaanxi', 'jiangxi', 'guangxi', 'yunnan', 'heilongjiang'
+            ]
+        ],
+        
+        // Japan
+        'Japan' => [
+            'patterns' => [
+                '/\bjapan\b/',
+                '/\bjapanese\b/',
+                '/\bjp\b/',  // Country code
+            ],
+            'cities' => [
+                'tokyo', 'osaka', 'yokohama', 'nagoya', 'sapporo', 'fukuoka',
+                'kobe', 'kyoto', 'saitama', 'hiroshima', 'sendai', 'kawasaki',
+                'chiba', 'kitakyushu', 'sakai', 'shizuoka', 'nagata'
+            ],
+            'provinces' => [
+                'hokkaido', 'aomori', 'iwate', 'miyagi', 'akita', 'yamagata',
+                'fukushima', 'ibaraki', 'tochigi', 'gunma', 'saitama', 'chiba',
+                'tokyo', 'kanagawa', 'yamanashi', 'nagano', 'niigata', 'toyama'
+            ]
+        ],
+        
+        // Philippines
+        'Philippines' => [
+            'patterns' => [
+                '/\bphilippines\b/',
+                '/\bphilippine\b/',
+                '/\bph\b/',      // Country code
+                '/\bphl\b/',     // ISO code
+            ],
+            'cities' => [
+                'manila', 'quezon city', 'davao', 'caloocan', 'cebu', 'zamboanga',
+                'antipolo', 'pasig', 'tagig', 'valenzuela', 'paranaque', 'makati',
+                'san jose del monte', 'las pinas', 'bacolod', 'iloilo', 'muntinlupa',
+                'calamba', 'marikina', 'butuan', 'las pinas', 'mandaluyong'
+            ],
+            'provinces' => [
+                'metro manila', 'cavite', 'laguna', 'rizal', 'bulacan', 'pampanga',
+                'bataan', 'nueva ecija', 'tarlac', 'pangasinan', 'batangas', 'quezon'
+            ]
+        ],
+        
+        // United States
+        'United States' => [
+            'patterns' => [
+                '/\bunited\s+states\b/',
+                '/\busa\b/',
+                '/\bu\.s\.a\b/',
+                '/\bu\.s\b/',
+                '/\bus\b/',      // Country code
+                '/\bamerican\b/',
+            ],
+            'cities' => [
+                'new york', 'los angeles', 'chicago', 'houston', 'phoenix', 'philadelphia',
+                'san antonio', 'san diego', 'dallas', 'san jose', 'austin', 'jacksonville',
+                'san francisco', 'indianapolis', 'columbus', 'fort worth', 'charlotte'
+            ],
+            'provinces' => [
+                'california', 'texas', 'florida', 'new york', 'pennsylvania', 'illinois',
+                'ohio', 'georgia', 'north carolina', 'michigan', 'new jersey', 'virginia'
+            ]
+        ],
+        
+        // South Korea
+        'Korea' => [
+            'patterns' => [
+                '/\bsouth\s+korea\b/',
+                '/\bkorea\b/',
+                '/\bkorean\b/',
+                '/\bkr\b/',      // Country code
+                '/\bkorea\s+republic\b/',
+            ],
+            'cities' => [
+                'seoul', 'busan', 'incheon', 'daegu', 'daejeon', 'gwangju',
+                'suwon', 'ulsan', 'changwon', 'goyang', 'yongin', 'bucheon'
+            ],
+            'provinces' => [
+                'gyeonggi', 'gangwon', 'chungbuk', 'chungnam', 'jeonbuk', 'jeonnam',
+                'gyeongbuk', 'gyeongnam', 'jeju'
+            ]
+        ],
+        
+        // North Korea (separate handling if needed)
+        'North Korea' => [
+            'patterns' => [
+                '/\bnorth\s+korea\b/',
+                '/\bdprk\b/',
+            ],
+            'cities' => ['pyongyang'],
+        ],
+        
+        // Canada
+        'Canada' => [
+            'patterns' => [
+                '/\bcanada\b/',
+                '/\bcanadian\b/',
+                '/\bca\b/',      // Country code
+                '/\bcan\b/',
+            ],
+            'cities' => [
+                'toronto', 'montreal', 'calgary', 'ottawa', 'edmonton', 'winnipeg',
+                'vancouver', 'mississauga', 'brampton', 'hamilton', 'quebec'
+            ],
+            'provinces' => [
+                'ontario', 'quebec', 'british columbia', 'alberta', 'manitoba',
+                'saskatchewan', 'nova scotia', 'new brunswick', 'newfoundland'
+            ]
+        ],
+        
+        // Australia
+        'Australia' => [
+            'patterns' => [
+                '/\baustralia\b/',
+                '/\baustralian\b/',
+                '/\bau\b/',      // Country code
+                '/\baus\b/',
+            ],
+            'cities' => [
+                'sydney', 'melbourne', 'brisbane', 'perth', 'adelaide', 'gold coast',
+                'newcastle', 'canberra', 'sunshine coast', 'wollongong', 'hobart'
+            ],
+            'provinces' => [
+                'new south wales', 'victoria', 'queensland', 'western australia',
+                'south australia', 'tasmania', 'australian capital territory'
+            ]
+        ],
+        
+        // Singapore
+        'Singapore' => [
+            'patterns' => [
+                '/\bsingapore\b/',
+                '/\bsingaporean\b/',
+                '/\bsg\b/',      // Country code
+                '/\bsgp\b/',
+            ],
+            'cities' => ['singapore'],
+        ],
+        
+        // Malaysia
+        'Malaysia' => [
+            'patterns' => [
+                '/\bmalaysia\b/',
+                '/\bmalaysian\b/',
+                '/\bmy\b/',      // Country code
+                '/\bmys\b/',
+            ],
+            'cities' => [
+                'kuala lumpur', 'george town', 'ipoh', 'shah alam', 'petaling jaya',
+                'johor bahru', 'melaka', 'kuching', 'kota kinabalu', 'seremban'
+            ],
+            'provinces' => [
+                'johor', 'kedah', 'kelantan', 'melaka', 'negeri sembilan',
+                'pahang', 'penang', 'perak', 'perlis', 'sabah', 'sarawak', 'selangor'
+            ]
+        ],
+        
+        // Thailand
+        'Thailand' => [
+            'patterns' => [
+                '/\bthailand\b/',
+                '/\bthai\b/',
+                '/\bth\b/',      // Country code
+                '/\btha\b/',
+            ],
+            'cities' => [
+                'bangkok', 'nonthaburi', 'nakhon ratchasima', 'chiang mai', 'hat yai',
+                'udon thani', 'pak kret', 'khon kaen', 'chaophraya surasak'
+            ],
+            'provinces' => [
+                'bangkok', 'chiang mai', 'chiang rai', 'phuket', 'pattaya',
+                'ayutthaya', 'sukhothai', 'kanchanaburi'
+            ]
+        ],
+        
+        // Vietnam
+        'Vietnam' => [
+            'patterns' => [
+                '/\bvietnam\b/',
+                '/\bvietnamese\b/',
+                '/\bvn\b/',      // Country code
+                '/\bvnm\b/',
+            ],
+            'cities' => [
+                'ho chi minh city', 'hanoi', 'haiphong', 'can tho', 'da nang',
+                'bian hoa', 'hue', 'nha trang', 'vung tau', 'quy nhon'
+            ],
+            'provinces' => [
+                'ho chi minh', 'hanoi', 'haiphong', 'can tho', 'da nang',
+                'dong nai', 'binh duong', 'long an', 'tien giang'
+            ]
+        ],
+        
+        // Indonesia
+        'Indonesia' => [
+            'patterns' => [
+                '/\bindonesia\b/',
+                '/\bindonesian\b/',
+                '/\bid\b/',      // Country code
+                '/\bidn\b/',
+            ],
+            'cities' => [
+                'jakarta', 'surabaya', 'bandung', 'medan', 'semarang', 'makassar',
+                'palembang', 'tangerang', 'depok', 'bekasi', 'yogyakarta', 'bogor'
+            ],
+            'provinces' => [
+                'java', 'sumatra', 'kalimantan', 'sulawesi', 'papua', 'bali',
+                'west java', 'east java', 'central java', 'jakarta'
+            ]
+        ],
+        
+        // India
+        'India' => [
+            'patterns' => [
+                '/\bindia\b/',
+                '/\bindian\b/',
+                '/\bin\b/',      // Country code
+                '/\bind\b/',
+            ],
+            'cities' => [
+                'mumbai', 'delhi', 'bangalore', 'hyderabad', 'chennai', 'kolkata',
+                'pune', 'ahmedabad', 'surat', 'jaipur', 'lucknow', 'kanpur'
+            ],
+            'provinces' => [
+                'maharashtra', 'karnataka', 'tamil nadu', 'delhi', 'gujarat',
+                'west bengal', 'rajasthan', 'uttar pradesh', 'andhra pradesh'
+            ]
+        ],
+        
+        // Taiwan
+        'Taiwan' => [
+            'patterns' => [
+                '/\btaiwan\b/',
+                '/\btaiwanese\b/',
+                '/\broc\b/',     // Republic of China (Taiwan)
+                '/\btw\b/',      // Country code
+                '/\btwn\b/',
+            ],
+            'cities' => [
+                'taipei', 'kaohsiung', 'taichung', 'tainan', 'banqiao', 'hsinchu',
+                'taoyuan', 'keelung', 'chiayi', 'changhua'
+            ],
+            'provinces' => [
+                'taipei', 'new taipei', 'taoyuan', 'taichung', 'tainan', 'kaohsiung'
+            ]
+        ],
+        
+        // Additional countries
+        'United Kingdom' => [
+            'patterns' => ['/\bunited\s+kingdom\b/', '/\buk\b/', '/\bbritain\b/', '/\bbritish\b/', '/\bgb\b/', '/\bgbr\b/'],
+            'cities' => ['london', 'manchester', 'birmingham', 'glasgow', 'liverpool', 'leeds', 'edinburgh'],
+            'provinces' => ['england', 'scotland', 'wales', 'northern ireland'],
+        ],
+        
+        'Germany' => [
+            'patterns' => ['/\bgermany\b/', '/\bgerman\b/', '/\bde\b/', '/\bdeu\b/'],
+            'cities' => ['berlin', 'munich', 'hamburg', 'frankfurt', 'cologne', 'stuttgart'],
+            'provinces' => ['bavaria', 'baden-wurttemberg', 'north rhine-westphalia', 'hesse'],
+        ],
+        
+        'France' => [
+            'patterns' => ['/\bfrance\b/', '/\bfrench\b/', '/\bfr\b/', '/\bfra\b/'],
+            'cities' => ['paris', 'marseille', 'lyon', 'toulouse', 'nice', 'nantes'],
+            'provinces' => ['ile-de-france', 'provence-alpes-cote d\'azur', 'auvergne-rhone-alpes'],
+        ],
+        
+        'Italy' => [
+            'patterns' => ['/\bitaly\b/', '/\bitalian\b/', '/\bit\b/', '/\bita\b/'],
+            'cities' => ['rome', 'milan', 'naples', 'turin', 'palermo', 'genoa'],
+            'provinces' => ['lombardy', 'lazio', 'campania', 'sicily', 'veneto'],
+        ],
+        
+        'Spain' => [
+            'patterns' => ['/\bspain\b/', '/\bspanish\b/', '/\bes\b/', '/\besp\b/'],
+            'cities' => ['madrid', 'barcelona', 'valencia', 'seville', 'zaragoza', 'malaga'],
+            'provinces' => ['andalusia', 'catalonia', 'madrid', 'valencia', 'castile'],
+        ],
+        
+        'Brazil' => [
+            'patterns' => ['/\bbrazil\b/', '/\bbrazilian\b/', '/\bbr\b/', '/\bbra\b/'],
+            'cities' => ['sao paulo', 'rio de janeiro', 'brasilia', 'salvador', 'fortaleza', 'belo horizonte'],
+            'provinces' => ['sao paulo', 'rio de janeiro', 'minas gerais', 'bahia'],
+        ],
+        
+        'Mexico' => [
+            'patterns' => ['/\bmexico\b/', '/\bmexican\b/', '/\bmx\b/', '/\bmex\b/'],
+            'cities' => ['mexico city', 'guadalajara', 'monterrey', 'puebla', 'tijuana'],
+            'provinces' => ['jalisco', 'nuevo leon', 'puebla', 'mexico state'],
+        ],
+        
+        'New Zealand' => [
+            'patterns' => ['/\bnew\s+zealand\b/', '/\bnz\b/', '/\bnzl\b/'],
+            'cities' => ['auckland', 'wellington', 'christchurch', 'hamilton', 'dunedin'],
+            'provinces' => ['auckland', 'wellington', 'canterbury', 'waikato'],
+        ],
+        
+        'Hong Kong' => [
+            'patterns' => ['/\bhong\s+kong\b/', '/\bhk\b/', '/\bhkg\b/'],
+            'cities' => ['hong kong', 'kowloon', 'new territories'],
+        ],
+        
+        'South Africa' => [
+            'patterns' => ['/\bsouth\s+africa\b/', '/\bza\b/', '/\bzaf\b/'],
+            'cities' => ['johannesburg', 'cape town', 'durban', 'pretoria', 'port elizabeth'],
+            'provinces' => ['gauteng', 'western cape', 'kwazulu-natal', 'eastern cape'],
+        ],
+    ];
+    
+    // Priority order: check patterns first, then cities, then provinces
+    // This ensures direct country mentions take precedence
+    
+    // Step 1: Check direct country patterns (highest priority)
+    foreach ($countryRules as $country => $rules) {
+        if (isset($rules['patterns'])) {
+            foreach ($rules['patterns'] as $pattern) {
+                if (preg_match($pattern, $normalized)) {
+                    return $country;
+                }
+            }
+        }
+    }
+    
+    // Step 2: Check cities (medium priority)
+    foreach ($countryRules as $country => $rules) {
+        if (isset($rules['cities'])) {
+            foreach ($rules['cities'] as $city) {
+                // Use word boundary to avoid partial matches
+                if (preg_match('/\b' . preg_quote($city, '/') . '\b/', $normalized)) {
+                    return $country;
+                }
+            }
+        }
+    }
+    
+    // Step 3: Check provinces/states (lower priority)
+    foreach ($countryRules as $country => $rules) {
+        if (isset($rules['provinces'])) {
+            foreach ($rules['provinces'] as $province) {
+                // Use word boundary to avoid partial matches
+                if (preg_match('/\b' . preg_quote($province, '/') . '\b/', $normalized)) {
+                    return $country;
+                }
+            }
+        }
+    }
+    
     return '';
 }
-function extractLocationsFromText($text) {
-    $raw = normalizeWhitespaceKeepNewlines($text);
-    $locations = [];
 
-    // Pattern: "<party> located at <location> ..."
-    if (preg_match_all('/([\\w\\s\\.,\\-&()]+?)\\s+located\\s+at\\s+([^\\.;\\n]+)(?:[\\.;]|\\n|,\\s*hereinafter|\\s+hereinafter|\\s+and\\s)/i', $raw, $m, PREG_SET_ORDER)) {
-        foreach ($m as $match) {
-            $loc = cleanLocationCandidate($match[2] ?? '');
-            if ($loc !== '') $locations[] = $loc;
-        }
-    }
+/**
+ * Detect partner country while avoiding false positives from CPU's local address.
+ * Rule:
+ * - Prefer partner-tied location string first (if present)
+ * - If fallback is needed, prefer NON-Philippines country mentions from the full text
+ * - Only return Philippines if it appears tied to the partner (partner location string / partner name)
+ */
+function detectPartnerCountryFromOcr($fullText, $partnerInstitution, $partnerLocationStr) {
+    $fullTextLower = strtolower((string)$fullText);
+    $partnerInstitutionLower = strtolower((string)$partnerInstitution);
+    $partnerLocLower = strtolower((string)$partnerLocationStr);
 
-    // Fallback: collect standalone "located at ..." phrases
-    if (empty($locations) && preg_match_all('/located\\s+at\\s+([^\\.;\\n]+)(?:[\\.;]|\\n|,\\s*hereinafter|\\s+hereinafter|\\s+and\\s)/i', $raw, $m2)) {
-        foreach ($m2[1] as $loc) {
-            $loc = cleanLocationCandidate($loc);
-            if ($loc !== '') $locations[] = $loc;
-        }
-    }
+    // 1) If partner location explicitly contains a country (including PH), trust it.
+    $countryFromPartnerLoc = detectCountryFromText($partnerLocationStr);
+    if ($countryFromPartnerLoc) return $countryFromPartnerLoc;
 
-    // Choose the second location if multiple (partner institution), else first
-    $partnerLocation = $locations[1] ?? $locations[0] ?? '';
-
-    return [
-        'locations' => $locations,
-        'partner_location' => $partnerLocation
+    // 2) Prefer non-PH countries from full text (avoid CPU address dominating).
+    $nonPh = [
+        'China' => ['china', 'fujian', 'zhangzhou'],
+        'Japan' => ['japan'],
+        'United States' => ['united states', 'usa', 'u.s.a'],
+        'Korea' => ['korea'],
+        'Canada' => ['canada'],
+        'Australia' => ['australia'],
+        'Singapore' => ['singapore'],
+        'Malaysia' => ['malaysia'],
+        'Thailand' => ['thailand'],
+        'Vietnam' => ['vietnam'],
+        'Indonesia' => ['indonesia'],
+        'India' => ['india'],
+        'Taiwan' => ['taiwan'],
     ];
+    foreach ($nonPh as $country => $needles) {
+        foreach ($needles as $needle) {
+            if (strpos($fullTextLower, $needle) !== false) return $country;
+        }
+    }
+
+    // 3) Philippines only if tied to partner (name/location contains it).
+    if (strpos($partnerLocLower, 'philippine') !== false || strpos($partnerInstitutionLower, 'philippine') !== false || strpos($partnerInstitutionLower, 'philippines') !== false) {
+        return 'Philippines';
+    }
+
+    return '';
 }
 
 try {
@@ -533,33 +1044,60 @@ try {
     $extracted = '';
     try {
         $extracted = extractTextFromFile($tempPath, $mimeType ?: ($file['type'] ?? ''));
+        
+        // Handle JSON error response from OCR utilities (e.g., missing tesseract)
+        if (is_string($extracted) && !empty($extracted)) {
+            $jsonError = json_decode($extracted, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($jsonError) && isset($jsonError['error'])) {
+                ob_end_clean();
+                http_response_code(200);
+                echo json_encode([
+                    'success' => false,
+                    'error' => $jsonError['user_message'] ?? $jsonError['message'] ?? 'OCR unavailable',
+                    'debug_info' => $jsonError['debug_info'] ?? null
+                ]);
+                exit();
+            }
+        }
+    } catch (Throwable $e) {
+        if (file_exists($tempPath)) {
+            @unlink($tempPath);
+        }
+        throw new Exception('Text extraction failed: ' . $e->getMessage());
     } finally {
         if (file_exists($tempPath)) {
             @unlink($tempPath);
         }
     }
 
-    // Handle JSON error response from OCR utilities (e.g., missing tesseract)
-    $jsonError = json_decode($extracted, true);
-    if ($jsonError && isset($jsonError['error'])) {
-        http_response_code(200);
-        echo json_encode([
-            'success' => false,
-            'error' => $jsonError['user_message'] ?? $jsonError['message'] ?? 'OCR unavailable',
-            'debug_info' => $jsonError['debug_info'] ?? null
-        ]);
-        exit();
+    $institutionFields = extractInstitutionFromText($extracted);
+    $locationRaw = extractInstitutionLocationFromText($extracted, $institutionFields);
+
+    $locationMethod = 'none';
+
+    // Country-only: first try partner-tied location string
+    $locationField = normalizeLocationToCountry($locationRaw);
+    if ($locationField) {
+        $locationMethod = 'matched_institution';
     }
 
-    $institutionFields = extractInstitutionFromText($extracted);
-    $locationField = extractInstitutionLocationFromText($extracted, $institutionFields);
-    // Always prefer country-level detection to avoid long addresses
-    $countryFromText = detectCountryFromText($extracted);
-    if ($countryFromText) {
-        $locationField = $countryFromText;
+    // If we didn't get a country from the partner-tied string, try safe fallback logic:
+    // prefer non-PH countries from full text; only return PH if tied to partner.
+    if (!$locationField) {
+        $partnerInstitution = (string)($institutionFields['institution'] ?? '');
+        $locationField = detectPartnerCountryFromOcr($extracted, $partnerInstitution, $locationRaw);
+        if ($locationField) {
+            $locationMethod = 'partner_country';
+        }
     }
-    $locationField = normalizeLocationToCountry($locationField ?: $countryFromText);
-    $locationMethod = $locationField ? 'matched_institution' : 'none';
+
+    // Final fallback: detect any country mention from full text
+    if (!$locationField) {
+        $locationField = detectCountryFromText($extracted);
+        if ($locationField) {
+            $locationMethod = 'country_fallback';
+        }
+    }
 
     $debug = isset($_GET['debug']) && $_GET['debug'] === '1';
     $resp = [
@@ -584,8 +1122,12 @@ try {
         ];
     }
 
+    // Clear any accidental output before sending JSON
+    ob_end_clean();
     echo json_encode($resp);
-} catch (Exception $e) {
+} catch (Throwable $e) {
+    // Clear any accidental output before sending error JSON
+    ob_end_clean();
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }

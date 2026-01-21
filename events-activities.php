@@ -70,6 +70,7 @@ try {
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
 <link rel="icon" href="assets/images/cpu-logo.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <link rel="stylesheet" href="assets/css/tailwind.css">
 <script>
         // Apply theme immediately to prevent flash
@@ -84,6 +85,7 @@ try {
 </script>
 <link rel="stylesheet" href="css/award-analyzer.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="js/notifications.js"></script>
 <script src="js/award-analyzer.js"></script>
     <!-- Tailwind runtime config removed; using compiled CSS in assets/css/tailwind.css -->
@@ -111,6 +113,160 @@ try {
         }
         .chartjs-legend-color {
             color: theme('colors.text-light');
+        }
+        
+        /* Modern Flatpickr Calendar Styling */
+        .flatpickr-calendar {
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .dark .flatpickr-calendar {
+            background: #1f2937;
+            border-color: #374151;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .flatpickr-months {
+            border-radius: 12px 12px 0 0;
+            padding: 12px;
+            background: linear-gradient(135deg, #137fec 0%, #0d6efd 100%);
+        }
+        
+        .dark .flatpickr-months {
+            background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+        }
+        
+        .flatpickr-month {
+            color: white;
+        }
+        
+        .flatpickr-current-month {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        
+        .flatpickr-prev-month,
+        .flatpickr-next-month {
+            color: white;
+            fill: white;
+            padding: 4px;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+        
+        .flatpickr-prev-month:hover,
+        .flatpickr-next-month:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .flatpickr-weekdays {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 8px 0;
+        }
+        
+        .dark .flatpickr-weekdays {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .flatpickr-weekday {
+            color: #6b7280;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .dark .flatpickr-weekday {
+            color: #9ca3af;
+        }
+        
+        .flatpickr-day {
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s;
+            margin: 2px;
+        }
+        
+        .flatpickr-day:hover {
+            background: #e5e7eb;
+            border-color: #e5e7eb;
+            transform: scale(1.05);
+        }
+        
+        .dark .flatpickr-day:hover {
+            background: #374151;
+            border-color: #4b5563;
+        }
+        
+        .flatpickr-day.selected,
+        .flatpickr-day.startRange,
+        .flatpickr-day.endRange {
+            background: #137fec;
+            border-color: #137fec;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(19, 127, 236, 0.3);
+        }
+        
+        .flatpickr-day.selected:hover,
+        .flatpickr-day.startRange:hover,
+        .flatpickr-day.endRange:hover {
+            background: #0d6efd;
+            transform: scale(1.05);
+        }
+        
+        .flatpickr-day.today {
+            border-color: #137fec;
+            font-weight: 600;
+        }
+        
+        .flatpickr-day.today:hover {
+            background: #137fec;
+            color: white;
+        }
+        
+        .flatpickr-day.flatpickr-disabled {
+            color: #d1d5db;
+            cursor: not-allowed;
+        }
+        
+        .dark .flatpickr-day.flatpickr-disabled {
+            color: #4b5563;
+        }
+        
+        .flatpickr-time {
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
+            padding: 12px;
+        }
+        
+        .dark .flatpickr-time {
+            border-top-color: #374151;
+        }
+        
+        .flatpickr-time input {
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        
+        .flatpickr-time input:hover {
+            background: #f3f4f6;
+        }
+        
+        .dark .flatpickr-time input:hover {
+            background: #374151;
+        }
+        
+        /* Input field styling */
+        .flatpickr-input {
+            padding-right: 40px !important;
+        }
+        
+        .flatpickr-input:focus {
+            border-color: #137fec;
+            box-shadow: 0 0 0 3px rgba(19, 127, 236, 0.1);
         }
         .sidebar-collapsed .sidebar-text {
             display: none;
@@ -418,11 +574,17 @@ No notifications yet
                   <div class="px-4 py-2 space-y-2">
                     <div>
                       <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1" for="eventDateFromFilter">Event Date From</label>
-                      <input type="date" id="eventDateFromFilter" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary">
+                      <div class="relative">
+                        <input type="text" id="eventDateFromFilter" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer" placeholder="Select start date" readonly/>
+                        <span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none text-xs">calendar_today</span>
+                      </div>
                     </div>
                     <div>
                       <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1" for="eventDateToFilter">Event Date To</label>
-                      <input type="date" id="eventDateToFilter" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary">
+                      <div class="relative">
+                        <input type="text" id="eventDateToFilter" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-background-dark text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer" placeholder="Select end date" readonly/>
+                        <span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none text-xs">calendar_today</span>
+                      </div>
                     </div>
                   </div>
                   
@@ -662,7 +824,10 @@ No notifications yet
           <span class="material-symbols-outlined text-text-muted-light dark:text-text-muted-dark mt-1">schedule</span>
           <div class="flex-1">
             <div class="flex items-center gap-2 flex-wrap relative" id="timeRangeContainer">
-              <input id="evDate" type="date" autocomplete="off" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-text-light dark:text-text-dark dark:bg-white/10 border-0 outline-none focus:outline-none ring-0 focus:ring-0" placeholder="mm/dd/yyyy" />
+              <div class="relative">
+                <input id="evDate" type="text" autocomplete="off" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-text-light dark:text-text-dark dark:bg-white/10 border-0 outline-none focus:outline-none ring-0 focus:ring-0 cursor-pointer pr-10" placeholder="Select event date" readonly />
+                <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-text-muted-light dark:text-text-muted-dark pointer-events-none text-sm">calendar_today</span>
+              </div>
               <button id="evTimeRangeBtn" type="button" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-text-light dark:text-text-dark dark:bg-white/10 border-0 outline-none">
                 <span id="evTimeRangeText">--:-- -- - --:-- --</span>
               </button>
@@ -797,7 +962,7 @@ No notifications yet
         <label><input type="radio" name="reminderTime" value="1day">1 day</label>
         <label><input type="radio" name="reminderTime" value="1week">1 week</label>
         <label><input type="radio" name="reminderTime" value="custom">custom</label>
-        <input type="date" id="customDate">
+        <input type="text" id="customDate" readonly>
         <input type="time" id="customTime">
         <input type="number" id="customDays">
       </div>
@@ -953,6 +1118,100 @@ No notifications yet
             } else {
                 toggleDarkMode(false);
             }
+            // Initialize Flatpickr date pickers
+            let eventDateFromFilterPicker = null;
+            let eventDateToFilterPicker = null;
+            let evDatePicker = null;
+            let customDatePicker = null;
+            
+            function initDatePickers() {
+                // Filter date pickers
+                const eventDateFromFilter = document.getElementById('eventDateFromFilter');
+                const eventDateToFilter = document.getElementById('eventDateToFilter');
+                const evDate = document.getElementById('evDate');
+                const customDate = document.getElementById('customDate');
+                
+                if (eventDateFromFilter && typeof flatpickr !== 'undefined') {
+                    if (eventDateFromFilterPicker) eventDateFromFilterPicker.destroy();
+                    eventDateFromFilterPicker = flatpickr(eventDateFromFilter, {
+                        dateFormat: 'Y-m-d',
+                        altInput: true,
+                        altFormat: 'F j, Y',
+                        theme: 'dark' === document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+                        allowInput: false,
+                        clickOpens: true,
+                        animate: true,
+                        monthSelectorType: 'static',
+                        prevArrow: '<span class="material-symbols-outlined">chevron_left</span>',
+                        nextArrow: '<span class="material-symbols-outlined">chevron_right</span>',
+                        locale: { firstDayOfWeek: 0 }
+                    });
+                }
+                
+                if (eventDateToFilter && typeof flatpickr !== 'undefined') {
+                    if (eventDateToFilterPicker) eventDateToFilterPicker.destroy();
+                    eventDateToFilterPicker = flatpickr(eventDateToFilter, {
+                        dateFormat: 'Y-m-d',
+                        altInput: true,
+                        altFormat: 'F j, Y',
+                        theme: 'dark' === document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+                        allowInput: false,
+                        clickOpens: true,
+                        animate: true,
+                        monthSelectorType: 'static',
+                        prevArrow: '<span class="material-symbols-outlined">chevron_left</span>',
+                        nextArrow: '<span class="material-symbols-outlined">chevron_right</span>',
+                        locale: { firstDayOfWeek: 0 }
+                    });
+                }
+                
+                if (evDate && typeof flatpickr !== 'undefined') {
+                    if (evDatePicker) evDatePicker.destroy();
+                    evDatePicker = flatpickr(evDate, {
+                        dateFormat: 'Y-m-d',
+                        altInput: true,
+                        altFormat: 'F j, Y',
+                        theme: 'dark' === document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+                        allowInput: false,
+                        clickOpens: true,
+                        animate: true,
+                        monthSelectorType: 'static',
+                        prevArrow: '<span class="material-symbols-outlined">chevron_left</span>',
+                        nextArrow: '<span class="material-symbols-outlined">chevron_right</span>',
+                        locale: { firstDayOfWeek: 0 }
+                    });
+                }
+                
+                if (customDate && typeof flatpickr !== 'undefined') {
+                    if (customDatePicker) customDatePicker.destroy();
+                    customDatePicker = flatpickr(customDate, {
+                        dateFormat: 'Y-m-d',
+                        altInput: true,
+                        altFormat: 'F j, Y',
+                        theme: 'dark' === document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+                        allowInput: false,
+                        clickOpens: true,
+                        animate: true,
+                        monthSelectorType: 'static',
+                        prevArrow: '<span class="material-symbols-outlined">chevron_left</span>',
+                        nextArrow: '<span class="material-symbols-outlined">chevron_right</span>',
+                        locale: { firstDayOfWeek: 0 },
+                        onChange: function(selectedDates, dateStr, instance) {
+                            const preview = document.getElementById('customDatePreview');
+                            if (preview && dateStr) {
+                                const date = new Date(dateStr);
+                                preview.textContent = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                            }
+                        }
+                    });
+                }
+            }
+            
+            // Initialize date pickers after DOM is ready
+            setTimeout(() => {
+                initDatePickers();
+            }, 100);
+            
             // Event listener for theme toggle button
             themeToggle.addEventListener('click', () => {
                 const isCurrentlyDark = document.documentElement.classList.contains('dark');
@@ -962,6 +1221,10 @@ No notifications yet
                     window.awardsProgressChartInstance.destroy();
                 }
                 renderChart();
+                // Reinitialize date pickers with new theme
+                setTimeout(() => {
+                    initDatePickers();
+                }, 100);
             });
             // Chart.js rendering
             const renderChart = () => {
@@ -1073,7 +1336,11 @@ No notifications yet
                     
                     // Clear form
                     if(document.getElementById('evTitle')) document.getElementById('evTitle').value = '';
-                    if(document.getElementById('evDate')) document.getElementById('evDate').value = '';
+                    if(evDatePicker) {
+                        evDatePicker.clear();
+                    } else if(document.getElementById('evDate')) {
+                        document.getElementById('evDate').value = '';
+                    }
                     if(document.getElementById('evLocation')) document.getElementById('evLocation').value = '';
                     if(document.getElementById('evDesc')) document.getElementById('evDesc').value = '';
                     if(document.getElementById('evTimeRangeText')) document.getElementById('evTimeRangeText').textContent = '--:-- -- - --:-- --';
@@ -1119,7 +1386,11 @@ No notifications yet
                         
                         // Populate Fields
                         document.getElementById('evTitle').value = event.title || '';
-                        document.getElementById('evDate').value = event.event_date || event.date || '';
+                        if(evDatePicker && (event.event_date || event.date)) {
+                            evDatePicker.setDate(event.event_date || event.date, false);
+                        } else if(document.getElementById('evDate')) {
+                            document.getElementById('evDate').value = event.event_date || event.date || '';
+                        }
                         document.getElementById('evLocation').value = event.location || '';
                         document.getElementById('evDesc').value = event.description || '';
                         
@@ -1361,7 +1632,8 @@ No notifications yet
             saveAddEvent && saveAddEvent.addEventListener('click', async () => {
                 // Get event data from modal
                 const title = document.getElementById('evTitle').value || 'Untitled Event';
-                const date = document.getElementById('evDate').value;
+                const evDateInput = document.getElementById('evDate');
+                const date = evDatePicker ? evDatePicker.input.value : (evDateInput ? evDateInput.value : '');
                 const timeRange = document.getElementById('evTimeRangeText').textContent || '--:-- -- - --:-- --';
                 const location = document.getElementById('evLocation').value || '';
                 const description = document.getElementById('evDesc').value || '';
@@ -1520,7 +1792,11 @@ No notifications yet
                         
                         // Clear form
                         document.getElementById('evTitle').value = '';
-                        document.getElementById('evDate').value = '';
+                        if(evDatePicker) {
+                            evDatePicker.clear();
+                        } else if(document.getElementById('evDate')) {
+                            document.getElementById('evDate').value = '';
+                        }
                         document.getElementById('evTimeRangeText').textContent = '--:-- -- - --:-- --';
                         document.getElementById('evLocation').value = '';
                         document.getElementById('evDesc').value = '';
@@ -2552,8 +2828,10 @@ No notifications yet
                 const clearFilterBtn = document.getElementById('eventClearFilter');
                 const clearSortBtn = document.getElementById('eventClearSort');
                 const locationFilter = document.getElementById('eventLocationFilter');
-                const dateFromFilter = document.getElementById('eventDateFromFilter');
-                const dateToFilter = document.getElementById('eventDateToFilter');
+                const dateFromFilterInput = document.getElementById('eventDateFromFilter');
+                const dateToFilterInput = document.getElementById('eventDateToFilter');
+                const dateFromFilter = eventDateFromFilterPicker ? eventDateFromFilterPicker.input.value : (dateFromFilterInput ? dateFromFilterInput.value : '');
+                const dateToFilter = eventDateToFilterPicker ? eventDateToFilterPicker.input.value : (dateToFilterInput ? dateToFilterInput.value : '');
                 
                 // Note: Button toggle functionality is handled by standalone script at end of page
                 // This function only handles filter/sort option interactions

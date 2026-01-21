@@ -163,6 +163,20 @@ try {
         .chartjs-legend-color {
             color: theme('colors.text-light');
         }
+        
+        /* Date inputs: keep native date picker, but align click-target with the right-side icon */
+        input[type="date"] {
+            position: relative;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            opacity: 0;
+            cursor: pointer;
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 2.75rem; /* matches the icon padding area */
+            height: 100%;
+        }
         .sidebar-collapsed .sidebar-text {
             display: none;
         }
@@ -649,11 +663,17 @@ try {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="sign-date">Sign Date</label>
-                    <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="sign-date" type="date"/>
+                    <div class="relative">
+                        <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer pr-10" id="sign-date" type="date" autocomplete="off" placeholder="mm/dd/yyyy"/>
+                        <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none">calendar_today</span>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="end-date">End Date</label>
-                    <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="end-date" type="date"/>
+                    <div class="relative">
+                        <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer pr-10" id="end-date" type="date" autocomplete="off" placeholder="mm/dd/yyyy"/>
+                        <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none">calendar_today</span>
+                    </div>
                 </div>
             </div>
             
@@ -1211,6 +1231,8 @@ try {
                     window.awardsProgressChartInstance.destroy();
                 }
                 renderChart();
+                // Reinitialize date pickers with new theme
+                // No-op for native date inputs (styling updates automatically)
             });
             // Chart.js rendering
             const renderChart = () => {
@@ -1329,6 +1351,24 @@ try {
             const MOU_FIELDS_OCR_URL = 'api/mou-moa-ocr.php';
             let institutionTouched = false;
             let locationTouched = false;
+            
+            // Native date pickers (match Events & Activities behavior)
+            function initDatePickers() {
+                const signDateInput = document.getElementById('sign-date');
+                const endDateInput = document.getElementById('end-date');
+
+                // Auto-open native picker on click where supported
+                if (signDateInput) {
+                    signDateInput.addEventListener('click', function() {
+                        if (typeof this.showPicker === 'function') this.showPicker();
+                    });
+                }
+                if (endDateInput) {
+                    endDateInput.addEventListener('click', function() {
+                        if (typeof this.showPicker === 'function') this.showPicker();
+                    });
+                }
+            }
 
             // Show modal when Add File button is clicked
             if (addFileBtn && modal) {
@@ -1346,6 +1386,11 @@ try {
                     // Clear selected file display when opening modal
                     updateSelectedFileDisplay(null);
                     resetInstitutionDetection();
+                    
+                    // Ensure native date picker click behavior is wired
+                    setTimeout(() => {
+                        initDatePickers();
+                    }, 0);
                 });
             }
 
@@ -1464,15 +1509,100 @@ try {
                     }
                 }
 
+                // Helper: clean institution name by removing location/address information
+                function cleanInstitutionName(s) {
+                    if (!s) return '';
+                    s = String(s).trim().replace(/\s+/g, ' ');
+                    
+                    // Remove leading labels
+                    s = s.replace(/^(the\s+)?(partner\s+)?institution\s*[:\-]\s*/i, '');
+                    s = s.replace(/^(name\s+of\s+)?(the\s+)?institution\s*[:\-]\s*/i, '');
+                    
+                    // Remove trailing boilerplate
+                    s = s.replace(/\s*,?\s*(hereinafter|herein after).*$/i, '');
+                    s = s.replace(/\s*[.,;:\-]+$/, '');
+                    
+                    // Remove location/address information - stop at location indicators
+                    s = s.replace(/\s*,\s*(located\s+(?:at|in)|in\s+[A-Z][a-z]+|at\s+[A-Z][a-z]+).*$/i, '');
+                    
+                    // Remove country/city names at the end
+                    const locationPatterns = [
+                        /\s*,\s*(china|japan|philippines|philippine|united\s+states|usa|korea|canada|australia|singapore|malaysia|thailand|vietnam|indonesia|india|taiwan).*$/i,
+                        /\s*,\s*([A-Z][a-z]+\s*(?:city|province|state|region|prefecture|county)).*$/i,
+                        /\s*,\s*([A-Z][a-z]+,\s*(?:china|japan|philippines|philippine|united\s+states|usa|korea|canada|australia|singapore|malaysia|thailand|vietnam|indonesia|india|taiwan)).*$/i,
+                    ];
+                    locationPatterns.forEach(pattern => {
+                        s = s.replace(pattern, '');
+                    });
+                    
+                    // If there are multiple commas with location keywords, take only first part
+                    const locMatch = s.match(/^([^,]+(?:,\s*[^,]+)*?)(?:,\s*[^,]*?(?:located|address|in\s+[A-Z]|city|province|state|country|china|japan|philippines|usa|korea|canada|australia))/i);
+                    if (locMatch) {
+                        s = locMatch[1];
+                    }
+                    
+                    // Remove surrounding quotes
+                    s = s.trim().replace(/^["'"]+|["'"]+$/g, '');
+                    
+                    // Guardrails
+                    if (s.length < 4) return '';
+                    if (/^(memorandum|agreement|understanding|contract|page)\b/i.test(s)) return '';
+                    
+                    // Reject person names: patterns like "nee", initials only, or name-like patterns
+                    const lower = s.toLowerCase();
+                    if (/\bnee\b/i.test(s)) return ''; // "nee" indicates a person's name (maiden name)
+                    if (/^(mr|mrs|ms|dr|prof|professor)\s+/i.test(s)) return ''; // Titles indicate person names
+                    if (/\b(sr|jr|iii|iv|ii)\b/i.test(s)) return ''; // Suffixes indicate person names
+                    
+                    // Reject if it looks like initials or very short name patterns (e.g., "KM SANG")
+                    // But allow if it contains institution keywords
+                    const hasInstitutionKeyword = /\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i.test(s);
+                    if (!hasInstitutionKeyword) {
+                        // If it's mostly uppercase initials/words without institution keywords, likely a person name
+                        const words = s.split(/\s+/);
+                        let shortWords = 0;
+                        words.forEach(word => {
+                            const cleanWord = word.replace(/[^A-Za-z]/g, '');
+                            if (cleanWord.length <= 3) shortWords++;
+                        });
+                        // If more than half are short words, likely initials/name
+                        if (words.length > 0 && shortWords >= Math.ceil(words.length / 2) && words.length <= 6) {
+                            return '';
+                        }
+                    }
+                    
+                    return s.trim();
+                }
+
                 // Helper: parse partner institution (second party) from OCR text
                 function extractPartnerInstitutionFromText(text) {
                     const raw = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
                     const lower = raw.toLowerCase();
                     const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-
+                    
                     // Prefer explicit "between A and B"
                     const m = raw.match(/\bbetween\b\s+([\s\S]{0,200}?)\s+(?:and|&)\s+([\s\S]{0,200}?)(?:\n|,|\.|;)/i);
-                    if (m && m[2]) return String(m[2]).trim();
+                    if (m && m[2]) {
+                        const cleaned = cleanInstitutionName(String(m[2]).trim());
+                        if (cleaned) {
+                            // Accept if has keywords OR if not obviously a person name
+                            const hasKeyword = /\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i.test(cleaned);
+                            if (hasKeyword) {
+                                return cleaned;
+                            }
+                            // Without keywords, check it's not a person name (initials pattern)
+                            const words = cleaned.split(/\s+/);
+                            let shortWords = 0;
+                            words.forEach(word => {
+                                const cleanWord = word.replace(/[^A-Za-z]/g, '');
+                                if (cleanWord.length <= 3) shortWords++;
+                            });
+                            // Accept if reasonable length and not mostly short words
+                            if (cleaned.length >= 8 && cleaned.length <= 160 && !(shortWords >= Math.ceil(words.length / 2) && words.length <= 6)) {
+                                return cleaned;
+                            }
+                        }
+                    }
 
                     // Scanned layout: between (line), A (line), and (line), B (line)
                     let idxBetween = lines.findIndex(l => /\bbetween\b/i.test(l));
@@ -1480,7 +1610,15 @@ try {
                         // Inline between line: "between A and B"
                         const inline = lines[idxBetween];
                         const m2 = inline.match(/\bbetween\b\s+(.+?)\s+(?:and|&)\s+(.+)\s*$/i);
-                        if (m2 && m2[2]) return String(m2[2]).trim();
+                        if (m2 && m2[2]) {
+                            const cleaned = cleanInstitutionName(String(m2[2]).trim());
+                            if (cleaned) {
+                                const hasKeyword = /\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i.test(cleaned);
+                                if (hasKeyword || (cleaned.length >= 8 && cleaned.length <= 160)) {
+                                    return cleaned;
+                                }
+                            }
+                        }
 
                         // Seek next meaningful lines
                         let partyA = '';
@@ -1510,55 +1648,221 @@ try {
                                 break;
                             }
                         }
-                        if (partyB) return partyB;
+                        if (partyB) {
+                            const cleaned = cleanInstitutionName(partyB);
+                            if (cleaned) {
+                                const hasKeyword = /\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i.test(cleaned);
+                                if (hasKeyword || (cleaned.length >= 8 && cleaned.length <= 160)) {
+                                    return cleaned;
+                                }
+                            }
+                        }
                     }
 
                     // As last resort, pick the best-looking "school/university/college..." line
-                    const keywords = /(university|college|institute|school|academy|polytechnic)/i;
+                    // This already filters by institution keywords, so safe
+                    const keywords = /(university|college|institute|school|academy|polytechnic|foundation|corporation)/i;
                     const best = lines.filter(l => keywords.test(l) && l.length >= 6 && l.length <= 120);
-                    return best[0] ? best[0] : '';
+                    return best[0] ? cleanInstitutionName(best[0]) : '';
                 }
 
+                // Enhanced rule-based country detector (matches PHP version)
                 function detectCountryFromText(text) {
-                    const lower = String(text || '').toLowerCase();
-                    if (!lower) return '';
-                    if (lower.includes('japan')) return 'Japan';
-                    if (lower.includes('philippines') || lower.includes('philippine')) return 'Philippines';
-                    if (lower.includes('united states') || lower.includes('usa') || lower.includes('u.s.a')) return 'United States';
-                    if (lower.includes('korea')) return 'Korea';
-                    if (lower.includes('canada')) return 'Canada';
-                    if (lower.includes('australia')) return 'Australia';
-                    if (lower.includes('singapore')) return 'Singapore';
-                    if (lower.includes('malaysia')) return 'Malaysia';
-                    if (lower.includes('thailand')) return 'Thailand';
-                    if (lower.includes('vietnam')) return 'Vietnam';
-                    if (lower.includes('indonesia')) return 'Indonesia';
-                    if (lower.includes('china')) return 'China';
-                    if (lower.includes('india')) return 'India';
-                    if (lower.includes('taiwan')) return 'Taiwan';
+                    const raw = String(text || '').trim();
+                    if (!raw) return '';
+                    
+                    const lower = raw.toLowerCase();
+                    const normalized = lower.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ');
+                    
+                    // Comprehensive country detection rules
+                    const countryRules = {
+                        'China': {
+                            patterns: [/\bchina\b/, /\bfujian\b/, /\bzhangzhou\b/, /\bchinese\b/, /\bprc\b/, /\bcn\b/],
+                            cities: ['beijing', 'shanghai', 'guangzhou', 'shenzhen', 'chengdu', 'hangzhou', 'wuhan', 'xian', 'nanjing', 'tianjin', 'chongqing', 'dalian', 'xiamen', 'qingdao', 'fuzhou', 'suzhou', 'ningbo', 'wenzhou'],
+                            provinces: ['guangdong', 'jiangsu', 'zhejiang', 'shandong', 'henan', 'sichuan', 'hubei', 'hunan', 'fujian', 'anhui', 'liaoning', 'hebei', 'shaanxi', 'jiangxi', 'guangxi', 'yunnan', 'heilongjiang']
+                        },
+                        'Japan': {
+                            patterns: [/\bjapan\b/, /\bjapanese\b/, /\bjp\b/],
+                            cities: ['tokyo', 'osaka', 'yokohama', 'nagoya', 'sapporo', 'fukuoka', 'kobe', 'kyoto', 'saitama', 'hiroshima', 'sendai', 'kawasaki', 'chiba', 'kitakyushu', 'sakai', 'shizuoka', 'nagata'],
+                            provinces: ['hokkaido', 'aomori', 'iwate', 'miyagi', 'akita', 'yamagata', 'fukushima', 'ibaraki', 'tochigi', 'gunma', 'saitama', 'chiba', 'tokyo', 'kanagawa', 'yamanashi', 'nagano', 'niigata', 'toyama']
+                        },
+                        'Philippines': {
+                            patterns: [/\bphilippines\b/, /\bphilippine\b/, /\bph\b/, /\bphl\b/],
+                            cities: ['manila', 'quezon city', 'davao', 'caloocan', 'cebu', 'zamboanga', 'antipolo', 'pasig', 'tagig', 'valenzuela', 'paranaque', 'makati', 'san jose del monte', 'las pinas', 'bacolod', 'iloilo', 'muntinlupa', 'calamba', 'marikina', 'butuan', 'mandaluyong'],
+                            provinces: ['metro manila', 'cavite', 'laguna', 'rizal', 'bulacan', 'pampanga', 'bataan', 'nueva ecija', 'tarlac', 'pangasinan', 'batangas', 'quezon']
+                        },
+                        'United States': {
+                            patterns: [/\bunited\s+states\b/, /\busa\b/, /\bu\.s\.a\b/, /\bu\.s\b/, /\bus\b/, /\bamerican\b/],
+                            cities: ['new york', 'los angeles', 'chicago', 'houston', 'phoenix', 'philadelphia', 'san antonio', 'san diego', 'dallas', 'san jose', 'austin', 'jacksonville', 'san francisco', 'indianapolis', 'columbus', 'fort worth', 'charlotte'],
+                            provinces: ['california', 'texas', 'florida', 'new york', 'pennsylvania', 'illinois', 'ohio', 'georgia', 'north carolina', 'michigan', 'new jersey', 'virginia']
+                        },
+                        'Korea': {
+                            patterns: [/\bsouth\s+korea\b/, /\bkorea\b/, /\bkorean\b/, /\bkr\b/, /\bkorea\s+republic\b/],
+                            cities: ['seoul', 'busan', 'incheon', 'daegu', 'daejeon', 'gwangju', 'suwon', 'ulsan', 'changwon', 'goyang', 'yongin', 'bucheon'],
+                            provinces: ['gyeonggi', 'gangwon', 'chungbuk', 'chungnam', 'jeonbuk', 'jeonnam', 'gyeongbuk', 'gyeongnam', 'jeju']
+                        },
+                        'Canada': {
+                            patterns: [/\bcanada\b/, /\bcanadian\b/, /\bca\b/, /\bcan\b/],
+                            cities: ['toronto', 'montreal', 'calgary', 'ottawa', 'edmonton', 'winnipeg', 'vancouver', 'mississauga', 'brampton', 'hamilton', 'quebec'],
+                            provinces: ['ontario', 'quebec', 'british columbia', 'alberta', 'manitoba', 'saskatchewan', 'nova scotia', 'new brunswick', 'newfoundland']
+                        },
+                        'Australia': {
+                            patterns: [/\baustralia\b/, /\baustralian\b/, /\bau\b/, /\baus\b/],
+                            cities: ['sydney', 'melbourne', 'brisbane', 'perth', 'adelaide', 'gold coast', 'newcastle', 'canberra', 'sunshine coast', 'wollongong', 'hobart'],
+                            provinces: ['new south wales', 'victoria', 'queensland', 'western australia', 'south australia', 'tasmania', 'australian capital territory']
+                        },
+                        'Singapore': {
+                            patterns: [/\bsingapore\b/, /\bsingaporean\b/, /\bsg\b/, /\bsgp\b/],
+                            cities: ['singapore']
+                        },
+                        'Malaysia': {
+                            patterns: [/\bmalaysia\b/, /\bmalaysian\b/, /\bmy\b/, /\bmys\b/],
+                            cities: ['kuala lumpur', 'george town', 'ipoh', 'shah alam', 'petaling jaya', 'johor bahru', 'melaka', 'kuching', 'kota kinabalu', 'seremban'],
+                            provinces: ['johor', 'kedah', 'kelantan', 'melaka', 'negeri sembilan', 'pahang', 'penang', 'perak', 'perlis', 'sabah', 'sarawak', 'selangor']
+                        },
+                        'Thailand': {
+                            patterns: [/\bthailand\b/, /\bthai\b/, /\bth\b/, /\btha\b/],
+                            cities: ['bangkok', 'nonthaburi', 'nakhon ratchasima', 'chiang mai', 'hat yai', 'udon thani', 'pak kret', 'khon kaen'],
+                            provinces: ['bangkok', 'chiang mai', 'chiang rai', 'phuket', 'pattaya', 'ayutthaya', 'sukhothai', 'kanchanaburi']
+                        },
+                        'Vietnam': {
+                            patterns: [/\bvietnam\b/, /\bvietnamese\b/, /\bvn\b/, /\bvnm\b/],
+                            cities: ['ho chi minh city', 'hanoi', 'haiphong', 'can tho', 'da nang', 'bian hoa', 'hue', 'nha trang', 'vung tau', 'quy nhon'],
+                            provinces: ['ho chi minh', 'hanoi', 'haiphong', 'can tho', 'da nang', 'dong nai', 'binh duong', 'long an', 'tien giang']
+                        },
+                        'Indonesia': {
+                            patterns: [/\bindonesia\b/, /\bindonesian\b/, /\bid\b/, /\bidn\b/],
+                            cities: ['jakarta', 'surabaya', 'bandung', 'medan', 'semarang', 'makassar', 'palembang', 'tangerang', 'depok', 'bekasi', 'yogyakarta', 'bogor'],
+                            provinces: ['java', 'sumatra', 'kalimantan', 'sulawesi', 'papua', 'bali', 'west java', 'east java', 'central java', 'jakarta']
+                        },
+                        'India': {
+                            patterns: [/\bindia\b/, /\bindian\b/, /\bin\b/, /\bind\b/],
+                            cities: ['mumbai', 'delhi', 'bangalore', 'hyderabad', 'chennai', 'kolkata', 'pune', 'ahmedabad', 'surat', 'jaipur', 'lucknow', 'kanpur'],
+                            provinces: ['maharashtra', 'karnataka', 'tamil nadu', 'delhi', 'gujarat', 'west bengal', 'rajasthan', 'uttar pradesh', 'andhra pradesh']
+                        },
+                        'Taiwan': {
+                            patterns: [/\btaiwan\b/, /\btaiwanese\b/, /\broc\b/, /\btw\b/, /\btwn\b/],
+                            cities: ['taipei', 'kaohsiung', 'taichung', 'tainan', 'banqiao', 'hsinchu', 'taoyuan', 'keelung', 'chiayi', 'changhua'],
+                            provinces: ['taipei', 'new taipei', 'taoyuan', 'taichung', 'tainan', 'kaohsiung']
+                        },
+                        'United Kingdom': {
+                            patterns: [/\bunited\s+kingdom\b/, /\buk\b/, /\bbritain\b/, /\bbritish\b/, /\bgb\b/, /\bgbr\b/],
+                            cities: ['london', 'manchester', 'birmingham', 'glasgow', 'liverpool', 'leeds', 'edinburgh'],
+                            provinces: ['england', 'scotland', 'wales', 'northern ireland']
+                        },
+                        'Germany': {
+                            patterns: [/\bgermany\b/, /\bgerman\b/, /\bde\b/, /\bdeu\b/],
+                            cities: ['berlin', 'munich', 'hamburg', 'frankfurt', 'cologne', 'stuttgart'],
+                            provinces: ['bavaria', 'baden-wurttemberg', 'north rhine-westphalia', 'hesse']
+                        },
+                        'France': {
+                            patterns: [/\bfrance\b/, /\bfrench\b/, /\bfr\b/, /\bfra\b/],
+                            cities: ['paris', 'marseille', 'lyon', 'toulouse', 'nice', 'nantes'],
+                            provinces: ['ile-de-france', 'provence-alpes-cote d\'azur', 'auvergne-rhone-alpes']
+                        }
+                    };
+                    
+                    // Step 1: Check direct country patterns (highest priority)
+                    for (const [country, rules] of Object.entries(countryRules)) {
+                        if (rules.patterns) {
+                            for (const pattern of rules.patterns) {
+                                if (pattern.test(normalized)) {
+                                    return country;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Step 2: Check cities (medium priority)
+                    for (const [country, rules] of Object.entries(countryRules)) {
+                        if (rules.cities) {
+                            for (const city of rules.cities) {
+                                const cityPattern = new RegExp('\\b' + city.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b');
+                                if (cityPattern.test(normalized)) {
+                                    return country;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Step 3: Check provinces/states (lower priority)
+                    for (const [country, rules] of Object.entries(countryRules)) {
+                        if (rules.provinces) {
+                            for (const province of rules.provinces) {
+                                const provincePattern = new RegExp('\\b' + province.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b');
+                                if (provincePattern.test(normalized)) {
+                                    return country;
+                                }
+                            }
+                        }
+                    }
+                    
+                    return '';
+                }
+
+                function detectPartnerCountryFromOcr(fullText, partnerInstitution, partnerLocationStr) {
+                    const fullLower = String(fullText || '').toLowerCase();
+                    const partnerLower = String(partnerInstitution || '').toLowerCase();
+                    const locLower = String(partnerLocationStr || '').toLowerCase();
+
+                    // 1) Trust country found in partner-tied location string
+                    const fromLoc = detectCountryFromText(partnerLocationStr);
+                    if (fromLoc) return fromLoc;
+
+                    // 2) Prefer non-PH countries from full text (avoid CPU address dominating)
+                    const nonPhChecks = [
+                        ['China', ['china', 'fujian', 'zhangzhou']],
+                        ['Japan', ['japan']],
+                        ['United States', ['united states', 'usa', 'u.s.a']],
+                        ['Korea', ['korea']],
+                        ['Canada', ['canada']],
+                        ['Australia', ['australia']],
+                        ['Singapore', ['singapore']],
+                        ['Malaysia', ['malaysia']],
+                        ['Thailand', ['thailand']],
+                        ['Vietnam', ['vietnam']],
+                        ['Indonesia', ['indonesia']],
+                        ['India', ['india']],
+                        ['Taiwan', ['taiwan']],
+                    ];
+                    for (const [country, needles] of nonPhChecks) {
+                        for (const n of needles) {
+                            if (fullLower.includes(n)) return country;
+                        }
+                    }
+
+                    // 3) Philippines only if tied to partner name/location
+                    if (locLower.includes('philippine') || partnerLower.includes('philippine') || partnerLower.includes('philippines')) {
+                        return 'Philippines';
+                    }
+
                     return '';
                 }
 
                 function normalizeLocationToCountry(loc) {
                     const raw = String(loc || '').trim();
                     if (!raw) return raw;
-                    const lower = raw.toLowerCase();
-                    if (lower.includes('japan')) return 'Japan';
-                    if (lower.includes('philippine')) return 'Philippines';
-                    if (lower.includes('united states') || lower.includes('usa') || lower.includes('u.s.a')) return 'United States';
-                    if (lower.includes('korea')) return 'Korea';
-                    if (lower.includes('canada')) return 'Canada';
-                    if (lower.includes('australia')) return 'Australia';
-                    if (lower.includes('singapore')) return 'Singapore';
-                    if (lower.includes('malaysia')) return 'Malaysia';
-                    if (lower.includes('thailand')) return 'Thailand';
-                    if (lower.includes('vietnam')) return 'Vietnam';
-                    if (lower.includes('indonesia')) return 'Indonesia';
-                    if (lower.includes('china')) return 'China';
-                    if (lower.includes('india')) return 'India';
-                    if (lower.includes('taiwan')) return 'Taiwan';
+                    
+                    // First try: detect country from the full location string
                     const detected = detectCountryFromText(raw);
                     if (detected) return detected;
+                    
+                    // Second try: if location has commas, check the last segment (common pattern: "City, Country")
+                    const parts = raw.split(',').map(p => p.trim()).filter(Boolean);
+                    if (parts.length > 1) {
+                        // Try last segment first (most common pattern)
+                        const last = parts[parts.length - 1];
+                        const lastCountry = detectCountryFromText(last);
+                        if (lastCountry) return lastCountry;
+                        
+                        // Also check second-to-last segment (some formats: "City, State, Country")
+                        if (parts.length >= 2) {
+                            const secondLast = parts[parts.length - 2];
+                            const secondLastCountry = detectCountryFromText(secondLast);
+                            if (secondLastCountry) return secondLastCountry;
+                        }
+                    }
+                    
                     // No country detected — return empty to avoid filling with cities/regions
                     return '';
                 }
@@ -1589,6 +1893,15 @@ try {
                     const fd = new FormData();
                     fd.append('file', ocrFile);
                     const resp = await fetch(MOU_FIELDS_OCR_URL, { method: 'POST', body: fd });
+                    
+                    // Check if response is actually JSON
+                    const contentType = resp.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await resp.text();
+                        console.error('Server returned non-JSON response:', text.substring(0, 200));
+                        throw new Error('Server returned invalid response. Please check server logs.');
+                    }
+                    
                     const result = await resp.json();
 
                     if (!result || !result.success) {
@@ -1632,20 +1945,23 @@ try {
                             URL.revokeObjectURL(imageUrl);
                             const text = (data && data.text) ? data.text : '';
                             const partner = extractPartnerInstitutionFromText(text);
-                            const countryFromText = detectCountryFromText(text);
                             const partnerLocRaw = extractPartnerLocationFromText(text);
+                            const countryFromText = detectPartnerCountryFromOcr(text, partner, partnerLocRaw);
                             const partnerLoc = countryFromText || normalizeLocationToCountry(partnerLocRaw);
 
                             if (partner) {
                                 const current = String(institutionInput.value || '').trim();
                                 if (!current && !institutionTouched) {
-                                    institutionInput.value = partner.toUpperCase();
+                                    // Don't force uppercase - keep original casing from cleaned name
+                                    institutionInput.value = partner;
                                     setInstitutionHint(`Auto-filled: ${partner}`, 'success');
                                 } else {
                                     setInstitutionHint(`Detected: ${partner} (not applied)`, 'warning');
                                 }
-                                if (locationInput && partnerLoc && !locationTouched && !String(locationInput.value || '').trim()) {
-                                    locationInput.value = partnerLoc;
+                                // Ensure location is country-only (already normalized, but double-check)
+                                const countryOnly = normalizeLocationToCountry(partnerLoc);
+                                if (locationInput && countryOnly && !locationTouched && !String(locationInput.value || '').trim()) {
+                                    locationInput.value = countryOnly;
                                 }
                                 return;
                             }
@@ -2021,7 +2337,8 @@ try {
             
             // Function to auto-calculate end date when sign date or term changes
             function autoCalculateEndDate() {
-                const signDate = document.getElementById('sign-date').value;
+                const signDateInput = document.getElementById('sign-date');
+                const signDate = signDateInput ? signDateInput.value : '';
                 const term = document.getElementById('term').value.trim();
                 const endDateInput = document.getElementById('end-date');
                 
@@ -2086,8 +2403,10 @@ try {
                     const contact = document.getElementById('contact').value.trim();
                     const term = document.getElementById('term').value.trim();
                     const category = document.getElementById('category').value || 'Unknown';
-                    const signDate = document.getElementById('sign-date').value;
-                    const endDate = document.getElementById('end-date').value;
+                    const signDateInput = document.getElementById('sign-date');
+                    const endDateInput = document.getElementById('end-date');
+                    const signDate = signDateInput ? signDateInput.value : '';
+                    const endDate = endDateInput ? endDateInput.value : '';
                     const fileUpload = document.getElementById('file-upload').files[0];
                     
                     // Validate required fields (contact details is now optional)
@@ -3127,12 +3446,17 @@ try {
                     const signDateField = document.getElementById('sign-date');
                     const endDateField = document.getElementById('end-date');
                     
-                    if (institutionField) institutionField.value = (entryToEdit.institution || '').toUpperCase();
+                    if (institutionField) institutionField.value = entryToEdit.institution || '';
                     if (locationField) locationField.value = entryToEdit.location || '';
                     if (contactField) contactField.value = entryToEdit.contact_email || '';
                     if (termField) termField.value = entryToEdit.term || '';
-                    if (signDateField) signDateField.value = entryToEdit.sign_date || '';
-                    if (endDateField) endDateField.value = entryToEdit.end_date || '';
+                    
+                    // Ensure native date picker click behavior is wired and set values
+                    setTimeout(() => {
+                        initDatePickers();
+                        if (signDateField) signDateField.value = entryToEdit.sign_date || '';
+                        if (endDateField) endDateField.value = entryToEdit.end_date || '';
+                    }, 0);
                     
                     console.log('Form fields populated successfully');
                 } catch (error) {
@@ -3405,10 +3729,19 @@ try {
                 const tableBody = document.querySelector('tbody');
                 const rows = Array.from(tableBody.querySelectorAll('tr'));
 
-                // Determine column offset (admin has checkbox column)
-                const offset = window.IS_ADMIN ? 1 : 0;
-
                 rows.forEach(row => {
+                    const hasCheckbox = !!row.querySelector('.row-checkbox');
+                    const columnIndex = hasCheckbox ? {
+                        institution: 1,
+                        signDate: 3,
+                        endDate: 4,
+                        status: 5
+                    } : {
+                        institution: 0,
+                        signDate: 2,
+                        endDate: 3,
+                        status: 4
+                    };
                     let showRow = true;
 
                     // Skip if row doesn't have enough cells
@@ -3418,7 +3751,7 @@ try {
 
                     // Filter by status
                     if (currentFilter.status !== 'all') {
-                        const statusCell = row.cells[5 + offset]; // Status column
+                        const statusCell = row.cells[columnIndex.status]; // Status column
                         if (!statusCell) return;
                         const statusSpan = statusCell.querySelector('span');
                         const statusText = statusSpan ? statusSpan.textContent.trim() : statusCell.textContent.trim();
@@ -3429,7 +3762,7 @@ try {
 
                     // Filter by institution
                     if (currentFilter.institution) {
-                        const institutionCell = row.cells[0 + offset]; // Institution column
+                        const institutionCell = row.cells[columnIndex.institution]; // Institution column
                         if (!institutionCell) return;
                         const institutionText = institutionCell.textContent.trim().toLowerCase();
                         if (!institutionText.includes(currentFilter.institution.toLowerCase())) {
@@ -3439,7 +3772,7 @@ try {
 
                     // Filter by sign date range
                     if (currentFilter.signDateFrom || currentFilter.signDateTo) {
-                        const signDateCell = row.cells[3 + offset]; // Sign Date column
+                        const signDateCell = row.cells[columnIndex.signDate]; // Sign Date column
                         if (!signDateCell) return;
                         const signDateText = signDateCell.textContent.trim();
                         if (!isDateInRange(signDateText, currentFilter.signDateFrom, currentFilter.signDateTo)) {
@@ -3449,7 +3782,7 @@ try {
 
                     // Filter by end date range
                     if (currentFilter.endDateFrom || currentFilter.endDateTo) {
-                        const endDateCell = row.cells[4 + offset]; // End Date column
+                        const endDateCell = row.cells[columnIndex.endDate]; // End Date column
                         if (!endDateCell) return;
                         const endDateText = endDateCell.textContent.trim();
                         if (!isDateInRange(endDateText, currentFilter.endDateFrom, currentFilter.endDateTo)) {
@@ -4757,8 +5090,13 @@ try {
                                 if (locationField) locationField.value = entryToEdit.location || '';
                                 if (contactField) contactField.value = entryToEdit.contact_email || '';
                                 if (termField) termField.value = entryToEdit.term || '';
-                                if (signDateField) signDateField.value = entryToEdit.sign_date || '';
-                                if (endDateField) endDateField.value = entryToEdit.end_date || '';
+                                
+                                // Initialize date pickers and set values
+                                setTimeout(() => {
+                                    initDatePickers();
+                                    if (signDateField) signDateField.value = entryToEdit.sign_date || '';
+                                    if (endDateField) endDateField.value = entryToEdit.end_date || '';
+                                }, 0);
                                 
                                 console.log('Form fields populated successfully from details modal');
                             } catch (error) {
