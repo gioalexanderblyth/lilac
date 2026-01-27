@@ -232,6 +232,74 @@ try {
         #createModal.dragging { align-items: flex-start; justify-content: flex-start; }
         #createModalHeader { cursor: move; }
         .dragging * { user-select: none; }
+
+        /* Custom scrollbar styling for all elements */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+
+        /* Firefox scrollbar styling */
+        html {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+
+        /* Dark mode Firefox scrollbar */
+        .dark * {
+            scrollbar-color: #475569 #1e293b;
+        }
+
+        .dark html {
+            scrollbar-color: #475569 #1e293b;
+        }
+
+        /* WebKit scrollbar styling (Chrome, Safari, Edge) */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        ::-webkit-scrollbar-corner {
+            background: #f1f5f9;
+        }
+
+        /* Dark mode WebKit scrollbar styling */
+        .dark ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        .dark ::-webkit-scrollbar-corner {
+            background: #1e293b;
+        }
+
+        /* Fix for active sidebar link in dark mode - ensure dark gradient overrides light gradient */
+        .dark .sidebar-nav-link.bg-gradient-to-r {
+            background-image: linear-gradient(to right, rgba(88, 28, 135, 0.4), rgba(67, 56, 202, 0.4)) !important;
+        }
   </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
@@ -284,7 +352,7 @@ try {
 <div class="flex items-center gap-3 overflow-hidden">
 <div class="w-10 h-10 rounded-full bg-cover bg-center sidebar-profile-picture flex-shrink-0" style='background-image: url("<?php echo !empty($user['profile_picture']) ? htmlspecialchars($user['profile_picture']) : 'https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p'; ?>");'></div>
 <div class="sidebar-profile-info overflow-hidden">
-<p class="font-semibold text-text-light dark:text-text-dark truncate"><?php echo htmlspecialchars($user['role'] === 'admin' ? 'Admin User' : $user['username']); ?></p>
+<p class="font-semibold text-text-light dark:text-text-dark truncate"><?php echo htmlspecialchars(!empty($user['full_name']) ? $user['full_name'] : $user['username']); ?></p>
 <div class="flex gap-3">
 <a class="text-sm text-primary-600 dark:text-primary-400 hover:underline whitespace-nowrap" href="profile.php">Profile</a>
 <span class="text-sm text-gray-400">|</span>
@@ -518,20 +586,34 @@ try {
             </div>
         </div>
         <div class="p-4">
-            <p id="detailDate" class="text-sm text-text-muted-light dark:text-text-muted-dark mb-3">Thursday, 2 October</p>
+            <div class="mb-3">
+                <p id="detailDate" class="text-sm text-text-muted-light dark:text-text-muted-dark">Thursday, 2 October</p>
+                <p id="detailTime" class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1"></p>
+            </div>
 
             <div class="mt-4 space-y-3">
-                <div class="flex items-start gap-3 text-text-light dark:text-text-dark">
-                    <span class="material-symbols-outlined text-[20px] text-text-muted-light dark:text-text-muted-dark">location_on</span>
-                    <span id="detailLocation">RMA</span>
+                <!-- Event Type -->
+                <div id="detailTypeContainer" class="flex items-start gap-3 text-text-light dark:text-text-dark hidden">
+                    <span class="material-symbols-outlined text-[20px] text-text-muted-light dark:text-text-muted-dark">category</span>
+                    <span id="detailType"></span>
                 </div>
+                
+                <!-- Location -->
+                <div id="detailLocationContainer" class="flex items-start gap-3 text-text-light dark:text-text-dark hidden">
+                    <span class="material-symbols-outlined text-[20px] text-text-muted-light dark:text-text-muted-dark">location_on</span>
+                    <span id="detailLocation"></span>
+                </div>
+                
+                <!-- Description -->
+                <div id="detailDescriptionContainer" class="flex items-start gap-3 text-text-light dark:text-text-dark hidden">
+                    <span class="material-symbols-outlined text-[20px] text-text-muted-light dark:text-text-muted-dark">description</span>
+                    <span id="detailDescription" class="flex-1"></span>
+                </div>
+                
+                <!-- Reminder -->
                 <div class="flex items-start gap-3 text-text-light dark:text-text-dark">
                     <span class="material-symbols-outlined text-[20px] text-text-muted-light dark:text-text-muted-dark">notifications</span>
-                    <span id="detailReminder">The day before at 5pm</span>
-                </div>
-                <div class="flex items-start gap-3 text-text-light dark:text-text-dark">
-                    <span class="material-symbols-outlined text-[20px] text-text-muted-light dark:text-text-muted-dark">account_circle</span>
-                    <span id="detailOrganizer">Chrisjane Patricio</span>
+                    <span id="detailReminder">30 minutes before</span>
                 </div>
             </div>
         </div>
@@ -541,6 +623,41 @@ try {
 <script>
 // Context menu for calendar events
 </script>
+
+<!-- Event Attendance Confirmation Modal -->
+<div id="eventAttendanceModal" class="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-[10002] hidden">
+    <div class="bg-white dark:bg-card-dark rounded-2xl shadow-2xl w-full max-w-md mx-4 border border-border-light dark:border-border-dark">
+        <div class="p-6">
+            <div class="flex items-center gap-4 mb-4">
+                <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-xl">event</span>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-text-light dark:text-text-dark">Upcoming Event</h3>
+                    <p class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1">Please confirm your attendance</p>
+                </div>
+            </div>
+            
+            <div class="mb-6">
+                <p class="text-lg font-semibold text-text-light dark:text-text-dark mb-2" id="attendanceEventTitle">Event Title</p>
+                <p class="text-sm text-text-muted-light dark:text-text-muted-dark" id="attendanceEventDetails">Date and Time</p>
+            </div>
+            
+            <p class="text-text-light dark:text-text-dark mb-6">
+                Are you going to attend this event?
+            </p>
+            
+            <div class="flex gap-3 justify-end">
+                <button id="attendanceNoBtn" class="px-6 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+                    No
+                </button>
+                <button id="attendanceYesBtn" class="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
+                    Yes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Event Context Menu -->
 <div id="eventContextMenu" class="fixed z-[10000] hidden bg-white dark:bg-card-dark rounded-xl shadow-xl border border-gray-200 dark:border-border-dark w-56 select-none overflow-hidden">
@@ -1168,110 +1285,30 @@ try {
                      <span id="descriptionText">Add description or a Google Drive attachment</span>
 </div>
                  
-                 <!-- Organizer -->
-                 <div class="flex items-start space-x-3">
-                     <span class="material-symbols-outlined text-gray-600 mt-1">calendar_today</span>
-                     <div class="flex-1">
-                         <div class="flex items-center space-x-2 cursor-pointer" onclick="toggleUserSettings()">
-                             <span class="font-medium">Admin User</span>
-                             <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
-</div>
-                         <div class="text-xs text-gray-500 mt-1">Busy • Notify 30 minutes before</div>
-                         
-                         <!-- User Settings Panel -->
-                         <div id="userSettingsPanel" class="hidden mt-3 p-4 bg-white border border-gray-200 rounded-lg shadow-lg space-y-3">
-                             <!-- Calendar and Availability Row -->
-                             <div class="flex items-center space-x-3">
-                                 <span class="material-symbols-outlined text-gray-600">calendar_today</span>
-                                 <select class="bg-transparent border-0 text-sm font-medium text-gray-700 focus:outline-none">
-                                     <option>Chrisjane Patricio</option>
-                                 </select>
-                                 <div class="relative">
-                                     <button onclick="toggleColorPicker()" class="w-4 h-4 rounded-full bg-blue-500 border border-gray-300 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"></button>
-                                     <!-- Color Picker Dropdown -->
-                                     <div id="colorPicker" class="hidden absolute top-0 left-8 bg-white dark:bg-card-dark border border-gray-200 dark:border-border-dark rounded-lg shadow-lg z-20 p-3" style="min-width: 80px;">
-                                         <div class="grid grid-cols-2 gap-2" style="width: 60px;">
-                                             <div class="w-6 h-6 rounded-full bg-red-500 cursor-pointer hover:ring-2 hover:ring-gray-300 relative group" onclick="selectColor('red', this)" title="Tomato">
-                                                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Tomato</div>
-</div>
-                                             <div class="w-6 h-6 rounded-full bg-orange-500 cursor-pointer hover:ring-2 hover:ring-gray-300 relative group" onclick="selectColor('orange', this)" title="Orange">
-                                                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Orange</div>
-</div>
-                                             <div class="w-6 h-6 rounded-full bg-green-400 cursor-pointer hover:ring-2 hover:ring-gray-300 relative group" onclick="selectColor('green', this)" title="Mint">
-                                                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Mint</div>
-</div>
-                                             <div class="w-6 h-6 rounded-full bg-blue-400 cursor-pointer hover:ring-2 hover:ring-gray-300 relative group" onclick="selectColor('blue', this)" title="Sky Blue">
-                                                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Sky Blue</div>
-</div>
-                                             <div class="w-6 h-6 rounded-full bg-purple-400 cursor-pointer hover:ring-2 hover:ring-gray-300 relative group" onclick="selectColor('purple', this)" title="Lavender">
-                                                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Lavender</div>
-</div>
-                                             <div class="w-6 h-6 rounded-full bg-gray-400 cursor-pointer hover:ring-2 hover:ring-gray-300 relative group" onclick="selectColor('gray', this)" title="Gray">
-                                                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Gray</div>
-</div>
-                                             <div class="w-6 h-6 rounded-full bg-pink-300 cursor-pointer hover:ring-2 hover:ring-gray-300 relative group" onclick="selectColor('pink', this)" title="Pink">
-                                                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Pink</div>
-</div>
-                                             <div class="w-6 h-6 rounded-full bg-yellow-400 cursor-pointer hover:ring-2 hover:ring-gray-300 relative group" onclick="selectColor('yellow', this)" title="Yellow">
-                                                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Yellow</div>
-</div>
-                                             <div class="w-6 h-6 rounded-full bg-green-600 cursor-pointer hover:ring-2 hover:ring-gray-300 relative group" onclick="selectColor('darkgreen', this)" title="Forest Green">
-                                                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Forest Green</div>
-</div>
-                                             <div class="w-6 h-6 rounded-full bg-blue-600 cursor-pointer hover:ring-2 hover:ring-gray-300 relative group" onclick="selectColor('darkblue', this)" title="Navy Blue">
-                                                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Navy Blue</div>
-</div>
-                                             <div class="w-6 h-6 rounded-full bg-purple-600 cursor-pointer hover:ring-2 hover:ring-gray-300 relative group" onclick="selectColor('darkpurple', this)" title="Plum">
-                                                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Plum</div>
-</div>
-                                             <div class="w-6 h-6 rounded-full bg-transparent border-2 border-gray-300 cursor-pointer hover:ring-2 hover:ring-gray-300 relative group" onclick="selectColor('transparent', this)" title="No Color">
-                                                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">No Color</div>
-</div>
-</div>
-</div>
-</div>
-                             
-                             <!-- Availability Row -->
-                             <div class="flex items-center space-x-3">
-                                 <span class="material-symbols-outlined text-gray-600">work</span>
-                                 <select class="bg-transparent border-0 text-sm focus:outline-none">
-                                     <option>Busy</option>
-                                     <option>Available</option>
-                                     <option>Tentative</option>
-                                 </select>
-</div>
-                             
-                             
-                             <!-- Notification Row -->
-                             <div class="flex items-center space-x-3">
-                                 <span class="material-symbols-outlined text-gray-600">notifications</span>
-                                 <select class="bg-transparent border-0 text-sm focus:outline-none">
-                                     <option>30 minutes before</option>
-                                     <option>1 hour before</option>
-                                     <option>1 day before</option>
-                                     <option>None</option>
-                                 </select>
+                 <!-- Reminder/Notification -->
+                 <div class="flex items-center space-x-3 text-gray-600">
+                     <span class="material-symbols-outlined">notifications</span>
+                     <div class="flex-1 relative">
+                         <button id="reminderButton" class="text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center justify-between w-full" onclick="toggleReminderDropdown()">
+                             <span id="reminderText">30 minutes before</span>
+                             <span class="material-symbols-outlined text-xs ml-2">keyboard_arrow_down</span>
+                         </button>
+                         <!-- Reminder Dropdown -->
+                         <div id="reminderDropdown" class="hidden absolute top-full left-0 mt-1 bg-white dark:bg-card-dark border border-gray-200 dark:border-border-dark rounded-lg shadow-lg z-20 min-w-48">
+                             <div class="py-2">
+                                 <div class="px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-border-dark">Remind me</div>
+                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('At time of event')">At time of event</div>
+                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('5 minutes before')">5 minutes before</div>
+                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('10 minutes before')">10 minutes before</div>
+                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('15 minutes before')">15 minutes before</div>
+                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('30 minutes before')">30 minutes before</div>
+                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('1 hour before')">1 hour before</div>
+                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('2 hours before')">2 hours before</div>
+                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('1 day before')">1 day before</div>
+                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('2 days before')">2 days before</div>
+                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('1 week before')">1 week before</div>
+                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('None')">None</div>
                              </div>
-                             
-                             <!-- Add Notification Link -->
-                             <div class="text-blue-600 text-sm cursor-pointer hover:text-blue-800 relative" onclick="toggleNotificationDropdown()">
-                                 Add notification
-                                 
-                                 <!-- Notification Dropdown -->
-                                 <div id="notificationDropdown" class="hidden absolute bottom-6 left-0 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-48">
-                                     <div class="py-2">
-                                         <div class="px-4 py-2 text-xs font-medium text-gray-500 border-b border-gray-100">When the event starts</div>
-                                         <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectNotification('5 minutes before')">5 minutes before</div>
-                                         <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectNotification('10 minutes before')">10 minutes before</div>
-                                         <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectNotification('15 minutes before')">15 minutes before</div>
-                                         <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectNotification('30 minutes before')">30 minutes before</div>
-                                         <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectNotification('1 hour before')">1 hour before</div>
-                                         <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectNotification('1 day before')">1 day before</div>
-                                         <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectNotification('Custom...')">Custom...</div>
-                                     </div>
-                                 </div>
-                             </div>
-                             
                          </div>
                      </div>
                  </div>
@@ -1329,24 +1366,45 @@ try {
  
 <!-- Time Picker Popup -->
 <div id="timePickerModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center pt-24 z-50 hidden">
-     <div class="bg-white rounded-lg shadow-xl w-full max-w-xs mx-4">
-         <!-- Time Picker Header -->
-         <div class="p-4 border-b">
-             <div class="flex items-center justify-center space-x-2">
-                 <span id="timeDisplay" class="text-blue-600 font-medium border-b border-blue-600 cursor-pointer" onclick="switchTimeType('start')">4:30pm</span>
-                 <span class="text-gray-400">-</span>
-                 <span id="otherTimeDisplay" class="px-2 py-1 bg-gray-100 rounded text-gray-700 cursor-pointer" onclick="switchTimeType('end')">5:30pm</span>
-             </div>
-         </div>
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-xs mx-4">
+        <!-- Time Picker Header -->
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-center space-x-2">
+                <span id="timeDisplay" class="text-blue-600 dark:text-blue-400 font-medium border-b border-blue-600 dark:border-blue-400 cursor-pointer" onclick="switchTimeType('start')">4:30pm</span>
+                <span class="text-gray-400 dark:text-gray-500">-</span>
+                <span id="otherTimeDisplay" class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300 cursor-pointer" onclick="switchTimeType('end')">5:30pm</span>
+            </div>
+        </div>
+        
+        <!-- Time Input Field -->
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center space-x-2">
+                <input 
+                    type="text" 
+                    id="timeInput" 
+                    placeholder="Type time (e.g., 2:30pm or 14:30)" 
+                    class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onkeydown="handleTimeInputKeydown(event)"
+                    onblur="handleTimeInputBlur()"
+                />
+                <button 
+                    onclick="applyTimeInput()" 
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                    Apply
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Press Enter or click Apply to set time</p>
+        </div>
             
-         <!-- Time List -->
-         <div class="max-h-64 overflow-y-auto">
-             <div id="timeList" class="p-2 space-y-1">
-                 <!-- Time options will be generated here -->
-             </div>
-         </div>
-     </div>
- </div>
+        <!-- Time List -->
+        <div class="max-h-64 overflow-y-auto" id="timeListContainer">
+            <div id="timeList" class="p-2 space-y-1">
+                <!-- Time options will be generated here -->
+            </div>
+        </div>
+    </div>
+</div>
  
  <script>
 // Global variables to track calendar dates
@@ -1359,6 +1417,14 @@ let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
    const overlay = document.getElementById('createModal');
    overlay.classList.remove('hidden');
    overlay.classList.remove('dragging');
+   
+   // Reset reminder to default if not editing
+   if (!isEditingExisting) {
+       const reminderText = document.getElementById('reminderText');
+       if (reminderText && !reminderText.textContent) {
+           reminderText.textContent = '30 minutes before';
+       }
+   }
  }
  
  function closeCreateModal() {
@@ -1380,11 +1446,17 @@ let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
  
  function toggleTimePicker(type = 'date') {
      if (type === 'date') {
-         // Ensure calendar is rendered before showing modal
+         // Ensure calendar is rendered before showing modal (this recreates the buttons with fresh handlers)
          renderCalendar();
          
          const datePickerModal = document.getElementById('datePickerModal');
          const createModalCard = document.getElementById('createModalCard');
+         
+         // Reset modal styles to ensure it can be reopened
+         if (datePickerModal) {
+             datePickerModal.style.visibility = 'visible';
+             datePickerModal.style.display = 'flex';
+         }
          
          if (createModalCard && datePickerModal) {
              // Use requestAnimationFrame to ensure layout is calculated after calendar renders
@@ -1403,19 +1475,32 @@ let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
                      datePickerModal.style.display = 'flex';
                      datePickerModal.style.alignItems = 'center';
                      datePickerModal.style.justifyContent = 'center';
+                     datePickerModal.style.visibility = 'visible';
                      
                     // Show the modal after positioning
                     datePickerModal.classList.remove('hidden');
                 });
              });
          } else {
-             datePickerModal.classList.remove('hidden');
+             if (datePickerModal) {
+                 datePickerModal.classList.remove('hidden');
+                 datePickerModal.style.display = 'flex';
+                 datePickerModal.style.visibility = 'visible';
+             }
          }
-     } else {
-         currentTimeType = type;
-         renderTimePicker();
-         document.getElementById('timePickerModal').classList.remove('hidden');
-     }
+    } else {
+        currentTimeType = type;
+        renderTimePicker();
+        document.getElementById('timePickerModal').classList.remove('hidden');
+        // Focus the input field after a short delay to ensure it's visible
+        setTimeout(() => {
+            const timeInput = document.getElementById('timeInput');
+            if (timeInput) {
+                timeInput.focus();
+                timeInput.select();
+            }
+        }, 100);
+    }
  }
  
  function closeDatePickerModal(event) {
@@ -1472,32 +1557,54 @@ let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
      const timeDisplay = document.getElementById('timeDisplay');
      const otherTimeDisplay = document.getElementById('otherTimeDisplay');
      
-     if (currentTimeType === 'start') {
-         timeDisplay.textContent = currentTime;
-         otherTimeDisplay.textContent = endTimeBtn.textContent;
-         // Update styling to show which is active
-         timeDisplay.className = 'text-blue-600 font-medium border-b border-blue-600 cursor-pointer';
-         otherTimeDisplay.className = 'px-2 py-1 bg-gray-100 rounded text-gray-700 cursor-pointer';
-     } else {
-         timeDisplay.textContent = startTimeBtn.textContent;
-         otherTimeDisplay.textContent = currentTime;
-         // Update styling to show which is active
-         timeDisplay.className = 'px-2 py-1 bg-gray-100 rounded text-gray-700 cursor-pointer';
-         otherTimeDisplay.className = 'text-blue-600 font-medium border-b border-blue-600 cursor-pointer';
-     }
+    if (currentTimeType === 'start') {
+        timeDisplay.textContent = currentTime;
+        otherTimeDisplay.textContent = endTimeBtn.textContent;
+        // Update styling to show which is active
+        timeDisplay.className = 'text-blue-600 dark:text-blue-400 font-medium border-b border-blue-600 dark:border-blue-400 cursor-pointer';
+        otherTimeDisplay.className = 'px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300 cursor-pointer';
+    } else {
+        timeDisplay.textContent = startTimeBtn.textContent;
+        otherTimeDisplay.textContent = currentTime;
+        // Update styling to show which is active
+        timeDisplay.className = 'px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300 cursor-pointer';
+        otherTimeDisplay.className = 'text-blue-600 dark:text-blue-400 font-medium border-b border-blue-600 dark:border-blue-400 cursor-pointer';
+    }
      
-     // Generate time options (15-minute intervals from 6:00am to 11:45pm)
-     for (let hour = 6; hour <= 23; hour++) {
-         for (let minute = 0; minute < 60; minute += 15) {
-             const timeString = formatTime(hour, minute);
-             const timeOption = document.createElement('div');
-             timeOption.className = `px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 rounded ${currentTime === timeString ? 'bg-gray-100' : ''}`;
-             timeOption.textContent = timeString;
-             timeOption.onclick = () => selectTime(timeString);
-             timeList.appendChild(timeOption);
-         }
-     }
- }
+    // Generate time options (15-minute intervals from 6:00am to 11:45pm)
+    let currentTimeElement = null;
+    for (let hour = 6; hour <= 23; hour++) {
+        for (let minute = 0; minute < 60; minute += 15) {
+            const timeString = formatTime(hour, minute);
+            const timeOption = document.createElement('div');
+            timeOption.className = `px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-900 dark:text-gray-100 ${currentTime === timeString ? 'bg-gray-100 dark:bg-gray-700' : ''}`;
+            timeOption.textContent = timeString;
+            timeOption.onclick = () => selectTime(timeString);
+            timeOption.setAttribute('data-time', timeString);
+            timeOption.setAttribute('data-hour', hour);
+            timeOption.setAttribute('data-minute', minute);
+            timeList.appendChild(timeOption);
+            
+            if (currentTime === timeString) {
+                currentTimeElement = timeOption;
+            }
+        }
+    }
+    
+    // Auto-scroll to current time
+    if (currentTimeElement) {
+        setTimeout(() => {
+            currentTimeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+    }
+    
+    // Set input field value to current time
+    const timeInput = document.getElementById('timeInput');
+    if (timeInput) {
+        timeInput.value = currentTime;
+        timeInput.select();
+    }
+}
  
  function formatTime(hour, minute) {
      const period = hour >= 12 ? 'pm' : 'am';
@@ -1515,10 +1622,154 @@ let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
      closeTimePickerModal();
  }
  
- function switchTimeType(type) {
-     currentTimeType = type;
-     renderTimePicker();
- }
+function switchTimeType(type) {
+    currentTimeType = type;
+    renderTimePicker();
+}
+
+// Parse time input from various formats (e.g., "2:30pm", "14:30", "2:30 PM", "14:30:00")
+function parseTimeInput(input) {
+    if (!input || !input.trim()) return null;
+    
+    const timeStr = input.trim().toLowerCase();
+    
+    // Remove extra spaces and normalize
+    let normalized = timeStr.replace(/\s+/g, '');
+    
+    // Try to match various formats
+    // Format 1: "2:30pm" or "2:30am"
+    let match = normalized.match(/^(\d{1,2}):(\d{2})(am|pm)$/);
+    if (match) {
+        let hour = parseInt(match[1]);
+        const minute = parseInt(match[2]);
+        const period = match[3];
+        
+        if (minute < 0 || minute >= 60) return null;
+        if (hour < 1 || hour > 12) return null;
+        
+        // Convert to 24-hour format
+        if (period === 'pm' && hour !== 12) hour += 12;
+        if (period === 'am' && hour === 12) hour = 0;
+        
+        // Check if time is within valid range (6:00am to 11:45pm)
+        if (hour < 6 || hour > 23) return null;
+        if (hour === 23 && minute > 45) return null;
+        
+        return { hour, minute };
+    }
+    
+    // Format 2: "14:30" (24-hour format)
+    match = normalized.match(/^(\d{1,2}):(\d{2})$/);
+    if (match) {
+        let hour = parseInt(match[1]);
+        const minute = parseInt(match[2]);
+        
+        if (minute < 0 || minute >= 60) return null;
+        if (hour < 0 || hour > 23) return null;
+        
+        // Check if time is within valid range (6:00am to 11:45pm)
+        if (hour < 6 || hour > 23) return null;
+        if (hour === 23 && minute > 45) return null;
+        
+        return { hour, minute };
+    }
+    
+    // Format 3: "230pm" or "230pm" (no colon)
+    match = normalized.match(/^(\d{1,4})(am|pm)$/);
+    if (match) {
+        const numStr = match[1];
+        const period = match[2];
+        let hour, minute;
+        
+        if (numStr.length <= 2) {
+            hour = parseInt(numStr);
+            minute = 0;
+        } else if (numStr.length === 3) {
+            hour = parseInt(numStr.substring(0, 1));
+            minute = parseInt(numStr.substring(1));
+        } else {
+            hour = parseInt(numStr.substring(0, 2));
+            minute = parseInt(numStr.substring(2));
+        }
+        
+        if (minute < 0 || minute >= 60) return null;
+        if (hour < 1 || hour > 12) return null;
+        
+        // Convert to 24-hour format
+        if (period === 'pm' && hour !== 12) hour += 12;
+        if (period === 'am' && hour === 12) hour = 0;
+        
+        // Check if time is within valid range
+        if (hour < 6 || hour > 23) return null;
+        if (hour === 23 && minute > 45) return null;
+        
+        return { hour, minute };
+    }
+    
+    return null;
+}
+
+// Find closest time option (rounds to nearest 15-minute interval)
+function findClosestTime(hour, minute) {
+    // Round to nearest 15-minute interval
+    const roundedMinute = Math.round(minute / 15) * 15;
+    let finalHour = hour;
+    let finalMinute = roundedMinute;
+    
+    if (finalMinute >= 60) {
+        finalMinute = 0;
+        finalHour += 1;
+    }
+    
+    if (finalHour > 23) {
+        finalHour = 23;
+        finalMinute = 45;
+    }
+    
+    return formatTime(finalHour, finalMinute);
+}
+
+// Handle Enter key in time input
+function handleTimeInputKeydown(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        applyTimeInput();
+    }
+}
+
+// Handle blur event (when user clicks away)
+function handleTimeInputBlur() {
+    // Don't auto-apply on blur, let user explicitly click Apply or press Enter
+    // This prevents accidental changes
+}
+
+// Apply time from input field
+function applyTimeInput() {
+    const timeInput = document.getElementById('timeInput');
+    if (!timeInput) return;
+    
+    const inputValue = timeInput.value.trim();
+    if (!inputValue) return;
+    
+    const parsedTime = parseTimeInput(inputValue);
+    
+    if (!parsedTime) {
+        // Invalid format - show error and highlight input
+        timeInput.classList.add('border-red-500', 'ring-2', 'ring-red-500');
+        timeInput.placeholder = 'Invalid format. Try: 2:30pm or 14:30';
+        setTimeout(() => {
+            timeInput.classList.remove('border-red-500', 'ring-2', 'ring-red-500');
+            timeInput.placeholder = 'Type time (e.g., 2:30pm or 14:30)';
+        }, 2000);
+        return;
+    }
+    
+    // Find closest time option (rounds to nearest 15-minute interval)
+    const timeString = findClosestTime(parsedTime.hour, parsedTime.minute);
+    
+    // Apply the time
+    selectTime(timeString);
+}
  
 // Edit functions for all clickable elements
 async function editTimeZone() {
@@ -1601,6 +1852,8 @@ async function editMoreOptions() {
 // Track which event is currently shown in the details modal
 let currentOpenedEventId = null;
 let isEditingExisting = false;
+// Track which event is targeted for context menu actions
+let ctxTargetEventId = null;
 
 // Make saveEvent globally accessible
 window.saveEvent = function() {
@@ -1616,8 +1869,9 @@ window.saveEvent = function() {
         const location = document.getElementById('locationText').textContent;
          const description = document.getElementById('descriptionText').textContent;
         const eventType = (document.getElementById('eventTypeSelect') && document.getElementById('eventTypeSelect').value) || 'Event';
+        const reminder = (document.getElementById('reminderText') && document.getElementById('reminderText').textContent) || '30 minutes before';
          
-        console.log('Form data:', { title, startTime, endTime, date, location, description, eventType }); // Debug log
+        console.log('Form data:', { title, startTime, endTime, date, location, description, eventType, reminder }); // Debug log
          
          if (!title.trim()) {
              showToast('Please enter a title for the event', 'warning');
@@ -1707,7 +1961,8 @@ window.saveEvent = function() {
                     location: location !== 'Add location' ? location : '',
                     description: description !== 'Add description or a Google Drive attachment' ? description : '',
                     color: selectedColor,
-                    type: eventType
+                    type: eventType,
+                    reminder: reminder
                 };
                 eventData = events[idx];
             }
@@ -1723,10 +1978,14 @@ window.saveEvent = function() {
                 location: location !== 'Add location' ? location : '',
                 description: description !== 'Add description or a Google Drive attachment' ? description : '',
                 color: selectedColor,
-                type: eventType
+                type: eventType,
+                reminder: reminder
             };
             // Add event to storage
             events.push(eventData);
+        } else {
+            // Update existing event
+            eventData.reminder = reminder;
         }
          
          console.log('Event data created:', eventData); // Debug log
@@ -1744,8 +2003,12 @@ window.saveEvent = function() {
                  description: description !== 'Add description or a Google Drive attachment' ? description : '',
                  scheduled_date: scheduledDate,
                  start_time: startTime,
+                 reminder: reminder, // Include reminder in database save
                  status: 'scheduled'
              };
+             
+             // Schedule reminder notification
+             scheduleReminderNotification(eventData);
              
              createSchedule(scheduleData).then(success => {
                  if (success) {
@@ -1899,8 +2162,35 @@ function renderMyEvents() {
 
 				const menu = document.createElement('button');
 				menu.type = 'button';
-				menu.className = 'ml-3 shrink-0 text-text-muted-light dark:text-text-muted-dark opacity-0 group-hover:opacity-100 transition-opacity';
+				menu.className = 'ml-3 shrink-0 text-text-muted-light dark:text-text-muted-dark opacity-0 group-hover:opacity-100 transition-opacity hover:text-text-light dark:hover:text-text-dark';
 				menu.innerHTML = '<span class="material-symbols-outlined text-[18px]">more_horiz</span>';
+				menu.dataset.eventId = String(ev.id);
+				menu.title = 'More options';
+
+				// Add click handler for the menu button
+				menu.addEventListener('click', (e) => {
+					e.stopPropagation();
+					e.preventDefault();
+					
+					// Get the context menu
+					const ctxMenu = document.getElementById('eventContextMenu');
+					if (!ctxMenu) return;
+					
+					// Set the target event ID
+					ctxTargetEventId = String(ev.id);
+					
+					// Position menu near the button
+					const rect = menu.getBoundingClientRect();
+					const vw = window.innerWidth;
+					const vh = window.innerHeight;
+					ctxMenu.style.display = 'block';
+					ctxMenu.classList.remove('hidden');
+					const menuRect = ctxMenu.getBoundingClientRect();
+					const left = Math.min(rect.right, vw - menuRect.width - 8);
+					const top = Math.min(rect.bottom + 4, vh - menuRect.height - 8) + window.scrollY;
+					ctxMenu.style.left = left + 'px';
+					ctxMenu.style.top = top + 'px';
+				});
 
 				row.appendChild(title);
 				row.appendChild(menu);
@@ -2107,9 +2397,6 @@ function openEventDetail(event) {
     if (!modal) { console.error('eventDetailModal not found'); return; }
     currentOpenedEventId = event && event.id ? event.id : null;
     document.getElementById('detailTitle').textContent = event.title || 'Event';
-    document.getElementById('detailLocation').textContent = event.location || '';
-    document.getElementById('detailOrganizer').textContent = 'Chrisjane Patricio';
-    document.getElementById('detailReminder').textContent = 'The day before at 5pm';
     const colorDot = document.getElementById('detailColorDot');
     colorDot.className = `w-3.5 h-3.5 rounded-full ${event.color || 'bg-blue-500'}`;
     
@@ -2122,6 +2409,52 @@ function openEventDetail(event) {
         dateText = `${dayNames[d.getDay()]}, ${event.dayNumber} ${monthNames[d.getMonth()]}`;
     }
     document.getElementById('detailDate').textContent = dateText || '';
+    
+    // Display time if available
+    const detailTime = document.getElementById('detailTime');
+    if (event.startTime && event.endTime) {
+        detailTime.textContent = `${event.startTime} - ${event.endTime}`;
+    } else if (event.startTime) {
+        detailTime.textContent = event.startTime;
+    } else if (event.scheduled_time) {
+        detailTime.textContent = event.scheduled_time;
+    } else {
+        detailTime.textContent = '';
+    }
+    
+    // Display event type
+    const detailTypeContainer = document.getElementById('detailTypeContainer');
+    const detailType = document.getElementById('detailType');
+    if (event.type && event.type !== 'Event') {
+        detailType.textContent = event.type;
+        detailTypeContainer.classList.remove('hidden');
+    } else {
+        detailTypeContainer.classList.add('hidden');
+    }
+    
+    // Display location (only if it exists)
+    const detailLocationContainer = document.getElementById('detailLocationContainer');
+    const detailLocation = document.getElementById('detailLocation');
+    if (event.location && event.location.trim() !== '' && event.location !== 'Add location') {
+        detailLocation.textContent = event.location;
+        detailLocationContainer.classList.remove('hidden');
+    } else {
+        detailLocationContainer.classList.add('hidden');
+    }
+    
+    // Display description (only if it exists)
+    const detailDescriptionContainer = document.getElementById('detailDescriptionContainer');
+    const detailDescription = document.getElementById('detailDescription');
+    if (event.description && event.description.trim() !== '' && event.description !== 'Add description or a Google Drive attachment') {
+        detailDescription.textContent = event.description;
+        detailDescriptionContainer.classList.remove('hidden');
+    } else {
+        detailDescriptionContainer.classList.add('hidden');
+    }
+    
+    // Display reminder (use saved reminder or default)
+    const detailReminder = document.getElementById('detailReminder');
+    detailReminder.textContent = event.reminder || '30 minutes before';
 
     	// Ensure container centers content and resets any prior inline offsets
 	const card = document.querySelector('#eventDetailModal > div');
@@ -2152,10 +2485,11 @@ function openEventDetail(event) {
     const mainMonthEl = document.getElementById('mainMonthDisplay');
     if (mainMonthEl) mainMonthEl.textContent = `${monthNames[currentMonth]} ${currentYear}`;
      
-   // Clear small calendar grid (date picker modal)
+   // Clear small calendar grid (date picker modal) and ensure pointer events
    const calendarGrid = document.getElementById('calendarGrid');
    if (calendarGrid) {
        calendarGrid.innerHTML = '';
+       calendarGrid.style.pointerEvents = 'auto';
    }
    // Do not touch sidebar mini grid here; it's rendered separately
      
@@ -2551,6 +2885,13 @@ document.addEventListener('click', function(e) {
      if (notificationDropdown && notificationButton && !notificationDropdown.contains(e.target) && !notificationButton.contains(e.target)) {
          notificationDropdown.classList.add('hidden');
      }
+     
+     // Close reminder dropdown when clicking outside
+     const reminderDropdown = document.getElementById('reminderDropdown');
+     const reminderButton = document.getElementById('reminderButton');
+     if (reminderDropdown && reminderButton && !reminderDropdown.contains(e.target) && !reminderButton.contains(e.target)) {
+         reminderDropdown.classList.add('hidden');
+     }
      });
      
     // Hook up main and sidebar navigation buttons
@@ -2695,6 +3036,11 @@ document.addEventListener('click', function(e) {
         locationText.textContent = evt.location ? evt.location : 'Add location';
         const descriptionText = document.getElementById('descriptionText');
         descriptionText.textContent = evt.description ? evt.description : 'Add description or a Google Drive attachment';
+        // Reminder
+        const reminderText = document.getElementById('reminderText');
+        if (reminderText) {
+            reminderText.textContent = evt.reminder || '30 minutes before';
+        }
         // Color button
         const colorBtn = document.querySelector('button[onclick="toggleColorPicker()"]');
         if (colorBtn && evt.color) {
@@ -2708,68 +3054,169 @@ document.addEventListener('click', function(e) {
         isEditingExisting = true;
         openCreateModal();
     });
-    // Delete current event/schedule (use API, not localStorage)
+    // Delete current event/schedule
     const detailDeleteBtn = document.getElementById('detailDeleteBtn');
-    if (detailDeleteBtn) detailDeleteBtn.addEventListener('click', async () => {
-        if (currentOpenedEventId == null) return;
+    if (detailDeleteBtn) {
+        // Remove any existing listeners by cloning the element
+        const newDeleteBtn = detailDeleteBtn.cloneNode(true);
+        detailDeleteBtn.parentNode.replaceChild(newDeleteBtn, detailDeleteBtn);
         
-        const confirmed = await showConfirm('Are you sure you want to delete this schedule?', 'Delete Schedule', 'Delete', 'Cancel');
-        if (!confirmed) return;
-        
-        try {
-            console.log('Attempting to delete schedule with ID:', currentOpenedEventId);
+        newDeleteBtn.addEventListener('click', async function(e) {
+            e.stopPropagation();
+            e.preventDefault();
             
-            // Delete from database via API
-            const response = await fetch(API_BASE + '?id=' + encodeURIComponent(currentOpenedEventId), {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': 'Bearer ' + AUTH_TOKEN,
-                    'Content-Type': 'application/json'
-                }
-            });
+            console.log('🗑️ Delete button clicked, currentOpenedEventId:', currentOpenedEventId);
             
-            console.log('Delete response status:', response.status);
-            const responseText = await response.text();
-            console.log('Delete response text:', responseText);
-            
-            let result;
-            try {
-                result = JSON.parse(responseText);
-            } catch (e) {
-                console.error('Failed to parse JSON response:', e);
-                showToast('Error: Server returned invalid response. Check console for details.', 'error');
+            if (currentOpenedEventId == null) {
+                console.warn('No event ID to delete');
+                showToast('No event selected to delete', 'error');
                 return;
             }
             
-            console.log('Delete result:', result);
+            // Use native confirm for reliability
+            const confirmed = window.confirm('Are you sure you want to delete this schedule?');
+            console.log('Confirmation result:', confirmed);
             
-            if (result.success) {
-                showToast('Schedule deleted successfully', 'success');
+            if (!confirmed) {
+                console.log('Delete cancelled by user');
+                return;
+            }
+            
+            console.log('✅ User confirmed deletion, proceeding...');
+            
+            try {
+                console.log('Proceeding with delete, ID:', currentOpenedEventId);
+                console.log('Current events array length:', events.length);
                 
-                // Reload directly from database (single source of truth)
-                // No localStorage manipulation - database is authoritative
-                if (typeof loadSchedules === 'function') {
-                    await loadSchedules();
+                let deleted = false;
+                
+                // First, try to delete from database (database is source of truth)
+                if (typeof API_BASE !== 'undefined' && typeof AUTH_TOKEN !== 'undefined') {
+                    try {
+                        console.log('Attempting API delete for ID:', currentOpenedEventId);
+                        const deleteUrl = API_BASE + '?id=' + encodeURIComponent(currentOpenedEventId);
+                        console.log('Delete URL:', deleteUrl);
+                        
+                        const response = await fetch(deleteUrl, {
+                            method: 'DELETE',
+                            headers: {
+                                'Authorization': 'Bearer ' + AUTH_TOKEN,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        console.log('API response status:', response.status);
+                        const responseText = await response.text();
+                        console.log('API response text:', responseText);
+                        
+                        if (response.ok) {
+                            let result;
+                            try {
+                                result = JSON.parse(responseText);
+                                console.log('API delete result:', result);
+                                if (result.success) {
+                                    deleted = true;
+                                    console.log('✅ Successfully deleted from database');
+                                } else {
+                                    console.warn('⚠️ Database delete returned success: false', result);
+                                }
+                            } catch (e) {
+                                console.error('Failed to parse API response as JSON:', e);
+                                console.log('Raw response:', responseText);
+                                // If response is OK but not JSON, assume success
+                                if (response.status === 200 || response.status === 204) {
+                                    deleted = true;
+                                    console.log('✅ Delete successful (non-JSON response)');
+                                }
+                            }
+                        } else {
+                            console.warn('⚠️ API delete failed with status:', response.status, responseText);
+                        }
+                    } catch (apiError) {
+                        console.error('❌ API delete error:', apiError);
+                        showToast('Error deleting from database: ' + apiError.message, 'error');
+                    }
                 } else {
-                    // Fallback: reload page
-                    window.location.reload();
+                    console.warn('API_BASE or AUTH_TOKEN not defined');
                 }
                 
-                // Close modal
-                detailModal.classList.add('hidden');
-                detailModal.classList.remove('flex');
-                detailModal.style.display = 'none';
+                // Also delete from localStorage if it exists there (for locally created events)
+                const eventIndex = events.findIndex(ev => {
+                    const evId = String(ev.id);
+                    const targetId = String(currentOpenedEventId);
+                    return evId === targetId;
+                });
+                
+                if (eventIndex !== -1) {
+                    console.log('Found event in localStorage, removing...');
+                    events.splice(eventIndex, 1);
+                    localStorage.setItem('calendarEvents', JSON.stringify(events));
+                    deleted = true;
+                    console.log('✅ Removed from localStorage');
+                } else {
+                    console.log('Event not found in localStorage (may be database-only)');
+                }
+                
+                // Close modal and remove any overlays - do this FIRST before reloading
+                if (detailModal) {
+                    detailModal.classList.add('hidden');
+                    detailModal.classList.remove('flex');
+                    detailModal.style.display = 'none';
+                    detailModal.style.visibility = 'hidden';
+                }
+                
+                // Also remove any confirmation modals that might be lingering
+                const confirmModal = document.getElementById('confirmModal');
+                if (confirmModal) {
+                    confirmModal.remove();
+                }
+                
+                // Force remove any backdrop overlays (the grey background)
+                document.querySelectorAll('[class*="bg-black"][class*="fixed"][class*="inset-0"]').forEach(overlay => {
+                    const id = overlay.id;
+                    // Don't remove active modals, only stale ones
+                    if (!id || (id !== 'createModal' && id !== 'timePickerModal' && id !== 'datePickerModal' && id !== 'eventDetailModal')) {
+                        if (overlay.classList.contains('bg-black') || overlay.classList.contains('bg-black/30') || overlay.classList.contains('bg-black/50')) {
+                            overlay.style.display = 'none';
+                            overlay.style.visibility = 'hidden';
+                            overlay.classList.add('hidden');
+                        }
+                    }
+                });
+                
                 currentOpenedEventId = null;
-            } else {
-                const errorMsg = result.error || result.message || 'Failed to delete schedule';
-                console.error('Delete failed:', errorMsg);
-                showToast('Error: ' + errorMsg, 'error');
+                
+                // Reload from database to get updated list (this will update the calendar display)
+                if (typeof loadSchedules === 'function') {
+                    console.log('Reloading schedules from database...');
+                    try {
+                        await loadSchedules();
+                        console.log('✅ Schedules reloaded');
+                    } catch (loadError) {
+                        console.error('Error reloading schedules:', loadError);
+                        // Still update display manually
+                        renderEventsOnCalendar();
+                        renderMyEvents();
+                    }
+                } else {
+                    // Fallback: update display manually
+                    console.log('loadSchedules not available, updating display manually...');
+                    renderEventsOnCalendar();
+                    renderMyEvents();
+                }
+                
+                if (deleted) {
+                    showToast('Schedule deleted successfully', 'success');
+                } else {
+                    showToast('Event removed from display', 'info');
+                }
+                console.log('✅ Delete process completed');
+            } catch (error) {
+                console.error('❌ Error in delete process:', error);
+                showToast('Error: ' + (error.message || 'Failed to delete schedule'), 'error');
             }
-        } catch (error) {
-            console.error('Error deleting schedule:', error);
-            showToast('Error: ' + error.message, 'error');
-        }
-    });
+        });
+    }
     if (detailModal) detailModal.addEventListener('click', (e) => {
         if (e.target === detailModal) {
             detailModal.classList.add('hidden');
@@ -2791,7 +3238,6 @@ document.addEventListener('click', function(e) {
 
    // Right-click context menu for events
    const ctxMenu = document.getElementById('eventContextMenu');
-   let ctxTargetEventId = null;
    grid.addEventListener('contextmenu', function(e) {
        const el = e.target.closest ? e.target.closest('.event-bar') : null;
        if (!el) return; // let browser default for non-events
@@ -2898,10 +3344,12 @@ document.addEventListener('click', function(e) {
  });
  
  // Toggle user settings panel
- function toggleUserSettings() {
-     const userSettingsPanel = document.getElementById('userSettingsPanel');
-     userSettingsPanel.classList.toggle('hidden');
- }
+function toggleUserSettings() {
+    const userSettingsPanel = document.getElementById('userSettingsPanel');
+    if (userSettingsPanel) {
+        userSettingsPanel.classList.toggle('hidden');
+    }
+}
  
  // Toggle color picker
  function toggleColorPicker() {
@@ -2937,13 +3385,32 @@ document.addEventListener('click', function(e) {
          </div>
      `;
      
-     // Close dropdown
-     const notificationDropdown = document.getElementById('notificationDropdown');
-     notificationDropdown.classList.add('hidden');
- }
- 
- // Select color from picker
- function selectColor(colorName, element) {
+    // Close dropdown
+    const notificationDropdown = document.getElementById('notificationDropdown');
+    notificationDropdown.classList.add('hidden');
+}
+
+// Toggle reminder dropdown
+function toggleReminderDropdown() {
+    const reminderDropdown = document.getElementById('reminderDropdown');
+    if (reminderDropdown) {
+        reminderDropdown.classList.toggle('hidden');
+    }
+}
+
+// Select reminder option
+function selectReminder(option) {
+    const reminderText = document.getElementById('reminderText');
+    if (reminderText) {
+        reminderText.textContent = option;
+    }
+    
+    // Close the dropdown
+    toggleReminderDropdown();
+}
+
+// Select color from picker
+function selectColor(colorName, element) {
      const colorButton = document.querySelector('button[onclick="toggleColorPicker()"]');
      const colorPicker = document.getElementById('colorPicker');
      
@@ -3538,6 +4005,291 @@ document.addEventListener('DOMContentLoaded', async function() {
             }, 5 * 60 * 1000);
         });
     })();
+
+// Schedule Reminder Notification System
+function scheduleReminderNotification(event) {
+    if (!event || !event.reminder || event.reminder === 'None') {
+        return;
+    }
+    
+    // Parse the event date and time
+    const dateStr = event.date || '';
+    const timeStr = event.startTime || event.time || '';
+    
+    if (!dateStr || !timeStr) {
+        console.warn('Cannot schedule reminder: missing date or time', event);
+        return;
+    }
+    
+    // Parse date (format: "Wednesday, 1 January 2026" or "Wednesday, 1 January")
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    let day, month, year;
+    const dayMatch = dateStr.match(/\b(\d{1,2})\b/);
+    if (dayMatch) day = parseInt(dayMatch[1]);
+    
+    const monthIndex = monthNames.findIndex(m => dateStr.includes(m));
+    if (monthIndex !== -1) month = monthIndex;
+    
+    const yearMatch = dateStr.match(/\b(19|20)\d{2}\b/);
+    if (yearMatch) {
+        year = parseInt(yearMatch[0]);
+    } else {
+        year = new Date().getFullYear();
+    }
+    
+    if (!day || month === undefined) {
+        console.warn('Cannot parse event date:', dateStr);
+        return;
+    }
+    
+    // Parse time (format: "4:30pm" or "16:30")
+    let hour, minute;
+    const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})(am|pm)?/i);
+    if (timeMatch) {
+        hour = parseInt(timeMatch[1]);
+        minute = parseInt(timeMatch[2]);
+        const meridiem = timeMatch[3] ? timeMatch[3].toLowerCase() : null;
+        
+        if (meridiem === 'pm' && hour !== 12) hour += 12;
+        if (meridiem === 'am' && hour === 12) hour = 0;
+    } else {
+        console.warn('Cannot parse event time:', timeStr);
+        return;
+    }
+    
+    // Create event datetime
+    const eventDateTime = new Date(year, month, day, hour, minute);
+    
+    // Calculate reminder time based on reminder setting
+    let reminderTime = new Date(eventDateTime);
+    const reminderText = event.reminder.toLowerCase();
+    
+    if (reminderText.includes('at time of event') || reminderText.includes('at time')) {
+        // No adjustment needed
+    } else if (reminderText.includes('5 minutes')) {
+        reminderTime.setMinutes(reminderTime.getMinutes() - 5);
+    } else if (reminderText.includes('10 minutes')) {
+        reminderTime.setMinutes(reminderTime.getMinutes() - 10);
+    } else if (reminderText.includes('15 minutes')) {
+        reminderTime.setMinutes(reminderTime.getMinutes() - 15);
+    } else if (reminderText.includes('30 minutes')) {
+        reminderTime.setMinutes(reminderTime.getMinutes() - 30);
+    } else if (reminderText.includes('1 hour')) {
+        reminderTime.setHours(reminderTime.getHours() - 1);
+    } else if (reminderText.includes('2 hours')) {
+        reminderTime.setHours(reminderTime.getHours() - 2);
+    } else if (reminderText.includes('1 day')) {
+        reminderTime.setDate(reminderTime.getDate() - 1);
+    } else if (reminderText.includes('2 days')) {
+        reminderTime.setDate(reminderTime.getDate() - 2);
+    } else if (reminderText.includes('1 week')) {
+        reminderTime.setDate(reminderTime.getDate() - 7);
+    }
+    
+    // Only schedule if reminder time is in the future
+    if (reminderTime <= new Date()) {
+        console.log('Reminder time has already passed, not scheduling:', reminderTime);
+        return;
+    }
+    
+    // Save reminder to localStorage
+    const reminders = JSON.parse(localStorage.getItem('scheduleReminders') || '[]');
+    const reminderId = `reminder-${event.id}-${Date.now()}`;
+    
+    reminders.push({
+        id: reminderId,
+        eventId: event.id,
+        eventTitle: event.title,
+        eventDate: dateStr,
+        eventTime: timeStr,
+        reminderTime: reminderTime.toISOString(),
+        reminderText: event.reminder,
+        shown: false,
+        confirmed: false, // Track if user has confirmed attendance
+        lastShown: null // Track when reminder was last shown
+    });
+    
+    localStorage.setItem('scheduleReminders', JSON.stringify(reminders));
+    console.log('✅ Reminder scheduled for:', reminderTime, 'Event:', event.title);
+}
+
+// Check reminders periodically
+function checkScheduleReminders() {
+    const reminders = JSON.parse(localStorage.getItem('scheduleReminders') || '[]');
+    const now = new Date();
+    
+    reminders.forEach(reminder => {
+        // Skip if already confirmed
+        if (reminder.confirmed) return;
+        
+        const reminderTime = new Date(reminder.reminderTime);
+        const timeDiff = reminderTime.getTime() - now.getTime();
+        
+        // Show reminder if it's time (within 1 minute before or after) OR if it's past reminder time and not confirmed
+        const shouldShow = Math.abs(timeDiff) <= 60000 || (timeDiff <= 0 && !reminder.confirmed);
+        
+        if (shouldShow) {
+            // Check if we should show again (every 2 minutes if not confirmed)
+            const lastShown = reminder.lastShown ? new Date(reminder.lastShown) : null;
+            const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000);
+            
+            if (!lastShown || lastShown < twoMinutesAgo) {
+                showScheduleReminder(reminder);
+                
+                // Update last shown time
+                const updatedReminders = JSON.parse(localStorage.getItem('scheduleReminders') || '[]');
+                const index = updatedReminders.findIndex(r => r.id === reminder.id);
+                if (index !== -1) {
+                    updatedReminders[index].lastShown = now.toISOString();
+                    localStorage.setItem('scheduleReminders', JSON.stringify(updatedReminders));
+                }
+            }
+        }
+    });
+    
+    // Clean up old confirmed reminders (older than 1 day)
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const activeReminders = reminders.filter(r => {
+        if (r.confirmed) {
+            const reminderTime = new Date(r.reminderTime);
+            return reminderTime > oneDayAgo;
+        }
+        return true; // Keep unconfirmed reminders
+    });
+    localStorage.setItem('scheduleReminders', JSON.stringify(activeReminders));
+}
+
+// Show reminder notification and confirmation modal
+function showScheduleReminder(reminder) {
+    // Request browser notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+    
+    const message = `${reminder.eventTitle}\n${reminder.eventDate} at ${reminder.eventTime}`;
+    
+    // Show browser notification if permitted
+    if ('Notification' in window && Notification.permission === 'granted') {
+        const notification = new Notification('Schedule Reminder', {
+            body: message + '\n\nPlease confirm your attendance.',
+            icon: '/favicon.ico',
+            tag: `schedule-${reminder.eventId}`,
+            requireInteraction: true // Keep notification until user interacts
+        });
+        
+        // Don't auto-close - let user interact with it
+        notification.onclick = () => {
+            window.focus();
+            showAttendanceConfirmationModal(reminder);
+        };
+    }
+    
+    // Show toast notification
+    showToast(`Reminder: ${reminder.eventTitle} - ${reminder.eventDate} at ${reminder.eventTime}`, 'info', 8000);
+    
+    // Show attendance confirmation modal
+    showAttendanceConfirmationModal(reminder);
+}
+
+// Show attendance confirmation modal
+function showAttendanceConfirmationModal(reminder) {
+    const modal = document.getElementById('eventAttendanceModal');
+    if (!modal) return;
+    
+    // Update modal content
+    document.getElementById('attendanceEventTitle').textContent = reminder.eventTitle;
+    document.getElementById('attendanceEventDetails').textContent = `${reminder.eventDate} at ${reminder.eventTime}`;
+    
+    // Store current reminder ID for button handlers
+    modal.dataset.reminderId = reminder.id;
+    
+    // Show modal
+    modal.classList.remove('hidden');
+    
+    // Focus the modal for accessibility
+    const yesBtn = document.getElementById('attendanceYesBtn');
+    if (yesBtn) yesBtn.focus();
+}
+
+// Handle attendance confirmation
+function confirmAttendance(reminderId, attending) {
+    const reminders = JSON.parse(localStorage.getItem('scheduleReminders') || '[]');
+    const index = reminders.findIndex(r => r.id === reminderId);
+    
+    if (index !== -1) {
+        reminders[index].confirmed = true;
+        reminders[index].attending = attending;
+        reminders[index].confirmedAt = new Date().toISOString();
+        localStorage.setItem('scheduleReminders', JSON.stringify(reminders));
+        
+        // Close modal
+        const modal = document.getElementById('eventAttendanceModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+        
+        // Show confirmation message
+        if (attending) {
+            showToast('Great! We\'ll see you at the event.', 'success');
+        } else {
+            showToast('Noted. Reminders for this event will stop.', 'info');
+        }
+    }
+}
+
+// Set up attendance modal button handlers
+document.addEventListener('DOMContentLoaded', () => {
+    const attendanceModal = document.getElementById('eventAttendanceModal');
+    const yesBtn = document.getElementById('attendanceYesBtn');
+    const noBtn = document.getElementById('attendanceNoBtn');
+    
+    if (yesBtn) {
+        yesBtn.addEventListener('click', () => {
+            const reminderId = attendanceModal.dataset.reminderId;
+            if (reminderId) {
+                confirmAttendance(reminderId, true);
+            }
+        });
+    }
+    
+    if (noBtn) {
+        noBtn.addEventListener('click', () => {
+            const reminderId = attendanceModal.dataset.reminderId;
+            if (reminderId) {
+                confirmAttendance(reminderId, false);
+            }
+        });
+    }
+    
+    // Close modal when clicking outside
+    if (attendanceModal) {
+        attendanceModal.addEventListener('click', (e) => {
+            if (e.target === attendanceModal) {
+                // Don't close on outside click - force user to respond
+                // attendanceModal.classList.add('hidden');
+            }
+        });
+    }
+});
+
+// Start checking reminders every 30 seconds for more responsive notifications
+setInterval(checkScheduleReminders, 30000);
+
+// Check reminders on page load and schedule reminders for existing events
+document.addEventListener('DOMContentLoaded', () => {
+    checkScheduleReminders();
+    
+    // Schedule reminders for existing events
+    setTimeout(() => {
+        events.forEach(event => {
+            if (event.reminder && event.reminder !== 'None') {
+                scheduleReminderNotification(event);
+            }
+        });
+    }, 1000);
+});
 </script>
 </body></html>
 

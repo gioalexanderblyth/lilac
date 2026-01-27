@@ -205,6 +205,69 @@ try {
             animation: fadeInUp 0.7s ease-out 0.2s forwards;
             opacity: 0;
         }
+
+        /* Custom scrollbar styling for all elements */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+
+        /* Firefox scrollbar styling */
+        html {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+
+        /* Dark mode Firefox scrollbar */
+        .dark * {
+            scrollbar-color: #475569 #1e293b;
+        }
+
+        .dark html {
+            scrollbar-color: #475569 #1e293b;
+        }
+
+        /* WebKit scrollbar styling (Chrome, Safari, Edge) */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        ::-webkit-scrollbar-corner {
+            background: #f1f5f9;
+        }
+
+        /* Dark mode WebKit scrollbar styling */
+        .dark ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        .dark ::-webkit-scrollbar-corner {
+            background: #1e293b;
+        }
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
@@ -256,7 +319,7 @@ try {
                 <div class="flex items-center gap-3 overflow-hidden">
                     <div class="w-10 h-10 rounded-full bg-cover bg-center sidebar-profile-picture flex-shrink-0" style='background-image: url("<?php echo !empty($profileData['profile_picture']) ? htmlspecialchars($profileData['profile_picture']) : 'https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p'; ?>");'></div>
                     <div class="sidebar-profile-info overflow-hidden">
-                        <p class="font-semibold text-text-light dark:text-text-dark truncate"><?php echo htmlspecialchars($user['role'] === 'admin' ? 'Admin User' : $user['username']); ?></p>
+                        <p class="font-semibold text-text-light dark:text-text-dark truncate"><?php echo htmlspecialchars(!empty($user['full_name']) ? $user['full_name'] : $user['username']); ?></p>
                         <div class="flex gap-3">
                             <a class="text-sm text-primary-600 dark:text-primary-400 hover:underline whitespace-nowrap" href="profile.php">Profile</a>
                             <span class="text-sm text-gray-400">|</span>
@@ -381,6 +444,42 @@ try {
 <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Phone</p>
 <p id="profilePhone" class="font-medium text-text-light dark:text-text-dark"><?php echo htmlspecialchars($profileData['phone'] ?? 'Not specified'); ?></p>
 </div>
+</div>
+</div>
+</div>
+<div class="border-t border-border-light dark:border-border-dark my-8"></div>
+<div>
+<h3 class="text-lg font-bold text-text-light dark:text-text-dark mb-4">Notification Preferences</h3>
+<div class="p-4 bg-gray-50 dark:bg-card-dark rounded-lg border border-border-light dark:border-border-dark">
+<div class="mb-4">
+<p class="font-semibold text-text-light dark:text-text-dark mb-2">MOU/MOA Expiration Notifications</p>
+<p class="text-sm text-text-muted-light dark:text-text-muted-dark mb-4">Set how many days before expiration you want to be notified. Default is 6 months (180 days).</p>
+<div class="flex items-center gap-4 flex-wrap">
+<label class="flex items-center gap-2">
+<span class="text-sm text-text-muted-light dark:text-text-muted-dark">Notification Period:</span>
+<select id="mouNotificationPeriod" class="rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm">
+<option value="30">1 month (30 days)</option>
+<option value="60">2 months (60 days)</option>
+<option value="90">3 months (90 days)</option>
+<option value="120">4 months (120 days)</option>
+<option value="150">5 months (150 days)</option>
+<option value="180" selected>6 months (180 days) - Default</option>
+<option value="210">7 months (210 days)</option>
+<option value="240">8 months (240 days)</option>
+<option value="270">9 months (270 days)</option>
+<option value="300">10 months (300 days)</option>
+<option value="330">11 months (330 days)</option>
+<option value="365">12 months (365 days)</option>
+<option value="custom">Custom (enter days)</option>
+</select>
+</label>
+<input type="number" id="mouNotificationCustomDays" min="1" max="3650" placeholder="Enter days" class="hidden rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm w-32" />
+<button id="btnSaveNotificationPreference" class="flex items-center justify-center gap-2 text-primary-600 dark:text-primary-400 font-semibold px-4 py-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors duration-200">
+<span class="material-symbols-outlined">save</span>
+<span>Save Preference</span>
+</button>
+</div>
+<p id="notificationPreferenceStatus" class="text-sm mt-2 hidden"></p>
 </div>
 </div>
 </div>
@@ -903,6 +1002,112 @@ try {
                     }
                 });
             }
+
+            // MOU/MOA Notification Preference
+            const mouNotificationPeriod = document.getElementById('mouNotificationPeriod');
+            const mouNotificationCustomDays = document.getElementById('mouNotificationCustomDays');
+            const btnSaveNotificationPreference = document.getElementById('btnSaveNotificationPreference');
+            const notificationPreferenceStatus = document.getElementById('notificationPreferenceStatus');
+
+            // Load current notification preference
+            async function loadNotificationPreference() {
+                try {
+                    const response = await fetch('api/user-preferences.php?key=mou_notification_period_days');
+                    const data = await response.json();
+                    
+                    if (data.success && data.value) {
+                        const days = parseInt(data.value);
+                        if (days > 0) {
+                            // Check if it matches a preset option
+                            const option = Array.from(mouNotificationPeriod.options).find(opt => parseInt(opt.value) === days);
+                            if (option) {
+                                mouNotificationPeriod.value = days;
+                            } else {
+                                mouNotificationPeriod.value = 'custom';
+                                mouNotificationCustomDays.value = days;
+                                mouNotificationCustomDays.classList.remove('hidden');
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading notification preference:', error);
+                }
+            }
+
+            // Handle custom option selection
+            if (mouNotificationPeriod) {
+                mouNotificationPeriod.addEventListener('change', (e) => {
+                    if (e.target.value === 'custom') {
+                        mouNotificationCustomDays.classList.remove('hidden');
+                        mouNotificationCustomDays.focus();
+                    } else {
+                        mouNotificationCustomDays.classList.add('hidden');
+                        mouNotificationCustomDays.value = '';
+                    }
+                });
+            }
+
+            // Save notification preference
+            if (btnSaveNotificationPreference) {
+                btnSaveNotificationPreference.addEventListener('click', async () => {
+                    let days;
+                    
+                    if (mouNotificationPeriod.value === 'custom') {
+                        days = parseInt(mouNotificationCustomDays.value);
+                        if (!days || days < 1 || days > 3650) {
+                            notificationPreferenceStatus.textContent = 'Please enter a valid number of days (1-3650)';
+                            notificationPreferenceStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+                            notificationPreferenceStatus.classList.remove('hidden');
+                            return;
+                        }
+                    } else {
+                        days = parseInt(mouNotificationPeriod.value);
+                    }
+
+                    btnSaveNotificationPreference.disabled = true;
+                    btnSaveNotificationPreference.querySelector('span').textContent = 'hourglass_empty';
+
+                    try {
+                        const response = await fetch('api/user-preferences.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                key: 'mou_notification_period_days',
+                                value: days.toString()
+                            })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            notificationPreferenceStatus.textContent = '✓ Notification preference saved successfully!';
+                            notificationPreferenceStatus.className = 'text-sm mt-2 text-green-600 dark:text-green-400';
+                            notificationPreferenceStatus.classList.remove('hidden');
+                            
+                            // Hide status after 3 seconds
+                            setTimeout(() => {
+                                notificationPreferenceStatus.classList.add('hidden');
+                            }, 3000);
+                        } else {
+                            notificationPreferenceStatus.textContent = '✗ Error: ' + (result.error || 'Failed to save preference');
+                            notificationPreferenceStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+                            notificationPreferenceStatus.classList.remove('hidden');
+                        }
+                    } catch (error) {
+                        notificationPreferenceStatus.textContent = '✗ Error: ' + error.message;
+                        notificationPreferenceStatus.className = 'text-sm mt-2 text-red-600 dark:text-red-400';
+                        notificationPreferenceStatus.classList.remove('hidden');
+                    } finally {
+                        btnSaveNotificationPreference.disabled = false;
+                        btnSaveNotificationPreference.querySelector('span').textContent = 'save';
+                    }
+                });
+            }
+
+            // Load notification preference on page load
+            loadNotificationPreference();
         });
     </script>
 
@@ -998,6 +1203,81 @@ function renderProfile(profile) {
 
 <!-- Notification System -->
 <script>
+    // Define MOU renewal handlers globally BEFORE the notification system
+    // Handle Renew button - opens MOU/MOA modal
+    window.handleRenewMou = function(notificationId, entryId) {
+        console.log('handleRenewMou called with:', { notificationId, entryId });
+        if (!entryId) {
+            console.error('No entry ID provided');
+            alert('Error: No entry ID found');
+            return;
+        }
+        
+        // Navigate to mou-moa page with entry parameter to open modal
+        console.log('Navigating to mou-moa.php?entry=' + entryId);
+        window.location.href = `mou-moa.php?entry=${entryId}`;
+    };
+    
+    // Handle Renewed button - marks as renewed and removes notification
+    window.handleMouRenewed = async function(notificationId) {
+        console.log('handleMouRenewed called with notificationId:', notificationId);
+        
+        if (!notificationId) {
+            console.error('No notification ID provided');
+            alert('Error: No notification ID found');
+            return;
+        }
+        
+        try {
+            console.log('Sending renewal confirmation request...');
+            const response = await fetch('api/notifications.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'confirm_mou_renewal',
+                    notification_id: notificationId,
+                    renewal_status: 'renewed'
+                })
+            });
+            
+            console.log('Response status:', response.status);
+            const data = await response.json();
+            console.log('Response data:', data);
+            
+            if (data.success) {
+                console.log('Successfully marked as renewed');
+                // Reload notifications to reflect the confirmation
+                // We'll need to call the loadNotifications function from the notification system
+                if (window.loadNotifications) {
+                    await window.loadNotifications();
+                }
+                if (window.updateNotificationBadge) {
+                    await window.updateNotificationBadge();
+                }
+                
+                // Show success message
+                if (typeof showToast === 'function') {
+                    showToast('MOU/MOA marked as renewed. Notification removed.', 'success');
+                } else {
+                    alert('MOU/MOA marked as renewed. Notification removed.');
+                }
+                
+                // Reload the page to refresh notifications if functions aren't available
+                if (!window.loadNotifications) {
+                    setTimeout(() => location.reload(), 1000);
+                }
+            } else {
+                console.error('Failed to confirm MOU renewal:', data.error);
+                alert('Failed to mark as renewed: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error confirming MOU renewal:', error);
+            alert('Error marking as renewed: ' + error.message);
+        }
+    };
+    
     // Notification System - Reusable for all pages
     (function() {
         const notificationBtn = document.getElementById('notificationBtn');
@@ -1025,6 +1305,26 @@ function renderProfile(profile) {
                 loadNotifications();
             }
         });
+        
+        // View all notifications
+        if (viewAllNotifications) {
+            viewAllNotifications.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('View all notifications clicked');
+                // Ensure dropdown is visible and load notifications
+                if (notificationDropdown) {
+                    notificationDropdown.classList.remove('hidden');
+                    if (typeof loadNotifications === 'function') {
+                        loadNotifications();
+                    }
+                    // Scroll to top of notification list
+                    if (notificationList) {
+                        notificationList.scrollTop = 0;
+                    }
+                }
+            });
+        }
         
         // Close dropdown when clicking outside
         document.addEventListener('click', (e) => {
@@ -1103,7 +1403,38 @@ function renderProfile(profile) {
                 const bgColor = getNotificationBgColor(notif.type);
                 const targetUrl = getNotificationUrl(notif);
                 const urlAttribute = targetUrl ? ` data-url="${encodeURIComponent(targetUrl)}"` : '';
-                const actionHint = targetUrl ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
+                const isMouNotification = notif.related_type === 'mou_moa';
+                const isConfirmed = notif.is_confirmed || false;
+                
+                // Add Renew/Renewed buttons for MOU notifications that aren't confirmed
+                let actionButtons = '';
+                if (isMouNotification && !isConfirmed) {
+                    actionButtons = `
+                        <div class="mt-3 flex gap-2">
+                            <button data-action="renew" data-notification-id="${notif.id}" data-entry-id="${notif.related_id}" 
+                                    class="renew-mou-btn px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">edit</span>
+                                Renew
+                            </button>
+                            <button data-action="renewed" data-notification-id="${notif.id}" 
+                                    class="renewed-mou-btn px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">check_circle</span>
+                                Renewed
+                            </button>
+                        </div>
+                    `;
+                } else if (isMouNotification && isConfirmed && notif.mou_renewal_status === 'renewed') {
+                    actionButtons = `
+                        <div class="mt-2">
+                            <p class="text-xs text-green-500 font-medium flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">check_circle</span>
+                                Status: Renewed
+                            </p>
+                        </div>
+                    `;
+                }
+                
+                const actionHint = targetUrl && !isMouNotification ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
                 
                 return `
                     <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark ${notif.is_read ? 'opacity-60' : ''}" 
@@ -1120,6 +1451,7 @@ function renderProfile(profile) {
                                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${escapeHtml(notif.message)}</p>
                                 <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${timeAgo}</p>
                                 ${actionHint}
+                                ${actionButtons}
                             </div>
                             ${!notif.is_read ? '<div class="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>' : ''}
                         </div>
@@ -1129,6 +1461,57 @@ function renderProfile(profile) {
         }
         
         function handleNotificationListClick(event) {
+            // Check if clicked on a button
+            const renewBtn = event.target.closest('.renew-mou-btn');
+            const renewedBtn = event.target.closest('.renewed-mou-btn');
+            
+            if (renewBtn) {
+                event.stopPropagation();
+                event.preventDefault();
+                const notificationId = renewBtn.getAttribute('data-notification-id');
+                const entryId = renewBtn.getAttribute('data-entry-id');
+                console.log('Renew button clicked:', { notificationId, entryId, btn: renewBtn });
+                
+                if (!entryId) {
+                    console.error('Entry ID not found in button data attributes');
+                    alert('Error: Entry ID not found');
+                    return;
+                }
+                
+                if (window.handleRenewMou) {
+                    console.log('Calling handleRenewMou');
+                    window.handleRenewMou(notificationId, entryId);
+                } else {
+                    console.error('handleRenewMou function not found on window object');
+                    console.log('Available window functions:', Object.keys(window).filter(k => k.includes('handle') || k.includes('Renew')));
+                    alert('Error: Renew function not available. Please refresh the page.');
+                }
+                return;
+            }
+            
+            if (renewedBtn) {
+                event.stopPropagation();
+                event.preventDefault();
+                const notificationId = renewedBtn.getAttribute('data-notification-id');
+                console.log('Renewed button clicked:', { notificationId, btn: renewedBtn });
+                
+                if (!notificationId) {
+                    console.error('Notification ID not found in button data attributes');
+                    alert('Error: Notification ID not found');
+                    return;
+                }
+                
+                if (window.handleMouRenewed) {
+                    console.log('Calling handleMouRenewed');
+                    window.handleMouRenewed(notificationId);
+                } else {
+                    console.error('handleMouRenewed function not found on window object');
+                    console.log('Available window functions:', Object.keys(window).filter(k => k.includes('handle') || k.includes('Renew')));
+                    alert('Error: Renewed function not available. Please refresh the page.');
+                }
+                return;
+            }
+            
             const target = event.target.closest('[data-notification-id]');
             if (!target) return;
             event.preventDefault();
@@ -1281,6 +1664,74 @@ function renderProfile(profile) {
                 console.error('Error refreshing notification indicators:', error);
             }
         }
+        
+        // Handle Renew button - opens MOU/MOA modal
+        window.handleRenewMou = function(notificationId, entryId) {
+            console.log('handleRenewMou called with:', { notificationId, entryId });
+            if (!entryId) {
+                console.error('No entry ID provided');
+                alert('Error: No entry ID found');
+                return;
+            }
+            
+            // Navigate to mou-moa page with entry parameter to open modal
+            console.log('Navigating to mou-moa.php?entry=' + entryId);
+            window.location.href = `mou-moa.php?entry=${entryId}`;
+        };
+        
+        // Handle Renewed button - marks as renewed and removes notification
+        window.handleMouRenewed = async function(notificationId) {
+            console.log('handleMouRenewed called with notificationId:', notificationId);
+            
+            if (!notificationId) {
+                console.error('No notification ID provided');
+                alert('Error: No notification ID found');
+                return;
+            }
+            
+            try {
+                console.log('Sending renewal confirmation request...');
+                const response = await fetch('api/notifications.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'confirm_mou_renewal',
+                        notification_id: notificationId,
+                        renewal_status: 'renewed'
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (data.success) {
+                    console.log('Successfully marked as renewed');
+                    // Reload notifications to reflect the confirmation
+                    if (typeof loadNotifications === 'function') {
+                        await loadNotifications();
+                    }
+                    if (typeof updateNotificationBadge === 'function') {
+                        await updateNotificationBadge();
+                    }
+                    
+                    // Show success message
+                    if (typeof showToast === 'function') {
+                        showToast('MOU/MOA marked as renewed. Notification removed.', 'success');
+                    } else {
+                        alert('MOU/MOA marked as renewed. Notification removed.');
+                    }
+                } else {
+                    console.error('Failed to confirm MOU renewal:', data.error);
+                    alert('Failed to mark as renewed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error confirming MOU renewal:', error);
+                alert('Error marking as renewed: ' + error.message);
+            }
+        };
         
         // Initialize: Check for notifications and load them
         document.addEventListener('DOMContentLoaded', () => {

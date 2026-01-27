@@ -108,7 +108,20 @@ try {
 </script>
 <script src="js/notifications.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- Add these libraries for file to image conversion -->
+<script>
+    // Check for entry parameter immediately and store it for later use
+    (function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const entryId = urlParams.get('entry');
+        if (entryId) {
+            console.log('Entry parameter detected:', entryId);
+            // Store entry ID for later use when page is fully loaded
+            window.pendingEntryId = entryId;
+            // Don't clear URL parameter yet - we'll do it after modal opens
+        }
+    })();
+</script>
+a<!-- Add these libraries for file to image conversion -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -276,6 +289,11 @@ try {
             animation: fadeInUp 0.7s ease-out 0.2s forwards;
             opacity: 0;
         }
+
+        /* Fix for active sidebar link in dark mode - ensure dark gradient overrides light gradient */
+        .dark .sidebar-nav-link.bg-gradient-to-r {
+            background-image: linear-gradient(to right, rgba(88, 28, 135, 0.4), rgba(67, 56, 202, 0.4)) !important;
+        }
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
@@ -327,7 +345,7 @@ try {
                 <div class="flex items-center gap-3 overflow-hidden">
                     <div class="w-10 h-10 rounded-full bg-cover bg-center sidebar-profile-picture flex-shrink-0" style='background-image: url("<?php echo !empty($user['profile_picture']) ? htmlspecialchars($user['profile_picture']) : 'https://lh3.googleusercontent.com/aida-public/AB6AXuC23fvgOSZIK6K5vguUgvVeU1XYFfp1LB3d4zICMvW6bispRl-eHHfnOtSsvRU3MgvmOpSYMCZhcSBIksvjlEHtkGMxuCFsQkuT0suo2-O9n3py7mlzFFETXCOIfvLVGGUj1aaG8ENOeDXXy_ifek2uG3R3--ghDflKvuAm9vrceoK8doav0lNYVbLz1bnWy6REWcrCPuPZZ8upfPqShoQpSDjICl16zMEcRuHzjt05z9cFITLKPdZTfMF-1dLK-klh8UhjeDeE4Q7p'; ?>");'></div>
                     <div class="sidebar-profile-info overflow-hidden">
-                        <p class="font-semibold text-text-light dark:text-text-dark truncate"><?php echo htmlspecialchars($user['role'] === 'admin' ? 'Admin User' : $user['username']); ?></p>
+                        <p class="font-semibold text-text-light dark:text-text-dark truncate"><?php echo htmlspecialchars(!empty($user['full_name']) ? $user['full_name'] : $user['username']); ?></p>
                         <div class="flex gap-3">
                             <a class="text-sm text-primary-600 dark:text-primary-400 hover:underline whitespace-nowrap" href="profile.php">Profile</a>
                             <span class="text-sm text-gray-400">|</span>
@@ -395,7 +413,14 @@ try {
 </header>
 <div class="pt-1 pr-2 pb-1 lg:pt-2 lg:pr-4 lg:pb-2 main-content overflow-hidden content-animate">
 <div class="p-3">
-                <div class="flex flex-col md:flex-row md:items-center md:justify-end gap-4 mb-4">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                    <!-- Search Input -->
+                    <div class="flex-1 max-w-md">
+                        <div class="relative">
+                            <span class="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted-light dark:text-text-muted-dark text-lg">search</span>
+                            <input type="text" id="searchInput" placeholder="Search by university or institution name..." autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="w-full pl-10 pr-4 py-2 text-sm text-text-light dark:text-text-dark bg-card-light dark:bg-background-dark/50 border border-border-light dark:border-border-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+                        </div>
+                    </div>
                     <div class="flex items-center gap-2">
                         <div class="relative">
                             <button id="filterBtn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-light bg-card-light border border-border-light rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-text-muted-dark dark:border-border-dark dark:hover:bg-card-dark">
@@ -1344,8 +1369,9 @@ try {
 
             // Pagination variables
             let currentPage = 1;
-            const itemsPerPage = 6;
+            const itemsPerPage = 10;
             let allEntries = [];
+            let originalEntries = []; // Store original unfiltered entries for search
             
             // OCR field extraction endpoint (auto-fill)
             const MOU_FIELDS_OCR_URL = 'api/mou-moa-ocr.php';
@@ -2572,23 +2598,6 @@ try {
                 window.pendingDeleteId = null;
             }
             
-            // Function to update pagination display
-            function updatePaginationDisplay() {
-                const totalEntries = allEntries.length;
-
-                const startEntry = totalEntries > 0 ? 1 : 0;
-                const endEntry = totalEntries;
-                
-                // Update the pagination text - use a more specific selector
-                const paginationContainer = document.querySelector('.hidden.sm\\:flex-1.sm\\:flex.sm\\:items-center.sm\\:justify-between');
-                if (paginationContainer) {
-                    const paginationText = paginationContainer.querySelector('div p');
-                    if (paginationText) {
-                        paginationText.innerHTML = `Showing <span class="font-medium">${startEntry}</span> to <span class="font-medium">${endEntry}</span> of <span class="font-medium">${totalEntries}</span> results`;
-                    }
-                }
-            }
-            
             // Make functions globally accessible
             window.confirmDelete = confirmDelete;
             window.cancelDelete = cancelDelete;
@@ -3057,7 +3066,11 @@ try {
             async function loadFromDatabase() {
                 try {
                     // Fetch all entries from API
-                    allEntries = await getAllEntries();
+                    originalEntries = await getAllEntries();
+                    allEntries = [...originalEntries]; // Copy to allEntries for filtering
+
+                    // Apply search filter if there's a search query
+                    applySearch();
 
                     currentPage = 1; // Reset to first page
                     displayCurrentPage();
@@ -3099,6 +3112,28 @@ try {
             
             // Make loadFromDatabase globally accessible for bulk operations
             window.loadFromDatabase = loadFromDatabase;
+            
+            // Function to apply search filter
+            function applySearch() {
+                const searchInput = document.getElementById('searchInput');
+                const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : '';
+                
+                if (!searchQuery) {
+                    // No search query, show all entries
+                    allEntries = [...originalEntries];
+                } else {
+                    // Filter entries by institution name (case-insensitive)
+                    allEntries = originalEntries.filter(entry => {
+                        const institution = (entry.institution || '').toLowerCase();
+                        const location = (entry.location || '').toLowerCase();
+                        // Search in both institution name and location
+                        return institution.includes(searchQuery) || location.includes(searchQuery);
+                    });
+                }
+                
+                // Reset to first page when search changes
+                currentPage = 1;
+            }
             
             // Function to display current page entries
             function displayCurrentPage() {
@@ -3388,6 +3423,7 @@ try {
             // Load existing data when page loads
             (async () => {
                 await loadFromDatabase();
+                
                 // Check if we need to open edit mode (from documents page)
                 const editMouId = sessionStorage.getItem('editMouId');
                 if (editMouId) {
@@ -3401,6 +3437,7 @@ try {
                     }, 500);
                 }
             })();
+            
             
             // Add a manual refresh function for debugging
             window.debugRefreshMOUData = function() {
@@ -3419,6 +3456,27 @@ try {
             window.addEventListener('focus', function() {
                 loadFromDatabase();
             });
+            
+            // Handle search input
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                // Search on input (real-time search)
+                searchInput.addEventListener('input', function() {
+                    applySearch();
+                    displayCurrentPage();
+                    updatePaginationDisplay();
+                });
+                
+                // Also search on Enter key
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        applySearch();
+                        displayCurrentPage();
+                        updatePaginationDisplay();
+                    }
+                });
+            }
 
             // Function to edit entry
             async function editEntry(id) {
@@ -3968,6 +4026,115 @@ try {
 
     <!-- Notification System -->
     <script>
+        // Define MOU renewal handlers globally BEFORE the notification system
+        // Handle Renew button - opens MOU/MOA modal
+        window.handleRenewMou = function(notificationId, entryId) {
+            console.log('handleRenewMou called with:', { notificationId, entryId });
+            
+            if (!entryId) {
+                console.error('No entry ID provided');
+                alert('Error: No entry ID found');
+                return;
+            }
+            
+            // Open the modal directly if we're on the mou-moa page
+            if (typeof window.showMouDetails === 'function') {
+                console.log('Opening modal directly on mou-moa page');
+                (async function() {
+                    try {
+                        const response = await fetch(`api/mou-moa.php?action=get&id=${entryId}`);
+                        const result = await response.json();
+                        
+                        if (result.success && result.data) {
+                            console.log('Entry data loaded, opening modal');
+                            window.showMouDetails(result.data);
+                            
+                            // Ensure modal is visible
+                            const modal = document.getElementById('mouDetailsModal');
+                            if (modal) {
+                                modal.classList.remove('hidden');
+                                modal.style.display = 'flex';
+                                console.log('Modal should be visible now');
+                            } else {
+                                console.error('Modal element not found');
+                            }
+                        } else {
+                            console.error('Failed to load entry:', result.error);
+                            alert('Failed to load MOU/MOA details: ' + (result.error || 'Unknown error'));
+                        }
+                    } catch (error) {
+                        console.error('Error loading entry:', error);
+                        // Fallback: navigate to URL
+                        window.location.href = `mou-moa.php?entry=${entryId}`;
+                    }
+                })();
+            } else {
+                console.log('showMouDetails not available, navigating to page');
+                // Navigate to mou-moa page with entry parameter to open modal
+                window.location.href = `mou-moa.php?entry=${entryId}`;
+            }
+        };
+        
+        // Handle Renewed button - marks as renewed and removes notification
+        window.handleMouRenewed = async function(notificationId) {
+            console.log('handleMouRenewed called with notificationId:', notificationId);
+            
+            if (!notificationId) {
+                console.error('No notification ID provided');
+                alert('Error: No notification ID found');
+                return;
+            }
+            
+            try {
+                console.log('Sending renewal confirmation request...');
+                const response = await fetch('api/notifications.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'confirm_mou_renewal',
+                        notification_id: notificationId,
+                        renewal_status: 'renewed'
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (data.success) {
+                    console.log('Successfully marked as renewed');
+                    // Reload notifications to reflect the confirmation
+                    if (window.loadNotifications) {
+                        await window.loadNotifications();
+                    }
+                    if (window.updateNotificationBadge) {
+                        await window.updateNotificationBadge();
+                    }
+                    
+                    // Show success message
+                    if (typeof showToast === 'function') {
+                        showToast('MOU/MOA marked as renewed. Notification removed.', 'success');
+                    } else {
+                        alert('MOU/MOA marked as renewed. Notification removed.');
+                    }
+                    
+                    // Reload the page to refresh notifications if functions aren't available
+                    if (!window.loadNotifications) {
+                        setTimeout(() => location.reload(), 1000);
+                    }
+                } else {
+                    console.error('Failed to confirm MOU renewal:', data.error);
+                    alert('Failed to mark as renewed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error confirming MOU renewal:', error);
+                alert('Error marking as renewed: ' + error.message);
+            }
+        };
+    </script>
+    <script>
         document.addEventListener('DOMContentLoaded', function() {
             const notificationBtn = document.getElementById('notificationBtn');
             const notificationDropdown = document.getElementById('notificationDropdown');
@@ -4000,10 +4167,29 @@ try {
                 markAllNotificationsAsRead();
             });
             
-            // View all notifications
-            viewAllNotifications.addEventListener('click', function() {
+            // View all notifications - opens modal with all notifications
+            if (viewAllNotifications && !viewAllNotifications.dataset.listenerAttached) {
+                viewAllNotifications.dataset.listenerAttached = 'true';
+                
+                // Create and append the modal to body if it doesn't exist
+                if (!document.getElementById('allNotificationsModal')) {
+                    createAllNotificationsModal();
+                }
+                
+                viewAllNotifications.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('View all notifications clicked - opening modal');
+                    
+                    // Close dropdown if open
+                    if (notificationDropdown) {
+                        notificationDropdown.classList.add('hidden');
+                    }
+                    
+                    // Show the modal
                 showAllNotificationsModal();
-            });
+                }, { once: false });
+            }
             
             // Use API-based notification system instead of localStorage
             let notifications = [];
@@ -4086,9 +4272,40 @@ try {
                     const bgColor = getNotificationBgColor(notif.type);
                     const targetUrl = getNotificationUrl(notif);
                     const urlAttribute = targetUrl ? ` data-url="${encodeURIComponent(targetUrl)}"` : '';
-                    const actionHint = targetUrl ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
                     const relatedTypeAttr = notif.related_type ? ` data-related-type="${notif.related_type}"` : '';
                     const relatedIdAttr = notif.related_id ? ` data-related-id="${notif.related_id}"` : '';
+                    const isMouNotification = notif.related_type === 'mou_moa';
+                    const isConfirmed = notif.is_confirmed || false;
+                    
+                    // Add Renew/Renewed buttons for MOU notifications that aren't confirmed
+                    let actionButtons = '';
+                    if (isMouNotification && !isConfirmed) {
+                        actionButtons = `
+                            <div class="mt-3 flex gap-2">
+                                <button data-action="renew" data-notification-id="${notif.id}" data-entry-id="${notif.related_id}" 
+                                        class="renew-mou-btn px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-sm">edit</span>
+                                    Renew
+                                </button>
+                                <button data-action="renewed" data-notification-id="${notif.id}" 
+                                        class="renewed-mou-btn px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-sm">check_circle</span>
+                                    Renewed
+                                </button>
+                            </div>
+                        `;
+                    } else if (isMouNotification && isConfirmed && notif.mou_renewal_status === 'renewed') {
+                        actionButtons = `
+                            <div class="mt-2">
+                                <p class="text-xs text-green-500 font-medium flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-sm">check_circle</span>
+                                    Status: Renewed
+                                </p>
+                            </div>
+                        `;
+                    }
+                    
+                    const actionHint = targetUrl && !isMouNotification ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
                     
                     return `
                         <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark ${notif.is_read ? 'opacity-60' : ''}" 
@@ -4105,6 +4322,7 @@ try {
                                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${escapeHtml(notif.message)}</p>
                                     <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${timeAgo}</p>
                                     ${actionHint}
+                                    ${actionButtons}
                                     </div>
                                 ${!notif.is_read ? '<div class="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>' : ''}
                             </div>
@@ -4114,6 +4332,57 @@ try {
             }
             
             function handleNotificationListClick(event) {
+                // Check if clicked on a button
+                const renewBtn = event.target.closest('.renew-mou-btn');
+                const renewedBtn = event.target.closest('.renewed-mou-btn');
+                
+                if (renewBtn) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    const notificationId = renewBtn.getAttribute('data-notification-id');
+                    const entryId = renewBtn.getAttribute('data-entry-id');
+                    console.log('Renew button clicked:', { notificationId, entryId, btn: renewBtn });
+                    
+                    if (!entryId) {
+                        console.error('Entry ID not found in button data attributes');
+                        alert('Error: Entry ID not found');
+                        return;
+                    }
+                    
+                    if (window.handleRenewMou) {
+                        console.log('Calling handleRenewMou');
+                        window.handleRenewMou(notificationId, entryId);
+                    } else {
+                        console.error('handleRenewMou function not found on window object');
+                        console.log('Available window functions:', Object.keys(window).filter(k => k.includes('handle') || k.includes('Renew')));
+                        alert('Error: Renew function not available. Please refresh the page.');
+                    }
+                    return;
+                }
+                
+                if (renewedBtn) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    const notificationId = renewedBtn.getAttribute('data-notification-id');
+                    console.log('Renewed button clicked:', { notificationId, btn: renewedBtn });
+                    
+                    if (!notificationId) {
+                        console.error('Notification ID not found in button data attributes');
+                        alert('Error: Notification ID not found');
+                        return;
+                    }
+                    
+                    if (window.handleMouRenewed) {
+                        console.log('Calling handleMouRenewed');
+                        window.handleMouRenewed(notificationId);
+                    } else {
+                        console.error('handleMouRenewed function not found on window object');
+                        console.log('Available window functions:', Object.keys(window).filter(k => k.includes('handle') || k.includes('Renew')));
+                        alert('Error: Renewed function not available. Please refresh the page.');
+                    }
+                    return;
+                }
+                
                 const target = event.target.closest('[data-notification-id]');
                 if (!target) return;
                 event.preventDefault();
@@ -4141,7 +4410,40 @@ try {
                     if (notificationDropdown) {
                         notificationDropdown.classList.add('hidden');
                     }
-                    highlightEntry(relatedId);
+                    
+                    // Open the modal directly if we're already on the mou-moa page
+                    if (typeof window.showMouDetails === 'function') {
+                        // Fetch the entry and open modal
+                        (async function() {
+                            try {
+                                const response = await fetch(`api/mou-moa.php?action=get&id=${relatedId}`);
+                                const result = await response.json();
+                                
+                                if (result.success && result.data) {
+                                    window.showMouDetails(result.data);
+                                    
+                                    // Ensure modal is visible
+                                    const modal = document.getElementById('mouDetailsModal');
+                                    if (modal) {
+                                        modal.classList.remove('hidden');
+                                        modal.style.display = 'flex';
+                                    }
+                                    
+                                    // Highlight the entry
+                                    if (typeof highlightEntry === 'function') {
+                                        highlightEntry(parseInt(relatedId));
+                                    }
+                                }
+                            } catch (error) {
+                                console.error('Error loading entry:', error);
+                                // Fallback: navigate to URL
+                                window.location.href = `mou-moa.php?entry=${relatedId}`;
+                            }
+                        })();
+                    } else {
+                        // Fallback: navigate to URL with entry parameter
+                        window.location.href = `mou-moa.php?entry=${relatedId}`;
+                    }
                     return;
                 }
                 
@@ -4271,7 +4573,14 @@ try {
             
             // Highlight entry in table
             function highlightEntry(entryId) {
-                const checkbox = document.querySelector(`.row-checkbox[data-id="${entryId}"]`);
+                // Try to find checkbox with both string and number ID
+                let checkbox = document.querySelector(`.row-checkbox[data-id="${entryId}"]`);
+                if (!checkbox) {
+                    // Try with the other type (string vs number)
+                    const altId = typeof entryId === 'string' ? parseInt(entryId) : entryId.toString();
+                    checkbox = document.querySelector(`.row-checkbox[data-id="${altId}"]`);
+                }
+                
                 if (checkbox) {
                     const row = checkbox.closest('tr');
                     if (row) {
@@ -4296,6 +4605,10 @@ try {
                 }
             }
             
+            // Make loadNotifications and updateNotificationBadge globally accessible
+            window.loadNotifications = loadNotifications;
+            window.updateNotificationBadge = updateNotificationBadge;
+            
             // Initialize: Check for notifications and load them
             (async function() {
                 await refreshNotificationIndicators();
@@ -4306,15 +4619,178 @@ try {
                 }, 5 * 60 * 1000);
             })();
             
-            // Show all notifications modal - simplified version
+            // Show all notifications modal
             function showAllNotificationsModal() {
-                // For now, just open the dropdown to show all notifications
-                // The API-based system already shows all notifications in the dropdown
-                if (!notificationDropdown.classList.contains('hidden')) {
-                    notificationDropdown.classList.add('hidden');
+                console.log('showAllNotificationsModal called');
+                const modal = document.getElementById('allNotificationsModal');
+                if (!modal) {
+                    console.error('allNotificationsModal not found, creating it...');
+                    createAllNotificationsModal();
+                    // Try again after creating
+                    setTimeout(() => showAllNotificationsModal(), 100);
+                    return;
+                }
+                
+                // Load all notifications into the modal
+                loadAllNotificationsIntoModal();
+                
+                // Show the modal
+                modal.classList.remove('hidden');
+                modal.style.display = 'flex';
+                
+                // Close modal when clicking outside
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        closeAllNotificationsModal();
+                    }
+                });
+            }
+            
+            // Load all notifications into the modal
+            async function loadAllNotificationsIntoModal() {
+                const modalList = document.getElementById('allNotificationsList');
+                const countElement = document.getElementById('notificationsCount');
+                
+                if (!modalList) {
+                    console.error('allNotificationsList not found');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('api/notifications.php');
+                    const data = await response.json();
+                    
+                    if (data.notifications && Array.isArray(data.notifications)) {
+                        const allNotifications = data.notifications;
+                        
+                        // Update count
+                        if (countElement) {
+                            countElement.textContent = allNotifications.length;
+                        }
+                        
+                        // Render notifications
+                        if (allNotifications.length === 0) {
+                            modalList.innerHTML = `
+                                <div class="text-center py-12">
+                                    <span class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-600 mb-4 block">notifications_off</span>
+                                    <p class="text-gray-500 dark:text-gray-400 text-lg">No notifications</p>
+                                </div>
+                            `;
                 } else {
+                            modalList.innerHTML = allNotifications.map(notif => {
+                                const timeAgo = getTimeAgo(notif.created_at);
+                                const icon = getNotificationIcon(notif.type);
+                                const bgColor = getNotificationBgColor(notif.type);
+                                const targetUrl = getNotificationUrl(notif);
+                                const isMouNotification = notif.related_type === 'mou_moa';
+                                const isConfirmed = notif.is_confirmed || false;
+                                
+                                // Add Renew/Renewed buttons for MOU notifications that aren't confirmed
+                                let actionButtons = '';
+                                if (isMouNotification && !isConfirmed) {
+                                    actionButtons = `
+                                        <div class="mt-3 flex gap-2">
+                                            <button data-action="renew" data-notification-id="${notif.id}" data-entry-id="${notif.related_id}" 
+                                                    class="renew-mou-btn px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                                <span class="material-symbols-outlined text-sm">edit</span>
+                                                Renew
+                                            </button>
+                                            <button data-action="renewed" data-notification-id="${notif.id}" 
+                                                    class="renewed-mou-btn px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                                <span class="material-symbols-outlined text-sm">check_circle</span>
+                                                Renewed
+                                            </button>
+                                        </div>
+                                    `;
+                                } else if (isMouNotification && isConfirmed && notif.mou_renewal_status === 'renewed') {
+                                    actionButtons = `
+                                        <div class="mt-2">
+                                            <p class="text-xs text-green-500 font-medium flex items-center gap-1">
+                                                <span class="material-symbols-outlined text-sm">check_circle</span>
+                                                Status: Renewed
+                                            </p>
+                                        </div>
+                                    `;
+                                }
+                                
+                                return `
+                                    <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${notif.is_read ? 'opacity-60' : ''}" 
+                                         data-notification-id="${notif.id}"
+                                         data-related-type="${notif.related_type || ''}"
+                                         data-related-id="${notif.related_id || ''}">
+                                        <div class="flex items-start gap-3">
+                                            <div class="flex-shrink-0 w-10 h-10 rounded-full ${bgColor} flex items-center justify-center">
+                                                <span class="material-symbols-outlined text-white text-lg">${icon}</span>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <p class="text-sm font-medium text-gray-900 dark:text-white">${escapeHtml(notif.title)}</p>
+                                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${escapeHtml(notif.message)}</p>
+                                                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${timeAgo}</p>
+                                                ${actionButtons}
+                                            </div>
+                                            ${!notif.is_read ? '<div class="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>' : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('');
+                            
+                            // Add click handlers for notifications in modal
+                            modalList.querySelectorAll('[data-notification-id]').forEach(item => {
+                                item.addEventListener('click', function(e) {
+                                    // Don't trigger if clicking on buttons
+                                    if (e.target.closest('.renew-mou-btn') || e.target.closest('.renewed-mou-btn')) {
+                                        return;
+                                    }
+                                    handleNotificationSelection(item);
+                                });
+                            });
+                            
+                            // Add click handlers for Renew/Renewed buttons in modal
+                            modalList.querySelectorAll('.renew-mou-btn').forEach(btn => {
+                                btn.addEventListener('click', function(e) {
+                                    e.stopPropagation();
+                                    const notificationId = btn.getAttribute('data-notification-id');
+                                    const entryId = btn.getAttribute('data-entry-id');
+                                    if (window.handleRenewMou) {
+                                        window.handleRenewMou(notificationId, entryId);
+                                    }
+                                });
+                            });
+                            
+                            modalList.querySelectorAll('.renewed-mou-btn').forEach(btn => {
+                                btn.addEventListener('click', function(e) {
+                                    e.stopPropagation();
+                                    const notificationId = btn.getAttribute('data-notification-id');
+                                    if (window.handleMouRenewed) {
+                                        window.handleMouRenewed(notificationId).then(() => {
+                                            // Reload modal notifications after renewal
+                                            loadAllNotificationsIntoModal();
+                                            // Also update the dropdown
+                                            if (typeof loadNotifications === 'function') {
                     loadNotifications();
-                    notificationDropdown.classList.remove('hidden');
+                                            }
+                                        });
+                                    }
+                                });
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading notifications into modal:', error);
+                    modalList.innerHTML = `
+                        <div class="text-center py-12">
+                            <p class="text-red-500">Error loading notifications. Please try again.</p>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Close all notifications modal
+            function closeAllNotificationsModal() {
+                const modal = document.getElementById('allNotificationsModal');
+                if (modal) {
+                    modal.classList.add('hidden');
+                    modal.style.display = 'none';
                 }
             }
             
@@ -4899,6 +5375,10 @@ try {
             <div class="p-6 bg-gray-50 dark:bg-background-dark/30 rounded-b-xl flex-shrink-0">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
+                        <button id="renewMouFromDetails" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-500 rounded-lg hover:bg-green-600 hidden">
+                            <span class="material-symbols-outlined text-sm">autorenew</span>
+                            Renew MOU
+                        </button>
                         <button id="editMouFromDetails" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary bg-primary/10 rounded-lg hover:bg-primary/20">
                             <span class="material-symbols-outlined text-sm">edit</span>
                             Edit MOU
@@ -4924,21 +5404,28 @@ try {
             const closeMouDetailsBtn = document.getElementById('closeMouDetailsBtn');
             const editMouFromDetails = document.getElementById('editMouFromDetails');
             const viewFileFromDetails = document.getElementById('viewFileFromDetails');
+            const renewMouFromDetails = document.getElementById('renewMouFromDetails');
             
             let currentMouData = null;
             
             // Function to show MOU details modal
             function showMouDetails(mouData) {
+                console.log('showMouDetails called with data:', mouData);
                 currentMouData = mouData;
                 
                 // Update modal content
-                document.getElementById('mouDetailsTitle').textContent = `${mouData.institution} - MOU/MOA Details`;
-                document.getElementById('mouDetailsSubtitle').textContent = `Agreement with ${mouData.institution}`;
+                const titleEl = document.getElementById('mouDetailsTitle');
+                const subtitleEl = document.getElementById('mouDetailsSubtitle');
+                if (titleEl) titleEl.textContent = `${mouData.institution} - MOU/MOA Details`;
+                if (subtitleEl) subtitleEl.textContent = `Agreement with ${mouData.institution}`;
                 
                 // Fill in the details
-                document.getElementById('detailInstitution').textContent = mouData.institution || '-';
-                document.getElementById('detailLocation').textContent = mouData.location || '-';
-                document.getElementById('detailContact').textContent = mouData.contact_email || 'No contact information';
+                const instEl = document.getElementById('detailInstitution');
+                const locEl = document.getElementById('detailLocation');
+                const contactEl = document.getElementById('detailContact');
+                if (instEl) instEl.textContent = mouData.institution || '-';
+                if (locEl) locEl.textContent = mouData.location || '-';
+                if (contactEl) contactEl.textContent = mouData.contact_email || 'No contact information';
                 
                 // Format term duration to always include proper unit
                 let termText = mouData.term || '-';
@@ -4950,10 +5437,13 @@ try {
                     }
                     // If it already has a unit, keep it as is
                 }
-                document.getElementById('detailTerm').textContent = termText;
+                const termEl = document.getElementById('detailTerm');
+                if (termEl) termEl.textContent = termText;
                 
-                document.getElementById('detailSignDate').textContent = mouData.sign_date ? formatDate(mouData.sign_date) : '-';
-                document.getElementById('detailEndDate').textContent = mouData.end_date ? formatDate(mouData.end_date) : '-';
+                const signDateEl = document.getElementById('detailSignDate');
+                const endDateEl = document.getElementById('detailEndDate');
+                if (signDateEl) signDateEl.textContent = mouData.sign_date ? formatDate(mouData.sign_date) : '-';
+                if (endDateEl) endDateEl.textContent = mouData.end_date ? formatDate(mouData.end_date) : '-';
                 
                 // Update status with appropriate styling
                 const statusElement = document.getElementById('detailStatus');
@@ -5044,6 +5534,86 @@ try {
                     } else {
                         return 'Active';
                     }
+                }
+                
+                // Show/hide Renew button for expired or expiring MOU/MOA
+                const renewBtn = document.getElementById('renewMouFromDetails');
+                const status = determineStatusLocal(mouData.end_date);
+                if (renewBtn && (status === 'Expired' || status === 'Expires Soon')) {
+                    renewBtn.classList.remove('hidden');
+                } else if (renewBtn) {
+                    renewBtn.classList.add('hidden');
+                }
+                
+                // Set up Renew button handler
+                if (renewBtn) {
+                    renewBtn.onclick = async () => {
+                        if (!mouData.id) {
+                            alert('Error: MOU/MOA ID not found');
+                            return;
+                        }
+                        
+                        // Find and mark related notifications as renewed
+                        try {
+                            const response = await fetch('api/notifications.php');
+                            const data = await response.json();
+                            
+                            if (data.notifications && Array.isArray(data.notifications)) {
+                                const mouNotifications = data.notifications.filter(
+                                    n => n.related_type === 'mou_moa' && n.related_id == mouData.id && !n.is_confirmed
+                                );
+                                
+                                // Mark each notification as renewed
+                                for (const notif of mouNotifications) {
+                                    try {
+                                        const renewResponse = await fetch('api/notifications.php', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json'
+                                            },
+                                            body: JSON.stringify({
+                                                action: 'confirm_mou_renewal',
+                                                notification_id: notif.id,
+                                                renewal_status: 'renewed'
+                                            })
+                                        });
+                                        
+                                        const renewData = await renewResponse.json();
+                                        if (!renewData.success) {
+                                            console.error('Failed to mark notification as renewed:', renewData.error);
+                                        }
+                                    } catch (error) {
+                                        console.error('Error marking notification as renewed:', error);
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Error fetching notifications:', error);
+                        }
+                        
+                        // Close the modal immediately
+                        mouDetailsModal.classList.add('hidden');
+                        
+                        // Show success message
+                        if (typeof showToast === 'function') {
+                            showToast('MOU/MOA marked as renewed. Notification removed.', 'success');
+                        } else {
+                            alert('MOU/MOA marked as renewed. Notification removed.');
+                        }
+                        
+                        // Refresh notifications if function exists
+                        if (window.loadNotifications) {
+                            window.loadNotifications();
+                        }
+                        if (window.updateNotificationBadge) {
+                            window.updateNotificationBadge();
+                        }
+                        
+                        // Refresh the table to show updated status
+                        if (typeof loadFromDatabase === 'function') {
+                            loadFromDatabase();
+                        }
+                    };
                 }
                 
                 // Set up edit button with better error handling
@@ -5162,8 +5732,14 @@ try {
                     }, 100);
                 };
                 
-                // Show modal
+                // Show modal - ensure it's visible
+                console.log('Removing hidden class from modal');
                 mouDetailsModal.classList.remove('hidden');
+                mouDetailsModal.style.display = 'flex'; // Ensure flex display
+                mouDetailsModal.style.visibility = 'visible';
+                mouDetailsModal.style.opacity = '1';
+                console.log('Modal classes after show:', mouDetailsModal.className);
+                console.log('Modal computed display:', window.getComputedStyle(mouDetailsModal).display);
             }
             
             // Function to format date
@@ -5179,6 +5755,7 @@ try {
             // Close modal functions
             function closeMouDetailsModal() {
                 mouDetailsModal.classList.add('hidden');
+                mouDetailsModal.style.display = 'none';
                 currentMouData = null;
             }
             
@@ -5202,6 +5779,140 @@ try {
             
             // Make showMouDetails globally accessible
             window.showMouDetails = showMouDetails;
+            
+            // Check for pending entry ID from URL parameter (set early in page load)
+            // This will open the modal when the page is ready
+            function checkAndOpenEntry() {
+                const entryId = window.pendingEntryId;
+                if (!entryId) return;
+                
+                console.log('Opening MOU/MOA entry from notification:', entryId);
+                
+                // Make sure modal and function are ready
+                const modal = document.getElementById('mouDetailsModal');
+                if (!modal) {
+                    console.log('Modal not ready yet, retrying...');
+                    setTimeout(checkAndOpenEntry, 200);
+                    return;
+                }
+                
+                if (typeof showMouDetails !== 'function') {
+                    console.log('showMouDetails not ready yet, retrying...');
+                    setTimeout(checkAndOpenEntry, 200);
+                    return;
+                }
+                
+                // Clear the pending ID and URL parameter
+                delete window.pendingEntryId;
+                const newUrl = window.location.pathname;
+                window.history.replaceState({}, '', newUrl);
+                
+                // Fetch and open the entry
+                (async function() {
+                    try {
+                        console.log('Fetching entry data for ID:', entryId);
+                        const response = await fetch(`api/mou-moa.php?action=get&id=${entryId}`);
+                        const result = await response.json();
+                        
+                        console.log('API response:', result);
+                        
+                        if (result.success && result.data) {
+                            console.log('Opening MOU details modal with data:', result.data);
+                            
+                            // First, populate the modal content manually to ensure it's ready
+                            try {
+                                const titleEl = document.getElementById('mouDetailsTitle');
+                                const subtitleEl = document.getElementById('mouDetailsSubtitle');
+                                if (titleEl) titleEl.textContent = `${result.data.institution || 'MOU/MOA'} - Details`;
+                                if (subtitleEl) subtitleEl.textContent = `Agreement with ${result.data.institution || 'Partner'}`;
+                                
+                                const instEl = document.getElementById('detailInstitution');
+                                const locEl = document.getElementById('detailLocation');
+                                const contactEl = document.getElementById('detailContact');
+                                if (instEl) instEl.textContent = result.data.institution || '-';
+                                if (locEl) locEl.textContent = result.data.location || '-';
+                                if (contactEl) contactEl.textContent = result.data.contact_email || 'No contact information';
+                            } catch (e) {
+                                console.warn('Error populating modal fields:', e);
+                            }
+                            
+                            // Call the function to show the modal
+                            console.log('About to call showMouDetails...');
+                            if (typeof showMouDetails === 'function') {
+                                console.log('Calling showMouDetails function');
+                                showMouDetails(result.data);
+                                console.log('showMouDetails called');
+                            } else {
+                                console.error('showMouDetails function not found!');
+                            }
+                            
+                            // IMPORTANT: Force modal to be visible immediately
+                            console.log('Forcing modal to be visible...');
+                            modal.classList.remove('hidden');
+                            modal.style.display = 'flex';
+                            modal.style.visibility = 'visible';
+                            modal.style.opacity = '1';
+                            modal.style.zIndex = '9999';
+                            console.log('Modal forced visible. Hidden class removed:', !modal.classList.contains('hidden'));
+                            
+                            // Double-check after a short delay to ensure it stays visible
+                            setTimeout(() => {
+                                console.log('Double-checking modal visibility...');
+                                if (modal.classList.contains('hidden')) {
+                                    console.log('Modal was hidden again, forcing show...');
+                                    modal.classList.remove('hidden');
+                                }
+                                modal.style.display = 'flex';
+                                modal.style.visibility = 'visible';
+                                modal.style.opacity = '1';
+                                modal.style.zIndex = '9999';
+                                
+                                const computedStyle = window.getComputedStyle(modal);
+                                console.log('Modal display:', computedStyle.display);
+                                console.log('Modal visibility:', computedStyle.visibility);
+                                console.log('Modal opacity:', computedStyle.opacity);
+                                console.log('Modal z-index:', computedStyle.zIndex);
+                                
+                                // If still not visible, try one more time
+                                if (computedStyle.display === 'none' || modal.classList.contains('hidden')) {
+                                    console.log('Modal still not visible, trying one more time...');
+                                    modal.classList.remove('hidden');
+                                    modal.style.display = 'flex';
+                                    modal.style.visibility = 'visible';
+                                    modal.style.opacity = '1';
+                                }
+                            }, 200);
+                            
+                            // Highlight the entry
+                            setTimeout(() => {
+                                const entryIdNum = parseInt(entryId);
+                                if (typeof highlightEntry === 'function') {
+                                    highlightEntry(entryIdNum);
+                                }
+                            }, 300);
+                        } else {
+                            console.error('Failed to load entry:', result.error);
+                            alert('Failed to load MOU/MOA entry: ' + (result.error || 'Unknown error'));
+                        }
+                    } catch (error) {
+                        console.error('Error loading entry:', error);
+                        alert('Error loading MOU/MOA entry: ' + error.message);
+                    }
+                })();
+            }
+            
+            // Start checking after a short delay
+            setTimeout(checkAndOpenEntry, 500);
+            // Also check periodically in case things load slowly
+            const checkInterval = setInterval(() => {
+                if (window.pendingEntryId && document.getElementById('mouDetailsModal') && typeof showMouDetails === 'function') {
+                    clearInterval(checkInterval);
+                    checkAndOpenEntry();
+                }
+            }, 200);
+            
+            // Stop checking after 10 seconds
+            setTimeout(() => clearInterval(checkInterval), 10000);
             
             // Add click event listeners to table rows
             function addRowClickListener(row, mouData) {

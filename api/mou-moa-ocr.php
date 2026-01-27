@@ -35,6 +35,7 @@ if (!isset($_SESSION['user_id'])) {
 
 try {
     require_once __DIR__ . '/award-analysis-functions.php';
+    require_once __DIR__ . '/mou-country-detector.php';
 } catch (Throwable $e) {
     ob_end_clean();
     http_response_code(500);
@@ -57,46 +58,294 @@ function normalizeWhitespaceKeepNewlines($text) {
 
 function cleanInstitutionCandidate($s) {
     $s = trim((string)$s);
+    $originalS = $s; // Keep original for early rejection checks
     $s = preg_replace('/\s+/', ' ', $s);
 
-    // Remove leading labels/boilerplate
-    $s = preg_replace('/^(the\s+)?(partner\s+)?institution\s*[:\-]\s*/i', '', $s);
-    $s = preg_replace('/^(name\s+of\s+)?(the\s+)?institution\s*[:\-]\s*/i', '', $s);
-
-    // Remove trailing boilerplate
-    $s = preg_replace('/\s*,?\s*(hereinafter|herein after)\b.*$/i', '', $s);
-    $s = preg_replace('/\s*[\.\,\;\:\-]+$/', '', $s);
-
-    // Remove location/address information - stop at location indicators
-    // Remove anything after patterns like ", located", ", in [city]", ", [country]", etc.
-    $s = preg_replace('/\s*,\s*(located\s+(?:at|in)|in\s+[A-Z][a-z]+|at\s+[A-Z][a-z]+).*$/i', '', $s);
-    
-    // Remove country/city names at the end (common pattern: "University, City, Country")
-    // List of common location keywords that shouldn't be in institution name
-    $locationPatterns = [
-        '/\s*,\s*(china|japan|philippines|philippine|united\s+states|usa|korea|canada|australia|singapore|malaysia|thailand|vietnam|indonesia|india|taiwan).*$/i',
-        '/\s*,\s*([A-Z][a-z]+\s*(?:city|province|state|region|prefecture|county)).*$/i',
-        '/\s*,\s*([A-Z][a-z]+,\s*(?:china|japan|philippines|philippine|united\s+states|usa|korea|canada|australia|singapore|malaysia|thailand|vietnam|indonesia|india|taiwan)).*$/i',
-    ];
-    foreach ($locationPatterns as $pattern) {
-        $s = preg_replace($pattern, '', $s);
+    // EARLY REJECTION: If it starts with signature-related text and has no institution keywords, reject immediately
+    if (preg_match('/^(signatures?|signed|signatory|witness)/i', $s)) {
+        // Only allow if it contains institution keywords (e.g., "signatures at University")
+        if (!preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $s)) {
+            return '';
+        }
     }
     
-    // If there are multiple commas, likely has address info - take only first part
-    // But be careful: some institution names legitimately have commas (e.g., "X, Inc.")
-    // Only split if we detect location keywords
-    if (preg_match('/^([^,]+(?:,\s*[^,]+)*?)(?:,\s*[^,]*?(?:located|address|in\s+[A-Z]|city|province|state|country|china|japan|philippines|usa|korea|canada|australia))/i', $s, $m)) {
-        $s = $m[1];
+    // EARLY REJECTION: If it contains "day of" pattern without institution keywords, reject
+    if (preg_match('/\b(day|month|year)\s+of\b/i', $s)) {
+        if (!preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $s)) {
+            return '';
+        }
     }
     
-    // Remove surrounding quotes (including curly quotes)
-    $s = trim($s);
-    $s = preg_replace('/^["\x{201C}\x{201D}\x{201E}\x{201F}]+|["\x{201C}\x{201D}\x{201E}\x{201F}]+$/u', '', $s);
-    $s = preg_replace("/^['\x{2018}\x{2019}\x{201A}\x{201B}]+|['\x{2018}\x{2019}\x{201A}\x{201B}]+$/u", '', $s);
+    // EARLY REJECTION: If it contains OCR artifacts like "_J.gfl" or "_m_" without institution keywords, reject
+    if (preg_match('/_[A-Za-z0-9\.]+/', $s)) {
+        if (!preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $s)) {
+            return '';
+        }
+    }
+
+    // Remove signature-related text at the beginning - be more aggressive
+    // If text contains "at" followed by institution, extract ONLY what's after "at"
+    // Improved pattern to handle OCR artifacts like "_J.gﬂ day of m_. 2012 at Daegu University"
+    $atMatch = null;
+    // First try to match with institution keyword directly
+    if (preg_match('/\bat\s+([A-Z][A-Za-z\s]{3,}(?:\s+(?:University|College|Institute|Institution|School|Academy|Polytechnic|Foundation|Corporation|Inc|LLC|Ltd))[^\n,]*?)(?:\s*,\s*the|\s*$)/i', $originalS, $atMatch)) {
+        // Extract only the institution part after "at"
+        $s = trim($atMatch[1]);
+        $extractedFromAt = true;
+    } elseif (preg_match('/\bat\s+([^\n,]{5,120}?)(?:\s*,\s*the|\s*$)/i', $originalS, $atMatch)) {
+        // Fallback: extract anything after "at" up to comma or end, then clean and validate
+        $s = trim($atMatch[1]);
+        $extractedFromAt = true;
+    } else {
+        $s = $originalS;
+        $extractedFromAt = false;
+    }
+    
+    // If we extracted from "at" pattern, clean it
+    if ($extractedFromAt && isset($atMatch[1])) {
+        // Remove trailing "the" or comma+the
+        $s = preg_replace('/\s*,\s*the\s*$/i', '', $s);
+        $s = preg_replace('/\s+the\s*$/i', '', $s);
+        // Remove any trailing punctuation
+        $s = preg_replace('/[\.\,\;\:\-]+$/', '', $s);
+        // Remove OCR artifacts (underscores, special characters) from the extracted institution
+        $s = preg_replace('/_[A-Za-z0-9\.]+/', '', $s); // Remove patterns like "_J.gﬂ"
+        $s = preg_replace('/\b(day|month|year)\s+of\s+[^\s]+\s+\d{4}\b/i', '', $s); // Remove date patterns
+        $s = preg_replace('/\b\d{4}\b/', '', $s); // Remove standalone years
+        
+        // Remove city/country names that appear directly attached (no comma) - handle OCR errors
+        // Common major cities that might appear after institution names
+        $majorCities = ['seoul', 'tokyo', 'osaka', 'kyoto', 'manila', 'quezon city', 'davao', 'cebu', 
+                       'beijing', 'shanghai', 'guangzhou', 'shenzhen', 'singapore', 'kuala lumpur',
+                       'bangkok', 'hanoi', 'ho chi minh', 'jakarta', 'sydney', 'melbourne', 'toronto',
+                       'vancouver', 'new york', 'los angeles', 'london', 'paris', 'berlin'];
+        foreach ($majorCities as $city) {
+            // Remove city name if it appears at the end (with or without comma, with or without space)
+            $s = preg_replace('/\b' . preg_quote($city, '/') . '\s*[,\s]*\s*(korea|japan|philippines|china|thailand|vietnam|indonesia|malaysia|singapore|australia|canada|usa|united\s+states|uk|united\s+kingdom|france|germany)?.*$/i', '', $s);
+            // Also handle when city is directly attached (OCR error: "UNIVERSITYSeoul")
+            $s = preg_replace('/\b' . preg_quote(ucfirst($city), '/') . '\s*(korea|japan|philippines|china|thailand|vietnam|indonesia|malaysia|singapore|australia|canada|usa|united\s+states|uk|united\s+kingdom|france|germany)?.*$/i', '', $s);
+        }
+        
+        // Remove country names that appear directly at the end (even without comma)
+        $s = preg_replace('/\b(korea|japan|philippines|philippine|china|chinese|thailand|thai|vietnam|vietnamese|indonesia|indonesian|malaysia|malaysian|singapore|singaporean|australia|australian|canada|canadian|usa|united\s+states|uk|united\s+kingdom|france|french|germany|german|india|indian|taiwan|taiwanese)\s*[,\s]*$/i', '', $s);
+        
+        // Remove "City, Country" pattern even when directly attached (e.g., "Seoul, Korea" or "SeoulKorea")
+        $s = preg_replace('/\b(seoul|tokyo|osaka|kyoto|manila|beijing|shanghai|singapore|bangkok|hanoi|jakarta|sydney|toronto|vancouver|new\s+york|los\s+angeles|london|paris|berlin)\s*[,\s]+\s*(korea|japan|philippines|china|thailand|vietnam|indonesia|malaysia|singapore|australia|canada|usa|united\s+states|uk|united\s+kingdom|france|germany)\s*$/i', '', $s);
+        
+        // Handle cases where city is directly attached to institution name (no space: "UNIVERSITYSeoul")
+        // Match uppercase city names directly attached (common OCR error)
+        $s = preg_replace('/(UNIVERSITY|COLLEGE|INSTITUTE|INSTITUTION|SCHOOL|ACADEMY)(Seoul|Tokyo|Osaka|Kyoto|Manila|Beijing|Shanghai|Singapore|Bangkok|Hanoi|Jakarta|Sydney|Toronto|Vancouver|London|Paris|Berlin)\s*[,\s]*(Korea|Japan|Philippines|China|Thailand|Vietnam|Indonesia|Malaysia|Singapore|Australia|Canada|USA)?.*$/i', '$1', $s);
+        // Also handle lowercase/mixed case: "UniversitySeoul" or "University Seoul"
+        $s = preg_replace('/(University|College|Institute|Institution|School|Academy)(Seoul|Tokyo|Osaka|Kyoto|Manila|Beijing|Shanghai|Singapore|Bangkok|Hanoi|Jakarta|Sydney|Toronto|Vancouver|London|Paris|Berlin)\s*[,\s]*(Korea|Japan|Philippines|China|Thailand|Vietnam|Indonesia|Malaysia|Singapore|Australia|Canada|USA)?.*$/i', '$1', $s);
+        
+        // Normalize whitespace
+        $s = preg_replace('/\s+/', ' ', $s);
+        $s = trim($s);
+        // If we successfully extracted institution from "at" pattern, skip other cleaning
+        // and go directly to final validation
+        if (preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation)\b/i', $s)) {
+            // Skip other cleaning - we already have clean institution name
+            // Continue to final validation below
+        } else {
+            // If extraction didn't work, continue with normal cleaning
+            // Fallback: remove everything before "at" if "at" exists
+            $s = preg_replace('/^(signatures?\s+)?(this\s+)?.*?\s+at\s+/i', '', $s);
+            $s = preg_replace('/^.*?\s+at\s+/i', '', $s); // Remove everything before "at"
+            
+            // Remove date patterns (e.g., "day of m_. 2012", "_J.gﬂ day", etc.)
+            $s = preg_replace('/\b(day|month|year)\s+of\s+[^\s]+\s+\d{4}\b/i', '', $s);
+            $s = preg_replace('/\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/', '', $s); // Dates like 01/01/2012
+            $s = preg_replace('/\b\d{4}\b/', '', $s); // Standalone years
+            $s = preg_replace('/\b(day|month|year)\s+of\b/i', '', $s);
+            
+            // Remove OCR artifacts (underscores, special characters that don't belong)
+            $s = preg_replace('/_[A-Za-z0-9\.]+/', '', $s); // Remove patterns like "_J.gﬂ"
+            $s = preg_replace('/[^\w\s\.,\-&()]/u', ' ', $s); // Keep only alphanumeric, spaces, and common punctuation
+            
+            // Remove leading labels/boilerplate
+            $s = preg_replace('/^(the\s+)?(partner\s+)?institution\s*[:\-]\s*/i', '', $s);
+            $s = preg_replace('/^(name\s+of\s+)?(the\s+)?institution\s*[:\-]\s*/i', '', $s);
+            
+            // Remove signature-related words
+            $s = preg_replace('/\b(signatures?|signed|signatory|signatories|witness|witnesses?)\b/i', '', $s);
+            $s = preg_replace('/\b(this|the)\s+day\b/i', '', $s);
+
+            // Remove trailing boilerplate
+            $s = preg_replace('/\s*,?\s*(hereinafter|herein after)\b.*$/i', '', $s);
+            $s = preg_replace('/\s*[\.\,\;\:\-]+$/', '', $s);
+            
+            // Remove trailing "the" or other articles
+            $s = preg_replace('/\s+the\s*$/i', '', $s);
+
+            // Remove location/address information - stop at location indicators
+            // Remove anything after patterns like ", located", ", in [city]", ", [country]", etc.
+            $s = preg_replace('/\s*,\s*(located\s+(?:at|in)|in\s+[A-Z][a-z]+|at\s+[A-Z][a-z]+).*$/i', '', $s);
+            
+            // Remove country/city names at the end (common pattern: "University, City, Country")
+            // List of common location keywords that shouldn't be in institution name
+            $locationPatterns = [
+                '/\s*,\s*(china|japan|philippines|philippine|united\s+states|usa|korea|canada|australia|singapore|malaysia|thailand|vietnam|indonesia|india|taiwan).*$/i',
+                '/\s*,\s*([A-Z][a-z]+\s*(?:city|province|state|region|prefecture|county)).*$/i',
+                '/\s*,\s*([A-Z][a-z]+,\s*(?:china|japan|philippines|philippine|united\s+states|usa|korea|canada|australia|singapore|malaysia|thailand|vietnam|indonesia|india|taiwan)).*$/i',
+            ];
+            foreach ($locationPatterns as $pattern) {
+                $s = preg_replace($pattern, '', $s);
+            }
+            
+            // If there are multiple commas, likely has address info - take only first part
+            // But be careful: some institution names legitimately have commas (e.g., "X, Inc.")
+            // Only split if we detect location keywords
+            if (preg_match('/^([^,]+(?:,\s*[^,]+)*?)(?:,\s*[^,]*?(?:located|address|in\s+[A-Z]|city|province|state|country|china|japan|philippines|usa|korea|canada|australia))/i', $s, $m)) {
+                $s = $m[1];
+            }
+            
+            // Remove surrounding quotes (including curly quotes)
+            $s = trim($s);
+            $s = preg_replace('/^["\x{201C}\x{201D}\x{201E}\x{201F}]+|["\x{201C}\x{201D}\x{201E}\x{201F}]+$/u', '', $s);
+            $s = preg_replace("/^['\x{2018}\x{2019}\x{201A}\x{201B}]+|['\x{2018}\x{2019}\x{201A}\x{201B}]+$/u", '', $s);
+        }
+    } else {
+        // No "at" pattern found, do normal cleaning
+        // Fallback: remove everything before "at" if "at" exists
+        $s = preg_replace('/^(signatures?\s+)?(this\s+)?.*?\s+at\s+/i', '', $s);
+        $s = preg_replace('/^.*?\s+at\s+/i', '', $s); // Remove everything before "at"
+        
+        // Remove date patterns (e.g., "day of m_. 2012", "_J.gﬂ day", etc.)
+        $s = preg_replace('/\b(day|month|year)\s+of\s+[^\s]+\s+\d{4}\b/i', '', $s);
+        $s = preg_replace('/\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/', '', $s); // Dates like 01/01/2012
+        $s = preg_replace('/\b\d{4}\b/', '', $s); // Standalone years
+        $s = preg_replace('/\b(day|month|year)\s+of\b/i', '', $s);
+        
+        // Remove OCR artifacts (underscores, special characters that don't belong)
+        $s = preg_replace('/_[A-Za-z0-9\.]+/', '', $s); // Remove patterns like "_J.gﬂ"
+        $s = preg_replace('/[^\w\s\.,\-&()]/u', ' ', $s); // Keep only alphanumeric, spaces, and common punctuation
+        
+        // Remove leading labels/boilerplate
+        $s = preg_replace('/^(the\s+)?(partner\s+)?institution\s*[:\-]\s*/i', '', $s);
+        $s = preg_replace('/^(name\s+of\s+)?(the\s+)?institution\s*[:\-]\s*/i', '', $s);
+        
+        // Remove signature-related words
+        $s = preg_replace('/\b(signatures?|signed|signatory|signatories|witness|witnesses?)\b/i', '', $s);
+        $s = preg_replace('/\b(this|the)\s+day\b/i', '', $s);
+
+        // Remove trailing boilerplate
+        $s = preg_replace('/\s*,?\s*(hereinafter|herein after)\b.*$/i', '', $s);
+        $s = preg_replace('/\s*[\.\,\;\:\-]+$/', '', $s);
+        
+        // Remove trailing "the" or other articles
+        $s = preg_replace('/\s+the\s*$/i', '', $s);
+
+        // Remove location/address information - stop at location indicators
+        // Remove anything after patterns like ", located", ", in [city]", ", [country]", etc.
+        $s = preg_replace('/\s*,\s*(located\s+(?:at|in)|in\s+[A-Z][a-z]+|at\s+[A-Z][a-z]+).*$/i', '', $s);
+        
+        // Remove country/city names at the end (common pattern: "University, City, Country")
+        // List of common location keywords that shouldn't be in institution name
+        $locationPatterns = [
+            '/\s*,\s*(china|japan|philippines|philippine|united\s+states|usa|korea|canada|australia|singapore|malaysia|thailand|vietnam|indonesia|india|taiwan).*$/i',
+            '/\s*,\s*([A-Z][a-z]+\s*(?:city|province|state|region|prefecture|county)).*$/i',
+            '/\s*,\s*([A-Z][a-z]+,\s*(?:china|japan|philippines|philippine|united\s+states|usa|korea|canada|australia|singapore|malaysia|thailand|vietnam|indonesia|india|taiwan)).*$/i',
+        ];
+        foreach ($locationPatterns as $pattern) {
+            $s = preg_replace($pattern, '', $s);
+        }
+        
+        // Remove city/country names that appear directly attached (no comma) - handle OCR errors
+        // Common major cities that might appear after institution names
+        $majorCities = ['seoul', 'tokyo', 'osaka', 'kyoto', 'manila', 'quezon city', 'davao', 'cebu', 
+                       'beijing', 'shanghai', 'guangzhou', 'shenzhen', 'singapore', 'kuala lumpur',
+                       'bangkok', 'hanoi', 'ho chi minh', 'jakarta', 'sydney', 'melbourne', 'toronto',
+                       'vancouver', 'new york', 'los angeles', 'london', 'paris', 'berlin'];
+        foreach ($majorCities as $city) {
+            // Remove city name if it appears at the end (with or without comma, with or without space)
+            $s = preg_replace('/\b' . preg_quote($city, '/') . '\s*[,\s]*\s*(korea|japan|philippines|china|thailand|vietnam|indonesia|malaysia|singapore|australia|canada|usa|united\s+states|uk|united\s+kingdom|france|germany)?.*$/i', '', $s);
+            // Also handle when city is directly attached (OCR error: "UNIVERSITYSeoul")
+            $s = preg_replace('/\b' . preg_quote(ucfirst($city), '/') . '\s*(korea|japan|philippines|china|thailand|vietnam|indonesia|malaysia|singapore|australia|canada|usa|united\s+states|uk|united\s+kingdom|france|germany)?.*$/i', '', $s);
+        }
+        
+        // Remove country names that appear directly at the end (even without comma)
+        $s = preg_replace('/\b(korea|japan|philippines|philippine|china|chinese|thailand|thai|vietnam|vietnamese|indonesia|indonesian|malaysia|malaysian|singapore|singaporean|australia|australian|canada|canadian|usa|united\s+states|uk|united\s+kingdom|france|french|germany|german|india|indian|taiwan|taiwanese)\s*[,\s]*$/i', '', $s);
+        
+        // Remove "City, Country" pattern even when directly attached (e.g., "Seoul, Korea" or "SeoulKorea")
+        $s = preg_replace('/\b(seoul|tokyo|osaka|kyoto|manila|beijing|shanghai|singapore|bangkok|hanoi|jakarta|sydney|toronto|vancouver|new\s+york|los\s+angeles|london|paris|berlin)\s*[,\s]+\s*(korea|japan|philippines|china|thailand|vietnam|indonesia|malaysia|singapore|australia|canada|usa|united\s+states|uk|united\s+kingdom|france|germany)\s*$/i', '', $s);
+        
+        // Remove city/country names that appear directly attached (no comma) - handle OCR errors
+        // Common major cities that might appear after institution names
+        $majorCities = ['seoul', 'tokyo', 'osaka', 'kyoto', 'manila', 'quezon city', 'davao', 'cebu', 
+                       'beijing', 'shanghai', 'guangzhou', 'shenzhen', 'singapore', 'kuala lumpur',
+                       'bangkok', 'hanoi', 'ho chi minh', 'jakarta', 'sydney', 'melbourne', 'toronto',
+                       'vancouver', 'new york', 'los angeles', 'london', 'paris', 'berlin'];
+        foreach ($majorCities as $city) {
+            // Remove city name if it appears at the end (with or without comma, with or without space)
+            $s = preg_replace('/\b' . preg_quote($city, '/') . '\s*[,\s]*\s*(korea|japan|philippines|china|thailand|vietnam|indonesia|malaysia|singapore|australia|canada|usa|united\s+states|uk|united\s+kingdom|france|germany)?.*$/i', '', $s);
+            // Also handle when city is directly attached (OCR error: "UNIVERSITYSeoul")
+            $s = preg_replace('/\b' . preg_quote(ucfirst($city), '/') . '\s*(korea|japan|philippines|china|thailand|vietnam|indonesia|malaysia|singapore|australia|canada|usa|united\s+states|uk|united\s+kingdom|france|germany)?.*$/i', '', $s);
+        }
+        
+        // Remove country names that appear directly at the end (even without comma)
+        $s = preg_replace('/\b(korea|japan|philippines|philippine|china|chinese|thailand|thai|vietnam|vietnamese|indonesia|indonesian|malaysia|malaysian|singapore|singaporean|australia|australian|canada|canadian|usa|united\s+states|uk|united\s+kingdom|france|french|germany|german|india|indian|taiwan|taiwanese)\s*[,\s]*$/i', '', $s);
+        
+        // Remove "City, Country" pattern even when directly attached (e.g., "Seoul, Korea" or "SeoulKorea")
+        $s = preg_replace('/\b(seoul|tokyo|osaka|kyoto|manila|beijing|shanghai|singapore|bangkok|hanoi|jakarta|sydney|toronto|vancouver|new\s+york|los\s+angeles|london|paris|berlin)\s*[,\s]+\s*(korea|japan|philippines|china|thailand|vietnam|indonesia|malaysia|singapore|australia|canada|usa|united\s+states|uk|united\s+kingdom|france|germany)\s*$/i', '', $s);
+        
+        // Handle cases where city is directly attached to institution name (no space: "UNIVERSITYSeoul")
+        // Match uppercase city names directly attached (common OCR error)
+        $s = preg_replace('/(UNIVERSITY|COLLEGE|INSTITUTE|INSTITUTION|SCHOOL|ACADEMY)(Seoul|Tokyo|Osaka|Kyoto|Manila|Beijing|Shanghai|Singapore|Bangkok|Hanoi|Jakarta|Sydney|Toronto|Vancouver|London|Paris|Berlin)\s*[,\s]*(Korea|Japan|Philippines|China|Thailand|Vietnam|Indonesia|Malaysia|Singapore|Australia|Canada|USA)?.*$/i', '$1', $s);
+        // Also handle lowercase/mixed case: "UniversitySeoul" or "University Seoul"
+        $s = preg_replace('/(University|College|Institute|Institution|School|Academy)(Seoul|Tokyo|Osaka|Kyoto|Manila|Beijing|Shanghai|Singapore|Bangkok|Hanoi|Jakarta|Sydney|Toronto|Vancouver|London|Paris|Berlin)\s*[,\s]*(Korea|Japan|Philippines|China|Thailand|Vietnam|Indonesia|Malaysia|Singapore|Australia|Canada|USA)?.*$/i', '$1', $s);
+        
+        // If there are multiple commas, likely has address info - take only first part
+        // But be careful: some institution names legitimately have commas (e.g., "X, Inc.")
+        // Only split if we detect location keywords
+        if (preg_match('/^([^,]+(?:,\s*[^,]+)*?)(?:,\s*[^,]*?(?:located|address|in\s+[A-Z]|city|province|state|country|china|japan|philippines|usa|korea|canada|australia))/i', $s, $m)) {
+            $s = $m[1];
+        }
+        
+        // Remove surrounding quotes (including curly quotes)
+        $s = trim($s);
+        $s = preg_replace('/^["\x{201C}\x{201D}\x{201E}\x{201F}]+|["\x{201C}\x{201D}\x{201E}\x{201F}]+$/u', '', $s);
+        $s = preg_replace("/^['\x{2018}\x{2019}\x{201A}\x{201B}]+|['\x{2018}\x{2019}\x{201A}\x{201B}]+$/u", '', $s);
+    }
 
     // Guardrails: avoid returning generic words
     if (strlen($s) < 4) return '';
-    if (preg_match('/^(memorandum|agreement|understanding|contract|page)\b/i', $s)) return '';
+    if (preg_match('/^(memorandum|agreement|understanding|contract|page|signature|signatory|witness|this|the)\b/i', $s)) return '';
+    
+    // FINAL REJECTION: If after cleaning it still contains signature/date words without institution keywords, reject
+    if (preg_match('/\b(day|month|year|signature|signed|witness|signatory)\b/i', $s)) {
+        // Only allow if it also has institution keywords
+        if (!preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $s)) {
+            return '';
+        }
+    }
+    
+    // FINAL REJECTION: If it's mostly signature/date text (more than 50% of words are signature-related), reject
+    $words = preg_split('/\s+/', $s);
+    $signatureWords = ['signature', 'signatures', 'signed', 'signatory', 'witness', 'day', 'month', 'year', 'this', 'the'];
+    $signatureCount = 0;
+    foreach ($words as $word) {
+        $cleanWord = strtolower(preg_replace('/[^A-Za-z]/', '', $word));
+        if (in_array($cleanWord, $signatureWords)) {
+            $signatureCount++;
+        }
+    }
+    if (count($words) > 0 && ($signatureCount / count($words)) > 0.5) {
+        // More than 50% are signature words - reject unless it has institution keywords
+        if (!preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $s)) {
+            return '';
+        }
+    }
+    
+    // FINAL REJECTION: If cleaned result starts with signature/date words, reject
+    if (count($words) > 0) {
+        $firstWord = strtolower(preg_replace('/[^A-Za-z]/', '', $words[0]));
+        if (in_array($firstWord, $signatureWords)) {
+            // Only allow if it has institution keywords
+            if (!preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $s)) {
+                return '';
+            }
+        }
+    }
     
     // Reject person names: patterns like "nee", initials only, or name-like patterns
     $lower = strtolower($s);
@@ -182,8 +431,61 @@ function scoreInstitutionLine($line) {
 
     // Penalize obvious non-institution lines
     if (preg_match('/\bmemorandum\b|\bof\b\s+\b(understanding|agreement)\b/i', $line)) return 0;
-    if (preg_match('/\bdate\b|\bday\b|\bmonth\b|\byear\b/i', $line)) return 0;
-    if (preg_match('/\b(signature|signatory|witness|whereas|therefore)\b/i', $line)) return 0;
+    if (preg_match('/\bdate\b|\bday\b|\bmonth\b|\byear\b/i', $line)) {
+        // Only allow if it has institution keywords (e.g., "University day")
+        if (!preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $line)) {
+            return 0;
+        }
+    }
+    if (preg_match('/\b(signature|signatory|witness|whereas|therefore|signed)\b/i', $line)) {
+        // Only allow if it has institution keywords (e.g., "signatures at University")
+        if (!preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $line)) {
+            return 0;
+        }
+    }
+    
+    // Reject lines with date patterns (e.g., "day of m_. 2012")
+    if (preg_match('/\b(day|month|year)\s+of\s+[^\s]+\s+\d{4}\b/i', $line)) {
+        if (!preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $line)) {
+            return 0;
+        }
+    }
+    if (preg_match('/\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/', $line)) {
+        if (!preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $line)) {
+            return 0;
+        }
+    }
+    
+    // Reject lines with OCR artifacts that suggest signature blocks (e.g., "_J.gfl", "_m_")
+    if (preg_match('/_[A-Za-z0-9\.]+/', $line)) {
+        if (!preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $line)) {
+            return 0;
+        }
+    }
+    
+    // Reject lines that start with signature-related text
+    if (preg_match('/^(signatures?\s+)?(this\s+)?(day|month|year)/i', $line)) {
+        if (!preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $line)) {
+            return 0;
+        }
+    }
+    
+    // Reject lines that are mostly signature/date text
+    $words = preg_split('/\s+/', $line);
+    $signatureWords = ['signature', 'signatures', 'signed', 'signatory', 'witness', 'day', 'month', 'year', 'this', 'the'];
+    $signatureCount = 0;
+    foreach ($words as $word) {
+        $cleanWord = strtolower(preg_replace('/[^A-Za-z]/', '', $word));
+        if (in_array($cleanWord, $signatureWords)) {
+            $signatureCount++;
+        }
+    }
+    if (count($words) > 0 && ($signatureCount / count($words)) > 0.5) {
+        // More than 50% are signature words - reject unless it has institution keywords
+        if (!preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $line)) {
+            return 0;
+        }
+    }
     
     // Reject person names
     if (preg_match('/\bnee\b/i', $line)) return 0; // "nee" indicates person name
@@ -249,6 +551,70 @@ function extractInstitutionFromText($text) {
     if (preg_match('/(?:partner\s+institution|institution|name\s+of\s+institution)\s*[:\-]\s*([^\n]{4,160})/i', $raw, $m)) {
         $cand = cleanInstitutionCandidate($m[1]);
         if ($cand !== '') $candidates[] = ['value' => $cand, 'method' => 'label'];
+    }
+    
+    // 1b) Pattern: "... at [Institution]" (common in signature blocks)
+    // Extract institution names from patterns like "signatures this day at Daegu University"
+    // This pattern should be checked early and prioritized
+    // Improved pattern to handle OCR artifacts like "_J.gﬂ day of m_. 2012 at Daegu University"
+    // First try to match with institution keyword directly
+    if (preg_match_all('/\bat\s+([A-Z][A-Za-z\s]{3,}(?:\s+(?:University|College|Institute|Institution|School|Academy|Polytechnic|Foundation|Corporation|Inc|LLC|Ltd))[^\n,]*?)(?:\s*,\s*the|\s*$)/i', $raw, $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $m) {
+            // Extract just the institution part after "at"
+            $institutionPart = trim($m[1]);
+            
+            // Remove trailing "the" or other articles
+            $institutionPart = preg_replace('/\s+,\s*the\s*$/i', '', $institutionPart);
+            $institutionPart = preg_replace('/\s+the\s*$/i', '', $institutionPart);
+            
+            // Remove OCR artifacts before cleaning
+            $institutionPart = preg_replace('/_[A-Za-z0-9\.]+/', '', $institutionPart); // Remove patterns like "_J.gﬂ"
+            $institutionPart = preg_replace('/\b(day|month|year)\s+of\s+[^\s]+\s+\d{4}\b/i', '', $institutionPart); // Remove date patterns
+            $institutionPart = preg_replace('/\b\d{4}\b/', '', $institutionPart); // Remove standalone years
+            $institutionPart = preg_replace('/\s+/', ' ', $institutionPart); // Normalize whitespace
+            $institutionPart = trim($institutionPart);
+            
+            // Clean it
+            $cand = cleanInstitutionCandidate($institutionPart);
+            
+            // Double-check: must have institution keyword and not be mostly signature text
+            if ($cand !== '' && 
+                preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation)\b/i', $cand) &&
+                !preg_match('/^(signatures?|signed|signatory|witness|day|month|year|this|the)\b/i', $cand)) {
+                // Add at the beginning to prioritize it
+                array_unshift($candidates, ['value' => $cand, 'method' => 'at_pattern']);
+            }
+        }
+    } elseif (preg_match_all('/\bat\s+([^\n,]{5,120}?)(?:\s*,\s*the|\s*$)/i', $raw, $matches, PREG_SET_ORDER)) {
+        // Fallback: extract anything after "at" up to comma or end, then clean and validate
+        foreach ($matches as $m) {
+            $institutionPart = trim($m[1]);
+            
+            // Remove trailing "the" or other articles
+            $institutionPart = preg_replace('/\s+,\s*the\s*$/i', '', $institutionPart);
+            $institutionPart = preg_replace('/\s+the\s*$/i', '', $institutionPart);
+            
+            // Remove OCR artifacts before cleaning
+            $institutionPart = preg_replace('/_[A-Za-z0-9\.]+/', '', $institutionPart); // Remove patterns like "_J.gﬂ"
+            $institutionPart = preg_replace('/\b(day|month|year)\s+of\s+[^\s]+\s+\d{4}\b/i', '', $institutionPart); // Remove date patterns
+            $institutionPart = preg_replace('/\b\d{4}\b/', '', $institutionPart); // Remove standalone years
+            $institutionPart = preg_replace('/\s+/', ' ', $institutionPart); // Normalize whitespace
+            $institutionPart = trim($institutionPart);
+            
+            // Only proceed if it contains an institution keyword
+            if (preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $institutionPart)) {
+                // Clean it
+                $cand = cleanInstitutionCandidate($institutionPart);
+                
+                // Double-check: must have institution keyword and not be mostly signature text
+                if ($cand !== '' && 
+                    preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation)\b/i', $cand) &&
+                    !preg_match('/^(signatures?|signed|signatory|witness|day|month|year|this|the)\b/i', $cand)) {
+                    // Add at the beginning to prioritize it
+                    array_unshift($candidates, ['value' => $cand, 'method' => 'at_pattern']);
+                }
+            }
+        }
     }
 
     // 2) "by and between X and Y" clause
@@ -394,11 +760,17 @@ function extractInstitutionFromText($text) {
         
         // Validation rules:
         // 1. "label" method: always accept (user explicitly labeled it)
-        // 2. "between" method: accept if has keywords OR if no person name indicators and reasonable length
-        // 3. "lines" method: require keywords (too noisy otherwise)
+        // 2. "at_pattern" method: accept if has institution keywords (extracted from "at [Institution]" patterns)
+        // 3. "between" method: accept if has keywords OR if no person name indicators and reasonable length
+        // 4. "lines" method: require keywords (too noisy otherwise)
         if ($c['method'] === 'label') {
             // Always accept labeled institutions
             $unique[] = ['value' => $cleaned, 'method' => $c['method']];
+        } elseif ($c['method'] === 'at_pattern') {
+            // Accept if has institution keywords (already checked in extraction, but double-check)
+            if ($hasKeyword) {
+                $unique[] = ['value' => $cleaned, 'method' => $c['method']];
+            }
         } elseif ($c['method'] === 'between' || $c['method'] === 'between_lines') {
             // For between clauses: accept if has keywords OR if it's not obviously a person name
             if ($hasKeyword) {
@@ -426,26 +798,102 @@ function extractInstitutionFromText($text) {
         }
     }
 
-    // Choose first (label/between often strongest), fallback to best line-based
-    // For MOU/MOA: typically "between OUR institution and PARTNER institution".
+    // Filter out CPU (Central Philippine University) - this is our institution, not the partner
+    $cpuPatterns = [
+        '/^central\s+philippine\s+university$/i',
+        '/^cpu\b/i',
+        '/central\s+philippine\s+university/i',
+    ];
+    
+    $isCpu = function($name) use ($cpuPatterns) {
+        $nameLower = strtolower(trim($name));
+        foreach ($cpuPatterns as $pattern) {
+            if (preg_match($pattern, $nameLower)) {
+                return true;
+            }
+        }
+        return false;
+    };
+    
+    // Filter CPU from candidates
+    $filteredCandidates = [];
+    foreach ($candidates as $cand) {
+        if (!$isCpu($cand['value'])) {
+            $filteredCandidates[] = $cand;
+        }
+    }
+    
+    // Filter CPU from between parties
+    $filteredBetweenParties = null;
+    if (is_array($betweenParties)) {
+        $filtered = [];
+        foreach ($betweenParties as $party) {
+            if (!$isCpu($party)) {
+                $filtered[] = $party;
+            }
+        }
+        if (count($filtered) > 0) {
+            $filteredBetweenParties = $filtered;
+        }
+    }
+    
+    // Filter CPU from unique candidates
+    $filteredUnique = [];
+    foreach ($unique as $u) {
+        if (!$isCpu($u['value'])) {
+            $filteredUnique[] = $u;
+        }
+    }
+    
+    // Choose first (prioritize at_pattern, then label/between, then line-based)
+    // For MOU/MOA: typically "between OUR institution (CPU) and PARTNER institution".
     // The modal "Institution" field is intended for the PARTNER, so if we have a between-clause,
-    // prefer the second party as the chosen institution.
+    // prefer the non-CPU party as the chosen institution.
     $chosen = '';
     $method = 'none';
-    if (is_array($betweenParties) && count($betweenParties) === 2 && !empty($betweenParties[1])) {
-        $cleanedParty = cleanInstitutionCandidate($betweenParties[1]);
-        // Use if it passes validation (cleaned successfully - already filtered person names)
-        // Don't require keywords here - allow legitimate institutions without keywords
-        if ($cleanedParty !== '') {
+    
+    // PRIORITY 1: "at_pattern" method (extracted from "at [Institution]" patterns) - highest priority
+    foreach ($filteredUnique as $c) {
+        if ($c['method'] === 'at_pattern') {
+            $chosen = $c['value'];
+            $method = 'at_pattern';
+            break;
+        }
+    }
+    
+    // PRIORITY 2: "label" method (explicitly labeled)
+    if ($chosen === '') {
+        foreach ($filteredUnique as $c) {
+            if ($c['method'] === 'label') {
+                $chosen = $c['value'];
+                $method = 'label';
+                break;
+            }
+        }
+    }
+    
+    // PRIORITY 3: If we have filtered between parties, prefer the first non-CPU party
+    if ($chosen === '' && is_array($filteredBetweenParties) && count($filteredBetweenParties) > 0) {
+        $cleanedParty = cleanInstitutionCandidate($filteredBetweenParties[0]);
+        if ($cleanedParty !== '' && !$isCpu($cleanedParty)) {
             $chosen = $cleanedParty;
             $method = 'between';
         }
     }
     
-    // Fallback to first valid candidate if between didn't yield valid result
-    if ($chosen === '' && !empty($unique)) {
-        $chosen = $unique[0]['value'] ?? '';
-        $method = $unique[0]['method'] ?? 'none';
+    // PRIORITY 4: Fallback to first valid non-CPU candidate
+    if ($chosen === '' && !empty($filteredUnique)) {
+        $chosen = $filteredUnique[0]['value'] ?? '';
+        $method = $filteredUnique[0]['method'] ?? 'none';
+    }
+    
+    // Final check: if chosen is still CPU, try filtered candidates
+    if ($isCpu($chosen)) {
+        $chosen = '';
+        if (!empty($filteredCandidates)) {
+            $chosen = $filteredCandidates[0]['value'] ?? '';
+            $method = $filteredCandidates[0]['method'] ?? 'none';
+        }
     }
 
     // Final cleanup pass: ensure institution name doesn't contain location info
@@ -455,7 +903,7 @@ function extractInstitutionFromText($text) {
     $confidence = 'low';
     if ($chosen !== '') {
         if ($method === 'label') $confidence = 'high';
-        elseif ($method === 'between') $confidence = 'medium';
+        elseif ($method === 'at_pattern' || $method === 'between') $confidence = 'medium';
         else $confidence = 'low';
     }
 
@@ -463,12 +911,13 @@ function extractInstitutionFromText($text) {
         'institution' => $chosen,
         'method' => $method,
         'confidence' => $confidence,
-        'between_parties' => $betweenParties
+        'between_parties' => $filteredBetweenParties ?? $betweenParties  // Use filtered parties
     ];
 }
 
 /**
  * Extract the partner institution location (favor the second party / matched name).
+ * Filters out CPU (Central Philippine University) locations since we want the foreign partner's location.
  */
 function extractInstitutionLocationFromText($text, $instData) {
     $raw = normalizeWhitespaceKeepNewlines($text);
@@ -476,19 +925,36 @@ function extractInstitutionLocationFromText($text, $instData) {
     $institutionLower = strtolower($institution);
     $betweenParties = $instData['between_parties'] ?? null;
 
+    // CPU patterns to filter out
+    $cpuPatterns = [
+        '/^central\s+philippine\s+university$/i',
+        '/^cpu\b/i',
+        '/central\s+philippine\s+university/i',
+    ];
+    $isCpu = function($name) use ($cpuPatterns) {
+        $nameLower = strtolower(trim($name));
+        foreach ($cpuPatterns as $pattern) {
+            if (preg_match($pattern, $nameLower)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
     // Collect all "X located at|in Y" pairs
     $pairs = [];
     if (preg_match_all('/([^\n]{2,140}?)\s+located\s+(?:at|in)\s+([^\n\.]{5,220}?)(?:(?:\s*,?\s*hereinafter\b)|\.|\n)/i', $raw, $all, PREG_SET_ORDER)) {
         foreach ($all as $m) {
             $name = cleanInstitutionCandidate($m[1]);
             $loc = cleanLocationCandidate($m[2]);
-            if ($name && $loc) {
+            // Filter out CPU locations
+            if ($name && $loc && !$isCpu($name)) {
                 $pairs[] = ['name' => $name, 'loc' => $loc];
             }
         }
     }
 
-    // 1) Exact/contains match vs chosen institution
+    // 1) Exact/contains match vs chosen institution (which should already be filtered from CPU)
     foreach ($pairs as $p) {
         $nLower = strtolower($p['name']);
         if ($institution && (strpos($institutionLower, $nLower) !== false || strpos($nLower, $institutionLower) !== false)) {
@@ -496,26 +962,39 @@ function extractInstitutionLocationFromText($text, $instData) {
         }
     }
 
-    // 2) If we have two parties, prefer party B
-    if (is_array($betweenParties) && count($betweenParties) === 2) {
-        $partyBLower = strtolower($betweenParties[1]);
-        foreach ($pairs as $p) {
-            $nLower = strtolower($p['name']);
-            if (strpos($partyBLower, $nLower) !== false || strpos($nLower, $partyBLower) !== false) {
-                return $p['loc'];
+    // 2) If we have two parties, prefer non-CPU party
+    if (is_array($betweenParties) && count($betweenParties) >= 1) {
+        // Find first non-CPU party
+        $partnerParty = null;
+        foreach ($betweenParties as $party) {
+            if (!$isCpu($party)) {
+                $partnerParty = $party;
+                break;
             }
         }
-        if (count($pairs) >= 2) {
-            return $pairs[1]['loc'];
+        
+        if ($partnerParty !== null) {
+            $partyLower = strtolower($partnerParty);
+            foreach ($pairs as $p) {
+                $nLower = strtolower($p['name']);
+                if (strpos($partyLower, $nLower) !== false || strpos($nLower, $partyLower) !== false) {
+                    return $p['loc'];
+                }
+            }
+        }
+        
+        // If we have pairs and found a partner party, prefer first non-CPU location
+        if (count($pairs) >= 1) {
+            return $pairs[0]['loc'];
         }
     }
 
-    // 3) If two locations found, assume second is partner
+    // 3) If two locations found, assume second is partner (first is usually CPU)
     if (count($pairs) >= 2) {
         return $pairs[1]['loc'];
     }
 
-    // 4) Fallback to first found
+    // 4) Fallback to first found (should already be filtered from CPU)
     if (count($pairs) >= 1) {
         return $pairs[0]['loc'];
     }
@@ -525,30 +1004,81 @@ function extractInstitutionLocationFromText($text, $instData) {
 
 /**
  * Normalize location down to country-level to keep it short (e.g., "Nagata-ku, Kobe-shi, Japan" -> "Japan").
- * Uses the enhanced rule-based country detector.
+ * Uses the enhanced rule-based country detector with institution name support.
+ * Prioritizes foreign countries (non-Philippines) since CPU is in Philippines.
  */
-function normalizeLocationToCountry($location) {
+function normalizeLocationToCountry($location, $institutionName = null) {
     $loc = trim((string)$location);
     if ($loc === '') return $loc;
 
-    // First try: detect country from the full location string
-    $detected = detectCountryFromText($loc);
-    if ($detected) return $detected;
+    // Filter out CPU mentions from location to avoid false positives
+    $cpuPatterns = [
+        '/central\s+philippine\s+university/i',
+        '/\bcpu\b/i',
+    ];
+    $filteredLoc = $loc;
+    foreach ($cpuPatterns as $pattern) {
+        $filteredLoc = preg_replace($pattern, '', $filteredLoc);
+    }
+    $filteredLoc = trim($filteredLoc);
+    if ($filteredLoc === '') $filteredLoc = $loc; // Fallback to original if filtered is empty
 
-    // Second try: if location has commas, check the last segment (common pattern: "City, Country")
-    $parts = array_filter(array_map('trim', explode(',', $loc)));
+    // Use new country detector with institution name (if available)
+    $result = detectCountry($filteredLoc, $institutionName);
+    if ($result['country'] !== 'Country not reliable') {
+        // Prioritize foreign countries (non-Philippines)
+        if ($result['country'] !== 'Philippines') {
+            return $result['country'];
+        }
+        // Only return Philippines if institution name also indicates Philippines
+        // (both parties in Philippines)
+        if ($institutionName !== null && $institutionName !== '') {
+            $institutionResult = detectCountry($institutionName, null);
+            if ($institutionResult['country'] === 'Philippines') {
+                return 'Philippines'; // Both parties in Philippines
+            }
+        }
+        // If location says Philippines but institution doesn't, it's likely CPU's location
+        // Return empty to let other detection methods try
+        return '';
+    }
+
+    // Fallback: if location has commas, check the last segment (common pattern: "City, Country")
+    $parts = array_filter(array_map('trim', explode(',', $filteredLoc)));
     if (!empty($parts) && count($parts) > 1) {
         // Try last segment first (most common pattern)
         $last = end($parts);
-        $lastCountry = detectCountryFromText($last);
-        if ($lastCountry) return $lastCountry;
+        $result = detectCountry($last, $institutionName);
+        if ($result['country'] !== 'Country not reliable') {
+            if ($result['country'] !== 'Philippines') {
+                return $result['country'];
+            }
+            // Check if institution also indicates Philippines
+            if ($institutionName !== null && $institutionName !== '') {
+                $institutionResult = detectCountry($institutionName, null);
+                if ($institutionResult['country'] === 'Philippines') {
+                    return 'Philippines';
+                }
+            }
+        }
         
         // Also check second-to-last segment (some formats: "City, State, Country")
         if (count($parts) >= 2) {
             $partsArray = array_values($parts);
             $secondLast = $partsArray[count($partsArray) - 2];
-            $secondLastCountry = detectCountryFromText($secondLast);
-            if ($secondLastCountry) return $secondLastCountry;
+            $result = detectCountry($secondLast, $institutionName);
+            if ($result['country'] !== 'Country not reliable') {
+                if ($result['country'] !== 'Philippines') {
+                    return $result['country'];
+                }
+                // Check if institution also indicates Philippines
+                if ($institutionName !== null && $institutionName !== '') {
+                    $institutionResult = detectCountry($institutionName, null);
+                    if ($institutionResult['country'] === 'Philippines') {
+                        return 'Philippines';
+                    }
+                }
+            }
         }
     }
 
@@ -945,45 +1475,75 @@ function detectCountryFromText($text) {
 /**
  * Detect partner country while avoiding false positives from CPU's local address.
  * Rule:
- * - Prefer partner-tied location string first (if present)
- * - If fallback is needed, prefer NON-Philippines country mentions from the full text
- * - Only return Philippines if it appears tied to the partner (partner location string / partner name)
+ * - Prefer partner-tied location string first (if present), with institution name as context
+ * - Prioritize FOREIGN countries (non-Philippines) since CPU is in Philippines
+ * - Only return Philippines if BOTH parties are in Philippines (partner is also in Philippines)
+ * 
+ * Uses the new country detector which considers institution names as strong signals.
  */
 function detectPartnerCountryFromOcr($fullText, $partnerInstitution, $partnerLocationStr) {
-    $fullTextLower = strtolower((string)$fullText);
     $partnerInstitutionLower = strtolower((string)$partnerInstitution);
     $partnerLocLower = strtolower((string)$partnerLocationStr);
 
-    // 1) If partner location explicitly contains a country (including PH), trust it.
-    $countryFromPartnerLoc = detectCountryFromText($partnerLocationStr);
-    if ($countryFromPartnerLoc) return $countryFromPartnerLoc;
-
-    // 2) Prefer non-PH countries from full text (avoid CPU address dominating).
-    $nonPh = [
-        'China' => ['china', 'fujian', 'zhangzhou'],
-        'Japan' => ['japan'],
-        'United States' => ['united states', 'usa', 'u.s.a'],
-        'Korea' => ['korea'],
-        'Canada' => ['canada'],
-        'Australia' => ['australia'],
-        'Singapore' => ['singapore'],
-        'Malaysia' => ['malaysia'],
-        'Thailand' => ['thailand'],
-        'Vietnam' => ['vietnam'],
-        'Indonesia' => ['indonesia'],
-        'India' => ['india'],
-        'Taiwan' => ['taiwan'],
+    // Filter out CPU mentions from text to avoid false positives
+    $cpuPatterns = [
+        '/central\s+philippine\s+university/i',
+        '/\bcpu\b/i',
     ];
-    foreach ($nonPh as $country => $needles) {
-        foreach ($needles as $needle) {
-            if (strpos($fullTextLower, $needle) !== false) return $country;
+    $filteredText = $fullText;
+    foreach ($cpuPatterns as $pattern) {
+        $filteredText = preg_replace($pattern, '', $filteredText);
+    }
+
+    // 1) Check partner location first (with institution name as context)
+    $locationResult = detectCountry($partnerLocationStr, $partnerInstitution);
+    if ($locationResult['country'] !== 'Country not reliable') {
+        // If location indicates a foreign country, use it
+        if ($locationResult['country'] !== 'Philippines') {
+            return $locationResult['country'];
+        }
+        // If location indicates Philippines, check if partner institution also indicates Philippines
+        // (both parties in Philippines)
+        if ($partnerInstitution !== '') {
+            $institutionResult = detectCountry($partnerInstitution, null);
+            if ($institutionResult['country'] === 'Philippines') {
+                return 'Philippines'; // Both parties in Philippines
+            }
         }
     }
 
-    // 3) Philippines only if tied to partner (name/location contains it).
-    if (strpos($partnerLocLower, 'philippine') !== false || strpos($partnerInstitutionLower, 'philippine') !== false || strpos($partnerInstitutionLower, 'philippines') !== false) {
-        return 'Philippines';
+    // 2) Check if institution name contains country indicators (strong signal)
+    if ($partnerInstitution !== '') {
+        $institutionResult = detectCountry($partnerInstitution, null);
+        if ($institutionResult['country'] !== 'Country not reliable') {
+            // Prefer foreign countries from institution name
+            if ($institutionResult['country'] !== 'Philippines') {
+                return $institutionResult['country'];
+            }
+            // If institution indicates Philippines, check location too
+            if ($locationResult['country'] === 'Philippines') {
+                return 'Philippines'; // Both indicate Philippines
+            }
+        }
     }
+
+    // 3) Prefer non-PH countries from filtered full text (avoid CPU address dominating)
+    $fullTextResult = detectCountry($filteredText, $partnerInstitution);
+    if ($fullTextResult['country'] !== 'Country not reliable' && $fullTextResult['country'] !== 'Philippines') {
+        return $fullTextResult['country'];
+    }
+
+    // 4) Philippines only if BOTH partner location AND institution indicate Philippines
+    // (meaning both parties are in Philippines)
+    $hasPhInLocation = strpos($partnerLocLower, 'philippine') !== false || strpos($partnerLocLower, 'philippines') !== false;
+    $hasPhInInstitution = strpos($partnerInstitutionLower, 'philippine') !== false || strpos($partnerInstitutionLower, 'philippines') !== false;
+    
+    if ($hasPhInLocation && $hasPhInInstitution) {
+        return 'Philippines'; // Both parties in Philippines
+    }
+    
+    // If only one indicates Philippines, it's likely CPU, so don't return Philippines
+    // (we want foreign country, or nothing if unclear)
 
     return '';
 }
@@ -1074,9 +1634,11 @@ try {
     $locationRaw = extractInstitutionLocationFromText($extracted, $institutionFields);
 
     $locationMethod = 'none';
+    $partnerInstitution = (string)($institutionFields['institution'] ?? '');
 
-    // Country-only: first try partner-tied location string
-    $locationField = normalizeLocationToCountry($locationRaw);
+    // Country-only: first try partner-tied location string with institution name
+    // This helps detect country from institution name (e.g., "CENTRAL PHILIPPINE UNIVERSITY")
+    $locationField = normalizeLocationToCountry($locationRaw, $partnerInstitution);
     if ($locationField) {
         $locationMethod = 'matched_institution';
     }
@@ -1084,18 +1646,42 @@ try {
     // If we didn't get a country from the partner-tied string, try safe fallback logic:
     // prefer non-PH countries from full text; only return PH if tied to partner.
     if (!$locationField) {
-        $partnerInstitution = (string)($institutionFields['institution'] ?? '');
         $locationField = detectPartnerCountryFromOcr($extracted, $partnerInstitution, $locationRaw);
         if ($locationField) {
             $locationMethod = 'partner_country';
         }
     }
 
-    // Final fallback: detect any country mention from full text
+    // Final fallback: detect any country mention from full text with institution name
+    // Prioritize foreign countries (non-Philippines) since CPU is in Philippines
     if (!$locationField) {
-        $locationField = detectCountryFromText($extracted);
-        if ($locationField) {
-            $locationMethod = 'country_fallback';
+        // Filter out CPU mentions to avoid false positives
+        $cpuPatterns = [
+            '/central\s+philippine\s+university/i',
+            '/\bcpu\b/i',
+        ];
+        $filteredExtracted = $extracted;
+        foreach ($cpuPatterns as $pattern) {
+            $filteredExtracted = preg_replace($pattern, '', $filteredExtracted);
+        }
+        
+        $result = detectCountry($filteredExtracted, $partnerInstitution);
+        if ($result['country'] !== 'Country not reliable') {
+            // Prefer foreign countries
+            if ($result['country'] !== 'Philippines') {
+                $locationField = $result['country'];
+                $locationMethod = 'country_fallback';
+            } else {
+                // Only return Philippines if partner institution also indicates Philippines
+                // (both parties in Philippines)
+                if ($partnerInstitution !== '') {
+                    $partnerResult = detectCountry($partnerInstitution, null);
+                    if ($partnerResult['country'] === 'Philippines') {
+                        $locationField = 'Philippines';
+                        $locationMethod = 'country_fallback';
+                    }
+                }
+            }
         }
     }
 
