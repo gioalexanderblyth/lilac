@@ -87,6 +87,7 @@ try {
         })();
 </script>
 <script src="js/notifications.js"></script>
+<script src="js/notification-sound.js"></script>
 <style>
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
@@ -3768,6 +3769,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                     notifications = data.notifications;
                     updateNotificationDisplay();
                     updateNotificationBadge();
+                    // Play sound for new MOU/MOA notifications
+                    if (window.checkAndPlayMouNotificationSound) {
+                        window.checkAndPlayMouNotificationSound(notifications);
+                    }
                 }
             } catch (error) {
                 console.error('Error loading notifications:', error);

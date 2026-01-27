@@ -69,6 +69,7 @@ try {
         })();
 </script>
 <script src="js/notifications.js"></script>
+<script src="js/notification-sound.js"></script>
 <script>window.tailwind = window.tailwind || {};</script>
 <script>
         tailwind.config = {
@@ -1355,6 +1356,10 @@ function renderProfile(profile) {
                     notifications = data.notifications;
                     updateNotificationDisplay();
                     updateNotificationBadge();
+                    // Play sound for new MOU/MOA notifications
+                    if (window.checkAndPlayMouNotificationSound) {
+                        window.checkAndPlayMouNotificationSound(notifications);
+                    }
                 }
             } catch (error) {
                 console.error('Error loading notifications:', error);

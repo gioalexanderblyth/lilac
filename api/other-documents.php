@@ -83,12 +83,25 @@ function handleFileUpload($file) {
         'image/png',
         'text/plain'
     ];
+    
+    // Add audio types
+    $allowedTypes = array_merge($allowedTypes, ALLOWED_AUDIO_TYPES);
+    
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
     $mimeType = finfo_file($finfo, $file['tmp_name']);
     finfo_close($finfo);
 
+    // Check if it's an audio file (use larger size limit)
+    $isAudio = in_array($mimeType, ALLOWED_AUDIO_TYPES);
+    if ($isAudio) {
+        $maxSize = MAX_AUDIO_SIZE; // Use larger limit for audio files
+        if ($file['size'] > $maxSize) {
+            throw new Exception('Audio file size exceeds maximum limit of ' . ($maxSize / 1024 / 1024) . 'MB');
+        }
+    }
+
     if (!in_array($mimeType, $allowedTypes)) {
-        throw new Exception('Invalid file type. Allowed types: PDF, Word, Excel, Images, Text');
+        throw new Exception('Invalid file type. Allowed types: PDF, Word, Excel, Images, Text, Audio (MP3, WAV, OGG, M4A, AAC, FLAC)');
     }
 
     // Generate unique filename

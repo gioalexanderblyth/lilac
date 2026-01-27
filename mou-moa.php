@@ -107,6 +107,7 @@ try {
         })();
 </script>
 <script src="js/notifications.js"></script>
+<script src="js/notification-sound.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     // Check for entry parameter immediately and store it for later use
@@ -121,11 +122,71 @@ try {
         }
     })();
 </script>
-a<!-- Add these libraries for file to image conversion -->
+<!-- Add these libraries for file to image conversion -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <!-- Tailwind runtime config removed; using compiled CSS in assets/css/tailwind.css -->
+<style>
+    /* Notification bar styles */
+    #mouNotificationBarsContainer {
+        pointer-events: none;
+    }
+    #mouNotificationBarsContainer > * {
+        pointer-events: auto;
+    }
+    
+    /* Single-card swipe notification (one at a time) */
+    .mou-notification-card {
+        position: relative;
+        box-shadow:
+            0 10px 18px rgba(0, 0, 0, 0.18),
+            0 4px 10px rgba(0, 0, 0, 0.12);
+        will-change: transform, opacity;
+        touch-action: pan-y; /* allow horizontal swipe without blocking vertical scroll */
+        user-select: none;
+        cursor: grab;
+    }
+    .mou-notification-card.mou-dragging {
+        transition: none !important;
+        cursor: grabbing;
+    }
+    .line-clamp-1 {
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    
+    /* Smooth animations for notification bars */
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOutRight {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+</style>
     <style>
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
@@ -157,6 +218,147 @@ a<!-- Add these libraries for file to image conversion -->
         }
         .overflow-x-hidden::-webkit-scrollbar {
             display: none;
+        }
+        
+        /* Custom scrollbar styling for main content */
+        #main-content {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+        }
+        
+        #main-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #main-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        #main-content::-webkit-scrollbar-thumb {
+            background-color: rgba(156, 163, 175, 0.5);
+            border-radius: 4px;
+        }
+        
+        #main-content::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(156, 163, 175, 0.7);
+        }
+        
+        /* Dark mode scrollbar */
+        .dark #main-content {
+            scrollbar-color: rgba(75, 85, 99, 0.5) transparent;
+        }
+        
+        .dark #main-content::-webkit-scrollbar-thumb {
+            background-color: rgba(75, 85, 99, 0.5);
+        }
+        
+        .dark #main-content::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(75, 85, 99, 0.7);
+        }
+        
+        /* Scrollbar for notification dropdown */
+        #notificationList {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+        }
+        
+        #notificationList::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #notificationList::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        #notificationList::-webkit-scrollbar-thumb {
+            background-color: rgba(156, 163, 175, 0.5);
+            border-radius: 3px;
+        }
+        
+        #notificationList::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(156, 163, 175, 0.7);
+        }
+        
+        .dark #notificationList {
+            scrollbar-color: rgba(75, 85, 99, 0.5) transparent;
+        }
+        
+        .dark #notificationList::-webkit-scrollbar-thumb {
+            background-color: rgba(75, 85, 99, 0.5);
+        }
+        
+        .dark #notificationList::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(75, 85, 99, 0.7);
+        }
+        
+        /* Scrollbar for sidebar navigation */
+        .sidebar nav {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+        }
+        
+        .sidebar nav::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .sidebar nav::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .sidebar nav::-webkit-scrollbar-thumb {
+            background-color: rgba(156, 163, 175, 0.3);
+            border-radius: 3px;
+        }
+        
+        .sidebar nav::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(156, 163, 175, 0.5);
+        }
+        
+        .dark .sidebar nav {
+            scrollbar-color: rgba(75, 85, 99, 0.3) transparent;
+        }
+        
+        .dark .sidebar nav::-webkit-scrollbar-thumb {
+            background-color: rgba(75, 85, 99, 0.3);
+        }
+        
+        .dark .sidebar nav::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(75, 85, 99, 0.5);
+        }
+        
+        /* Scrollbar for filter dropdown */
+        #filterDropdown {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+        }
+        
+        #filterDropdown::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #filterDropdown::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        #filterDropdown::-webkit-scrollbar-thumb {
+            background-color: rgba(156, 163, 175, 0.5);
+            border-radius: 3px;
+        }
+        
+        #filterDropdown::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(156, 163, 175, 0.7);
+        }
+        
+        .dark #filterDropdown {
+            scrollbar-color: rgba(75, 85, 99, 0.5) transparent;
+        }
+        
+        .dark #filterDropdown::-webkit-scrollbar-thumb {
+            background-color: rgba(75, 85, 99, 0.5);
+        }
+        
+        .dark #filterDropdown::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(75, 85, 99, 0.7);
         }
         .dark .chartjs-grid-color {
             color: theme('colors.border-dark');
@@ -306,7 +508,7 @@ a<!-- Add these libraries for file to image conversion -->
                 <h1 class="text-xl font-bold text-text-light dark:text-text-dark sidebar-logo-text whitespace-nowrap">LILAC</h1>
             </div>
         </div>
-        <nav class="flex-1 px-4 py-6 space-y-2">
+        <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="dashboard.php" title="Dashboard">
                 <span class="material-symbols-outlined flex-shrink-0">dashboard</span>
                 <span class="sidebar-text whitespace-nowrap">Dashboard</span>
@@ -360,7 +562,7 @@ a<!-- Add these libraries for file to image conversion -->
             </div>
         </div>
     </aside>
-    <main class="flex-1 overflow-hidden transition-all duration-300 ml-64" id="main-content">
+    <main class="flex-1 overflow-y-auto transition-all duration-300 ml-64" id="main-content">
 <header class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible header-animate">
 <div class="flex items-center gap-3">
 <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
@@ -411,7 +613,7 @@ a<!-- Add these libraries for file to image conversion -->
 </button>
 </div>
 </header>
-<div class="pt-1 pr-2 pb-1 lg:pt-2 lg:pr-4 lg:pb-2 main-content overflow-hidden content-animate">
+<div class="pt-1 pr-2 pb-1 lg:pt-2 lg:pr-4 lg:pb-2 main-content content-animate">
 <div class="p-3">
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
                     <!-- Search Input -->
@@ -658,7 +860,7 @@ a<!-- Add these libraries for file to image conversion -->
             </div>
 </div>
 <!-- Modal Overlay and Container -->
-<div id="addFileModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+<div id="addFileModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
     <div class="w-full max-w-lg bg-white dark:bg-background-dark rounded-xl shadow-2xl m-4 flex flex-col max-h-[90vh]">
         <!-- Modal Header -->
         <div class="p-6 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
@@ -1408,7 +1610,22 @@ a<!-- Add these libraries for file to image conversion -->
                     modalTitle.textContent = 'Add MOU/MOA File';
                     saveBtn.textContent = 'Save';
                     
+                    // Check if details modal is open - if so, keep it open and stack add modal on top
+                    const detailsModal = document.getElementById('mouDetailsModal');
+                    const isDetailsModalOpen = detailsModal && !detailsModal.classList.contains('hidden');
+                    
+                    // Show the add modal - it will appear on top of details modal if open (higher z-index)
                     modal.classList.remove('hidden');
+                    // Ensure modal appears on top (z-index already set to z-[100] in HTML)
+                    modal.style.zIndex = '100';
+                    
+                    // If details modal is open, ensure it stays open (don't close it)
+                    if (isDetailsModalOpen) {
+                        // Keep details modal open behind the add modal
+                        detailsModal.style.zIndex = '50';
+                        console.log('Add modal opened on top of details modal');
+                    }
+                    
                     // Clear selected file display when opening modal
                     updateSelectedFileDisplay(null);
                     resetInstitutionDetection();
@@ -2501,6 +2718,11 @@ a<!-- Add these libraries for file to image conversion -->
 
                             // Reload all data from database
                             await loadFromDatabase();
+                            
+                            // Check for notifications after updating (especially if status changed to expired)
+                            if (typeof checkNotifications === 'function') {
+                                await checkNotifications();
+                            }
 
                             // Reset editing state
                             window.editingEntryId = undefined;
@@ -2510,19 +2732,39 @@ a<!-- Add these libraries for file to image conversion -->
 
                             // Reload all data from database
                             await loadFromDatabase();
+                            
+                            // Check for notifications after saving (especially for expired MOU)
+                            if (typeof checkNotifications === 'function') {
+                                await checkNotifications();
+                            }
                         }
                         
                         // Reset form
                         resetForm();
                         
-                        // Close modal
+                        // Close modal - ensure it closes properly after successful save
                         const modal = document.getElementById('addFileModal');
-                        modal.classList.add('hidden');
+                        if (modal) {
+                            // Force close the modal
+                            modal.classList.add('hidden');
+                            modal.style.display = 'none';
+                            modal.style.visibility = 'hidden';
+                            modal.style.opacity = '0';
+                            
+                            // Also ensure it's closed after a brief delay to handle any async operations
+                            setTimeout(() => {
+                                if (modal) {
+                                    modal.classList.add('hidden');
+                                    modal.style.display = 'none';
+                                }
+                            }, 100);
+                        }
                         
                         // Success message removed - no notification will be shown
                         
                     } catch (error) {
                         showErrorMessage('Failed to save data: ' + error.message);
+                        // Don't close modal on error so user can fix and retry
                     } finally {
                         // Reset button state
                         saveBtn.disabled = false;
@@ -2822,6 +3064,71 @@ a<!-- Add these libraries for file to image conversion -->
                     
                     iframeContainer.appendChild(iframe);
                     fileViewerContent.appendChild(iframeContainer);
+                } else if (['mp3', 'wav', 'ogg', 'webm', 'm4a', 'aac', 'flac'].includes(fileExtension)) {
+                    // Show audio player
+                    fileViewerContent.innerHTML = '';
+                    const audioContainer = document.createElement('div');
+                    audioContainer.className = 'w-full h-full flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-gray-900';
+                    audioContainer.style.minHeight = '500px';
+                    
+                    const audioWrapper = document.createElement('div');
+                    audioWrapper.className = 'text-center max-w-md w-full';
+                    
+                    const iconDiv = document.createElement('div');
+                    iconDiv.className = 'w-24 h-24 mx-auto mb-6 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center';
+                    
+                    const icon = document.createElement('span');
+                    icon.className = 'material-symbols-outlined text-5xl text-blue-600 dark:text-blue-400';
+                    icon.textContent = 'music_note';
+                    iconDiv.appendChild(icon);
+                    
+                    const title = document.createElement('h4');
+                    title.className = 'text-lg font-medium text-gray-900 dark:text-white mb-2';
+                    title.textContent = displayFileName || 'Audio File';
+                    
+                    const playerWrapper = document.createElement('div');
+                    playerWrapper.className = 'mt-6 bg-white dark:bg-gray-800 rounded-lg p-4 shadow-lg';
+                    
+                    const audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.className = 'w-full';
+                    audio.preload = 'metadata';
+                    
+                    const source = document.createElement('source');
+                    const audioType = fileExtension === 'mp3' ? 'mpeg' : (fileExtension === 'm4a' ? 'mp4' : fileExtension);
+                    source.src = filePath;
+                    source.type = `audio/${audioType}`;
+                    audio.appendChild(source);
+                    
+                    audio.onloadedmetadata = function() {
+                        console.log('✓ Audio loaded successfully:', filePath);
+                    };
+                    
+                    audio.onerror = function() {
+                        console.error('✗ Failed to load audio:', filePath);
+                        playerWrapper.innerHTML = `
+                            <div class="text-center p-4">
+                                <span class="material-symbols-outlined text-4xl text-red-400 mb-2">error</span>
+                                <p class="text-red-500 text-sm">Failed to load audio file</p>
+                                <button onclick="window.open('${filePath}', '_blank')" class="mt-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm">
+                                    Open in New Tab
+                                </button>
+                            </div>
+                        `;
+                    };
+                    
+                    playerWrapper.appendChild(audio);
+                    
+                    const helpText = document.createElement('p');
+                    helpText.className = 'text-sm text-gray-500 dark:text-gray-400 mt-4';
+                    helpText.textContent = 'Click play to listen to the audio file';
+                    
+                    audioWrapper.appendChild(iconDiv);
+                    audioWrapper.appendChild(title);
+                    audioWrapper.appendChild(playerWrapper);
+                    audioWrapper.appendChild(helpText);
+                    audioContainer.appendChild(audioWrapper);
+                    fileViewerContent.appendChild(audioContainer);
                 } else if (['doc', 'docx'].includes(fileExtension)) {
                     // For Word documents, show download option with info
                     fileViewerContent.innerHTML = `
@@ -3130,6 +3437,19 @@ a<!-- Add these libraries for file to image conversion -->
                         return institution.includes(searchQuery) || location.includes(searchQuery);
                     });
                 }
+
+                // Default ordering: keep everything as-is, but push Expired entries behind other MOUs
+                // (so "Expired" is last unless the user explicitly uses the Sort dropdown)
+                const nonExpired = [];
+                const expired = [];
+                allEntries.forEach(e => {
+                    if ((e && e.status) === 'Expired') {
+                        expired.push(e);
+                    } else {
+                        nonExpired.push(e);
+                    }
+                });
+                allEntries = nonExpired.concat(expired);
                 
                 // Reset to first page when search changes
                 currentPage = 1;
@@ -3139,6 +3459,11 @@ a<!-- Add these libraries for file to image conversion -->
             function displayCurrentPage() {
                 const tableBody = document.querySelector('tbody');
                 tableBody.innerHTML = '';
+                
+                // Clamp current page to valid range based on total entries
+                const totalPages = Math.max(1, Math.ceil(allEntries.length / itemsPerPage));
+                if (currentPage > totalPages) currentPage = totalPages;
+                if (currentPage < 1) currentPage = 1;
                 
                 // Show empty state if no entries
                 if (allEntries.length === 0) {
@@ -3169,6 +3494,10 @@ a<!-- Add these libraries for file to image conversion -->
             function updatePaginationDisplay() {
                 const totalEntries = allEntries.length;
                 const totalPages = Math.ceil(totalEntries / itemsPerPage);
+                
+                // Clamp current page to valid range
+                if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+                if (currentPage < 1) currentPage = 1;
                 
                 // Update pagination text
                 const startEntry = totalEntries === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
@@ -3424,6 +3753,13 @@ a<!-- Add these libraries for file to image conversion -->
             (async () => {
                 await loadFromDatabase();
                 
+                // Check for notifications on page load (especially for expired MOU)
+                if (typeof checkNotifications === 'function') {
+                    await checkNotifications();
+                } else if (typeof loadNotifications === 'function') {
+                    await loadNotifications();
+                }
+                
                 // Check if we need to open edit mode (from documents page)
                 const editMouId = sessionStorage.getItem('editMouId');
                 if (editMouId) {
@@ -3562,10 +3898,24 @@ a<!-- Add these libraries for file to image conversion -->
                     if (modalTitle) modalTitle.textContent = 'Edit MOU/MOA File';
                     if (saveBtn) saveBtn.textContent = 'Update';
                     
-                    // Show the modal
+                    // Check if details modal is open - if so, keep it open and stack edit modal on top
+                    const detailsModal = document.getElementById('mouDetailsModal');
+                    const isDetailsModalOpen = detailsModal && !detailsModal.classList.contains('hidden');
+                    
+                    // Show the edit modal - it will appear on top of details modal if open (higher z-index)
                     const modal = document.getElementById('addFileModal');
                     if (modal) {
                         modal.classList.remove('hidden');
+                        // Ensure modal appears on top (z-index already set to z-[100] in HTML)
+                        modal.style.zIndex = '100';
+                        
+                        // If details modal is open, ensure it stays open (don't close it)
+                        if (isDetailsModalOpen) {
+                            // Keep details modal open behind the edit modal
+                            detailsModal.style.zIndex = '50';
+                            console.log('Edit modal opened on top of details modal');
+                        }
+                        
                         console.log('Modal opened successfully');
                     } else {
                         console.error('Modal element not found');
@@ -4206,9 +4556,9 @@ a<!-- Add these libraries for file to image conversion -->
                     const data = await response.json();
                     if (data.success) {
                         console.log('Notifications checked:', data);
-                        // Reload notifications after check
+                        // Reload notifications after check (this will trigger sound if new expiring notifications)
                         await loadNotifications();
-                updateNotificationBadge();
+                        updateNotificationBadge();
                     }
                 } catch (error) {
                     console.error('Error checking notifications:', error);
@@ -4221,10 +4571,40 @@ a<!-- Add these libraries for file to image conversion -->
                     const response = await fetch('api/notifications.php');
                     const data = await response.json();
                     if (data.notifications) {
+                        const previousNotificationIds = new Set(notifications.map(n => n.id));
+                        const previousNotifications = [...notifications];
                         notifications = data.notifications;
+                        
+                        // Check for new expiring MOU/MOA notifications and play sound
+                        const newNotifications = notifications.filter(n => !previousNotificationIds.has(n.id));
+                        if (window.NotificationSound && window.NotificationSound.checkAndPlay) {
+                            window.NotificationSound.checkAndPlay(newNotifications);
+                        }
+                        
+                        // Show notification bar (one at a time) for new MOU expired notifications
+                        const expiredMouNotifications = newNotifications.filter(n =>
+                            n.type === 'mou_expired' &&
+                            n.related_type === 'mou_moa'
+                        );
+                        expiredMouNotifications.forEach(notif => showMouNotificationBar(notif));
+                        
+                        // Check initial expiring notifications on first load
+                        if (previousNotifications.length === 0 && window.NotificationSound && window.NotificationSound.checkInitial) {
+                            window.NotificationSound.checkInitial(notifications);
+                            
+                            // Queue MOU expired notifications on first load (one at a time)
+                            // Note: we intentionally do NOT rely on `is_read` here; some users may have read
+                            // the notification in the dropdown but still want the swipe queue to surface all expired MOUs.
+                            const expiredMouNotificationsOnLoad = notifications.filter(n =>
+                                n.type === 'mou_expired' &&
+                                n.related_type === 'mou_moa'
+                            );
+                            expiredMouNotificationsOnLoad.forEach((notif) => showMouNotificationBar(notif));
+                        }
+                        
                         updateNotificationDisplay();
-                updateNotificationBadge();
-            }
+                        updateNotificationBadge();
+                    }
                 } catch (error) {
                     console.error('Error loading notifications:', error);
                 }
@@ -4543,6 +4923,275 @@ a<!-- Add these libraries for file to image conversion -->
                 return colors[type] || 'bg-gray-500';
             }
             
+            /**
+             * Show Facebook-style notification bar in lower right corner
+             * @param {Object} notification - Notification object
+             */
+            function showMouNotificationBar(notification) {
+                // Check if user has disabled notification bars
+                const barsEnabled = localStorage.getItem('notification_bars_enabled') !== 'false';
+                if (!barsEnabled) {
+                    return;
+                }
+
+                // One-at-a-time queue for MOU bars (swipe right to dismiss)
+                if (!window.__mouBarQueue) window.__mouBarQueue = [];
+                if (!window.__mouBarShowing) window.__mouBarShowing = false;
+                if (!window.__mouBarEnqueuedIds) window.__mouBarEnqueuedIds = new Set();
+
+                // Prevent duplicates within a single page load
+                if (notification && notification.id != null && window.__mouBarEnqueuedIds.has(notification.id)) {
+                    return;
+                }
+                if (notification && notification.id != null) {
+                    window.__mouBarEnqueuedIds.add(notification.id);
+                }
+
+                window.__mouBarQueue.push(notification);
+                renderNextMouNotificationBar();
+            }
+
+            function getMouExpiredBarSeenSet() {
+                if (!window.__mouExpiredBarSeenSet) {
+                    let ids = [];
+                    try {
+                        const raw = localStorage.getItem('mou_expired_bar_seen_ids_v1');
+                        if (raw) ids = JSON.parse(raw) || [];
+                    } catch (_) {
+                        ids = [];
+                    }
+                    window.__mouExpiredBarSeenSet = new Set((ids || []).map(v => String(v)));
+                }
+                return window.__mouExpiredBarSeenSet;
+            }
+
+            function shouldShowMouExpiredBar(notificationId) {
+                if (notificationId == null) return true;
+                return !getMouExpiredBarSeenSet().has(String(notificationId));
+            }
+
+            function markMouExpiredBarSeen(notificationId) {
+                if (notificationId == null) return;
+                const set = getMouExpiredBarSeenSet();
+                set.add(String(notificationId));
+                try {
+                    localStorage.setItem('mou_expired_bar_seen_ids_v1', JSON.stringify(Array.from(set)));
+                } catch (_) {
+                    // ignore storage failures
+                }
+            }
+            
+            function getOrCreateMouNotificationContainer() {
+                let container = document.getElementById('mouNotificationBarsContainer');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = 'mouNotificationBarsContainer';
+                    container.className = 'fixed bottom-4 right-4 z-[10000] flex flex-col items-end max-w-sm';
+                    document.body.appendChild(container);
+                }
+                return container;
+            }
+
+            function buildMouNotificationCard(notification) {
+                const card = document.createElement('div');
+                const notificationId = 'mou-notif-' + (notification?.id ?? 'unknown') + '-' + Date.now();
+                card.id = notificationId;
+                card.dataset.notificationId = notification?.id != null ? String(notification.id) : '';
+                card.dataset.notificationType = notification?.type || '';
+
+                const isExpired = notification?.type === 'mou_expired';
+                const bgColor = isExpired ? 'bg-red-500' : 'bg-yellow-500';
+                const icon = isExpired ? 'warning' : 'schedule';
+                const iconColor = isExpired ? 'text-red-50' : 'text-yellow-50';
+
+                card.className = `${bgColor} text-white rounded-lg p-4 transform transition-all duration-300 translate-x-full opacity-0 mou-notification-card`;
+                card.style.minWidth = '320px';
+                card.style.maxWidth = '400px';
+                card.style.zIndex = 10001;
+                card.setAttribute('data-related-type', notification?.related_type || '');
+                card.setAttribute('data-related-id', notification?.related_id || '');
+
+                card.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-10 h-10 rounded-full ${isExpired ? 'bg-red-600' : 'bg-yellow-600'} flex items-center justify-center">
+                            <span class="material-symbols-outlined ${iconColor}">${icon}</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-semibold text-sm mb-1 line-clamp-1">${escapeHtml(notification?.title || 'MOU/MOA Notification')}</h4>
+                            <p class="text-xs opacity-90 line-clamp-2">${escapeHtml(notification?.message || '')}</p>
+                            <p class="text-xs opacity-75 mt-1">${getTimeAgo(notification?.created_at)}</p>
+                            <p class="text-[11px] opacity-80 mt-2">Drag right to dismiss</p>
+                        </div>
+                        <button onclick="removeNotificationPaper(this)" 
+                                class="flex-shrink-0 text-white hover:text-gray-200 transition-colors opacity-70 hover:opacity-100 z-10 relative">
+                            <span class="material-symbols-outlined text-sm">close</span>
+                        </button>
+                    </div>
+                `;
+
+                // Click to navigate to MOU detail (unless it was a drag)
+                if (notification?.related_id && notification?.related_type === 'mou_moa') {
+                    card.addEventListener('click', function(e) {
+                        if (card.dataset.suppressClick === '1') return;
+                        if (e.target.closest('button')) return;
+
+                        if (typeof showMouDetail === 'function') {
+                            showMouDetail(notification.related_id);
+                        } else if (typeof editEntry === 'function') {
+                            editEntry(notification.related_id);
+                        }
+                        // Once opened, move to the next queued notification
+                        dismissCurrentMouNotificationBar(card, { animate: false });
+                    });
+                }
+
+                attachSwipeToDismiss(card);
+                return card;
+            }
+
+            function renderNextMouNotificationBar() {
+                if (!window.__mouBarQueue || window.__mouBarQueue.length === 0) {
+                    const existing = document.getElementById('mouNotificationBarsContainer');
+                    if (existing && existing.children.length === 0) existing.remove();
+                    return;
+                }
+                if (window.__mouBarShowing) return;
+
+                const container = getOrCreateMouNotificationContainer();
+                // Ensure only one card is visible at a time
+                container.innerHTML = '';
+
+                const next = window.__mouBarQueue.shift();
+                const card = buildMouNotificationCard(next);
+                container.appendChild(card);
+                window.__mouBarShowing = true;
+
+                // Animate in
+                setTimeout(() => {
+                    card.classList.remove('translate-x-full');
+                    card.style.transform = 'translateX(0)';
+                    card.style.opacity = '1';
+                }, 50);
+            }
+
+            function dismissCurrentMouNotificationBar(card, { animate = true } = {}) {
+                const container = document.getElementById('mouNotificationBarsContainer');
+                const el = card || (container ? container.querySelector('.mou-notification-card') : null);
+                if (!el) {
+                    window.__mouBarShowing = false;
+                    renderNextMouNotificationBar();
+                    return;
+                }
+
+                // Mark "mou_expired" notifications as seen so they can be queued once per browser (unless storage is cleared)
+                if (el.dataset.notificationType === 'mou_expired' && el.dataset.notificationId) {
+                    markMouExpiredBarSeen(el.dataset.notificationId);
+                }
+
+                if (!animate) {
+                    el.remove();
+                    window.__mouBarShowing = false;
+                    if (container && container.children.length === 0 && (!window.__mouBarQueue || window.__mouBarQueue.length === 0)) {
+                        container.remove();
+                    }
+                    renderNextMouNotificationBar();
+                    return;
+                }
+
+                el.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
+                el.style.transform = `translateX(${Math.max(el.offsetWidth, 360) + 80}px)`;
+                el.style.opacity = '0';
+                setTimeout(() => {
+                    if (el.parentElement) el.remove();
+                    window.__mouBarShowing = false;
+                    if (container && container.children.length === 0 && (!window.__mouBarQueue || window.__mouBarQueue.length === 0)) {
+                        container.remove();
+                    }
+                    renderNextMouNotificationBar();
+                }, 260);
+            }
+
+            function attachSwipeToDismiss(card) {
+                let startX = 0;
+                let currentX = 0;
+                let dragging = false;
+                let moved = false;
+
+                const onPointerDown = (e) => {
+                    // Ignore right-click / non-primary mouse button
+                    if (e.pointerType === 'mouse' && e.button !== 0) return;
+                    // Don't start swipe from the close button
+                    if (e.target.closest('button')) return;
+
+                    dragging = true;
+                    moved = false;
+                    startX = e.clientX;
+                    currentX = 0;
+                    card.classList.add('mou-dragging');
+                    card.dataset.suppressClick = '0';
+                    try { card.setPointerCapture(e.pointerId); } catch (_) {}
+                };
+
+                const onPointerMove = (e) => {
+                    if (!dragging) return;
+                    const dx = e.clientX - startX;
+                    currentX = Math.max(0, dx); // only allow dragging to the right
+                    if (currentX > 6) moved = true;
+
+                    const rotate = Math.min(6, currentX / 40); // subtle
+                    const opacity = Math.max(0.2, 1 - currentX / 320);
+                    card.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
+                    card.style.opacity = String(opacity);
+                };
+
+                const finish = () => {
+                    card.classList.remove('mou-dragging');
+                    const threshold = Math.min(140, (card.offsetWidth || 320) * 0.35);
+                    if (currentX >= threshold) {
+                        card.dataset.suppressClick = '1';
+                        dismissCurrentMouNotificationBar(card, { animate: true });
+                        return;
+                    }
+                    // Snap back
+                    card.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+                    card.style.transform = 'translateX(0)';
+                    card.style.opacity = '1';
+                    if (moved) {
+                        card.dataset.suppressClick = '1';
+                        setTimeout(() => { card.dataset.suppressClick = '0'; }, 250);
+                    }
+                };
+
+                const onPointerUp = (e) => {
+                    if (!dragging) return;
+                    dragging = false;
+                    try { card.releasePointerCapture(e.pointerId); } catch (_) {}
+                    finish();
+                };
+
+                const onPointerCancel = () => {
+                    if (!dragging) return;
+                    dragging = false;
+                    finish();
+                };
+
+                card.addEventListener('pointerdown', onPointerDown);
+                card.addEventListener('pointermove', onPointerMove);
+                card.addEventListener('pointerup', onPointerUp);
+                card.addEventListener('pointercancel', onPointerCancel);
+            }
+            
+            /**
+             * Remove notification paper with animation
+             */
+            function removeNotificationPaper(button) {
+                const card = button.closest('.mou-notification-card');
+                dismissCurrentMouNotificationBar(card, { animate: true });
+            }
+            
+            // Make removeNotificationPaper globally accessible
+            window.removeNotificationPaper = removeNotificationPaper;
+            
             function getNotificationUrl(notif) {
                 if (!notif || !notif.related_type || !notif.related_id) {
                     return '';
@@ -4605,8 +5254,9 @@ a<!-- Add these libraries for file to image conversion -->
                 }
             }
             
-            // Make loadNotifications and updateNotificationBadge globally accessible
+            // Make loadNotifications, checkNotifications, and updateNotificationBadge globally accessible
             window.loadNotifications = loadNotifications;
+            window.checkNotifications = checkNotifications;
             window.updateNotificationBadge = updateNotificationBadge;
             
             // Initialize: Check for notifications and load them
@@ -5591,14 +6241,44 @@ a<!-- Add these libraries for file to image conversion -->
                             console.error('Error fetching notifications:', error);
                         }
                         
-                        // Close the modal immediately
-                        mouDetailsModal.classList.add('hidden');
+                        // Keep the details modal open but open add modal on top (higher z-index)
+                        // The add modal will appear in front of the details modal
                         
-                        // Show success message
-                        if (typeof showToast === 'function') {
-                            showToast('MOU/MOA marked as renewed. Notification removed.', 'success');
-                        } else {
-                            alert('MOU/MOA marked as renewed. Notification removed.');
+                        // Open the Add MOU/MOA File modal
+                        const addFileModal = document.getElementById('addFileModal');
+                        if (addFileModal) {
+                            // Reset editing state
+                            window.editingEntryId = undefined;
+                            
+                            // Reset modal title and button text for adding
+                            const modalTitle = document.querySelector('#addFileModal h3');
+                            const saveBtn = document.getElementById('saveBtn');
+                            if (modalTitle) modalTitle.textContent = 'Add MOU/MOA File';
+                            if (saveBtn) saveBtn.textContent = 'Save';
+                            
+                            // Show the add modal - it will appear on top of details modal (higher z-index)
+                            addFileModal.classList.remove('hidden');
+                            // Ensure modal appears on top (z-index already set to z-[100] in HTML)
+                            addFileModal.style.zIndex = '100';
+                            
+                            // Keep details modal open behind the add modal
+                            mouDetailsModal.style.zIndex = '50';
+                            console.log('Add modal opened on top of details modal (from renew)');
+                            
+                            // Clear selected file display when opening modal
+                            if (typeof updateSelectedFileDisplay === 'function') {
+                                updateSelectedFileDisplay(null);
+                            }
+                            if (typeof resetInstitutionDetection === 'function') {
+                                resetInstitutionDetection();
+                            }
+                            
+                            // Ensure native date picker click behavior is wired
+                            setTimeout(() => {
+                                if (typeof initDatePickers === 'function') {
+                                    initDatePickers();
+                                }
+                            }, 0);
                         }
                         
                         // Refresh notifications if function exists
@@ -5626,11 +6306,9 @@ a<!-- Add these libraries for file to image conversion -->
                         return;
                     }
 
-                    // Close the details modal first
-                    mouDetailsModal.classList.add('hidden');
-
-                    // Small delay to ensure modal closes before opening edit modal
-                    setTimeout(async () => {
+                    // Keep the details modal open but open edit modal on top (higher z-index)
+                    // The edit modal will appear in front of the details modal
+                    (async () => {
                         try {
                             // Get the entry data from API
                             const entries = await getAllEntries();
@@ -5729,7 +6407,7 @@ a<!-- Add these libraries for file to image conversion -->
                             console.error('Error opening edit modal:', error);
                             alert('Error opening edit form: ' + error.message);
                         }
-                    }, 100);
+                    })();
                 };
                 
                 // Show modal - ensure it's visible

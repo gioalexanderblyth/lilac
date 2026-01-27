@@ -12,6 +12,7 @@ define('DB_CHARSET', 'utf8mb4');
 
 // File upload configuration
 define('MAX_FILE_SIZE', 10 * 1024 * 1024); // 10MB
+define('MAX_AUDIO_SIZE', 50 * 1024 * 1024); // 50MB for audio files
 define('UPLOAD_DIR', __DIR__ . '/../uploads/awards/');
 define('ALLOWED_FILE_TYPES', [
     'image/jpeg',
@@ -19,6 +20,19 @@ define('ALLOWED_FILE_TYPES', [
     'image/jpg',
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+]);
+define('ALLOWED_AUDIO_TYPES', [
+    'audio/mpeg',
+    'audio/mp3',
+    'audio/wav',
+    'audio/wave',
+    'audio/x-wav',
+    'audio/ogg',
+    'audio/webm',
+    'audio/mp4',
+    'audio/aac',
+    'audio/flac',
+    'audio/x-m4a'
 ]);
 
 // OCR Configuration
@@ -217,13 +231,30 @@ function validateFileUpload($file) {
             'jpeg' => 'image/jpeg',
             'png' => 'image/png',
             'pdf' => 'application/pdf',
-            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'mp3' => 'audio/mpeg',
+            'wav' => 'audio/wav',
+            'ogg' => 'audio/ogg',
+            'webm' => 'audio/webm',
+            'm4a' => 'audio/mp4',
+            'aac' => 'audio/aac',
+            'flac' => 'audio/flac'
         ];
         $fileType = $extensionMap[$extension] ?? null;
     }
     
-    if (!$fileType || !in_array($fileType, ALLOWED_FILE_TYPES)) {
-        throw new Exception('Invalid file type. Allowed types: JPG, PNG, PDF, DOCX');
+    // Check if it's an audio file (use larger size limit)
+    $isAudio = $fileType && in_array($fileType, ALLOWED_AUDIO_TYPES);
+    $maxSize = $isAudio ? MAX_AUDIO_SIZE : MAX_FILE_SIZE;
+    
+    if ($file['size'] > $maxSize) {
+        throw new Exception('File size exceeds ' . ($maxSize / 1024 / 1024) . 'MB limit');
+    }
+    
+    // Check file type (allow both regular files and audio files)
+    $allowedTypes = array_merge(ALLOWED_FILE_TYPES, ALLOWED_AUDIO_TYPES);
+    if (!$fileType || !in_array($fileType, $allowedTypes)) {
+        throw new Exception('Invalid file type. Allowed types: JPG, PNG, PDF, DOCX, MP3, WAV, OGG, M4A, AAC, FLAC');
     }
     
     return true;

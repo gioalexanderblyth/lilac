@@ -212,6 +212,7 @@ try {
 </script>
 <link rel="stylesheet" href="css/award-analyzer.css">
 <script src="js/notifications.js"></script>
+<script src="js/notification-sound.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -1694,6 +1695,25 @@ No notifications yet
                     fileViewerContent.innerHTML = `
                         <div class="w-full h-full">
                             <iframe src="${filePath}" class="w-full h-full min-h-[600px] rounded-lg" frameborder="0"></iframe>
+                        </div>
+                    `;
+                } else if (['mp3', 'wav', 'ogg', 'webm', 'm4a', 'aac', 'flac'].includes(fileExtension)) {
+                    // Show audio player
+                    fileViewerContent.innerHTML = `
+                        <div class="w-full h-full flex flex-col items-center justify-center p-8">
+                            <div class="text-center max-w-md w-full">
+                                <div class="w-24 h-24 mx-auto mb-6 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-5xl text-blue-600 dark:text-blue-400">music_note</span>
+                                </div>
+                                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">${fileName || 'Audio File'}</h4>
+                                <div class="mt-6 bg-white dark:bg-gray-800 rounded-lg p-4 shadow-lg">
+                                    <audio controls class="w-full" preload="metadata">
+                                        <source src="${filePath}" type="audio/${fileExtension === 'mp3' ? 'mpeg' : fileExtension}">
+                                        Your browser does not support the audio element.
+                                    </audio>
+                                </div>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-4">Click play to listen to the audio file</p>
+                            </div>
                         </div>
                     `;
                 } else {
@@ -3524,6 +3544,10 @@ No notifications yet
                     notifications = data.notifications;
                     updateNotificationDisplay();
                     updateNotificationBadge();
+                    // Play sound for new MOU/MOA notifications
+                    if (window.checkAndPlayMouNotificationSound) {
+                        window.checkAndPlayMouNotificationSound(notifications);
+                    }
                 }
             } catch (error) {
                 console.error('Error loading notifications:', error);

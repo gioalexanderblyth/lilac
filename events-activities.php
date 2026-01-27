@@ -4997,6 +4997,10 @@ document.addEventListener('click', async function(e) {
                     notifications = data.notifications;
                     updateNotificationDisplay();
                     updateNotificationBadge();
+                    // Play sound for new MOU/MOA notifications
+                    if (window.checkAndPlayMouNotificationSound) {
+                        window.checkAndPlayMouNotificationSound(notifications);
+                    }
                 }
             } catch (error) {
                 console.error('Error loading notifications:', error);

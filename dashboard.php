@@ -798,6 +798,7 @@ try {
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script src="js/toast-notifications.js?v=<?php echo time(); ?>"></script>
+<script src="js/notification-sound.js"></script>
 <script src="js/loading-states.js"></script>
     <!-- Tailwind is now compiled via assets/css/tailwind.css; no runtime config needed -->
 <style>
@@ -2836,6 +2837,10 @@ Recent Activity
                     notifications = data.notifications;
                     updateNotificationDisplay();
                     updateNotificationBadge();
+                    // Play sound for new MOU/MOA notifications
+                    if (window.checkAndPlayMouNotificationSound) {
+                        window.checkAndPlayMouNotificationSound(notifications);
+                    }
                 }
             } catch (error) {
                 console.error('Error loading notifications:', error);
