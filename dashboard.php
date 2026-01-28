@@ -3083,6 +3083,10 @@ Recent Activity
                 return `events-activities.php?event=${encodedId}`;
             }
             
+            if (notif.related_type === 'schedule') {
+                return `scheduler.php`;
+            }
+            
             return '';
         }
         

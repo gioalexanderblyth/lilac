@@ -4549,6 +4549,16 @@ try {
                 notificationList.addEventListener('keydown', handleNotificationListKeydown);
             }
             
+            // Get current notifications array
+            function getNotifications() {
+                return notifications;
+            }
+            
+            // Get notification by ID
+            function getNotificationById(id) {
+                return notifications.find(n => n.id == id);
+            }
+            
             // Check for new notifications and create them
             async function checkNotifications() {
                 try {
@@ -4860,26 +4870,31 @@ try {
             };
             
             // Mark all notifications as read
-            function markAllNotificationsAsRead() {
-                (async () => {
-                    try {
-                        const response = await fetch('api/notifications.php', {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ action: 'mark_all_read' })
-                        });
-                        const data = await response.json();
-                        if (data.success) {
-                            notifications.forEach(n => n.is_read = true);
+            async function markAllNotificationsAsRead() {
+                try {
+                    const response = await fetch('api/notifications.php', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ action: 'mark_all_read' })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        notifications.forEach(n => n.is_read = true);
+                        if (typeof updateNotificationDisplay === 'function') {
                             updateNotificationDisplay();
+                        }
+                        if (typeof updateNotificationBadge === 'function') {
                             updateNotificationBadge();
                         }
-                    } catch (error) {
-                        console.error('Error marking all as read:', error);
+                        return true;
                     }
-                })();
+                    return false;
+                } catch (error) {
+                    console.error('Error marking all as read:', error);
+                    return false;
+                }
             }
             
             // Helper functions
@@ -4932,6 +4947,13 @@ try {
                 const barsEnabled = localStorage.getItem('notification_bars_enabled') !== 'false';
                 if (!barsEnabled) {
                     return;
+                }
+
+                // Avoid re-showing the same expired notification every page load
+                if (notification?.type === 'mou_expired' && notification?.id != null) {
+                    if (!shouldShowMouExpiredBar(notification.id)) {
+                        return;
+                    }
                 }
 
                 // One-at-a-time queue for MOU bars (swipe right to dismiss)
@@ -5207,6 +5229,10 @@ try {
                     return `events-activities.php?event=${encodedId}`;
                 }
                 
+                if (notif.related_type === 'schedule') {
+                    return `scheduler.php`;
+                }
+                
                 return '';
             }
             
@@ -5248,6 +5274,8 @@ try {
             async function refreshNotificationIndicators() {
                 try {
                     await checkNotifications();
+                    // Reload notifications after checking to show newly created ones
+                    await loadNotifications();
                     await updateNotificationBadge();
                 } catch (error) {
                     console.error('Error refreshing notification indicators:', error);
@@ -5261,7 +5289,10 @@ try {
             
             // Initialize: Check for notifications and load them
             (async function() {
-                await refreshNotificationIndicators();
+                // Force check notifications on page load to ensure all expired MOUs have notifications
+                await checkNotifications();
+                await loadNotifications();
+                await updateNotificationBadge();
                 
                 // Refresh notifications every 5 minutes
                 setInterval(() => {
@@ -5287,13 +5318,6 @@ try {
                 // Show the modal
                 modal.classList.remove('hidden');
                 modal.style.display = 'flex';
-                
-                // Close modal when clicking outside
-                modal.addEventListener('click', function(e) {
-                    if (e.target === modal) {
-                        closeAllNotificationsModal();
-                    }
-                });
             }
             
             // Load all notifications into the modal
@@ -5460,9 +5484,6 @@ try {
                                         <button id="markAllReadModalBtn" class="px-4 py-2 text-sm font-medium text-primary bg-primary/10 rounded-lg hover:bg-primary/20">
                                             Mark All Read
                                         </button>
-                                        <button id="closeAllNotificationsModal" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
-                                            <span class="material-symbols-outlined">close</span>
-                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -5475,15 +5496,6 @@ try {
                                     </button>
                                     <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors" data-filter="critical">
                                         Critical
-                                    </button>
-                                    <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors" data-filter="high">
-                                        High
-                                    </button>
-                                    <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors" data-filter="medium">
-                                        Medium
-                                    </button>
-                                    <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors" data-filter="low">
-                                        Low
                                     </button>
                                     <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors" data-filter="unread">
                                         Unread
@@ -5524,61 +5536,98 @@ try {
             
             // Setup event listeners for the all notifications modal
             function setupAllNotificationsModalEvents() {
+                // Remove old event listeners if they exist by cloning and replacing elements
                 const modal = document.getElementById('allNotificationsModal');
-                const closeBtn = document.getElementById('closeAllNotificationsModal');
-                const closeBtn2 = document.getElementById('closeAllNotificationsModalBtn');
+                if (!modal) {
+                    console.error('Modal not found when setting up events');
+                    return;
+                }
+                
+                const closeBtn = document.getElementById('closeAllNotificationsModalBtn');
                 const markAllReadBtn = document.getElementById('markAllReadModalBtn');
                 const clearOldBtn = document.getElementById('clearOldNotifications');
                 const tabs = document.querySelectorAll('.notification-tab');
                 
                 // Close modal
-                closeBtn.addEventListener('click', closeAllNotificationsModal);
-                closeBtn2.addEventListener('click', closeAllNotificationsModal);
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        closeAllNotificationsModal();
+                    });
+                }
                 
                 // Close modal when clicking outside
-                modal.addEventListener('click', function(e) {
-                    if (e.target === modal) {
-                        closeAllNotificationsModal();
-                    }
-                });
+                if (modal) {
+                    modal.addEventListener('click', function(e) {
+                        if (e.target === modal) {
+                            closeAllNotificationsModal();
+                        }
+                    });
+                }
                 
                 // Close modal with Escape key
-                document.addEventListener('keydown', function(e) {
+                const escapeHandler = function(e) {
                     if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
                         closeAllNotificationsModal();
+                        document.removeEventListener('keydown', escapeHandler);
                     }
-                });
+                };
+                document.addEventListener('keydown', escapeHandler);
                 
                 // Mark all as read
-                markAllReadBtn.addEventListener('click', function() {
-                    markAllNotificationsAsRead();
-                    updateAllNotificationsModal();
-                });
+                if (markAllReadBtn) {
+                    markAllReadBtn.addEventListener('click', async function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        try {
+                            await markAllNotificationsAsRead();
+                            await updateAllNotificationsModal();
+                            if (typeof updateNotificationBadge === 'function') {
+                                updateNotificationBadge();
+                            }
+                        } catch (error) {
+                            console.error('Error marking all as read:', error);
+                        }
+                    });
+                }
                 
                 // Clear old notifications
-                clearOldBtn.addEventListener('click', function() {
-                    clearOldNotifications();
-                });
+                if (clearOldBtn) {
+                    clearOldBtn.addEventListener('click', async function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        try {
+                            await clearOldNotifications();
+                        } catch (error) {
+                            console.error('Error clearing old notifications:', error);
+                        }
+                    });
+                }
                 
                 // Tab filtering
-                tabs.forEach(tab => {
-                    tab.addEventListener('click', function() {
-                        // Update active tab
-                        tabs.forEach(t => t.classList.remove('bg-white', 'dark:bg-gray-700', 'text-gray-900', 'dark:text-white', 'shadow-sm'));
-                        tabs.forEach(t => t.classList.add('text-gray-600', 'dark:text-gray-400'));
-                        
-                        this.classList.remove('text-gray-600', 'dark:text-gray-400');
-                        this.classList.add('bg-white', 'dark:bg-gray-700', 'text-gray-900', 'dark:text-white', 'shadow-sm');
-                        
-                        // Filter notifications
-                        const filter = this.dataset.filter;
-                        filterAllNotifications(filter);
+                if (tabs && tabs.length > 0) {
+                    tabs.forEach(tab => {
+                        tab.addEventListener('click', function() {
+                            // Update active tab
+                            tabs.forEach(t => t.classList.remove('bg-white', 'dark:bg-gray-700', 'text-gray-900', 'dark:text-white', 'shadow-sm'));
+                            tabs.forEach(t => t.classList.add('text-gray-600', 'dark:text-gray-400'));
+                            
+                            this.classList.remove('text-gray-600', 'dark:text-gray-400');
+                            this.classList.add('bg-white', 'dark:bg-gray-700', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+                            
+                            // Filter notifications
+                            const filter = this.dataset.filter;
+                            filterAllNotifications(filter);
+                        });
                     });
-                });
+                }
                 
                 // Set default active tab
-                tabs[0].classList.remove('text-gray-600', 'dark:text-gray-400');
-                tabs[0].classList.add('bg-white', 'dark:bg-gray-700', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+                if (tabs && tabs.length > 0) {
+                    tabs[0].classList.remove('text-gray-600', 'dark:text-gray-400');
+                    tabs[0].classList.add('bg-white', 'dark:bg-gray-700', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+                }
             }
             
             // Close all notifications modal
@@ -5586,98 +5635,14 @@ try {
                 const modal = document.getElementById('allNotificationsModal');
                 if (modal) {
                     modal.classList.add('hidden');
+                    modal.style.display = 'none';
                 }
             }
             
             // Update all notifications modal content
-            function updateAllNotificationsModal() {
-                const notifications = getNotifications();
-                const notificationsList = document.getElementById('allNotificationsList');
-                const notificationsCount = document.getElementById('notificationsCount');
-                
-                if (!notificationsList || !notificationsCount) return;
-                
-                notificationsCount.textContent = notifications.length;
-                
-                if (notifications.length === 0) {
-                    notificationsList.innerHTML = `
-                        <div class="text-center py-12">
-                            <span class="material-symbols-outlined text-6xl text-gray-300 dark:text-gray-600 mb-4 block">notifications_off</span>
-                            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No notifications</h3>
-                            <p class="text-gray-500 dark:text-gray-400">You're all caught up!</p>
-                        </div>
-                    `;
-                    return;
-                }
-                
-                // Sort notifications by priority and timestamp
-                const sortedNotifications = notifications.sort((a, b) => {
-                    const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-                    if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-                        return priorityOrder[b.priority] - priorityOrder[a.priority];
-                    }
-                    return new Date(b.timestamp) - new Date(a.timestamp);
-                });
-                
-                // Group notifications by date
-                const groupedNotifications = groupNotificationsByDate(sortedNotifications);
-                
-                notificationsList.innerHTML = Object.keys(groupedNotifications).map(date => {
-                    const dayNotifications = groupedNotifications[date];
-                    return `
-                        <div class="mb-6">
-                            <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">${date}</h4>
-                            <div class="space-y-3">
-                                ${dayNotifications.map(notification => {
-                                    const timeAgo = getTimeAgo(new Date(notification.timestamp));
-                                    const priorityColor = getPriorityColor(notification.priority);
-                                    const readClass = notification.read ? 'opacity-60' : '';
-                                    
-                                    return `
-                                        <div class="notification-item-modal p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors ${readClass}" data-id="${notification.id}">
-                                            <div class="flex items-start gap-4">
-                                                <div class="flex-shrink-0">
-                                                    <div class="w-10 h-10 rounded-full flex items-center justify-center ${priorityColor}">
-                                                        <span class="material-symbols-outlined text-white text-lg">
-                                                            ${getNotificationIcon(notification.type)}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div class="flex-1 min-w-0">
-                                                    <div class="flex items-start justify-between gap-3">
-                                                        <div class="flex-1">
-                                                            <h5 class="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                                                                ${notification.title}
-                                                            </h5>
-                                                            <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                                                                ${notification.message}
-                                                            </p>
-                                                            <div class="flex items-center gap-2">
-                                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${priorityColor} text-white">
-                                                                    ${notification.priority.toUpperCase()}
-                                                                </span>
-                                                                <span class="text-xs text-gray-500 dark:text-gray-400">${timeAgo}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div class="flex items-center gap-2">
-                                                            ${!notification.read ? '<div class="w-3 h-3 bg-primary rounded-full"></div>' : ''}
-                                                            <button class="delete-notification-btn p-1 text-gray-400 hover:text-red-500 transition-colors" data-id="${notification.id}" title="Delete notification">
-                                                                <span class="material-symbols-outlined text-sm">delete</span>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-                
-                // Add event listeners
-                setupAllNotificationsItemEvents();
+            async function updateAllNotificationsModal() {
+                // Reload notifications from API to get latest data
+                await loadAllNotificationsIntoModal();
             }
             
             // Group notifications by date
@@ -5688,7 +5653,8 @@ try {
                 yesterday.setDate(yesterday.getDate() - 1);
                 
                 notifications.forEach(notification => {
-                    const date = new Date(notification.timestamp);
+                    const notificationDate = notification.created_at || notification.timestamp;
+                    const date = new Date(notificationDate);
                     let groupKey;
                     
                     if (date.toDateString() === today.toDateString()) {
@@ -5736,11 +5702,11 @@ try {
                 
                 // Delete notification
                 document.querySelectorAll('.delete-notification-btn').forEach(btn => {
-                    btn.addEventListener('click', function(e) {
+                    btn.addEventListener('click', async function(e) {
                         e.stopPropagation();
                         const notificationId = this.dataset.id;
-                        deleteNotification(notificationId);
-                        updateAllNotificationsModal();
+                        await deleteNotification(notificationId);
+                        await updateAllNotificationsModal();
                         updateNotificationBadge();
                     });
                 });
@@ -5753,9 +5719,22 @@ try {
                 
                 if (filter !== 'all') {
                     if (filter === 'unread') {
-                        filteredNotifications = notifications.filter(n => !n.read);
+                        filteredNotifications = notifications.filter(n => !n.is_read);
                     } else {
-                        filteredNotifications = notifications.filter(n => n.priority === filter);
+                        // Filter by priority/type for MOU notifications
+                        // Map filter to notification types
+                        const typeMap = {
+                            'critical': 'mou_expired',
+                            'high': 'mou_expiring',
+                            'medium': 'event_today',
+                            'low': 'event_upcoming'
+                        };
+                        const targetType = typeMap[filter];
+                        if (targetType) {
+                            filteredNotifications = notifications.filter(n => n.type === targetType);
+                        } else {
+                            filteredNotifications = notifications;
+                        }
                     }
                 }
                 
@@ -5785,11 +5764,22 @@ try {
                 
                 // Sort and group filtered notifications
                 const sortedNotifications = filteredNotifications.sort((a, b) => {
-                    const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-                    if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-                        return priorityOrder[b.priority] - priorityOrder[a.priority];
+                    // Map notification types to priority order
+                    const typePriority = { 
+                        'mou_expired': 4, 
+                        'mou_expiring': 3, 
+                        'event_today': 2, 
+                        'event_upcoming': 1,
+                        'system': 0
+                    };
+                    const aPriority = typePriority[a.type] || 0;
+                    const bPriority = typePriority[b.type] || 0;
+                    if (aPriority !== bPriority) {
+                        return bPriority - aPriority;
                     }
-                    return new Date(b.timestamp) - new Date(a.timestamp);
+                    const aDate = new Date(a.created_at || a.timestamp || 0);
+                    const bDate = new Date(b.created_at || b.timestamp || 0);
+                    return bDate - aDate;
                 });
                 
                 const groupedNotifications = groupNotificationsByDate(sortedNotifications);
@@ -5801,17 +5791,56 @@ try {
                             <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">${date}</h4>
                             <div class="space-y-3">
                                 ${dayNotifications.map(notification => {
-                                    const timeAgo = getTimeAgo(new Date(notification.timestamp));
-                                    const priorityColor = getPriorityColor(notification.priority);
-                                    const readClass = notification.read ? 'opacity-60' : '';
+                                    const notificationDate = notification.created_at || notification.timestamp;
+                                    const timeAgo = getTimeAgo(new Date(notificationDate));
+                                    const bgColor = getNotificationBgColor(notification.type);
+                                    const readClass = notification.is_read ? 'opacity-60' : '';
+                                    const icon = getNotificationIcon(notification.type);
+                                    const targetUrl = getNotificationUrl(notification);
+                                    const isMouNotification = notification.related_type === 'mou_moa';
+                                    const isConfirmed = notification.is_confirmed || false;
+                                    
+                                    // Add Renew/Renewed buttons for MOU notifications that aren't confirmed
+                                    let actionButtons = '';
+                                    if (isMouNotification && !isConfirmed) {
+                                        actionButtons = `
+                                            <div class="mt-3 flex gap-2">
+                                                <button data-action="renew" data-notification-id="${notification.id}" data-entry-id="${notification.related_id}" 
+                                                        class="renew-mou-btn px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                                    <span class="material-symbols-outlined text-sm">edit</span>
+                                                    Renew
+                                                </button>
+                                                <button data-action="renewed" data-notification-id="${notification.id}" 
+                                                        class="renewed-mou-btn px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                                    <span class="material-symbols-outlined text-sm">check_circle</span>
+                                                    Renewed
+                                                </button>
+                                            </div>
+                                        `;
+                                    } else if (isMouNotification && isConfirmed && notification.mou_renewal_status === 'renewed') {
+                                        actionButtons = `
+                                            <div class="mt-2">
+                                                <p class="text-xs text-green-500 font-medium flex items-center gap-1">
+                                                    <span class="material-symbols-outlined text-sm">check_circle</span>
+                                                    Status: Renewed
+                                                </p>
+                                            </div>
+                                        `;
+                                    }
+                                    
+                                    const urlAttr = targetUrl ? ' data-url="' + encodeURIComponent(targetUrl) + '"' : '';
                                     
                                     return `
-                                        <div class="notification-item-modal p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors ${readClass}" data-id="${notification.id}">
+                                        <div class="notification-item-modal p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors ${readClass}" 
+                                             data-id="${notification.id}"
+                                             data-notification-id="${notification.id}"
+                                             data-related-type="${notification.related_type || ''}"
+                                             data-related-id="${notification.related_id || ''}"${urlAttr}>
                                             <div class="flex items-start gap-4">
                                                 <div class="flex-shrink-0">
-                                                    <div class="w-10 h-10 rounded-full flex items-center justify-center ${priorityColor}">
+                                                    <div class="w-10 h-10 rounded-full flex items-center justify-center ${bgColor}">
                                                         <span class="material-symbols-outlined text-white text-lg">
-                                                            ${getNotificationIcon(notification.type)}
+                                                            ${icon}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -5819,20 +5848,18 @@ try {
                                                     <div class="flex items-start justify-between gap-3">
                                                         <div class="flex-1">
                                                             <h5 class="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                                                                ${notification.title}
+                                                                ${escapeHtml(notification.title)}
                                                             </h5>
                                                             <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                                                                ${notification.message}
+                                                                ${escapeHtml(notification.message)}
                                                             </p>
                                                             <div class="flex items-center gap-2">
-                                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${priorityColor} text-white">
-                                                                    ${notification.priority.toUpperCase()}
-                                                                </span>
                                                                 <span class="text-xs text-gray-500 dark:text-gray-400">${timeAgo}</span>
                                                             </div>
+                                                            ${actionButtons}
                                                         </div>
                                                         <div class="flex items-center gap-2">
-                                                            ${!notification.read ? '<div class="w-3 h-3 bg-primary rounded-full"></div>' : ''}
+                                                            ${!notification.is_read ? '<div class="w-3 h-3 bg-primary rounded-full"></div>' : ''}
                                                             <button class="delete-notification-btn p-1 text-gray-400 hover:text-red-500 transition-colors" data-id="${notification.id}" title="Delete notification">
                                                                 <span class="material-symbols-outlined text-sm">delete</span>
                                                             </button>
@@ -5853,10 +5880,22 @@ try {
             }
             
             // Delete a specific notification
-            function deleteNotification(id) {
-                const notifications = getNotifications();
-                const filteredNotifications = notifications.filter(n => n.id !== id);
-                localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(filteredNotifications));
+            async function deleteNotification(id) {
+                try {
+                    const response = await fetch(`api/notifications.php?id=${id}`, {
+                        method: 'DELETE'
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        // Remove from local array
+                        notifications = notifications.filter(n => n.id != id);
+                        // Reload notifications to sync with server
+                        await loadNotifications();
+                        updateNotificationBadge();
+                    }
+                } catch (error) {
+                    console.error('Error deleting notification:', error);
+                }
             }
 
             // Remove all notifications related to a specific entry
@@ -5884,18 +5923,57 @@ try {
             }
 
             // Clear old notifications (older than 30 days)
-            function clearOldNotifications() {
-                const notifications = getNotifications();
-                const thirtyDaysAgo = new Date();
-                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                
-                const recentNotifications = notifications.filter(notification => {
-                    return new Date(notification.timestamp) > thirtyDaysAgo;
-                });
-                
-                localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(recentNotifications));
-                updateAllNotificationsModal();
-                updateNotificationBadge();
+            async function clearOldNotifications() {
+                try {
+                    const currentNotifications = getNotifications();
+                    const thirtyDaysAgo = new Date();
+                    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                    
+                    // Find old notifications to delete
+                    // Exclude expired MOU notifications - they will be recreated automatically
+                    // Only delete old notifications that are NOT expired MOU notifications
+                    const oldNotifications = currentNotifications.filter(notification => {
+                        const notificationDate = new Date(notification.created_at || notification.timestamp);
+                        const isOld = notificationDate <= thirtyDaysAgo;
+                        const isExpiredMou = notification.type === 'mou_expired' && notification.related_type === 'mou_moa';
+                        
+                        // Only delete if it's old AND not an expired MOU notification
+                        return isOld && !isExpiredMou;
+                    });
+                    
+                    if (oldNotifications.length === 0) {
+                        if (typeof showToast === 'function') {
+                            showToast('No old notifications to clear (expired MOU notifications are kept until renewed)', 'info');
+                        } else {
+                            alert('No old notifications to clear. Expired MOU notifications are kept until the MOU is renewed or deleted.');
+                        }
+                        return;
+                    }
+                    
+                    // Delete old notifications via API
+                    const deletePromises = oldNotifications.map(notif => 
+                        fetch(`api/notifications.php?id=${notif.id}`, {
+                            method: 'DELETE'
+                        }).then(res => res.json())
+                    );
+                    
+                    const results = await Promise.all(deletePromises);
+                    const successCount = results.filter(r => r.success).length;
+                    
+                    // Reload notifications to sync with server
+                    await loadNotifications();
+                    await loadAllNotificationsIntoModal();
+                    updateNotificationBadge();
+                    
+                    if (typeof showToast === 'function') {
+                        showToast(`Cleared ${successCount} old notification(s). Expired MOU notifications are kept until renewed.`, 'success');
+                    }
+                } catch (error) {
+                    console.error('Error clearing old notifications:', error);
+                    if (typeof showToast === 'function') {
+                        showToast('Error clearing old notifications', 'error');
+                    }
+                }
             }
 
             // Reconcile notifications with existing entries

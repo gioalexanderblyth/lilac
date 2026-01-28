@@ -18151,6 +18151,10 @@ try {
                     return `mou-moa.php?entry=${encodedId}`;
 
                 }
+                
+                if (notif.related_type === 'schedule') {
+                    return `scheduler.php`;
+                }
 
                 
 

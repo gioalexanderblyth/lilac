@@ -9,7 +9,6 @@
     // Audio element for notification sound
     let notificationAudio = null;
     let playedNotificationIds = new Set(); // Track which notifications have played sound
-    let audioUnlocked = false; // Whether browser has allowed playback
     
     /**
      * Initialize the notification audio element
@@ -28,40 +27,6 @@
     }
     
     /**
-     * Attempt to unlock audio on first user interaction (required by browsers for autoplay)
-     */
-    function setupAudioUnlock() {
-        if (typeof document === 'undefined') return;
-        const unlock = () => {
-            if (audioUnlocked) return;
-            initNotificationAudio();
-            if (!notificationAudio) return;
-            // Try a muted play/pause to satisfy gesture requirement
-            notificationAudio.muted = true;
-            const p = notificationAudio.play();
-            if (p && p.then) {
-                p.then(() => {
-                    notificationAudio.pause();
-                    notificationAudio.currentTime = 0;
-                    notificationAudio.muted = false;
-                    audioUnlocked = true;
-                    removeUnlockListeners();
-                }).catch(() => {
-                    // Still locked; keep listeners
-                });
-            }
-        };
-        const removeUnlockListeners = () => {
-            ['pointerdown','click','keydown','touchstart'].forEach(evt => {
-                document.removeEventListener(evt, unlock, true);
-            });
-        };
-        ['pointerdown','click','keydown','touchstart'].forEach(evt => {
-            document.addEventListener(evt, unlock, true);
-        });
-    }
-    
-    /**
      * Play notification sound for expiring MOU/MOA
      */
     function playNotificationSound() {
@@ -77,11 +42,6 @@
             
             if (!notificationAudio) {
                 console.warn('Notification audio not initialized');
-                return;
-            }
-            
-            if (!audioUnlocked) {
-                console.warn('Notification sound blocked until user interacts with the page (click/tap).');
                 return;
             }
             
@@ -184,7 +144,6 @@
     
     // Initialize audio when script loads
     initNotificationAudio();
-    setupAudioUnlock();
     
     // Export functions to global scope
     window.NotificationSound = {

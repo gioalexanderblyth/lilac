@@ -103,7 +103,7 @@ function checkMouExpiration($pdo, $userId = null) {
         $notificationDate = date('Y-m-d', strtotime("+{$notificationPeriodDays} days"));
         
         // Get all MOU/MOA entries that are:
-        // 1. Expired (end_date < today)
+        // 1. Expired (end_date < today) - check ALL expired MOUs, not just recent ones
         // 2. Expiring within the notification period (end_date between today and notificationDate)
         $sql = "SELECT id, title, institution, partner, end_date, user_id, status 
                 FROM mou_moa 
@@ -154,18 +154,31 @@ function checkMouExpiration($pdo, $userId = null) {
             }
             
             // Check if notification already exists for this MOU (global notification with user_id = NULL)
-            // For expired: check within last 30 days (to allow re-notification if needed)
+            // For expired: check if notification exists at all (expired MOUs should persist until renewed/deleted)
             // For expiring: check within last 7 days to allow updates if MOU status changes
-            $checkInterval = $type === 'mou_expired' ? 30 : 7;
-            $checkStmt = $pdo->prepare("
-                SELECT id FROM notifications 
-                WHERE related_id = ? 
-                AND related_type = 'mou_moa' 
-                AND type = ? 
-                AND user_id IS NULL
-                AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-            ");
-            $checkStmt->execute([$mou['id'], $type, $checkInterval]);
+            if ($type === 'mou_expired') {
+                // For expired MOUs, check if notification exists regardless of age
+                // This ensures expired notifications persist until the MOU is renewed or deleted
+                $checkStmt = $pdo->prepare("
+                    SELECT id FROM notifications 
+                    WHERE related_id = ? 
+                    AND related_type = 'mou_moa' 
+                    AND type = 'mou_expired'
+                    AND user_id IS NULL
+                ");
+                $checkStmt->execute([$mou['id']]);
+            } else {
+                // For expiring MOUs, check within last 7 days to allow updates
+                $checkStmt = $pdo->prepare("
+                    SELECT id FROM notifications 
+                    WHERE related_id = ? 
+                    AND related_type = 'mou_moa' 
+                    AND type = 'mou_expiring'
+                    AND user_id IS NULL
+                    AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                ");
+                $checkStmt->execute([$mou['id']]);
+            }
             $existing = $checkStmt->fetch();
             
             if (!$existing) {
@@ -299,6 +312,99 @@ function checkUpcomingEvents($pdo, $userId = null) {
 }
 
 /**
+ * Check for upcoming schedules and create notifications
+ */
+function checkUpcomingSchedules($pdo, $userId = null) {
+    try {
+        // Get schedules happening within 7 days
+        $sevenDaysFromNow = date('Y-m-d', strtotime('+7 days'));
+        $today = date('Y-m-d');
+        
+        $sql = "SELECT id, title, scheduled_date, scheduled_time, user_id, status 
+                FROM schedules 
+                WHERE scheduled_date IS NOT NULL 
+                AND scheduled_date >= ? 
+                AND scheduled_date <= ? 
+                AND status = 'scheduled'";
+        
+        $params = [$today, $sevenDaysFromNow];
+        
+        // If user_id is provided, filter by user
+        if ($userId) {
+            $sql .= " AND user_id = ?";
+            $params[] = $userId;
+        }
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $upcomingSchedules = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $notificationsCreated = 0;
+        
+        foreach ($upcomingSchedules as $schedule) {
+            // Calculate days until schedule (signed: negative = past, positive = days remaining)
+            $scheduleDate = new DateTime($schedule['scheduled_date']);
+            $scheduleDate->setTime(0, 0, 0); // Set to start of day
+            $todayDate = new DateTime();
+            $todayDate->setTime(0, 0, 0); // Set to start of day
+            $diff = $todayDate->diff($scheduleDate);
+            $daysUntilSchedule = (int)$diff->format('%r%a'); // Signed integer: positive = future, negative = past
+            
+            // Determine notification type (reuse event types for consistency)
+            $type = 'event_upcoming';
+            if ($daysUntilSchedule == 0) {
+                $type = 'event_today';
+            }
+            
+            // Check if notification already exists for this schedule (global notification with user_id = NULL)
+            // Check within last 7 days to allow updates if schedule status changes
+            $checkStmt = $pdo->prepare("
+                SELECT id FROM notifications 
+                WHERE related_id = ? 
+                AND related_type = 'schedule' 
+                AND type = ? 
+                AND user_id IS NULL
+                AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            ");
+            $checkStmt->execute([$schedule['id'], $type]);
+            $existing = $checkStmt->fetch();
+            
+            if (!$existing) {
+                // Create notification
+                $title = $daysUntilSchedule == 0
+                    ? "Schedule Today: " . $schedule['title']
+                    : "Upcoming Schedule: " . $schedule['title'];
+                
+                $timeStr = $schedule['scheduled_time'] ? " at " . date('g:i A', strtotime($schedule['scheduled_time'])) : "";
+                
+                $message = $daysUntilSchedule == 0
+                    ? "The schedule '" . $schedule['title'] . "' is happening today" . $timeStr . "."
+                    : "The schedule '" . $schedule['title'] . "' is happening in " . $daysUntilSchedule . " day(s) on " . date('F j, Y', strtotime($schedule['scheduled_date'])) . $timeStr . ".";
+                
+                // Create notification with user_id = NULL so it's visible to all users
+                // This makes schedule notifications visible on all pages
+                $insertStmt = $pdo->prepare("
+                    INSERT INTO notifications (user_id, type, title, message, related_id, related_type, created_at)
+                    VALUES (NULL, ?, ?, ?, ?, 'schedule', NOW())
+                ");
+                $insertStmt->execute([
+                    $type,
+                    $title,
+                    $message,
+                    $schedule['id']
+                ]);
+                $notificationsCreated++;
+            }
+        }
+        
+        return $notificationsCreated;
+    } catch (Exception $e) {
+        error_log('Error checking upcoming schedules: ' . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
  * Get notifications for current user
  */
 function getNotifications($pdo, $userId, $unreadOnly = false) {
@@ -310,6 +416,7 @@ function getNotifications($pdo, $userId, $unreadOnly = false) {
                        CASE 
                            WHEN n.related_type = 'mou_moa' THEN m.title
                            WHEN n.related_type = 'event' THEN e.title
+                           WHEN n.related_type = 'schedule' THEN s.title
                            ELSE NULL
                        END as related_title,
                        CASE 
@@ -326,6 +433,7 @@ function getNotifications($pdo, $userId, $unreadOnly = false) {
                 FROM notifications n
                 LEFT JOIN mou_moa m ON n.related_type = 'mou_moa' AND n.related_id = m.id
                 LEFT JOIN events e ON n.related_type = 'event' AND n.related_id = e.id
+                LEFT JOIN schedules s ON n.related_type = 'schedule' AND n.related_id = s.id
                 LEFT JOIN notification_reads nr ON n.id = nr.notification_id AND nr.user_id = ? AND n.user_id IS NULL
                 LEFT JOIN notification_confirmations nc ON n.id = nc.notification_id AND nc.user_id = ? AND n.related_type = 'mou_moa'
                 WHERE (n.user_id = ? OR n.user_id IS NULL)
@@ -333,11 +441,18 @@ function getNotifications($pdo, $userId, $unreadOnly = false) {
                     n.related_type IS NULL
                     OR (n.related_type = 'mou_moa' AND m.id IS NOT NULL AND (m.deleted_at IS NULL OR m.deleted_at = ''))
                     OR (n.related_type = 'event' AND e.id IS NOT NULL)
+                    OR (n.related_type = 'schedule' AND s.id IS NOT NULL)
                 )
                 AND (
                     n.related_type != 'mou_moa' 
                     OR n.related_type IS NULL
-                    OR (nc.id IS NULL OR nc.renewal_status = 'not_renewed')
+                    OR (
+                        -- For expired MOUs: only show if NOT confirmed as renewed
+                        (n.type = 'mou_expired' AND (nc.id IS NULL OR nc.renewal_status != 'renewed'))
+                        OR
+                        -- For expiring MOUs: show if not confirmed as renewed
+                        (n.type != 'mou_expired' AND (nc.id IS NULL OR nc.renewal_status = 'not_renewed'))
+                    )
                 )";
         
         $params = [$userId, $userId, $userId];
@@ -483,17 +598,25 @@ function getUnreadCount($pdo, $userId) {
             LEFT JOIN notification_reads nr ON n.id = nr.notification_id AND nr.user_id = ? AND n.user_id IS NULL
             LEFT JOIN mou_moa m ON n.related_type = 'mou_moa' AND n.related_id = m.id
             LEFT JOIN events e ON n.related_type = 'event' AND n.related_id = e.id
+            LEFT JOIN schedules s ON n.related_type = 'schedule' AND n.related_id = s.id
             LEFT JOIN notification_confirmations nc ON n.id = nc.notification_id AND nc.user_id = ? AND n.related_type = 'mou_moa'
             WHERE (n.user_id = ? OR n.user_id IS NULL)
             AND (
                 n.related_type IS NULL
                 OR (n.related_type = 'mou_moa' AND m.id IS NOT NULL AND (m.deleted_at IS NULL OR m.deleted_at = ''))
                 OR (n.related_type = 'event' AND e.id IS NOT NULL)
+                OR (n.related_type = 'schedule' AND s.id IS NOT NULL)
             )
             AND (
                 n.related_type != 'mou_moa' 
                 OR n.related_type IS NULL
-                OR (nc.id IS NULL OR nc.renewal_status = 'not_renewed')
+                OR (
+                    -- For expired MOUs: only show if NOT confirmed as renewed
+                    (n.type = 'mou_expired' AND (nc.id IS NULL OR nc.renewal_status != 'renewed'))
+                    OR
+                    -- For expiring MOUs: show if not confirmed as renewed
+                    (n.type != 'mou_expired' AND (nc.id IS NULL OR nc.renewal_status = 'not_renewed'))
+                )
             )
             AND (
                 (n.user_id IS NULL AND nr.id IS NULL) OR 
@@ -630,13 +753,13 @@ try {
                 // Pass null to check ALL MOU/MOA entries (not filtered by user)
                 // This ensures notifications are visible on all pages
                 
-                // Also migrate any existing user-specific MOU/Event notifications to global (user_id = NULL)
+                // Also migrate any existing user-specific MOU/Event/Schedule notifications to global (user_id = NULL)
                 // This ensures old notifications become visible to all users
                 try {
                     $migrateStmt = $pdo->prepare("
                         UPDATE notifications 
                         SET user_id = NULL 
-                        WHERE related_type IN ('mou_moa', 'event') 
+                        WHERE related_type IN ('mou_moa', 'event', 'schedule') 
                         AND user_id IS NOT NULL
                         AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
                     ");
@@ -647,12 +770,14 @@ try {
                 
                 $mouCount = checkMouExpiration($pdo, null);
                 $eventCount = checkUpcomingEvents($pdo, null);
+                $scheduleCount = checkUpcomingSchedules($pdo, null);
                 
                 echo json_encode([
                     'success' => true,
                     'mou_notifications_created' => $mouCount,
                     'event_notifications_created' => $eventCount,
-                    'total_created' => $mouCount + $eventCount
+                    'schedule_notifications_created' => $scheduleCount,
+                    'total_created' => $mouCount + $eventCount + $scheduleCount
                 ]);
             } elseif ($action === 'count') {
                 // Get unread notification count
