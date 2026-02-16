@@ -58,8 +58,6 @@ try {
 
                 $_SESSION['user']['role'] = $dbUser['role'];
 
-                $_SESSION['role'] = $dbUser['role'];
-
             }
 
         }
@@ -332,6 +330,7 @@ try {
 
     <script src="js/notifications.js"></script>
     <script src="js/notification-sound.js"></script>
+    <script src="js/notification-bar.js"></script>
 
     <script src="js/award-analyzer.js"></script>
 
@@ -1268,7 +1267,7 @@ try {
 
             <header
 
-                class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-30 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible header-animate">
+                class="sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm z-50 px-6 lg:px-8 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center h-20 overflow-visible header-animate">
 
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
@@ -1282,11 +1281,11 @@ try {
                 </div>
                 <div class="flex items-center gap-2">
 
-                    <div class="relative z-[9999]">
+                    <div class="relative z-[9999]" style="pointer-events: auto;">
 
-                        <button id="notificationBtn"
+                        <button type="button" id="notificationBtn" aria-label="Notifications"
 
-                            class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors duration-200 relative">
+                            class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-text-muted-light dark:text-text-muted-dark transition-colors duration-200 relative" style="pointer-events: auto; cursor: pointer; z-index: 10000;">
 
                             <span class="material-symbols-outlined">notifications</span>
 
@@ -1296,52 +1295,30 @@ try {
 
                         </button>
 
-                        <div id="notificationDropdown"
-
-                            class="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-background-dark rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[9999] hidden max-h-96 overflow-y-auto">
-
-                            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-
+                        <div id="notificationDropdown" class="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-background-dark rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[9999] hidden flex flex-col max-h-96">
+                            <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
                                 <div class="flex items-center justify-between">
-
                                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Notifications</h3>
-
-                                    <button id="markAllReadBtn"
-
-                                        class="text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">
-
+                                    <a href="#" id="markAllReadBtn" class="text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">
                                         Mark all read
-
-                                    </button>
-
+                                    </a>
                                 </div>
-
                             </div>
-
-                            <div id="notificationList" class="max-h-80 overflow-y-auto">
-
-                                <div id="noNotifications" class="p-6 text-center text-gray-500 dark:text-gray-400">
-
-                                    <span class="material-symbols-outlined text-4xl mb-2 block">notifications_off</span>
-
-                                    <p>No notifications</p>
-
-                                </div>
-
+                            
+                            <!-- Scrollable list area -->
+                            <div id="notificationList" class="flex-1 min-h-0 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700">
+                                <!-- Notifications will be populated here -->
                             </div>
-
-                            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
-
-                                <button id="viewAllNotifications"
-
-                                    class="w-full text-center text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">
-
+                            <div id="noNotifications" class="p-6 text-center text-gray-500 dark:text-gray-400 flex-shrink-0">
+                                <span class="material-symbols-outlined text-4xl mb-2 block">notifications_off</span>
+                                <p>No notifications</p>
+                            </div>
+                            
+                            <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+                                <button type="button" id="viewAllNotifications" class="w-full text-center text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">
                                     View all notifications
-
                                 </button>
-
                             </div>
-
                         </div>
 
                     </div>
@@ -1352,7 +1329,7 @@ try {
 
                     <div id="mouNotificationModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
 
-                        <div class="w-full max-w-md bg-white dark:bg-background-dark rounded-xl shadow-2xl m-4 border border-gray-200 dark:border-gray-700">
+                        <div class="w-full max-w-md bg-white dark:bg-background-dark rounded-xl shadow-2xl m-4 border border-gray-200 dark:border-gray-700 max-h-[90vh] flex flex-col overflow-y-auto">
 
                             <div class="p-6 border-b border-gray-200 dark:border-gray-700">
 
@@ -1454,7 +1431,7 @@ try {
 
                                         </div>
 
-                                        <span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-primary/10 text-primary-700 dark:text-primary-300">Institutional · Individual · Special</span>
+                                        <span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-primary/10 text-primary-700 dark:text-primary-300">Institutional Â· Individual Â· Special</span>
 
                                     </div>
 
@@ -1476,7 +1453,7 @@ try {
 
                                         <h3 class="text-lg font-bold text-text-light dark:text-text-dark">Deadlines & Official References</h3>
 
-                                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Deadline for nominations/application: <strong>17 November 2025 · 05:00 PM PhST</strong></p>
+                                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Deadline for nominations/application: <strong>17 November 2025 Â· 05:00 PM PhST</strong></p>
 
                                     </div>
 
@@ -1484,7 +1461,7 @@ try {
 
                                         <p class="text-xs uppercase tracking-wide text-primary-700 dark:text-primary-300 mb-1">Countdown</p>
 
-                                        <p id="ched-deadline-countdown" class="text-base font-semibold text-text-light dark:text-text-dark">Loading timeline…</p>
+                                        <p id="ched-deadline-countdown" class="text-base font-semibold text-text-light dark:text-text-dark">Loading timelineâ€¦</p>
 
                                     </div>
 
@@ -1574,7 +1551,7 @@ try {
 
                                                 <p class="text-xs text-text-muted-light dark:text-text-muted-dark">Complete online nomination/application form before the deadline.</p>
 
-                                                <p class="timeline-status text-xs font-semibold mt-1 text-primary" data-default-label="17 Nov 2025 · 05:00 PM PhST">17 Nov 2025 · 05:00 PM PhST</p>
+                                                <p class="timeline-status text-xs font-semibold mt-1 text-primary" data-default-label="17 Nov 2025 Â· 05:00 PM PhST">17 Nov 2025 Â· 05:00 PM PhST</p>
 
                                             </div>
 
@@ -1604,7 +1581,7 @@ try {
 
                                         <h3 class="text-xl font-bold text-text-light dark:text-text-dark">Award Families & Readiness Cues</h3>
 
-                                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Use these quick cues when validating similarity scores against CHED’s narrative requirements.</p>
+                                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Use these quick cues when validating similarity scores against CHEDâ€™s narrative requirements.</p>
 
                                     </div>
 
@@ -1620,17 +1597,17 @@ try {
 
                                             <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Global Citizenship Awards</h4>
 
-                                            <span class="px-3 py-1 text-xs rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Institutional · Cat A/B</span>
+                                            <span class="px-3 py-1 text-xs rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Institutional Â· Cat A/B</span>
 
                                         </div>
 
                                         <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
 
-                                            <li>Ignite intercultural understanding—creates inclusive learning experiences fostering mutual respect across cultures, backgrounds, and abilities.</li>
+                                            <li>Ignite intercultural understandingâ€”creates inclusive learning experiences fostering mutual respect across cultures, backgrounds, and abilities.</li>
 
-                                            <li>Empower changemakers—students gain knowledge/skills to tackle challenges aligned with the SDGs.</li>
+                                            <li>Empower changemakersâ€”students gain knowledge/skills to tackle challenges aligned with the SDGs.</li>
 
-                                            <li>Cultivate active engagement—provides accessible platforms for students to translate global awareness into concrete action.</li>
+                                            <li>Cultivate active engagementâ€”provides accessible platforms for students to translate global awareness into concrete action.</li>
 
                                         </ul>
 
@@ -1642,17 +1619,17 @@ try {
 
                                             <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Outstanding International Education Program Awards</h4>
 
-                                            <span class="px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Institutional · Cat A/B</span>
+                                            <span class="px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Institutional Â· Cat A/B</span>
 
                                         </div>
 
                                         <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
 
-                                            <li>Expand access to global opportunities—break down barriers to include students from various backgrounds, abilities, and financial situations.</li>
+                                            <li>Expand access to global opportunitiesâ€”break down barriers to include students from various backgrounds, abilities, and financial situations.</li>
 
-                                            <li>Foster collaborative innovation—partnerships with local and international partners fuel innovative, culturally-rich experiences.</li>
+                                            <li>Foster collaborative innovationâ€”partnerships with local and international partners fuel innovative, culturally-rich experiences.</li>
 
-                                            <li>Embrace inclusivity and beyond—actively dismantle barriers so international education benefits everyone.</li>
+                                            <li>Embrace inclusivity and beyondâ€”actively dismantle barriers so international education benefits everyone.</li>
 
                                         </ul>
 
@@ -1664,17 +1641,17 @@ try {
 
                                             <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Sustainability Awards</h4>
 
-                                            <span class="px-3 py-1 text-xs rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Institutional · Cat A/B/C</span>
+                                            <span class="px-3 py-1 text-xs rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Institutional Â· Cat A/B/C</span>
 
                                         </div>
 
                                         <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
 
-                                            <li>Pioneering integration—strategically integrated UN SDGs across institutional operations, curriculum, and community engagement.</li>
+                                            <li>Pioneering integrationâ€”strategically integrated UN SDGs across institutional operations, curriculum, and community engagement.</li>
 
-                                            <li>Impactful projects—implemented measurable projects in energy efficiency, waste management, and social well-being aligned with UN SDGs.</li>
+                                            <li>Impactful projectsâ€”implemented measurable projects in energy efficiency, waste management, and social well-being aligned with UN SDGs.</li>
 
-                                            <li>Long-term commitment—demonstrates scalability, financial viability, and institutional commitment for continued positive impact.</li>
+                                            <li>Long-term commitmentâ€”demonstrates scalability, financial viability, and institutional commitment for continued positive impact.</li>
 
                                         </ul>
 
@@ -1686,17 +1663,17 @@ try {
 
                                             <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Best ASEAN Awareness Initiative Awards</h4>
 
-                                            <span class="px-3 py-1 text-xs rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Institutional · Cat A/B</span>
+                                            <span class="px-3 py-1 text-xs rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Institutional Â· Cat A/B</span>
 
                                         </div>
 
                                         <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
 
-                                            <li>Promote regional identity and solidarity—advance ASEAN awareness through creative activities like curriculum integration, cultural festivals, or youth dialogues.</li>
+                                            <li>Promote regional identity and solidarityâ€”advance ASEAN awareness through creative activities like curriculum integration, cultural festivals, or youth dialogues.</li>
 
-                                            <li>Cross-cultural initiative programs—execute impactful exchange and collaboration programs fostering genuine intercultural exchange.</li>
+                                            <li>Cross-cultural initiative programsâ€”execute impactful exchange and collaboration programs fostering genuine intercultural exchange.</li>
 
-                                            <li>Measurable outreach and sustained commitment—clear evidence of reach and impact with long-term commitment to promoting ASEAN narrative.</li>
+                                            <li>Measurable outreach and sustained commitmentâ€”clear evidence of reach and impact with long-term commitment to promoting ASEAN narrative.</li>
 
                                         </ul>
 
@@ -1708,17 +1685,17 @@ try {
 
                                             <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Emerging Leadership Award</h4>
 
-                                            <span class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">Individual · Directors/Officers</span>
+                                            <span class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">Individual Â· Directors/Officers</span>
 
                                         </div>
 
                                         <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
 
-                                            <li>Practice innovation—spearhead creative approaches to internationalization, fostering global collaboration.</li>
+                                            <li>Practice innovationâ€”spearhead creative approaches to internationalization, fostering global collaboration.</li>
 
-                                            <li>Drive strategic and inclusive growth—promote diversity, equity, and accessibility, expanding access and impact.</li>
+                                            <li>Drive strategic and inclusive growthâ€”promote diversity, equity, and accessibility, expanding access and impact.</li>
 
-                                            <li>Empower others—serve as mentors and advocates, cultivating future leaders.</li>
+                                            <li>Empower othersâ€”serve as mentors and advocates, cultivating future leaders.</li>
 
                                         </ul>
 
@@ -1730,17 +1707,17 @@ try {
 
                                             <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Internationalization Leadership Award</h4>
 
-                                            <span class="px-3 py-1 text-xs rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">Individual · Executives</span>
+                                            <span class="px-3 py-1 text-xs rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">Individual Â· Executives</span>
 
                                         </div>
 
                                         <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
 
-                                            <li>Strategic vision and integration—champion bold innovation driving comprehensive integration of international dimensions.</li>
+                                            <li>Strategic vision and integrationâ€”champion bold innovation driving comprehensive integration of international dimensions.</li>
 
-                                            <li>Ethical leadership and governance—exemplify integrity, ethical decision-making, and responsible fiscal management.</li>
+                                            <li>Ethical leadership and governanceâ€”exemplify integrity, ethical decision-making, and responsible fiscal management.</li>
 
-                                            <li>Sustained impact and development—foster culture of continuous improvement and lifelong learning.</li>
+                                            <li>Sustained impact and developmentâ€”foster culture of continuous improvement and lifelong learning.</li>
 
                                         </ul>
 
@@ -1752,19 +1729,19 @@ try {
 
                                             <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Best CHED Regional Office for Internationalization Award</h4>
 
-                                            <span class="px-3 py-1 text-xs rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">Special · CHED ROs</span>
+                                            <span class="px-3 py-1 text-xs rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">Special Â· CHED ROs</span>
 
                                         </div>
 
                                         <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
 
-                                            <li>Comprehensive internationalization efforts—overall strategy embedding international dimension across regional HEIs with focus on sustainability and inclusivity.</li>
+                                            <li>Comprehensive internationalization effortsâ€”overall strategy embedding international dimension across regional HEIs with focus on sustainability and inclusivity.</li>
 
-                                            <li>Cooperation and collaboration—partnership with CHED IAS, proactive execution of national programs, effective communication.</li>
+                                            <li>Cooperation and collaborationâ€”partnership with CHED IAS, proactive execution of national programs, effective communication.</li>
 
-                                            <li>Operational excellence and compliance—high standards of governance, timely submission of mandated reports.</li>
+                                            <li>Operational excellence and complianceâ€”high standards of governance, timely submission of mandated reports.</li>
 
-                                            <li>Measurable impact—demonstrated impact through rankings, enrollment data, exchange programs, or survey results.</li>
+                                            <li>Measurable impactâ€”demonstrated impact through rankings, enrollment data, exchange programs, or survey results.</li>
 
                                         </ul>
 
@@ -1776,17 +1753,17 @@ try {
 
                                             <h4 class="text-lg font-semibold text-text-light dark:text-text-dark">Most Promising Regional IRO Community Award</h4>
 
-                                            <span class="px-3 py-1 text-xs rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">Special · IRO Networks</span>
+                                            <span class="px-3 py-1 text-xs rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">Special Â· IRO Networks</span>
 
                                         </div>
 
                                         <ul class="text-sm text-text-muted-light dark:text-text-muted-dark space-y-1.5 list-disc list-inside">
 
-                                            <li>Vision and strategic plan—clear, compelling vision and organizational structure addressing specific regional needs.</li>
+                                            <li>Vision and strategic planâ€”clear, compelling vision and organizational structure addressing specific regional needs.</li>
 
-                                            <li>Early progress and collaboration—successfully implemented at least one high-impact collaborative activity.</li>
+                                            <li>Early progress and collaborationâ€”successfully implemented at least one high-impact collaborative activity.</li>
 
-                                            <li>Promising future and value—promising plan for initiative creating exceptional value for member HEIs.</li>
+                                            <li>Promising future and valueâ€”promising plan for initiative creating exceptional value for member HEIs.</li>
 
                                         </ul>
 
@@ -2425,7 +2402,7 @@ try {
 
                                                 <span class="material-symbols-outlined animate-spin text-base">progress_activity</span>
 
-                                                <span>Loading recent activity…</span>
+                                                <span>Loading recent activityâ€¦</span>
 
                                             </div>
 
@@ -2455,7 +2432,7 @@ try {
 
                                                     <div>
 
-                                                        <p class="font-medium text-gray-700 dark:text-gray-200">Analyzing submissions…</p>
+                                                        <p class="font-medium text-gray-700 dark:text-gray-200">Analyzing submissionsâ€¦</p>
 
                                                         <p class="text-xs text-gray-500 dark:text-gray-400">Please wait</p>
 
@@ -2665,7 +2642,7 @@ try {
 
                                                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
 
-                                                        💡 Leverage this strength to pursue the <strong>International Leadership Award</strong>.
+                                                        ðŸ’¡ Leverage this strength to pursue the <strong>International Leadership Award</strong>.
 
                                                     </p>
 
@@ -4400,7 +4377,7 @@ try {
 
                             reanalyzeData.instructions.forEach(instruction => {
 
-                                errorMessage += '\n• ' + instruction;
+                                errorMessage += '\nâ€¢ ' + instruction;
 
                             });
 
@@ -4794,7 +4771,7 @@ try {
 
                                                         <div class=\"flex items-start gap-2 text-sm\">
 
-                                                            <span class=\"mt-0.5\">${c.met ? '✅' : '⚪'}</span>
+                                                            <span class=\"mt-0.5\">${c.met ? 'âœ…' : 'âšª'}</span>
 
                                                             <span class=\"text-gray-800 dark:text-gray-200\">${c.text}</span>
 
@@ -5626,7 +5603,7 @@ try {
 
                         } else if (completed > 0) {
 
-                            statusText = `In progress — ${completed}/${total} done`;
+                            statusText = `In progress â€” ${completed}/${total} done`;
 
                             statusClasses = 'timeline-status text-xs font-semibold mt-1 text-amber-600 dark:text-amber-400';
 
@@ -5818,7 +5795,7 @@ try {
 
                 if (diff <= 0) {
 
-                    deadlineElement.textContent = 'Submission window closed — prepare assets for the next ICONS cycle.';
+                    deadlineElement.textContent = 'Submission window closed â€” prepare assets for the next ICONS cycle.';
 
                     deadlineElement.classList.add('text-red-600', 'dark:text-red-400');
 
@@ -7356,31 +7333,31 @@ try {
 
                         statusBadge = 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400';
 
-                        statusText = '✅ Recognized';
+                        statusText = 'âœ… Recognized';
 
                     } else if (sub.status === 'analyzed' && matchPct >= 90) {
 
                         statusBadge = 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400';
 
-                        statusText = '✅ Eligible';
+                        statusText = 'âœ… Eligible';
 
                     } else if (sub.status === 'analyzed' && matchPct >= 70) {
 
                         statusBadge = 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400';
 
-                        statusText = '🟡 Almost Eligible';
+                        statusText = 'ðŸŸ¡ Almost Eligible';
 
                     } else if (sub.status === 'analyzed') {
 
                         statusBadge = 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
 
-                        statusText = '❌ Not Eligible';
+                        statusText = 'âŒ Not Eligible';
 
                     } else {
 
                         statusBadge = 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400';
 
-                        statusText = '⏳ Pending';
+                        statusText = 'â³ Pending';
 
                     }
 
@@ -8256,7 +8233,7 @@ try {
 
                                             <span class="px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-sm font-medium">
 
-                                                ✓ ${c}
+                                                âœ“ ${c}
 
                                             </span>
 
@@ -8290,7 +8267,7 @@ try {
 
                                             <span class="px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg text-sm font-medium">
 
-                                                ✗ ${c}
+                                                âœ— ${c}
 
                                             </span>
 
@@ -8352,7 +8329,7 @@ try {
 
 
 
-                    showModal(`📄 ${award.title || 'Award Details'}`, content);
+                    showModal(`ðŸ“„ ${award.title || 'Award Details'}`, content);
 
 
 
@@ -8656,7 +8633,7 @@ try {
 
                                                     <span class="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-xs">
 
-                                                        ✓ ${c}
+                                                        âœ“ ${c}
 
                                                     </span>
 
@@ -8696,7 +8673,7 @@ try {
 
                                                     <span class="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-xs">
 
-                                                        ✗ ${c}
+                                                        âœ— ${c}
 
                                                     </span>
 
@@ -8790,7 +8767,7 @@ try {
 
 
 
-                    showModal(`👥 Applicants for ${category}`, content);
+                    showModal(`ðŸ‘¥ Applicants for ${category}`, content);
 
 
 
@@ -8944,7 +8921,7 @@ try {
 
         sustainability: 'Explain how outcomes are sustained long term and aligned with just, equitable, and environmentally responsible practices.',
 
-        citizenship: 'Describe how students are empowered as global citizens—equipped with mindset, skills, and experiences to act.',
+        citizenship: 'Describe how students are empowered as global citizensâ€”equipped with mindset, skills, and experiences to act.',
 
         global: 'Connect the submission to cross-border impact, intercultural understanding, and SDG commitments.',
 
@@ -10810,7 +10787,7 @@ try {
 
                                     data.instructions.forEach(instruction => {
 
-                                        errorMessage += '\n• ' + instruction;
+                                        errorMessage += '\nâ€¢ ' + instruction;
 
                                     });
 
@@ -10836,7 +10813,7 @@ try {
 
                                     data.suggestions.forEach(suggestion => {
 
-                                        errorMessage += '\n• ' + suggestion;
+                                        errorMessage += '\nâ€¢ ' + suggestion;
 
                                     });
 
@@ -11506,7 +11483,7 @@ try {
 
                 eligibilityStatus = 'Eligible';
 
-                statusMessage = `🎉 Excellent! Your document qualifies for the ${award.category_name || award.title}. You should apply for this award!`;
+                statusMessage = `ðŸŽ‰ Excellent! Your document qualifies for the ${award.category_name || award.title}. You should apply for this award!`;
 
             } else if (matchPct >= 70) {
 
@@ -11516,7 +11493,7 @@ try {
 
                 eligibilityStatus = 'Almost Eligible';
 
-                statusMessage = `👍 Good potential for the ${award.category_name || award.title}. With some refinements, you could be eligible for this award.`;
+                statusMessage = `ðŸ‘ Good potential for the ${award.category_name || award.title}. With some refinements, you could be eligible for this award.`;
 
             } else {
 
@@ -11586,7 +11563,7 @@ try {
 
                 statusIcon = 'check_circle';
 
-                statusMessage = `🎉 Excellent! Your document qualifies for the ${award.category_name || award.title}. You should apply for this award!`;
+                statusMessage = `ðŸŽ‰ Excellent! Your document qualifies for the ${award.category_name || award.title}. You should apply for this award!`;
 
             }
 
@@ -11652,7 +11629,7 @@ try {
 
                                                 title="Click to mark as unmatched">
 
-                                            ✅
+                                            âœ…
 
                                         </button>
 
@@ -11678,7 +11655,7 @@ try {
 
                                                 title="Click to mark as matched">
 
-                                            ⚪
+                                            âšª
 
                                         </button>
 
@@ -12028,7 +12005,7 @@ try {
 
                     btn.classList.add('text-green-600');
 
-                    btn.innerHTML = '✅';
+                    btn.innerHTML = 'âœ…';
 
                     btn.dataset.moveToMatched = 'false';
 
@@ -12056,7 +12033,7 @@ try {
 
                     btn.classList.add('text-gray-400');
 
-                    btn.innerHTML = '⚪';
+                    btn.innerHTML = 'âšª';
 
                     btn.dataset.moveToMatched = 'true';
 
@@ -12118,7 +12095,7 @@ try {
 
                         btn.classList.add('text-green-600');
 
-                        btn.innerHTML = '✅';
+                        btn.innerHTML = 'âœ…';
 
                         btn.dataset.moveToMatched = 'false';
 
@@ -12128,7 +12105,7 @@ try {
 
                         btn.classList.add('text-gray-400');
 
-                        btn.innerHTML = '⚪';
+                        btn.innerHTML = 'âšª';
 
                         btn.dataset.moveToMatched = 'true';
 
@@ -12278,7 +12255,7 @@ try {
 
                             statusIconColor = 'green';
 
-                            newStatusMessage = `🎉 Excellent! Your document qualifies for ${awardName}. You should apply for this award!`;
+                            newStatusMessage = `ðŸŽ‰ Excellent! Your document qualifies for ${awardName}. You should apply for this award!`;
 
                         } else if (newMatchPercentage >= 70) {
 
@@ -12290,7 +12267,7 @@ try {
 
                             statusIconColor = 'yellow';
 
-                            newStatusMessage = `👍 Good potential for ${awardName}. With some refinements, you could be eligible for this award.`;
+                            newStatusMessage = `ðŸ‘ Good potential for ${awardName}. With some refinements, you could be eligible for this award.`;
 
                         } else {
 
@@ -13430,7 +13407,7 @@ try {
 
                                             <span class="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-xs">
 
-                                                ✓ ${c}
+                                                âœ“ ${c}
 
                                             </span>
 
@@ -13456,7 +13433,7 @@ try {
 
                                             <span class="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-xs">
 
-                                                ✗ ${c}
+                                                âœ— ${c}
 
                                             </span>
 
@@ -13490,7 +13467,7 @@ try {
 
 
 
-                showModal(`🏆 ${awardName} - Detailed View`, content);
+                showModal(`ðŸ† ${awardName} - Detailed View`, content);
 
 
 
@@ -13708,7 +13685,7 @@ try {
 
 
 
-            showModal(`📋 ${awardName} - Details & Requirements`, content);
+            showModal(`ðŸ“‹ ${awardName} - Details & Requirements`, content);
 
         }
 
@@ -13982,7 +13959,7 @@ try {
 
             if (!data || !data.requirements) {
 
-                showModal('🏆 Total Awards Met', '<p class="text-gray-600">No awards data available.</p>');
+                showModal('ðŸ† Total Awards Met', '<p class="text-gray-600">No awards data available.</p>');
 
                 return;
 
@@ -14026,15 +14003,15 @@ try {
 
                     if (matchPct >= 90) {
 
-                        statusBadge = '<span class="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded text-xs font-medium">✅ Eligible</span>';
+                        statusBadge = '<span class="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded text-xs font-medium">âœ… Eligible</span>';
 
                     } else if (matchPct >= 70) {
 
-                        statusBadge = '<span class="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-200 rounded text-xs font-medium">🟡 Almost Eligible</span>';
+                        statusBadge = '<span class="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-200 rounded text-xs font-medium">ðŸŸ¡ Almost Eligible</span>';
 
                     } else {
 
-                        statusBadge = '<span class="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded text-xs font-medium">❌ Not Eligible</span>';
+                        statusBadge = '<span class="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded text-xs font-medium">âŒ Not Eligible</span>';
 
                     }
 
@@ -14116,7 +14093,7 @@ try {
 
             `;
 
-            showModal('🏆 Total Awards Met - Detailed View', content);
+            showModal('ðŸ† Total Awards Met - Detailed View', content);
 
         }
 
@@ -14224,7 +14201,7 @@ try {
 
         `;
 
-            showModal('📄 Documents Processed - Audit View', content);
+            showModal('ðŸ“„ Documents Processed - Audit View', content);
 
         }
 
@@ -14236,7 +14213,7 @@ try {
 
             if (!data || !data.requirements) {
 
-                showModal('✅ Awards Eligible For', '<p class="text-gray-600">No awards data available.</p>');
+                showModal('âœ… Awards Eligible For', '<p class="text-gray-600">No awards data available.</p>');
 
                 return;
 
@@ -14362,7 +14339,7 @@ try {
 
             `;
 
-            showModal('✅ Awards Eligible For - Detailed View', content);
+            showModal('âœ… Awards Eligible For - Detailed View', content);
 
         }
 
@@ -14444,7 +14421,7 @@ try {
 
         `;
 
-            showModal('🏫 Eligible Departments - Progress Tracking', content);
+            showModal('ðŸ« Eligible Departments - Progress Tracking', content);
 
         }
 
@@ -14564,7 +14541,7 @@ try {
 
         `;
 
-            showModal('📆 Active Cycle (2024-25) - Timeline & Progress', content);
+            showModal('ðŸ“† Active Cycle (2024-25) - Timeline & Progress', content);
 
         }
 
@@ -14658,7 +14635,7 @@ try {
 
         `;
 
-            showModal('👩‍🏫 Faculty Involved - Participation Details', content);
+            showModal('ðŸ‘©â€ðŸ« Faculty Involved - Participation Details', content);
 
         }
 
@@ -14670,7 +14647,7 @@ try {
 
             if (!data || !data.requirements) {
 
-                showModal('📄 OCR Data Analyzed', '<p class="text-gray-600">No awards data available.</p>');
+                showModal('ðŸ“„ OCR Data Analyzed', '<p class="text-gray-600">No awards data available.</p>');
 
                 return;
 
@@ -14716,7 +14693,7 @@ try {
 
                     const hasFile = req.file_name || req.file_path;
 
-                    const fileIcon = hasFile ? '📄' : '📝';
+                    const fileIcon = hasFile ? 'ðŸ“„' : 'ðŸ“';
 
                     const fileText = hasFile ? 'Document' : 'Text Only';
 
@@ -14728,15 +14705,15 @@ try {
 
                     if (matchPct >= 90) {
 
-                        statusBadge = '<span class="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded text-xs font-medium">✅ Eligible</span>';
+                        statusBadge = '<span class="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded text-xs font-medium">âœ… Eligible</span>';
 
                     } else if (matchPct >= 70) {
 
-                        statusBadge = '<span class="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-200 rounded text-xs font-medium">🟡 Almost</span>';
+                        statusBadge = '<span class="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-200 rounded text-xs font-medium">ðŸŸ¡ Almost</span>';
 
                     } else {
 
-                        statusBadge = '<span class="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded text-xs font-medium">❌ Not Eligible</span>';
+                        statusBadge = '<span class="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded text-xs font-medium">âŒ Not Eligible</span>';
 
                     }
 
@@ -14846,7 +14823,7 @@ try {
 
             `;
 
-            showModal('📄 OCR Data Analyzed - Detailed View', content);
+            showModal('ðŸ“„ OCR Data Analyzed - Detailed View', content);
 
         }
 
@@ -14874,7 +14851,7 @@ try {
 
                             <p class="text-sm text-gray-600 mb-2">Related Awards: Global Citizenship</p>
 
-                            <a href="#" class="text-blue-600 hover:underline text-sm">View Agreement →</a>
+                            <a href="#" class="text-blue-600 hover:underline text-sm">View Agreement â†’</a>
 
                         </div>
 
@@ -14888,7 +14865,7 @@ try {
 
                             <p class="text-sm text-gray-600 mb-2">Related Awards: Innovation Award</p>
 
-                            <a href="#" class="text-blue-600 hover:underline text-sm">View Agreement →</a>
+                            <a href="#" class="text-blue-600 hover:underline text-sm">View Agreement â†’</a>
 
                         </div>
 
@@ -14900,7 +14877,7 @@ try {
 
         `;
 
-            showModal('🤝 New Partnerships - Collaboration Overview', content);
+            showModal('ðŸ¤ New Partnerships - Collaboration Overview', content);
 
         }
 
@@ -14966,7 +14943,7 @@ try {
 
         `;
 
-            showModal('🚩 Pending Reviews - Action Items', content);
+            showModal('ðŸš© Pending Reviews - Action Items', content);
 
         }
 
@@ -15814,7 +15791,7 @@ try {
 
                                             <span class="material-symbols-outlined text-sm">description</span>
 
-                                            <span>${req.submission_title || 'No title'} • ${req.status_label || 'Unknown'}</span>
+                                            <span>${req.submission_title || 'No title'} â€¢ ${req.status_label || 'Unknown'}</span>
 
                                         </div>
 
@@ -16012,7 +15989,7 @@ try {
 
                             <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">${item.award_name || 'Award Opportunity'}</p>
 
-                            <p class="text-xs text-gray-500 dark:text-gray-400">${statusLabel} • Match score ${match}%</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">${statusLabel} â€¢ Match score ${match}%</p>
 
                             <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
 
@@ -16130,7 +16107,7 @@ try {
 
                         <p class="text-sm font-medium text-gray-900 dark:text-gray-100">${activity.title} - ${activity.status_label}</p>
 
-                        <p class="text-xs text-gray-500 dark:text-gray-400">${subtitleParts.join(' • ')}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">${subtitleParts.join(' â€¢ ')}</p>
 
                     </div>
 
@@ -16156,7 +16133,7 @@ try {
 
                     <span class="material-symbols-outlined animate-spin text-base">progress_activity</span>
 
-                    <span>Loading recent activity…</span>
+                    <span>Loading recent activityâ€¦</span>
 
                 </div>
 
@@ -16547,7 +16524,7 @@ try {
 
                 if (result.success) {
 
-                    alert('✓ Upload successful!');
+                    alert('âœ“ Upload successful!');
 
                     formElement.reset();
 
@@ -16557,7 +16534,7 @@ try {
 
                 } else {
 
-                    alert('✗ Error: ' + (result.error || 'Upload failed'));
+                    alert('âœ— Error: ' + (result.error || 'Upload failed'));
 
                     return false;
 
@@ -16565,7 +16542,7 @@ try {
 
             } catch (error) {
 
-                alert('✗ Error: ' + error.message);
+                alert('âœ— Error: ' + error.message);
 
                 return false;
 
@@ -17566,1019 +17543,7 @@ try {
 
 
     <!-- Notification System -->
-
-    <script>
-
-        // Notification System - Reusable for all pages
-
-        (function() {
-
-            const notificationBtn = document.getElementById('notificationBtn');
-
-            const notificationDropdown = document.getElementById('notificationDropdown');
-
-            const notificationBadge = document.getElementById('notificationBadge');
-
-            const notificationList = document.getElementById('notificationList');
-
-            const noNotifications = document.getElementById('noNotifications');
-
-            const markAllReadBtn = document.getElementById('markAllReadBtn');
-
-            const viewAllNotifications = document.getElementById('viewAllNotifications');
-
-            
-
-            if (!notificationBtn || !notificationDropdown) return; // Exit if elements don't exist
-
-            
-
-            let notifications = [];
-
-            
-
-            if (notificationList) {
-
-                notificationList.addEventListener('click', handleNotificationListClick);
-
-                notificationList.addEventListener('keydown', handleNotificationListKeydown);
-
-            }
-
-            
-
-            // Toggle dropdown
-
-            notificationBtn.addEventListener('click', (e) => {
-
-                e.stopPropagation();
-
-                notificationDropdown.classList.toggle('hidden');
-
-                if (!notificationDropdown.classList.contains('hidden')) {
-
-                    loadNotifications();
-
-                }
-
-            });
-
-            
-
-            // Close dropdown when clicking outside
-
-            document.addEventListener('click', (e) => {
-
-                if (!notificationBtn.contains(e.target) && !notificationDropdown.contains(e.target)) {
-
-                    notificationDropdown.classList.add('hidden');
-
-                }
-
-            });
-
-            
-
-            // Check for new notifications and create them
-
-            async function checkNotifications() {
-
-                try {
-
-                    const response = await fetch('api/notifications.php?action=check');
-
-                    const data = await response.json();
-
-                    if (data.success) {
-
-                        console.log('Notifications checked:', data);
-
-                    }
-
-                } catch (error) {
-
-                    console.error('Error checking notifications:', error);
-
-                }
-
-            }
-
-            
-
-            // Load notifications from API
-
-            async function loadNotifications() {
-
-                try {
-
-                    const response = await fetch('api/notifications.php');
-
-                    const data = await response.json();
-
-                    if (data.notifications) {
-
-                        notifications = data.notifications;
-
-                        updateNotificationDisplay();
-
-                        updateNotificationBadge();
-                        
-                        // Play sound for new MOU/MOA notifications
-                        if (window.checkAndPlayMouNotificationSound) {
-                            window.checkAndPlayMouNotificationSound(notifications);
-                        }
-
-                    }
-
-                } catch (error) {
-
-                    console.error('Error loading notifications:', error);
-
-                }
-
-            }
-
-            
-
-            // Get unread count
-
-            async function updateNotificationBadge() {
-
-                try {
-
-                    const response = await fetch('api/notifications.php?action=count');
-
-                    const data = await response.json();
-
-                    const count = data.count || 0;
-
-                    
-
-                    if (notificationBadge) {
-
-                        if (count > 0) {
-
-                            notificationBadge.textContent = count > 99 ? '99+' : count;
-
-                            notificationBadge.classList.remove('hidden');
-
-                        } else {
-
-                            notificationBadge.classList.add('hidden');
-
-                        }
-
-                    }
-
-                } catch (error) {
-
-                    console.error('Error updating notification badge:', error);
-
-                }
-
-            }
-
-            
-
-            // Update notification display
-
-            function updateNotificationDisplay() {
-
-                if (!notificationList) return;
-
-                
-
-                if (notifications.length === 0) {
-
-                    if (noNotifications) {
-
-                        noNotifications.classList.remove('hidden');
-
-                    }
-
-                    notificationList.innerHTML = '';
-
-                    return;
-
-                }
-
-                
-
-                if (noNotifications) {
-
-                    noNotifications.classList.add('hidden');
-
-                }
-
-                
-
-                notificationList.innerHTML = notifications.map(notif => {
-
-                    const timeAgo = getTimeAgo(notif.created_at);
-
-                    const icon = getNotificationIcon(notif.type);
-
-                    const bgColor = getNotificationBgColor(notif.type);
-
-                    const targetUrl = getNotificationUrl(notif);
-
-                    const urlAttribute = targetUrl ? ` data-url="${encodeURIComponent(targetUrl)}"` : '';
-
-                    const isMouNotification = notif.related_type === 'mou_moa';
-
-                    const isConfirmed = notif.is_confirmed || false;
-
-                    
-
-                    // Show status indicator for confirmed MOU notifications
-
-                    let statusIndicator = '';
-
-                    if (isMouNotification && isConfirmed && notif.mou_renewal_status === 'renewed') {
-
-                        statusIndicator = `
-
-                            <div class="mt-2">
-
-                                <p class="text-xs text-green-500 font-medium flex items-center gap-1">
-
-                                    <span class="material-symbols-outlined text-sm">check_circle</span>
-
-                                    Status: Renewed
-
-                                </p>
-
-                            </div>
-
-                        `;
-
-                    } else if (isMouNotification) {
-
-                        // Show click hint for unconfirmed MOU notifications
-
-                        statusIndicator = `
-
-                            <div class="mt-2">
-
-                                <p class="text-xs text-primary font-medium flex items-center gap-1">
-
-                                    <span class="material-symbols-outlined text-sm">touch_app</span>
-
-                                    Click to view details and confirm status
-
-                                </p>
-
-                            </div>
-
-                        `;
-
-                    }
-
-                    
-
-                    const actionHint = targetUrl && !isMouNotification ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
-
-                    const clickableClass = 'cursor-pointer';
-
-                    const mouClickHandler = isMouNotification ? `onclick="event.stopPropagation(); showMouNotificationModal(${notif.id})"` : '';
-
-                    
-
-                    return `
-
-                        <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${clickableClass} focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark ${notif.is_read ? 'opacity-60' : ''}" 
-
-                             ${!isMouNotification ? `role="button" tabindex="0" data-id="${notif.id}" data-notification-id="${notif.id}"${urlAttribute}` : ''}
-
-                             ${mouClickHandler}>
-
-                            <div class="flex items-start gap-3">
-
-                                <div class="flex-shrink-0 w-10 h-10 rounded-full ${bgColor} flex items-center justify-center">
-
-                                    <span class="material-symbols-outlined text-white text-lg">${icon}</span>
-
-                                </div>
-
-                                <div class="flex-1 min-w-0">
-
-                                    <p class="text-sm font-medium text-gray-900 dark:text-white">${escapeHtml(notif.title)}</p>
-
-                                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${escapeHtml(notif.message)}</p>
-
-                                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${timeAgo}</p>
-
-                                ${actionHint}
-
-                                ${statusIndicator}
-
-                                </div>
-
-                                ${!notif.is_read ? '<div class="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>' : ''}
-
-                            </div>
-
-                        </div>
-
-                    `;
-
-                }).join('');
-
-            }
-
-            
-
-            function handleNotificationListClick(event) {
-
-                // Don't handle clicks on confirmation buttons
-
-                if (event.target.closest('button') || event.target.closest('[onclick*="confirmMouRenewal"]')) {
-
-                    return;
-
-                }
-
-                
-
-                const target = event.target.closest('[data-notification-id]');
-
-                if (!target) return;
-
-                event.preventDefault();
-
-                handleNotificationSelection(target);
-
-            }
-
-            
-
-            function handleNotificationListKeydown(event) {
-
-                if (event.key !== 'Enter' && event.key !== ' ') return;
-
-                const target = event.target.closest('[data-notification-id]');
-
-                if (!target) return;
-
-                event.preventDefault();
-
-                handleNotificationSelection(target);
-
-            }
-
-            
-
-            async function handleNotificationSelection(element) {
-
-                const notificationId = Number(element.dataset.notificationId);
-
-                if (!notificationId) return;
-
-                
-
-                await markNotificationAsRead(notificationId);
-
-                
-
-                const targetUrl = decodeUrlAttribute(element.dataset.url);
-
-                if (targetUrl) {
-
-                    if (notificationDropdown) {
-
-                        notificationDropdown.classList.add('hidden');
-
-                    }
-
-                    window.location.href = targetUrl;
-
-                }
-
-            }
-
-            
-
-            // Mark notification as read
-
-            window.markNotificationAsRead = async function(id) {
-
-                try {
-
-                    const response = await fetch(`api/notifications.php?id=${id}`, {
-
-                        method: 'PUT'
-
-                    });
-
-                    const data = await response.json();
-
-                    if (data.success) {
-
-                        const notif = notifications.find(n => n.id === id);
-
-                        if (notif) {
-
-                            notif.is_read = true;
-
-                            updateNotificationDisplay();
-
-                            updateNotificationBadge();
-
-                        }
-
-                        return true;
-
-                    }
-
-                    return false;
-
-                } catch (error) {
-
-                    console.error('Error marking notification as read:', error);
-
-                    return false;
-
-                }
-
-            };
-
-            
-
-            // Mark all as read
-
-            if (markAllReadBtn) {
-
-                markAllReadBtn.addEventListener('click', async () => {
-
-                    try {
-
-                        const response = await fetch('api/notifications.php', {
-
-                            method: 'PUT',
-
-                            headers: {
-
-                                'Content-Type': 'application/json'
-
-                            },
-
-                            body: JSON.stringify({ action: 'mark_all_read' })
-
-                        });
-
-                        const data = await response.json();
-
-                        if (data.success) {
-
-                            notifications.forEach(n => n.is_read = true);
-
-                            updateNotificationDisplay();
-
-                            updateNotificationBadge();
-
-                        }
-
-                    } catch (error) {
-
-                        console.error('Error marking all as read:', error);
-
-                    }
-
-                });
-
-            }
-
-            
-
-            // Helper functions
-
-            function escapeHtml(text) {
-
-                const div = document.createElement('div');
-
-                div.textContent = text;
-
-                return div.innerHTML;
-
-            }
-
-            
-
-            function getTimeAgo(dateString) {
-
-                const date = new Date(dateString);
-
-                const now = new Date();
-
-                const diffInSeconds = Math.floor((now - date) / 1000);
-
-                
-
-                if (diffInSeconds < 60) return 'Just now';
-
-                if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-
-                if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-
-                if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-
-                return date.toLocaleDateString();
-
-            }
-
-            
-
-            function getNotificationIcon(type) {
-
-                const icons = {
-
-                    'mou_expiring': 'schedule',
-
-                    'mou_expired': 'warning',
-
-                    'event_upcoming': 'event',
-
-                    'event_today': 'today',
-
-                    'system': 'info'
-
-                };
-
-                return icons[type] || 'notifications';
-
-            }
-
-            
-
-            function getNotificationBgColor(type) {
-
-                const colors = {
-
-                    'mou_expiring': 'bg-yellow-500',
-
-                    'mou_expired': 'bg-red-500',
-
-                    'event_upcoming': 'bg-blue-500',
-
-                    'event_today': 'bg-green-500',
-
-                    'system': 'bg-gray-500'
-
-                };
-
-                return colors[type] || 'bg-gray-500';
-
-            }
-
-            
-
-            function getNotificationUrl(notif) {
-
-                if (!notif || !notif.related_type || !notif.related_id) {
-
-                    return '';
-
-                }
-
-                
-
-                const encodedId = encodeURIComponent(notif.related_id);
-
-                
-
-                if (notif.related_type === 'mou_moa') {
-
-                    return `mou-moa.php?entry=${encodedId}`;
-
-                }
-                
-                if (notif.related_type === 'schedule') {
-                    return `scheduler.php`;
-                }
-
-                
-
-                if (notif.related_type === 'event') {
-
-                    return `events-activities.php?event=${encodedId}`;
-
-                }
-
-                
-
-                return '';
-
-            }
-
-            
-
-            function decodeUrlAttribute(value) {
-
-                if (!value) return '';
-
-                try {
-
-                    return decodeURIComponent(value);
-
-                } catch (error) {
-
-                    console.warn('Unable to decode notification URL attribute:', error);
-
-                    return value;
-
-                }
-
-            }
-
-            
-
-            // Show MOU notification modal
-
-            window.showMouNotificationModal = function(notificationId) {
-
-                const notif = notifications.find(n => n.id === notificationId);
-
-                if (!notif || notif.related_type !== 'mou_moa') return;
-
-                
-
-                const modal = document.getElementById('mouNotificationModal');
-
-                const modalContent = document.getElementById('mouModalContent');
-
-                if (!modal || !modalContent) return;
-
-                
-
-                // Determine criticality
-
-                const isExpired = notif.mou_is_expired || false;
-
-                const daysUntilExpiry = notif.mou_days_until_expiry || 0;
-
-                const isExpiringSoon = !isExpired && daysUntilExpiry <= 30;
-
-                
-
-                let criticalityLevel = 'Low';
-
-                let criticalityColor = 'text-blue-500';
-
-                let criticalityBg = 'bg-blue-50 dark:bg-blue-900/20';
-
-                let criticalityIcon = 'info';
-
-                
-
-                if (isExpired) {
-
-                    criticalityLevel = 'Critical';
-
-                    criticalityColor = 'text-red-500';
-
-                    criticalityBg = 'bg-red-50 dark:bg-red-900/20';
-
-                    criticalityIcon = 'error';
-
-                } else if (isExpiringSoon) {
-
-                    criticalityLevel = 'High';
-
-                    criticalityColor = 'text-yellow-500';
-
-                    criticalityBg = 'bg-yellow-50 dark:bg-yellow-900/20';
-
-                    criticalityIcon = 'warning';
-
-                }
-
-                
-
-                const mouTitle = notif.mou_institution || notif.mou_partner || 'Unknown';
-
-                const endDate = notif.mou_end_date ? new Date(notif.mou_end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Not specified';
-
-                const statusText = notif.mou_status || 'Unknown';
-
-                
-
-                modalContent.innerHTML = `
-
-                    <div class="space-y-4">
-
-                        <div class="${criticalityBg} p-4 rounded-lg border border-current ${criticalityColor}">
-
-                            <div class="flex items-center gap-2">
-
-                                <span class="material-symbols-outlined">${criticalityIcon}</span>
-
-                                <p class="font-semibold">Priority Level: ${criticalityLevel}</p>
-
-                            </div>
-
-                            ${isExpired ? 
-
-                                `<p class="text-sm mt-2">This MOU/MOA has expired and requires immediate attention.</p>` :
-
-                                isExpiringSoon ?
-
-                                `<p class="text-sm mt-2">This MOU/MOA will expire in ${daysUntilExpiry} day(s). Please take action soon.</p>` :
-
-                                `<p class="text-sm mt-2">This MOU/MOA is still active but should be monitored.</p>`
-
-                            }
-
-                        </div>
-
-                        
-
-                        <div class="space-y-2">
-
-                            <div>
-
-                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Institution/Partner</p>
-
-                                <p class="text-base text-gray-900 dark:text-white">${escapeHtml(mouTitle)}</p>
-
-                            </div>
-
-                            <div>
-
-                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">End Date</p>
-
-                                <p class="text-base text-gray-900 dark:text-white">${endDate}</p>
-
-                            </div>
-
-                            <div>
-
-                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</p>
-
-                                <p class="text-base text-gray-900 dark:text-white">${escapeHtml(statusText)}</p>
-
-                            </div>
-
-                            ${isExpired ? 
-
-                                `<div>
-
-                                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Days Since Expiration</p>
-
-                                    <p class="text-base text-red-600 dark:text-red-400 font-semibold">${Math.abs(daysUntilExpiry)} day(s)</p>
-
-                                </div>` :
-
-                                `<div>
-
-                                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Days Until Expiration</p>
-
-                                    <p class="text-base ${isExpiringSoon ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-900 dark:text-white'} font-semibold">${daysUntilExpiry} day(s)</p>
-
-                                </div>`
-
-                            }
-
-                        </div>
-
-                        
-
-                        <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
-
-                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Please confirm the renewal status:</p>
-
-                            <div class="flex gap-2">
-
-                                <button onclick="confirmMouRenewal(${notif.id}, 'renewed'); closeMouModal();" 
-
-                                        class="flex-1 px-4 py-2 text-sm font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center justify-center gap-2">
-
-                                    <span class="material-symbols-outlined text-sm">check_circle</span>
-
-                                    Mark as Renewed
-
-                                </button>
-
-                                <button onclick="confirmMouRenewal(${notif.id}, 'not_renewed'); closeMouModal();" 
-
-                                        class="flex-1 px-4 py-2 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center justify-center gap-2">
-
-                                    <span class="material-symbols-outlined text-sm">cancel</span>
-
-                                    Not Renewed
-
-                                </button>
-
-                            </div>
-
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Note: If marked as "Not Renewed", you will continue to receive notifications until it is renewed.</p>
-
-                        </div>
-
-                    </div>
-
-                `;
-
-                
-
-                modal.classList.remove('hidden');
-
-            };
-
-            
-
-            // Close MOU modal
-
-            window.closeMouModal = function() {
-
-                const modal = document.getElementById('mouNotificationModal');
-
-                if (modal) {
-
-                    modal.classList.add('hidden');
-
-                }
-
-            };
-
-            
-
-            // Setup modal close handlers
-
-            document.addEventListener('DOMContentLoaded', () => {
-
-                const closeBtn = document.getElementById('closeMouModal');
-
-                const modal = document.getElementById('mouNotificationModal');
-
-                
-
-                if (closeBtn) {
-
-                    closeBtn.addEventListener('click', closeMouModal);
-
-                }
-
-                
-
-                if (modal) {
-
-                    modal.addEventListener('click', (e) => {
-
-                        if (e.target === modal) {
-
-                            closeMouModal();
-
-                        }
-
-                    });
-
-                }
-
-                
-
-                // Close on Escape key
-
-                document.addEventListener('keydown', (e) => {
-
-                    if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
-
-                        closeMouModal();
-
-                    }
-
-                });
-
-            });
-
-            
-
-            // Confirm MOU renewal status
-
-            window.confirmMouRenewal = async function(notificationId, renewalStatus) {
-
-                try {
-
-                    const response = await fetch('api/notifications.php', {
-
-                        method: 'POST',
-
-                        headers: {
-
-                            'Content-Type': 'application/json'
-
-                        },
-
-                        body: JSON.stringify({
-
-                            action: 'confirm_mou_renewal',
-
-                            notification_id: notificationId,
-
-                            renewal_status: renewalStatus
-
-                        })
-
-                    });
-
-                    
-
-                    const data = await response.json();
-
-                    if (data.success) {
-
-                        // Reload notifications to reflect the confirmation
-
-                        await loadNotifications();
-
-                        await updateNotificationBadge();
-
-                        
-
-                        if (renewalStatus === 'renewed') {
-
-                            if (typeof showToast === 'function') {
-
-                                showToast('MOU/MOA marked as renewed. Notification will be removed.', 'success');
-
-                            } else {
-
-                                alert('MOU/MOA marked as renewed. Notification will be removed.');
-
-                            }
-
-                        } else {
-
-                            if (typeof showToast === 'function') {
-
-                                showToast('MOU/MOA marked as not renewed. You will continue to receive notifications.', 'info');
-
-                            } else {
-
-                                alert('MOU/MOA marked as not renewed. You will continue to receive notifications.');
-
-                            }
-
-                        }
-
-                    } else {
-
-                        console.error('Failed to confirm MOU renewal:', data.error);
-
-                        alert('Failed to confirm MOU renewal status. Please try again.');
-
-                    }
-
-                } catch (error) {
-
-                    console.error('Error confirming MOU renewal:', error);
-
-                    alert('An error occurred while confirming MOU renewal status. Please try again.');
-
-                }
-
-            };
-
-            
-
-            async function refreshNotificationIndicators() {
-
-                try {
-
-                    await checkNotifications();
-
-                    await updateNotificationBadge();
-
-                } catch (error) {
-
-                    console.error('Error refreshing notification indicators:', error);
-
-                }
-
-            }
-
-            
-
-            // Initialize: Check for notifications and load them
-
-            document.addEventListener('DOMContentLoaded', () => {
-
-                refreshNotificationIndicators();
-
-                
-
-                // Refresh notifications every 5 minutes
-
-                setInterval(() => {
-
-                    refreshNotificationIndicators();
-
-                }, 5 * 60 * 1000);
-
-            });
-
-        })();
-
-    </script>
+    <script src="js/user-awards-notifications.js"></script>
 
 </body>
 

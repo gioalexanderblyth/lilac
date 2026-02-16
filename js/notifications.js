@@ -197,6 +197,27 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Check if notifications are enabled for the user
+async function areNotificationsEnabled() {
+    try {
+        const response = await fetch('api/user-preferences.php?key=notifications_enabled');
+        const data = await response.json();
+        
+        if (data.success && data.value !== null) {
+            return data.value === '1' || data.value === 'true';
+        }
+        // Default to enabled if no preference is set
+        return true;
+    } catch (error) {
+        console.error('Error checking notifications preference:', error);
+        // Default to enabled on error
+        return true;
+    }
+}
+
+// Make it available globally
+window.areNotificationsEnabled = areNotificationsEnabled;
+
 // Replace global alert, confirm, and prompt functions
 window.originalAlert = window.alert;
 window.originalConfirm = window.confirm;
@@ -220,3 +241,59 @@ window.prompt = function(message, defaultValue) {
     return showPrompt(message, 'Input', defaultValue || '');
 };
 
+/**
+ * Open the MOU/MOA renewal flow from a notification.
+ * Intended for the Notifications dropdown "Renewed" button:
+ * - Opens the MOU/MOA Details modal
+ * - Opens the Renew modal so the user can update sign date / term / end date
+ * - Actual "renewed" confirmation happens after the renew save succeeds (on mou-moa.php)
+ */
+window.openMouRenewalFlow = async function(notificationId, entryId) {
+    if (!entryId) {
+        showToast('Error: missing MOU/MOA entry id for renewal.', 'error');
+        return;
+    }
+    
+    // Persist intent across navigation
+    try {
+        sessionStorage.setItem('mouRenewal:entryId', String(entryId));
+        if (notificationId != null) {
+            sessionStorage.setItem('mouRenewal:notificationId', String(notificationId));
+        } else {
+            sessionStorage.removeItem('mouRenewal:notificationId');
+        }
+        sessionStorage.setItem('mouRenewal:open', '1');
+    } catch (_) {
+        // ignore storage failures
+    }
+    
+    const onMouMoaPage = /(^|\/)mou-moa\.php$/i.test(window.location.pathname);
+    const canOpenInline = onMouMoaPage &&
+        typeof window.showMouDetails === 'function' &&
+        typeof window.openRenewModal === 'function';
+    
+    if (canOpenInline) {
+        try {
+            const response = await fetch(`api/mou-moa.php?action=get&id=${encodeURIComponent(entryId)}`);
+            const result = await response.json();
+            if (result && result.success && result.data) {
+                window.showMouDetails(result.data);
+                const detailsModal = document.getElementById('mouDetailsModal');
+                if (detailsModal) {
+                    detailsModal.classList.remove('hidden');
+                    detailsModal.style.display = 'flex';
+                }
+                // Open the renew modal (editable sign date / term / end date)
+                window.openRenewModal(result.data);
+                return;
+            }
+        } catch (e) {
+            // Fallback to navigation below
+            console.warn('Inline renewal open failed, falling back to navigation:', e);
+        }
+    }
+    
+    // Fallback: navigate to the MOU/MOA page and let it auto-open the modals
+    const notifParam = notificationId != null ? `&notif=${encodeURIComponent(notificationId)}` : '';
+    window.location.href = `mou-moa.php?entry=${encodeURIComponent(entryId)}&renew=1${notifParam}`;
+};

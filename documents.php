@@ -53,7 +53,6 @@ try {
             // Update session if role changed
             if (isset($_SESSION['user']['role']) && $_SESSION['user']['role'] !== $dbUser['role']) {
                 $_SESSION['user']['role'] = $dbUser['role'];
-                $_SESSION['role'] = $dbUser['role'];
             }
         }
     } else {
@@ -213,6 +212,7 @@ try {
 <link rel="stylesheet" href="css/award-analyzer.css">
 <script src="js/notifications.js"></script>
 <script src="js/notification-sound.js"></script>
+<script src="js/notification-bar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -568,16 +568,27 @@ try {
 </button>
 
 <!-- Notification dropdown -->
-<div id="notificationDropdown" class="hidden absolute right-0 top-full mt-2 w-80 bg-white dark:bg-card-dark rounded-lg shadow-xl border border-border-light dark:border-border-dark z-[9999] max-h-96 overflow-y-auto">
-<div class="p-4 border-b border-border-light dark:border-border-dark flex items-center justify-between">
-<h3 class="font-semibold text-text-light dark:text-text-dark">Notifications</h3>
-<button id="clearAllNotifications" class="text-sm text-primary hover:text-primary/80 transition-colors">Clear All</button>
+<div id="notificationDropdown" class="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-background-dark rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[9999] hidden flex flex-col max-h-96">
+<div class="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+<div class="flex items-center justify-between">
+<h3 class="text-lg font-semibold text-gray-900 dark:text-white">Notifications</h3>
+<a href="#" id="markAllReadBtn" class="text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">Mark all read</a>
 </div>
-<div id="notificationList" class="divide-y divide-border-light dark:divide-border-dark">
+</div>
+
+<!-- Scrollable list area -->
+<div id="notificationList" class="flex-1 min-h-0 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700">
 <!-- Notifications will be populated here -->
 </div>
-<div id="noNotifications" class="p-4 text-center text-text-muted-light dark:text-text-muted-dark text-sm">
-No notifications yet
+<div id="noNotifications" class="p-6 text-center text-gray-500 dark:text-gray-400 flex-shrink-0">
+<span class="material-symbols-outlined text-4xl mb-2 block">notifications_off</span>
+<p>No notifications</p>
+</div>
+
+<div class="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+<button type="button" id="viewAllNotifications" class="w-full text-center text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">
+View all notifications
+</button>
 </div>
 </div>
 </div>
@@ -3495,7 +3506,7 @@ No notifications yet
         const notificationBadge = document.getElementById('notificationBadge');
         const notificationList = document.getElementById('notificationList');
         const noNotifications = document.getElementById('noNotifications');
-        const markAllReadBtn = document.getElementById('markAllReadBtn') || document.getElementById('clearAllNotifications');
+        const markAllReadBtn = document.getElementById('markAllReadBtn');
         
         if (!notificationBtn || !notificationDropdown) return; // Exit if elements don't exist
         
@@ -3541,12 +3552,25 @@ No notifications yet
                 const response = await fetch('api/notifications.php');
                 const data = await response.json();
                 if (data.notifications) {
+                    const previousNotifications = notifications || [];
                     notifications = data.notifications;
                     updateNotificationDisplay();
                     updateNotificationBadge();
+                    
+                    // Process notifications for bars and sounds
+                    if (window.processNotificationsForBars) {
+                        window.processNotificationsForBars(notifications, previousNotifications);
+                    }
+                    
                     // Play sound for new MOU/MOA notifications
-                    if (window.checkAndPlayMouNotificationSound) {
-                        window.checkAndPlayMouNotificationSound(notifications);
+                    const newNotifications = previousNotifications.length > 0 
+                        ? notifications.filter(n => !previousNotifications.some(p => p.id === n.id))
+                        : notifications;
+                    
+                    if (window.NotificationSound && window.NotificationSound.checkAndPlay) {
+                        window.NotificationSound.checkAndPlay(newNotifications);
+                    } else if (window.checkAndPlayMouNotificationSound) {
+                        window.checkAndPlayMouNotificationSound(newNotifications);
                     }
                 }
             } catch (error) {
@@ -3557,17 +3581,34 @@ No notifications yet
         // Get unread count
         async function updateNotificationBadge() {
             try {
+                // Get badge element dynamically to avoid scope issues
+                const badge = document.getElementById('notificationBadge');
+                
+                const enabled = window.areNotificationsEnabled ? await window.areNotificationsEnabled() : true;
+                if (!enabled) {
+                    if (badge) {
+                        badge.classList.add('hidden');
+                    }
+                    return;
+                }
+
                 const response = await fetch('api/notifications.php?action=count');
+                if (!response.ok) {
+                    console.error('Failed to get notification count:', response.status, response.statusText);
+                    return;
+                }
                 const data = await response.json();
                 const count = data.count || 0;
                 
-                if (notificationBadge) {
+                if (badge) {
                     if (count > 0) {
-                        notificationBadge.textContent = count > 99 ? '99+' : count;
-                        notificationBadge.classList.remove('hidden');
+                        badge.textContent = count > 99 ? '99+' : count;
+                        badge.classList.remove('hidden');
                     } else {
-                        notificationBadge.classList.add('hidden');
+                        badge.classList.add('hidden');
                     }
+                } else {
+                    console.warn('Notification badge element not found');
                 }
             } catch (error) {
                 console.error('Error updating notification badge:', error);
@@ -3596,10 +3637,43 @@ No notifications yet
                 const bgColor = getNotificationBgColor(notif.type);
                 const targetUrl = getNotificationUrl(notif);
                 const urlAttribute = targetUrl ? ` data-url="${encodeURIComponent(targetUrl)}"` : '';
-                const actionHint = targetUrl ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
+                const isMouNotification = notif.related_type === 'mou_moa';
+                const isConfirmed = notif.is_confirmed || false;
+                
+                // Show confirmation buttons for MOU notifications that haven't been confirmed
+                let confirmationButtons = '';
+                if (isMouNotification && !isConfirmed) {
+                    confirmationButtons = `
+                        <div class="mt-3 flex gap-2">
+                            <button onclick="event.stopPropagation(); if(typeof confirmMouRenewal === 'function') confirmMouRenewal(${notif.id}, 'renewed', ${notif.related_id})" 
+                                    class="px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">check_circle</span>
+                                Renewed
+                            </button>
+                            <button onclick="event.stopPropagation(); if(typeof confirmMouRenewal === 'function') confirmMouRenewal(${notif.id}, 'not_renewed', ${notif.related_id})" 
+                                    class="px-3 py-1.5 text-xs font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">cancel</span>
+                                Not Renewed
+                            </button>
+                        </div>
+                    `;
+                } else if (isMouNotification && isConfirmed) {
+                    const statusText = notif.mou_renewal_status === 'renewed' ? 'Renewed' : 'Not Renewed';
+                    const statusColor = notif.mou_renewal_status === 'renewed' ? 'text-green-500' : 'text-red-500';
+                    confirmationButtons = `
+                        <div class="mt-2">
+                            <p class="text-xs ${statusColor} font-medium flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">${notif.mou_renewal_status === 'renewed' ? 'check_circle' : 'cancel'}</span>
+                                Status: ${statusText}
+                            </p>
+                        </div>
+                    `;
+                }
+                
+                const actionHint = targetUrl && !isMouNotification ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
                 
                 return `
-                    <div class="p-4 border-b border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark ${notif.is_read ? 'opacity-60' : ''}" 
+                    <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark ${notif.is_read ? 'opacity-60' : ''}" 
                          role="button"
                          tabindex="0"
                          data-id="${notif.id}"
@@ -3609,10 +3683,11 @@ No notifications yet
                                 <span class="material-symbols-outlined text-white text-lg">${icon}</span>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium text-text-light dark:text-text-dark">${escapeHtml(notif.title)}</p>
-                                <p class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1">${escapeHtml(notif.message)}</p>
+                                <p class="text-sm font-medium text-gray-900 dark:text-white">${escapeHtml(notif.title)}</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${escapeHtml(notif.message)}</p>
                                 <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${timeAgo}</p>
                                 ${actionHint}
+                                ${confirmationButtons}
                             </div>
                             ${!notif.is_read ? '<div class="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>' : ''}
                         </div>
@@ -3695,6 +3770,277 @@ No notifications yet
                     console.error('Error marking all as read:', error);
                 }
             });
+        }
+        
+        // View all notifications button
+        const viewAllNotifications = document.getElementById('viewAllNotifications');
+        if (viewAllNotifications) {
+            viewAllNotifications.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                showAllNotificationsModal();
+            });
+        }
+        
+        // Create all notifications modal if it doesn't exist
+        function createAllNotificationsModal() {
+            if (document.getElementById('allNotificationsModal')) {
+                return; // Modal already exists
+            }
+            
+            const modalHTML = `
+                <div id="allNotificationsModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 dark:bg-black/70 backdrop-blur-sm hidden">
+                    <div class="w-full max-w-4xl bg-card-light dark:bg-card-dark rounded-xl shadow-2xl m-4 flex flex-col max-h-[90vh] border border-border-light dark:border-border-dark">
+                        <!-- Modal Header -->
+                        <div class="p-6 border-b border-border-light dark:border-border-dark flex-shrink-0">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-xl font-semibold text-text-light dark:text-text-dark">All Notifications</h3>
+                                    <p class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1">Manage your MOU/MOA notifications</p>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <button id="markAllReadModalBtn" class="px-4 py-2 text-sm font-medium text-primary bg-primary/10 dark:bg-primary/20 rounded-lg hover:bg-primary/20 dark:hover:bg-primary/30">
+                                        Mark All Read
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Filter Tabs -->
+                        <div class="px-6 py-4 border-b border-border-light dark:border-border-dark flex-shrink-0">
+                            <div class="flex space-x-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                                <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm" data-filter="all">
+                                    All
+                                </button>
+                                <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400" data-filter="critical">
+                                    Critical
+                                </button>
+                                <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400" data-filter="unread">
+                                    Unread
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Notifications List -->
+                        <div id="allNotificationsList" class="flex-1 overflow-y-auto p-6">
+                            <div class="text-center py-12">
+                                <span class="material-symbols-outlined text-6xl text-text-muted-light dark:text-text-muted-dark mb-4 block">notifications_off</span>
+                                <p class="text-text-muted-light dark:text-text-muted-dark text-lg">Loading notifications...</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Modal Footer -->
+                        <div class="p-6 border-t border-border-light dark:border-border-dark flex-shrink-0">
+                            <div class="flex items-center justify-between">
+                                <div class="text-sm text-text-muted-light dark:text-text-muted-dark">
+                                    <span id="notificationsCount">0</span> notifications
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <button id="clearOldNotifications" class="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
+                                        Clear All
+                                    </button>
+                                    <button id="closeAllNotificationsModalBtn2" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            setupAllNotificationsModalEvents();
+        }
+        
+        function showAllNotificationsModal() {
+            createAllNotificationsModal();
+            const modal = document.getElementById('allNotificationsModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                loadAllNotificationsIntoModal();
+            }
+        }
+        
+        function closeAllNotificationsModal() {
+            const modal = document.getElementById('allNotificationsModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+        
+        async function loadAllNotificationsIntoModal() {
+            const modalList = document.getElementById('allNotificationsList');
+            const countElement = document.getElementById('notificationsCount');
+            
+            if (!modalList) return;
+            
+            try {
+                const response = await fetch('api/notifications.php');
+                const data = await response.json();
+                
+                if (data.notifications && Array.isArray(data.notifications)) {
+                    let allNotifications = data.notifications;
+                    
+                    allNotifications.sort((a, b) => {
+                        const dateA = new Date(a.created_at);
+                        const dateB = new Date(b.created_at);
+                        return dateB - dateA;
+                    });
+                    
+                    if (countElement) {
+                        countElement.textContent = allNotifications.length;
+                    }
+                    
+                    if (allNotifications.length === 0) {
+                        modalList.innerHTML = `
+                            <div class="text-center py-12">
+                                <span class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-600 mb-4 block">notifications_off</span>
+                                <p class="text-gray-500 dark:text-gray-400 text-lg">No notifications</p>
+                            </div>
+                        `;
+                    } else {
+                        modalList.innerHTML = allNotifications.map(notif => {
+                            const timeAgo = getTimeAgo(notif.created_at);
+                            const icon = getNotificationIcon(notif.type);
+                            const bgColor = getNotificationBgColor(notif.type);
+                            const targetUrl = getNotificationUrl(notif);
+                            const urlAttribute = targetUrl ? ` data-url="${encodeURIComponent(targetUrl)}"` : '';
+                            const actionHint = targetUrl ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
+                            
+                            return `
+                                <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors ${notif.is_read ? 'opacity-60' : ''}" 
+                                     data-notification-id="${notif.id}"${urlAttribute}>
+                                    <div class="flex items-start gap-3">
+                                        <div class="flex-shrink-0 w-10 h-10 rounded-full ${bgColor} flex items-center justify-center">
+                                            <span class="material-symbols-outlined text-white text-lg">${icon}</span>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-medium text-gray-900 dark:text-white">${escapeHtml(notif.title)}</p>
+                                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${escapeHtml(notif.message)}</p>
+                                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${timeAgo}</p>
+                                            ${actionHint}
+                                        </div>
+                                        ${!notif.is_read ? '<div class="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>' : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                        
+                        modalList.querySelectorAll('[data-notification-id]').forEach(item => {
+                            item.addEventListener('click', async function(e) {
+                                if (e.target.closest('button')) return;
+                                
+                                const notificationId = item.getAttribute('data-notification-id');
+                                const url = item.getAttribute('data-url');
+                                
+                                try {
+                                    await fetch(`api/notifications.php?id=${notificationId}`, {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ action: 'mark_read' })
+                                    });
+                                    
+                                    if (typeof updateNotificationBadge === 'function') {
+                                        await updateNotificationBadge();
+                                    }
+                                    
+                                    if (url) {
+                                        closeAllNotificationsModal();
+                                        window.location.href = decodeURIComponent(url);
+                                    } else {
+                                        await loadAllNotificationsIntoModal();
+                                    }
+                                } catch (error) {
+                                    console.error('Error handling notification click:', error);
+                                }
+                            });
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading notifications into modal:', error);
+                modalList.innerHTML = `
+                    <div class="text-center py-12">
+                        <p class="text-red-500">Error loading notifications. Please try again.</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function setupAllNotificationsModalEvents() {
+            const modal = document.getElementById('allNotificationsModal');
+            if (!modal) return;
+            
+            const closeBtn2 = document.getElementById('closeAllNotificationsModalBtn2');
+            const markAllReadBtn = document.getElementById('markAllReadModalBtn');
+            const clearOldBtn = document.getElementById('clearOldNotifications');
+            
+            if (closeBtn2) {
+                closeBtn2.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeAllNotificationsModal();
+                });
+            }
+            
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeAllNotificationsModal();
+                }
+            });
+            
+            const escapeHandler = function(e) {
+                if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+                    closeAllNotificationsModal();
+                }
+            };
+            document.addEventListener('keydown', escapeHandler);
+            
+            if (markAllReadBtn) {
+                markAllReadBtn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    try {
+                        const response = await fetch('api/notifications.php', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'mark_all_read' })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            await loadAllNotificationsIntoModal();
+                            if (typeof updateNotificationBadge === 'function') {
+                                await updateNotificationBadge();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error marking all as read:', error);
+                    }
+                });
+            }
+            
+            if (clearOldBtn) {
+                clearOldBtn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    try {
+                        const response = await fetch('api/notifications.php', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'mark_all_read' })
+                        });
+                        if (response.ok) {
+                            await loadAllNotificationsIntoModal();
+                            if (typeof updateNotificationBadge === 'function') {
+                                await updateNotificationBadge();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error clearing notifications:', error);
+                    }
+                });
+            }
         }
         
         // Helper functions
@@ -3781,12 +4127,20 @@ No notifications yet
         
         // Initialize: Check for notifications and load them
         document.addEventListener('DOMContentLoaded', () => {
+            // Update badge immediately on page load
+            updateNotificationBadge();
+            
             refreshNotificationIndicators();
             
             // Refresh notifications every 5 minutes
             setInterval(() => {
                 refreshNotificationIndicators();
             }, 5 * 60 * 1000);
+            
+            // Update badge every 30 seconds for real-time updates
+            setInterval(() => {
+                updateNotificationBadge();
+            }, 30000);
         });
     })();
 </script>

@@ -394,7 +394,7 @@ CREATE TABLE `mou_moa` (
 CREATE TABLE `notifications` (
   `id` int(11) NOT NULL,
   `user_id` int(11) DEFAULT NULL,
-  `type` enum('mou_expiring','mou_expired','event_upcoming','event_today','system') DEFAULT 'system',
+  `type` enum('mou_expiring','mou_expiring_soon','mou_expired','event_upcoming','event_today','system') DEFAULT 'system',
   `title` varchar(255) NOT NULL,
   `message` text NOT NULL,
   `related_id` int(11) DEFAULT NULL,

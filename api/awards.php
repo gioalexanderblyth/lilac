@@ -60,14 +60,14 @@ function requireAuth($requireAdmin = false) {
         // In a real app, decode JWT or check session
         if (session_status() === PHP_SESSION_NONE) session_start();
         if (isset($_SESSION['user_id']) && isset($_SESSION['token']) && $_SESSION['token'] === $token) {
-            return [$_SESSION['user_id'], $_SESSION['role'] ?? 'user'];
+            return [$_SESSION['user_id'], ($_SESSION['user'] ?? [])['role'] ?? 'user'];
         }
     }
     
     // Fallback for development/testing
     if (session_status() === PHP_SESSION_NONE) session_start();
     if (isset($_SESSION['user_id'])) {
-        return [$_SESSION['user_id'], $_SESSION['role'] ?? 'user'];
+        return [$_SESSION['user_id'], ($_SESSION['user'] ?? [])['role'] ?? 'user'];
     }
     
     http_response_code(401);
@@ -301,7 +301,7 @@ function listAwards($pdo) {
         }
 
         $userId = $_SESSION['user_id'] ?? null;
-        $role   = $_SESSION['role'] ?? 'user';
+        $role   = ($_SESSION['user'] ?? [])['role'] ?? 'user';
         
         // Build user filter - only show awards for current user (unless admin)
         if ($role === 'admin') {

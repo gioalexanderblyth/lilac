@@ -88,6 +88,7 @@ try {
 </script>
 <script src="js/notifications.js"></script>
 <script src="js/notification-sound.js"></script>
+<script src="js/notification-bar.js"></script>
 <style>
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
@@ -234,11 +235,67 @@ try {
         #createModalHeader { cursor: move; }
         .dragging * { user-select: none; }
 
+        /* Create Event Modal - ensure dark mode styling (override forms plugin and any white backgrounds) */
+        .dark #createModalCard {
+            background-color: #1e293b !important;
+            border-color: #334155 !important;
+        }
+        .dark #createModalCard .flex-1.overflow-y-auto {
+            background-color: transparent;
+        }
+        .dark #createModalHeader {
+            border-color: #334155 !important;
+        }
+        .dark #createModalCard > div:last-child {
+            background-color: #1e293b !important;
+            border-color: #334155 !important;
+        }
+        /* Override @tailwindcss/forms white backgrounds on inputs inside create modal */
+        .dark #createModalCard input[type="text"],
+        .dark #createModalCard select,
+        .dark #createModalCard textarea {
+            background-color: rgba(30, 41, 59, 0.5) !important;
+            border-color: #475569 !important;
+            color: #e2e8f0 !important;
+        }
+        .dark #createModalCard input::placeholder,
+        .dark #createModalCard textarea::placeholder {
+            color: #94a3b8 !important;
+        }
+
+        /* Time Picker Modal - ensure dark mode styling */
+        .dark #timePickerModal > div {
+            background-color: #1e293b !important;
+            border-color: #334155 !important;
+        }
+        .dark #timePickerModal input#timeInput,
+        .dark #timePickerModal select {
+            background-color: rgba(30, 41, 59, 0.5) !important;
+            border-color: #475569 !important;
+            color: #e2e8f0 !important;
+        }
+        #timePickerModal select {
+            text-align: center;
+            text-align-last: center;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            background-image: none !important;
+            background-position: unset !important;
+            background-repeat: unset !important;
+            background-size: unset !important;
+        }
+        
+
         /* Custom scrollbar styling for all elements */
         * {
             scrollbar-width: thin;
             scrollbar-color: #cbd5e1 #f1f5f9;
         }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; }
 
         /* Firefox scrollbar styling */
         html {
@@ -385,23 +442,27 @@ try {
                             <span class="material-symbols-outlined">notifications</span>
                             <span id="notificationBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
                         </button>
-                        <div id="notificationDropdown" class="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-background-dark rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[9999] hidden max-h-96 overflow-y-auto">
-                            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                        <div id="notificationDropdown" class="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-background-dark rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[9999] hidden flex flex-col max-h-96">
+                            <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
                                 <div class="flex items-center justify-between">
                                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Notifications</h3>
-                                    <button id="markAllReadBtn" class="text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">
+                                    <a href="#" id="markAllReadBtn" class="text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">
                                         Mark all read
-                                    </button>
+                                    </a>
                                 </div>
                             </div>
-                            <div id="notificationList" class="max-h-80 overflow-y-auto">
-                                <div id="noNotifications" class="p-6 text-center text-gray-500 dark:text-gray-400">
-                                    <span class="material-symbols-outlined text-4xl mb-2 block">notifications_off</span>
-                                    <p>No notifications</p>
-                                </div>
+                            
+                            <!-- Scrollable list area -->
+                            <div id="notificationList" class="flex-1 min-h-0 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700">
+                                <!-- Notifications will be populated here -->
                             </div>
-                            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
-                                <button id="viewAllNotifications" class="w-full text-center text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">
+                            <div id="noNotifications" class="p-6 text-center text-gray-500 dark:text-gray-400 flex-shrink-0">
+                                <span class="material-symbols-outlined text-4xl mb-2 block">notifications_off</span>
+                                <p>No notifications</p>
+                            </div>
+                            
+                            <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+                                <button type="button" id="viewAllNotifications" class="w-full text-center text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">
                                     View all notifications
                                 </button>
                             </div>
@@ -424,7 +485,7 @@ try {
 </button>
 <div class="p-2">
 <div class="flex items-center justify-between mb-1">
-<h3 id="sidebarMonthDisplay" class="text-sm font-semibold text-text-light dark:text-text-dark">October 2025</h3>
+<h3 id="sidebarMonthDisplay" class="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">October 2025</h3>
 <div class="flex items-center space-x-1">
 <button id="sidebarPrevBtn" class="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-200 flex items-center justify-center">
 <span class="material-symbols-outlined text-xs text-gray-600 dark:text-gray-400 hover:text-white dark:hover:text-gray-800">chevron_left</span>
@@ -493,7 +554,7 @@ try {
 </div>
 <div class="mt-4 pt-4 border-t border-border-light dark:border-border-dark">
 <div class="flex items-center justify-between">
-                 <h4 class="font-semibold text-text-light dark:text-text-dark">My Events</h4>
+                 <h4 class="font-medium text-text-muted-light dark:text-text-muted-dark">My Events</h4>
 </div>
 <div id="myEventsList" class="mt-2 space-y-2 text-sm"></div>
 </div>
@@ -511,7 +572,7 @@ try {
 <span class="material-symbols-outlined">chevron_right</span>
 </button>
 </div>
-<h3 id="mainMonthDisplay" class="text-xl font-semibold text-text-light dark:text-text-dark">October 2025</h3>
+<h3 id="mainMonthDisplay" class="text-xl font-medium text-text-light dark:text-text-dark">October 2025</h3>
 </div>
 <div class="flex items-center space-x-4">
 <button id="todayBtn" class="px-4 py-1.5 rounded-full border border-border-light bg-card-light text-text-light text-sm font-medium hover:bg-gray-50 dark:bg-background-dark/50 dark:text-text-dark dark:border-border-dark dark:hover:bg-card-dark">Today</button>
@@ -570,8 +631,8 @@ try {
 </script>
 
 <!-- Event Details Modal -->
-<div id="eventDetailModal" class="fixed inset-0 bg-black/30 hidden items-center justify-center z-[9999]">
-    <div class="bg-white dark:bg-card-dark rounded-2xl shadow-2xl w-full max-w-xl mx-4 max-h-[85vh] overflow-y-auto border border-border-light dark:border-border-dark">
+<div id="eventDetailModal" class="fixed inset-0 bg-black/30 hidden items-center justify-center z-[9999] flex">
+    <div class="bg-white dark:bg-card-dark rounded-2xl shadow-2xl w-full max-w-xl mx-4 max-h-[85vh] overflow-y-auto border border-border-light dark:border-border-dark relative">
         <div class="p-4 border-b border-border-light dark:border-border-dark flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <span id="detailColorDot" class="w-3.5 h-3.5 rounded-full bg-blue-500"></span>
@@ -580,7 +641,7 @@ try {
             <div class="flex items-center gap-3 text-text-muted-light dark:text-text-muted-dark">
                 <span id="detailEditBtn" class="material-symbols-outlined text-[20px] cursor-pointer hover:text-text-light dark:hover:text-text-dark">edit</span>
                 <span id="detailDeleteBtn" class="material-symbols-outlined text-[20px] cursor-pointer hover:text-text-light dark:hover:text-text-dark" title="Delete">delete</span>
-                <span class="material-symbols-outlined text-[20px] cursor-pointer hover:text-text-light dark:hover:text-text-dark">notifications</span>
+                <span id="detailReminderBtn" class="material-symbols-outlined text-[20px] cursor-pointer hover:text-text-light dark:hover:text-text-dark" title="Edit Reminder">notifications</span>
                 <button id="detailCloseBtn" class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10">
                     <span class="material-symbols-outlined text-text-light dark:text-text-dark">close</span>
                 </button>
@@ -589,7 +650,10 @@ try {
         <div class="p-4">
             <div class="mb-3">
                 <p id="detailDate" class="text-sm text-text-muted-light dark:text-text-muted-dark">Thursday, 2 October</p>
-                <p id="detailTime" class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1"></p>
+                <p id="detailTime" class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[16px]">schedule</span>
+                    <span id="detailTimeText"></span>
+                </p>
             </div>
 
             <div class="mt-4 space-y-3">
@@ -600,15 +664,23 @@ try {
                 </div>
                 
                 <!-- Location -->
-                <div id="detailLocationContainer" class="flex items-start gap-3 text-text-light dark:text-text-dark hidden">
+                <div id="detailLocationContainer" class="flex items-start gap-3 text-text-light dark:text-text-dark">
                     <span class="material-symbols-outlined text-[20px] text-text-muted-light dark:text-text-muted-dark">location_on</span>
-                    <span id="detailLocation"></span>
+                    <span id="detailLocation" class="flex-1">No location specified</span>
                 </div>
                 
                 <!-- Description -->
-                <div id="detailDescriptionContainer" class="flex items-start gap-3 text-text-light dark:text-text-dark hidden">
+                <div id="detailDescriptionContainer" class="flex items-start gap-3 text-text-light dark:text-text-dark">
                     <span class="material-symbols-outlined text-[20px] text-text-muted-light dark:text-text-muted-dark">description</span>
-                    <span id="detailDescription" class="flex-1"></span>
+                    <span id="detailDescription" class="flex-1">No description provided</span>
+                </div>
+                
+                <!-- Attachments -->
+                <div id="detailAttachmentsContainer" class="flex items-start gap-3 text-text-light dark:text-text-dark hidden">
+                    <span class="material-symbols-outlined text-[20px] text-text-muted-light dark:text-text-muted-dark">attach_file</span>
+                    <div id="detailAttachments" class="flex-1 space-y-1 text-sm">
+                        <!-- Filled dynamically -->
+                    </div>
                 </div>
                 
                 <!-- Reminder -->
@@ -654,6 +726,52 @@ try {
                 </button>
                 <button id="attendanceYesBtn" class="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
                     Yes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Not Attending Confirmation Modal -->
+<div id="notAttendingModal" class="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-[10003] hidden">
+    <div class="bg-white dark:bg-card-dark rounded-2xl shadow-2xl w-full max-w-md mx-4 border border-border-light dark:border-border-dark">
+        <div class="p-6">
+            <div class="flex flex-col items-center text-center mb-6">
+                <div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                    <span class="text-4xl">😊</span>
+                </div>
+                <h3 class="text-xl font-bold text-text-light dark:text-text-dark mb-2">Got It</h3>
+                <p class="text-sm text-text-muted-light dark:text-text-muted-dark">
+                    Noted. Reminders for this event will stop.
+                </p>
+            </div>
+            
+            <div class="flex justify-end">
+                <button id="notAttendingCloseBtn" class="px-6 py-2 text-sm font-medium text-white bg-gray-600 dark:bg-gray-700 rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Success Modal -->
+<div id="deleteSuccessModal" class="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-[10004] hidden">
+    <div class="bg-white dark:bg-card-dark rounded-2xl shadow-2xl w-full max-w-md mx-4 border border-border-light dark:border-border-dark">
+        <div class="p-6">
+            <div class="flex flex-col items-center text-center mb-6">
+                <div class="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mb-4">
+                    <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-3xl">check_circle</span>
+                </div>
+                <h3 class="text-xl font-bold text-text-light dark:text-text-dark mb-2">Schedule Deleted</h3>
+                <p class="text-sm text-text-muted-light dark:text-text-muted-dark">
+                    Schedule deleted successfully
+                </p>
+            </div>
+            
+            <div class="flex justify-end">
+                <button id="deleteSuccessCloseBtn" class="px-6 py-2 text-sm font-medium text-white bg-green-600 dark:bg-green-700 rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors">
+                    Close
                 </button>
             </div>
         </div>
@@ -1162,166 +1280,227 @@ try {
  </script>
  
 <!-- Create Event Modal -->
-<div id="createModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center pt-24 z-50 hidden">
-    <div id="createModalCard" class="bg-white dark:bg-card-dark rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[85vh] overflow-y-auto">
-         <!-- Modal Header -->
-        <div id="createModalHeader" class="flex items-center justify-between p-4 border-b">
-             <div class="flex items-center space-x-2">
-                 <span class="material-symbols-outlined text-gray-600">menu</span>
-             </div>
-            <button onclick="closeCreateModal()" class="text-gray-500 hover:text-gray-700" data-no-drag>
-                 <span class="material-symbols-outlined">close</span>
-             </button>
-         </div>
-         
-         <!-- Modal Content -->
-         <div class="p-4">
-             <!-- Title Input -->
-            <input type="text" placeholder="Add title" class="w-full text-xl font-medium bg-transparent border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0 focus:outline-none focus:shadow-none pb-2 mb-4" id="eventTitle" name="eventTitle" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="box-shadow: none !important;">
-             
-             
-             <!-- Event Details -->
-             <div class="space-y-4">
-                 <!-- Date and Time -->
-                 <div class="flex items-start space-x-3">
-                     <span class="material-symbols-outlined text-gray-600 mt-1">schedule</span>
-                     <div class="flex-1">
-                         <!-- Date and Time Display -->
-                         <div class="flex items-start space-x-3">
-                             <div class="flex-1">
-                                 <div class="flex items-center space-x-2">
-                                     <button onclick="toggleTimePicker()" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300">
-                                         Wednesday, 1 October
-                                     </button>
-                                     <button id="startTimeBtn" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300" onclick="toggleTimePicker('start')">
-                                         4:30pm
-                                     </button>
-                                     <span class="text-gray-400 dark:text-gray-500">-</span>
-                                     <button id="endTimeBtn" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300" onclick="toggleTimePicker('end')">
-                                         5:30pm
-                                     </button>
-                                 </div>
-                                 <div class="text-xs text-gray-500 mt-2 relative">
-                                     <button class="hover:text-gray-700 dark:hover:text-gray-300 text-gray-600 dark:text-gray-400" onclick="toggleRepeatDropdown()" id="repeatButton">Doesn't repeat</button>
-                                     <!-- Repeat Options Dropdown -->
-                                     <div id="repeatDropdown" class="hidden absolute top-6 left-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-48">
-                                         <div class="py-1">
-                                             <div class="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectRepeatOption('Does not repeat')">Does not repeat</div>
-                                             <div class="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectRepeatOption('Daily')">Daily</div>
-                                             <div class="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectRepeatOption('Weekly on Wednesday')">Weekly on Wednesday</div>
-                                             <div class="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectRepeatOption('Monthly on the first Wednesday')">Monthly on the first Wednesday</div>
-                                             <div class="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectRepeatOption('Annually on October 1')">Annually on October 1</div>
-                                             <div class="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectRepeatOption('Every weekday (Monday to Friday)')">Every weekday (Monday to Friday)</div>
-                                         </div>
-</div>
-</div>
-</div>
-</div>
-                         
-                         <!-- Hidden time picker dropdown -->
-                         <div id="timePicker" class="hidden mt-3 p-4 bg-white border border-gray-200 rounded-lg shadow-lg space-y-3">
-                             <!-- Date and Time Inputs -->
-                             <div class="flex items-center space-x-2">
-                                 <button class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700">
-                                     Wednesday, 1 October
-                                 </button>
-                                 <button class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700">
-                                     4:30pm
-                                 </button>
-                                 <span class="text-gray-400">-</span>
-                                 <button class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700">
-                                     5:30pm
-                                 </button>
-</div>
-                             
-                             <!-- All day and Time zone -->
-                             <div class="flex items-center space-x-4">
-                                 <label class="flex items-center space-x-2 cursor-pointer">
-                                     <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                                     <span class="text-sm text-gray-700">All day</span>
-                                 </label>
-                                 <button class="text-sm text-blue-600 hover:text-blue-800">Time zone</button>
-</div>
-                             
-                             <!-- Repeat dropdown -->
-                             <div>
-                                 <button class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 flex items-center space-x-2">
-                                     <span>Doesn't repeat</span>
-                                     <span class="material-symbols-outlined text-xs">keyboard_arrow_down</span>
-                                 </button>
-</div>
-</div>
-</div>
-</div>
-                 
-                 
-                <!-- Event Type Selector (replaces Google Meet row) -->
-                <div class="flex items-center space-x-3 text-gray-700">
-                    <span class="material-symbols-outlined">category</span>
-                    <label for="eventTypeSelect" class="sr-only">Type</label>
-                    <select id="eventTypeSelect" class="bg-transparent border-0 text-sm font-medium focus:outline-none">
-                        <option value="Event">Event</option>
-                        <option value="Activity">Activity</option>
-                    </select>
-                </div>
-                 
-                 <!-- Add Location -->
-                 <div class="flex items-center space-x-3 text-gray-600 hover:text-gray-800 cursor-pointer" onclick="editLocation()">
-                     <span class="material-symbols-outlined">place</span>
-                     <div class="flex-1 relative">
-                        <input type="text" id="locationInput" name="locationInput" placeholder="Add location" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="hidden bg-transparent border-0 border-b border-gray-300 dark:border-gray-600 focus:border-blue-500 outline-none w-full text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400" style="box-shadow: none !important;">
-                        <div id="schedulerLocationSuggestions" class="hidden absolute top-full left-0 right-0 mt-1 rounded-lg border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto z-50">
-                            <div id="schedulerSuggestionsList" class="p-2 space-y-1">
-                                <!-- Location suggestions will appear here -->
+<div id="createModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden" style="background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px);">
+    <div id="createModalCard" class="bg-card-light dark:bg-card-dark w-full max-w-md rounded-xl shadow-2xl overflow-hidden border border-border-light dark:border-border-dark flex flex-col max-h-[85vh]">
+        <!-- Modal Header -->
+        <div id="createModalHeader" class="flex items-center justify-between px-4 py-3 border-b border-border-light dark:border-border-dark">
+            <div class="flex-1">
+                <input autofocus="" class="w-full text-xl font-semibold bg-transparent border-0 border-none focus:ring-0 focus:outline-none focus:border-0 text-text-light dark:text-text-dark placeholder-slate-400 dark:placeholder-slate-500 px-0 outline-none" placeholder="Add title" type="text" id="eventTitle" name="eventTitle" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="border: none !important; outline: none !important; box-shadow: none !important;"/>
+            </div>
+            <button onclick="closeCreateModal(); return false;" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 transition-colors cursor-pointer" data-no-drag type="button">
+                <span class="material-symbols-outlined text-lg">close</span>
+            </button>
+        </div>
+        
+        <!-- Modal Content -->
+        <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+            <!-- Date and Time Section -->
+            <section class="space-y-3">
+                <div class="flex items-start space-x-3">
+                    <span class="material-symbols-outlined text-slate-400 mt-1 text-lg">schedule</span>
+                    <div class="flex-1 space-y-2">
+                        <div class="grid grid-cols-1 gap-2">
+                            <input type="text" id="eventDateInput" placeholder="00/00/0000" class="w-full bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer" readonly onclick="toggleTimePicker('date'); this.blur(); return false;" onfocus="toggleTimePicker('date'); this.blur(); return false;"/>
+                            <input type="hidden" id="eventDateIso" />
+                            <div class="flex items-center space-x-2">
+                                <input type="text" id="startTimeInput" readonly class="flex-1 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer text-slate-700 dark:text-slate-200" placeholder="Start time" onclick="toggleTimePicker('start'); return false;" onfocus="this.blur(); toggleTimePicker('start'); return false;"/>
+                                <span class="text-slate-400 text-xs font-medium">to</span>
+                                <input type="text" id="endTimeInput" readonly class="flex-1 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer text-slate-700 dark:text-slate-200" placeholder="End time" onclick="toggleTimePicker('end'); return false;" onfocus="this.blur(); toggleTimePicker('end'); return false;"/>
                             </div>
                         </div>
-                        <span id="locationText" class="block">Add location</span>
-                     </div>
+                        <div class="relative">
+                            <select id="repeatSelect" class="w-full bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none text-slate-700 dark:text-slate-300" onchange="selectRepeatOption(this.value)">
+                                <option value="Does not repeat">Does not repeat</option>
+                                <option value="Daily">Daily</option>
+                                <option value="Weekly on Thursday">Weekly on Thursday</option>
+                                <option value="Monthly">Monthly</option>
+                                <option value="Custom...">Custom...</option>
+                            </select>
+                            <!-- Keep old repeat button and dropdown for compatibility -->
+                            <button onclick="toggleRepeatDropdown()" id="repeatButton" class="hidden">Doesn't repeat</button>
+                            <div id="repeatDropdown" class="hidden absolute top-full left-0 mt-2 bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-lg shadow-lg z-10 min-w-48">
+                                <div class="py-1">
+                                    <div class="px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" onclick="selectRepeatOption('Does not repeat')">Does not repeat</div>
+                                    <div class="px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" onclick="selectRepeatOption('Daily')">Daily</div>
+                                    <div class="px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" onclick="selectRepeatOption('Weekly on Wednesday')">Weekly on Wednesday</div>
+                                    <div class="px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" onclick="selectRepeatOption('Monthly on the first Wednesday')">Monthly on the first Wednesday</div>
+                                    <div class="px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" onclick="selectRepeatOption('Annually on October 1')">Annually on October 1</div>
+                                    <div class="px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" onclick="selectRepeatOption('Every weekday (Monday to Friday)')">Every weekday (Monday to Friday)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Location Section -->
+            <section class="flex items-center space-x-3">
+                <span class="material-symbols-outlined text-slate-400 text-lg">location_on</span>
+                <div class="flex-1 relative">
+                    <input type="text" id="locationInput" name="locationInput" placeholder="Add location or meeting link" class="w-full bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none placeholder-slate-400" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"/>
+                    <div id="schedulerLocationSuggestions" class="hidden absolute top-full left-0 right-0 mt-1 rounded-lg border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark shadow-lg max-h-48 overflow-y-auto z-50">
+                        <div id="schedulerSuggestionsList" class="p-2 space-y-1">
+                            <!-- Location suggestions will appear here -->
+                        </div>
+                    </div>
+                    <span id="locationText" class="hidden">Add location</span>
+                </div>
+            </section>
+            
+            <!-- Description Section -->
+            <section class="flex items-start space-x-3">
+                <span class="material-symbols-outlined text-slate-400 mt-1.5 text-lg">notes</span>
+                <div class="flex-1">
+                    <textarea id="descriptionInput" name="descriptionInput" class="w-full bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none text-slate-700 dark:text-slate-300 resize-none" placeholder="Add description" rows="3" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+                    <span id="descriptionText" class="hidden">Add description or a Google Drive attachment</span>
+                </div>
+            </section>
+            
+            <!-- Event Type Section -->
+            <section class="flex items-center space-x-3">
+                <span class="material-symbols-outlined text-slate-400 text-lg">label</span>
+                <div class="flex flex-wrap gap-1.5">
+                    <button type="button" class="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold border border-primary/20 event-type-tag active cursor-pointer" data-type="Event">Event</button>
+                    <button type="button" class="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full text-xs font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors event-type-tag cursor-pointer" data-type="Task">Task</button>
+                    <button type="button" class="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full text-xs font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors event-type-tag cursor-pointer" data-type="Meeting">Meeting</button>
+                </div>
+                <!-- Hidden select for compatibility with existing JavaScript -->
+                <select id="eventTypeSelect" class="hidden">
+                    <option value="Event" selected>Event</option>
+                    <option value="Task">Task</option>
+                    <option value="Meeting">Meeting</option>
+                </select>
+            </section>
+            
+            <!-- Reminders and Attachments Section -->
+            <section class="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                <!-- Reminders -->
+                <div class="flex items-center space-x-3">
+                    <span class="material-symbols-outlined text-slate-400 text-lg">notifications_active</span>
+                    <div class="flex-1 flex items-center space-x-2">
+                        <div class="flex-1 relative">
+                            <button id="reminderButton" class="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 flex items-center justify-between cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" onclick="toggleReminderDropdown()">
+                                <span id="reminderText" class="text-xs text-slate-600 dark:text-slate-400">30 minutes before</span>
+                                <span class="material-symbols-outlined text-slate-400 text-sm">expand_more</span>
+                            </button>
+                            <!-- Reminder Dropdown -->
+                            <div id="reminderDropdown" class="hidden absolute top-full left-0 mt-2 bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-lg shadow-xl z-20 w-full max-h-80 overflow-y-auto">
+                                <div class="py-2">
+                                    <div class="px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">Remind me</div>
+                                    
+                                    <!-- Time-based reminders -->
+                                    <div class="py-1">
+                                        <div class="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors flex items-center justify-between reminder-option" data-value="At time of event" onclick="selectReminder('At time of event')">
+                                            <span>At time of event</span>
+                                            <span class="reminder-check hidden material-symbols-outlined text-blue-600 dark:text-blue-400 text-base">check</span>
+                                        </div>
+                                        <div class="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors flex items-center justify-between reminder-option" data-value="5 minutes before" onclick="selectReminder('5 minutes before')">
+                                            <span>5 minutes before</span>
+                                            <span class="reminder-check hidden material-symbols-outlined text-blue-600 dark:text-blue-400 text-base">check</span>
+                                        </div>
+                                        <div class="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors flex items-center justify-between reminder-option" data-value="10 minutes before" onclick="selectReminder('10 minutes before')">
+                                            <span>10 minutes before</span>
+                                            <span class="reminder-check hidden material-symbols-outlined text-blue-600 dark:text-blue-400 text-base">check</span>
+                                        </div>
+                                        <div class="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors flex items-center justify-between reminder-option" data-value="15 minutes before" onclick="selectReminder('15 minutes before')">
+                                            <span>15 minutes before</span>
+                                            <span class="reminder-check hidden material-symbols-outlined text-blue-600 dark:text-blue-400 text-base">check</span>
+                                        </div>
+                                        <div class="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors flex items-center justify-between reminder-option" data-value="30 minutes before" onclick="selectReminder('30 minutes before')">
+                                            <span>30 minutes before</span>
+                                            <span class="reminder-check hidden material-symbols-outlined text-blue-600 dark:text-blue-400 text-base">check</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Hour-based reminders -->
+                                    <div class="py-1 border-t border-slate-100 dark:border-slate-800">
+                                        <div class="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors flex items-center justify-between reminder-option" data-value="1 hour before" onclick="selectReminder('1 hour before')">
+                                            <span>1 hour before</span>
+                                            <span class="reminder-check hidden material-symbols-outlined text-blue-600 dark:text-blue-400 text-base">check</span>
+                                        </div>
+                                        <div class="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors flex items-center justify-between reminder-option" data-value="2 hours before" onclick="selectReminder('2 hours before')">
+                                            <span>2 hours before</span>
+                                            <span class="reminder-check hidden material-symbols-outlined text-blue-600 dark:text-blue-400 text-base">check</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Day-based reminders -->
+                                    <div class="py-1 border-t border-slate-100 dark:border-slate-800">
+                                        <div class="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors flex items-center justify-between reminder-option" data-value="1 day before" onclick="selectReminder('1 day before')">
+                                            <span>1 day before</span>
+                                            <span class="reminder-check hidden material-symbols-outlined text-blue-600 dark:text-blue-400 text-base">check</span>
+                                        </div>
+                                        <div class="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors flex items-center justify-between reminder-option" data-value="2 days before" onclick="selectReminder('2 days before')">
+                                            <span>2 days before</span>
+                                            <span class="reminder-check hidden material-symbols-outlined text-blue-600 dark:text-blue-400 text-base">check</span>
+                                        </div>
+                                        <div class="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors flex items-center justify-between reminder-option" data-value="1 week before" onclick="selectReminder('1 week before')">
+                                            <span>1 week before</span>
+                                            <span class="reminder-check hidden material-symbols-outlined text-blue-600 dark:text-blue-400 text-base">check</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- None option -->
+                                    <div class="py-1 border-t border-slate-100 dark:border-slate-800">
+                                        <div class="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer transition-colors flex items-center justify-between reminder-option" data-value="None" onclick="selectReminder('None')">
+                                            <span class="text-red-600 dark:text-red-400">None</span>
+                                            <span class="reminder-check hidden material-symbols-outlined text-red-600 dark:text-red-400 text-base">check</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="p-1.5 text-primary hover:bg-primary/5 rounded-full transition-colors cursor-pointer" onclick="toggleReminderDropdown(); return false;">
+                            <span class="material-symbols-outlined text-sm">add</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Attachments -->
+                <div class="flex items-start space-x-3">
+                    <span class="material-symbols-outlined text-slate-400 mt-1.5 text-lg">attach_file</span>
+                    <div class="flex-1">
+                        <!-- Hidden file input that is triggered by clicking the dropzone -->
+                        <input 
+                            id="eventAttachmentsInput" 
+                            type="file" 
+                            class="hidden" 
+                            multiple 
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        />
+                        <div 
+                            id="attachmentsDropzone"
+                            class="flex items-center p-3 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50/50 dark:bg-slate-800/20 hover:border-primary/50 transition-colors cursor-pointer group"
+                            tabindex="0"
+                            role="button"
+                            aria-label="Add attachments"
+                        >
+                            <div class="w-7 h-7 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center mr-2 shadow-sm group-hover:text-primary transition-colors">
+                                <span class="material-symbols-outlined text-base">upload</span>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium">Add attachments</p>
+                                <p class="text-[10px] text-slate-400">PDF, JPG, DOCX (Max 10MB)</p>
+                            </div>
+                        </div>
+                        <!-- Selected attachments preview -->
+                        <div id="attachmentsList" class="mt-2 space-y-1 text-[10px] text-slate-600 dark:text-slate-300"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+        
+        <!-- Modal Footer -->
+        <div class="px-4 py-3 border-t border-border-light dark:border-border-dark flex items-center justify-end space-x-2 bg-card-light dark:bg-card-dark">
+            <button type="button" class="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" onclick="closeCreateModal(); return false;">
+                Cancel
+            </button>
+            <button type="button" class="px-6 py-2 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg shadow-md shadow-primary/20 transition-all transform active:scale-[0.98] cursor-pointer" onclick="if(typeof saveEvent === 'function') { saveEvent(); } else { console.error('saveEvent function not found'); } return false;">
+                Save Event
+            </button>
+        </div>
+    </div>
 </div>
-                 
-                 <!-- Add Description -->
-                 <div class="flex items-center space-x-3 text-gray-600 hover:text-gray-800 cursor-pointer" onclick="editDescription()">
-                     <span class="material-symbols-outlined">description</span>
-                    <input type="text" id="descriptionInput" name="descriptionInput" placeholder="Add description" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="hidden bg-transparent border-0 border-b border-gray-300 focus:border-blue-500 outline-none flex-1" style="box-shadow: none !important;">
-                     <span id="descriptionText">Add description or a Google Drive attachment</span>
-</div>
-                 
-                 <!-- Reminder/Notification -->
-                 <div class="flex items-center space-x-3 text-gray-600">
-                     <span class="material-symbols-outlined">notifications</span>
-                     <div class="flex-1 relative">
-                         <button id="reminderButton" class="text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 flex items-center justify-between w-full" onclick="toggleReminderDropdown()">
-                             <span id="reminderText">30 minutes before</span>
-                             <span class="material-symbols-outlined text-xs ml-2">keyboard_arrow_down</span>
-                         </button>
-                         <!-- Reminder Dropdown -->
-                         <div id="reminderDropdown" class="hidden absolute top-full left-0 mt-1 bg-white dark:bg-card-dark border border-gray-200 dark:border-border-dark rounded-lg shadow-lg z-20 min-w-48">
-                             <div class="py-2">
-                                 <div class="px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-border-dark">Remind me</div>
-                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('At time of event')">At time of event</div>
-                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('5 minutes before')">5 minutes before</div>
-                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('10 minutes before')">10 minutes before</div>
-                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('15 minutes before')">15 minutes before</div>
-                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('30 minutes before')">30 minutes before</div>
-                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('1 hour before')">1 hour before</div>
-                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('2 hours before')">2 hours before</div>
-                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('1 day before')">1 day before</div>
-                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('2 days before')">2 days before</div>
-                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('1 week before')">1 week before</div>
-                                 <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" onclick="selectReminder('None')">None</div>
-                             </div>
-                         </div>
-                     </div>
-                 </div>
-             </div>
-         </div>
-         
-         <!-- Modal Footer -->
-         <div class="flex items-center justify-end p-4 border-t">
-             <button class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium" onclick="saveEvent(); console.log('Button clicked');">Save</button>
-         </div>
-     </div>
- </div>
  
 <!-- Date Picker Calendar Popup -->
 <div id="datePickerModal" class="fixed flex items-center justify-center z-[60] hidden" style="background: transparent;">
@@ -1335,7 +1514,9 @@ try {
                          <span class="material-symbols-outlined text-gray-600 dark:text-gray-400">chevron_left</span>
                      </button>
                  </div>
-                 <h4 id="currentMonthDisplay" class="text-lg font-medium text-gray-900 dark:text-gray-100 flex-1 text-center">October 2025</h4>
+                 <div class="flex-1 flex items-center justify-center gap-2 relative">
+                     <h4 id="currentMonthDisplay" class="text-lg font-medium text-gray-900 dark:text-gray-100 text-center">October 2025</h4>
+                 </div>
                  <div class="flex items-center gap-1">
                      <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" onclick="event.stopPropagation(); nextMonth();">
                          <span class="material-symbols-outlined text-gray-600 dark:text-gray-400">chevron_right</span>
@@ -1366,10 +1547,10 @@ try {
  </div>
  
 <!-- Time Picker Popup -->
-<div id="timePickerModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center pt-24 z-50 hidden">
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-xs mx-4">
+<div id="timePickerModal" class="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 hidden">
+    <div class="bg-card-light dark:bg-card-dark rounded-lg shadow-xl w-full max-w-xs mx-4 border border-border-light dark:border-border-dark">
         <!-- Time Picker Header -->
-        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <div class="p-4 border-b border-border-light dark:border-border-dark">
             <div class="flex items-center justify-center space-x-2">
                 <span id="timeDisplay" class="text-blue-600 dark:text-blue-400 font-medium border-b border-blue-600 dark:border-blue-400 cursor-pointer" onclick="switchTimeType('start')">4:30pm</span>
                 <span class="text-gray-400 dark:text-gray-500">-</span>
@@ -1377,31 +1558,33 @@ try {
             </div>
         </div>
         
-        <!-- Time Input Field -->
-        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-            <div class="flex items-center space-x-2">
-                <input 
-                    type="text" 
-                    id="timeInput" 
-                    placeholder="Type time (e.g., 2:30pm or 14:30)" 
-                    class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    onkeydown="handleTimeInputKeydown(event)"
-                    onblur="handleTimeInputBlur()"
-                />
-                <button 
-                    onclick="applyTimeInput()" 
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                    Apply
-                </button>
+        <!-- Hour & Minute Pickers -->
+        <div class="p-4 border-b border-border-light dark:border-border-dark">
+            <div class="flex items-center justify-center gap-3 mb-3">
+                <div class="flex flex-col items-center gap-0.5 min-w-[4rem]">
+                    <label class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Hour</label>
+                    <select id="timeHourSelect" class="w-full max-w-[4rem] text-center py-2 px-1 border border-border-light dark:border-border-dark rounded-lg text-sm bg-slate-50 dark:bg-slate-800/50 text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary outline-none">
+                        <!-- populated by JS -->
+                    </select>
+                </div>
+                <span class="text-slate-400 dark:text-slate-500 font-bold mt-5">:</span>
+                <div class="flex flex-col items-center gap-0.5 min-w-[4rem]">
+                    <label class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Minute</label>
+                    <select id="timeMinuteSelect" class="w-full max-w-[4rem] text-center py-2 px-1 border border-border-light dark:border-border-dark rounded-lg text-sm bg-slate-50 dark:bg-slate-800/50 text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary outline-none">
+                        <!-- populated by JS -->
+                    </select>
+                </div>
+                <div class="flex flex-col items-center gap-0.5 min-w-[4rem]">
+                    <label class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Period</label>
+                    <select id="timePeriodSelect" class="w-full max-w-[4rem] text-center py-2 px-1 border border-border-light dark:border-border-dark rounded-lg text-sm bg-slate-50 dark:bg-slate-800/50 text-text-light dark:text-text-dark focus:ring-2 focus:ring-primary outline-none">
+                        <option value="am">AM</option>
+                        <option value="pm">PM</option>
+                    </select>
+                </div>
             </div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Press Enter or click Apply to set time</p>
-        </div>
-            
-        <!-- Time List -->
-        <div class="max-h-64 overflow-y-auto" id="timeListContainer">
-            <div id="timeList" class="p-2 space-y-1">
-                <!-- Time options will be generated here -->
+            <div class="flex items-center gap-2">
+                <input type="text" id="timeInput" placeholder="Or type: 2:30pm" class="flex-1 px-3 py-2 border border-border-light dark:border-border-dark rounded-lg text-sm bg-slate-50 dark:bg-slate-800/50 text-text-light dark:text-text-dark placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary" onkeydown="handleTimeInputKeydown(event)"/>
+                <button onclick="applyTimeInput()" class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary">Apply</button>
             </div>
         </div>
     </div>
@@ -1416,8 +1599,57 @@ let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
  
  function openCreateModal() {
    const overlay = document.getElementById('createModal');
+   const card = document.getElementById('createModalCard');
+   
+   // Reset any positioning styles that might interfere
+   if (card) {
+       card.style.position = '';
+       card.style.left = '';
+       card.style.top = '';
+       card.style.right = '';
+       card.style.bottom = '';
+       card.style.transform = '';
+       card.style.margin = '';
+       card.style.marginTop = '';
+   }
+   
+   // Reset overlay positioning
+   overlay.style.top = '';
+   overlay.style.left = '';
+   overlay.style.right = '';
+   overlay.style.bottom = '';
+   overlay.style.transform = '';
+   overlay.style.paddingTop = '';
+   
    overlay.classList.remove('hidden');
    overlay.classList.remove('dragging');
+   overlay.classList.add('flex');
+   overlay.style.display = 'flex';
+  overlay.style.visibility = 'visible';
+
+  // Default date/time values for the new inputs
+  // Date starts as all zeroes until the user picks a date.
+  const dateDisplayInput = document.getElementById('eventDateInput'); // MM/DD/YYYY display
+  const dateIsoInput = document.getElementById('eventDateIso'); // YYYY-MM-DD value
+  if (!isEditingExisting) {
+      if (dateDisplayInput) dateDisplayInput.value = '00/00/0000';
+      if (dateIsoInput) dateIsoInput.value = '';
+  } else {
+      const iso = dateIsoInput ? dateIsoInput.value : '';
+      if (
+          dateDisplayInput &&
+          (!dateDisplayInput.value || dateDisplayInput.value === '00/00/0000') &&
+          iso &&
+          /^\d{4}-\d{2}-\d{2}$/.test(iso)
+      ) {
+          const [y, m, d] = iso.split('-');
+          dateDisplayInput.value = `${m}/${d}/${y}`;
+      }
+  }
+  const startTimeInput = document.getElementById('startTimeInput');
+  const endTimeInput = document.getElementById('endTimeInput');
+  if (startTimeInput && !startTimeInput.value) startTimeInput.value = '2:00pm';
+  if (endTimeInput && !endTimeInput.value) endTimeInput.value = '3:30pm';
    
    // Reset reminder to default if not editing
    if (!isEditingExisting) {
@@ -1430,8 +1662,14 @@ let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
  
  function closeCreateModal() {
     const overlay = document.getElementById('createModal');
-    overlay.classList.add('hidden');
-    overlay.classList.remove('dragging');
+    if (overlay) {
+        // Inline display styles override Tailwind's `hidden`, so reset both class + inline styles.
+        overlay.classList.add('hidden');
+        overlay.classList.remove('flex');
+        overlay.classList.remove('dragging');
+        overlay.style.display = 'none';
+        overlay.style.visibility = 'hidden';
+    }
     const card = document.getElementById('createModalCard');
     if (card) {
         // Reset position to center for next open
@@ -1441,12 +1679,25 @@ let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
         card.style.transform = '';
         card.style.margin = '';
     }
- }
+}
+
+// Make closeCreateModal globally accessible
+window.closeCreateModal = closeCreateModal;
  
  let currentTimeType = 'start'; // Track which time button was clicked
  
  function toggleTimePicker(type = 'date') {
      if (type === 'date') {
+        // If a date is already selected in the modal, open the picker on that month/year
+        const dateIsoInput = document.getElementById('eventDateIso');
+        const isoVal = dateIsoInput ? dateIsoInput.value : '';
+        if (isoVal && /^\d{4}-\d{2}-\d{2}$/.test(isoVal)) {
+            const [y, m] = isoVal.split('-').map(n => parseInt(n, 10));
+            if (!isNaN(y) && !isNaN(m)) {
+                currentCalendarDate = new Date(y, m - 1, 1);
+            }
+        }
+
          // Ensure calendar is rendered before showing modal (this recreates the buttons with fresh handlers)
          renderCalendar();
          
@@ -1545,58 +1796,99 @@ let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
      document.getElementById('timePickerModal').classList.add('hidden');
  }
  
- function renderTimePicker() {
-     const timeList = document.getElementById('timeList');
-     timeList.innerHTML = '';
-     
-     // Get current time values
-     const startTimeBtn = document.getElementById('startTimeBtn');
-     const endTimeBtn = document.getElementById('endTimeBtn');
-     const currentTime = currentTimeType === 'start' ? startTimeBtn.textContent : endTimeBtn.textContent;
+function renderTimePicker() {
+    
+     // Get current time values from inputs
+     const startTimeInput = document.getElementById('startTimeInput');
+     const endTimeInput = document.getElementById('endTimeInput');
+     const currentTime = currentTimeType === 'start' ? (startTimeInput && startTimeInput.value) : (endTimeInput && endTimeInput.value);
      
      // Update header display to show both times
      const timeDisplay = document.getElementById('timeDisplay');
      const otherTimeDisplay = document.getElementById('otherTimeDisplay');
      
     if (currentTimeType === 'start') {
-        timeDisplay.textContent = currentTime;
-        otherTimeDisplay.textContent = endTimeBtn.textContent;
+        timeDisplay.textContent = currentTime || '2:00pm';
+        otherTimeDisplay.textContent = (endTimeInput && endTimeInput.value) || '3:30pm';
         // Update styling to show which is active
         timeDisplay.className = 'text-blue-600 dark:text-blue-400 font-medium border-b border-blue-600 dark:border-blue-400 cursor-pointer';
-        otherTimeDisplay.className = 'px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300 cursor-pointer';
+        otherTimeDisplay.className = 'px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded text-slate-700 dark:text-slate-200 cursor-pointer';
     } else {
-        timeDisplay.textContent = startTimeBtn.textContent;
-        otherTimeDisplay.textContent = currentTime;
+        timeDisplay.textContent = (startTimeInput && startTimeInput.value) || '2:00pm';
+        otherTimeDisplay.textContent = currentTime || '3:30pm';
         // Update styling to show which is active
-        timeDisplay.className = 'px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300 cursor-pointer';
+        timeDisplay.className = 'px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded text-slate-700 dark:text-slate-200 cursor-pointer';
         otherTimeDisplay.className = 'text-blue-600 dark:text-blue-400 font-medium border-b border-blue-600 dark:border-blue-400 cursor-pointer';
     }
-     
-    // Generate time options (15-minute intervals from 6:00am to 11:45pm)
-    let currentTimeElement = null;
-    for (let hour = 6; hour <= 23; hour++) {
-        for (let minute = 0; minute < 60; minute += 15) {
-            const timeString = formatTime(hour, minute);
-            const timeOption = document.createElement('div');
-            timeOption.className = `px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-900 dark:text-gray-100 ${currentTime === timeString ? 'bg-gray-100 dark:bg-gray-700' : ''}`;
-            timeOption.textContent = timeString;
-            timeOption.onclick = () => selectTime(timeString);
-            timeOption.setAttribute('data-time', timeString);
-            timeOption.setAttribute('data-hour', hour);
-            timeOption.setAttribute('data-minute', minute);
-            timeList.appendChild(timeOption);
-            
-            if (currentTime === timeString) {
-                currentTimeElement = timeOption;
-            }
-        }
-    }
     
-    // Auto-scroll to current time
-    if (currentTimeElement) {
-        setTimeout(() => {
-            currentTimeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 100);
+    // Populate Hour & Minute picker dropdowns
+    const hourSelect = document.getElementById('timeHourSelect');
+    const minuteSelect = document.getElementById('timeMinuteSelect');
+    const periodSelect = document.getElementById('timePeriodSelect');
+    
+    if (hourSelect && minuteSelect && periodSelect) {
+        hourSelect.innerHTML = '';
+        for (let h = 1; h <= 12; h++) {
+            const opt = document.createElement('option');
+            opt.value = h;
+            opt.textContent = h;
+            hourSelect.appendChild(opt);
+        }
+        minuteSelect.innerHTML = '';
+        for (let m = 0; m < 60; m++) {
+            const opt = document.createElement('option');
+            opt.value = m;
+            opt.textContent = String(m).padStart(2, '0');
+            minuteSelect.appendChild(opt);
+        }
+        
+        const parsed = parseTimeInput(currentTime);
+        if (parsed) {
+            const displayHour = parsed.hour > 12 ? parsed.hour - 12 : parsed.hour === 0 ? 12 : parsed.hour;
+            hourSelect.value = displayHour;
+            minuteSelect.value = parsed.minute;
+            periodSelect.value = parsed.hour >= 12 ? 'pm' : 'am';
+        }
+
+        // Make the hour & minute dropdowns shorter so they don't stretch to the top of the screen
+        const collapseHourDropdown = () => {
+            hourSelect.removeAttribute('size');
+        };
+        const collapseMinuteDropdown = () => {
+            minuteSelect.removeAttribute('size');
+        };
+
+        hourSelect.addEventListener('focus', () => {
+            // Show only a few options at once
+            hourSelect.setAttribute('size', '6');
+        });
+        minuteSelect.addEventListener('focus', () => {
+            // Show only a few options at once
+            minuteSelect.setAttribute('size', '6');
+        });
+        periodSelect.addEventListener('focus', () => {
+            // Only AM/PM, keep it short
+            periodSelect.setAttribute('size', '2');
+        });
+
+        hourSelect.addEventListener('blur', collapseHourDropdown);
+        hourSelect.addEventListener('change', collapseHourDropdown);
+        minuteSelect.addEventListener('blur', collapseMinuteDropdown);
+        minuteSelect.addEventListener('change', collapseMinuteDropdown);
+        periodSelect.addEventListener('blur', () => periodSelect.removeAttribute('size'));
+        periodSelect.addEventListener('change', () => periodSelect.removeAttribute('size'));
+        
+        const syncInputFromSelects = () => {
+            const h = parseInt(hourSelect.value, 10);
+            const m = parseInt(minuteSelect.value, 10);
+            const p = periodSelect.value;
+            let hour24 = h;
+            if (p === 'pm' && h !== 12) hour24 += 12;
+            if (p === 'am' && h === 12) hour24 = 0;
+            const ti = document.getElementById('timeInput');
+            if (ti) ti.value = formatTime(hour24, m);
+        };
+        hourSelect.onchange = minuteSelect.onchange = periodSelect.onchange = syncInputFromSelects;
     }
     
     // Set input field value to current time
@@ -1613,12 +1905,27 @@ let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
      const displayMinute = minute.toString().padStart(2, '0');
      return `${displayHour}:${displayMinute}${period}`;
  }
+ // Convert 24h (e.g. "14:00") to 12h display (e.g. "2:00pm") for form population
+ function time24ToDisplay(val) {
+     if (!val || typeof val !== 'string') return val || '';
+     const m = val.trim().match(/^(\d{1,2}):(\d{2})$/);
+     if (m) {
+         let h = parseInt(m[1], 10);
+         const min = parseInt(m[2], 10) || 0;
+         const period = h >= 12 ? 'pm' : 'am';
+         h = h > 12 ? h - 12 : h === 0 ? 12 : h;
+         return `${h}:${String(min).padStart(2, '0')}${period}`;
+     }
+     return val; // already in display format
+ }
  
  function selectTime(timeString) {
      if (currentTimeType === 'start') {
-         document.getElementById('startTimeBtn').textContent = timeString;
+         const el = document.getElementById('startTimeInput');
+         if (el) el.value = timeString;
      } else {
-         document.getElementById('endTimeBtn').textContent = timeString;
+         const el = document.getElementById('endTimeInput');
+         if (el) el.value = timeString;
      }
      closeTimePickerModal();
  }
@@ -1746,30 +2053,44 @@ function handleTimeInputBlur() {
 
 // Apply time from input field
 function applyTimeInput() {
+    const hourSelect = document.getElementById('timeHourSelect');
+    const minuteSelect = document.getElementById('timeMinuteSelect');
+    const periodSelect = document.getElementById('timePeriodSelect');
     const timeInput = document.getElementById('timeInput');
-    if (!timeInput) return;
     
-    const inputValue = timeInput.value.trim();
+    // Always prioritize hour/minute/period selects if they exist
+    if (hourSelect && minuteSelect && periodSelect) {
+        let hour = parseInt(hourSelect.value, 10);
+        const minute = parseInt(minuteSelect.value, 10);
+        const period = periodSelect.value;
+        
+        // Convert to 24-hour format
+        if (period === 'pm' && hour !== 12) hour += 12;
+        if (period === 'am' && hour === 12) hour = 0;
+        
+        selectTime(formatTime(hour, minute));
+        return;
+    }
+    
+    // Fallback to input field if selects don't exist
+    const inputValue = timeInput && timeInput.value.trim();
     if (!inputValue) return;
     
     const parsedTime = parseTimeInput(inputValue);
     
     if (!parsedTime) {
-        // Invalid format - show error and highlight input
-        timeInput.classList.add('border-red-500', 'ring-2', 'ring-red-500');
-        timeInput.placeholder = 'Invalid format. Try: 2:30pm or 14:30';
-        setTimeout(() => {
-            timeInput.classList.remove('border-red-500', 'ring-2', 'ring-red-500');
-            timeInput.placeholder = 'Type time (e.g., 2:30pm or 14:30)';
-        }, 2000);
+        if (timeInput) {
+            timeInput.classList.add('border-red-500', 'ring-2', 'ring-red-500');
+            timeInput.placeholder = 'Invalid. Try: 2:30pm or 14:30';
+            setTimeout(() => {
+                timeInput.classList.remove('border-red-500', 'ring-2', 'ring-red-500');
+                timeInput.placeholder = 'Or type: 2:30pm';
+            }, 2000);
+        }
         return;
     }
     
-    // Find closest time option (rounds to nearest 15-minute interval)
-    const timeString = findClosestTime(parsedTime.hour, parsedTime.minute);
-    
-    // Apply the time
-    selectTime(timeString);
+    selectTime(formatTime(parsedTime.hour, parsedTime.minute));
 }
  
 // Edit functions for all clickable elements
@@ -1786,10 +2107,23 @@ async function editTimeZone() {
      dropdown.classList.toggle('hidden');
  }
  
- function selectRepeatOption(option) {
-     document.getElementById('repeatButton').textContent = option;
-     document.getElementById('repeatDropdown').classList.add('hidden');
- }
+function selectRepeatOption(option) {
+    // Update select element if it exists
+    const repeatSelect = document.getElementById('repeatSelect');
+    if (repeatSelect) {
+        repeatSelect.value = option;
+    }
+    // Update button if it exists (for backward compatibility)
+    const repeatButton = document.getElementById('repeatButton');
+    if (repeatButton) {
+        repeatButton.textContent = option;
+    }
+    // Hide dropdown if it exists
+    const repeatDropdown = document.getElementById('repeatDropdown');
+    if (repeatDropdown) {
+        repeatDropdown.classList.add('hidden');
+    }
+}
  
  function editLocation() {
      const locationText = document.getElementById('locationText');
@@ -1847,8 +2181,11 @@ async function editMoreOptions() {
     }
 }
  
- // Global events storage - load from local storage or initialize empty array
- let events = JSON.parse(localStorage.getItem('calendarEvents') || '[]');
+// Global events storage - load from local storage or initialize empty array
+let events = JSON.parse(localStorage.getItem('calendarEvents') || '[]');
+
+// Track attachments selected for the event being edited/created (File objects in the browser)
+let currentEventAttachments = [];
 
 // Track which event is currently shown in the details modal
 let currentOpenedEventId = null;
@@ -1864,11 +2201,73 @@ window.saveEvent = function() {
         const title = document.getElementById('eventTitle').value;
          console.log('Title:', title); // Debug log
          
-         const startTime = document.getElementById('startTimeBtn').textContent;
-         const endTime = document.getElementById('endTimeBtn').textContent;
-         const date = document.querySelector('button[onclick="toggleTimePicker()"]').textContent;
-        const location = document.getElementById('locationText').textContent;
-         const description = document.getElementById('descriptionText').textContent;
+        // Get date and time from new inputs or fallback to old buttons
+        const dateInput = document.getElementById('eventDateInput'); // display
+        const dateIsoInput = document.getElementById('eventDateIso'); // ISO
+        const startTimeInput = document.getElementById('startTimeInput');
+        const endTimeInput = document.getElementById('endTimeInput');
+        const startTimeBtn = document.getElementById('startTimeBtn');
+        const endTimeBtn = document.getElementById('endTimeBtn');
+        
+        let date, startTime, endTime;
+        let scheduledDate = null;
+        let dayNumber = null;
+        if (dateInput && startTimeInput && endTimeInput) {
+            // Use new input fields
+            scheduledDate = dateIsoInput ? dateIsoInput.value : '';
+            startTime = startTimeInput.value;
+            endTime = endTimeInput.value;
+
+            if (!scheduledDate) {
+                showToast('Please choose a date.', 'error');
+                return;
+            }
+
+            // Convert ISO (YYYY-MM-DD) into the legacy display format used across the app
+            if (scheduledDate && /^\d{4}-\d{2}-\d{2}$/.test(scheduledDate)) {
+                const [y, m, d] = scheduledDate.split('-').map(n => parseInt(n, 10));
+                const localDate = new Date(y, (m || 1) - 1, d || 1);
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                date = `${dayNames[localDate.getDay()]}, ${localDate.getDate()} ${monthNames[localDate.getMonth()]} ${localDate.getFullYear()}`;
+                dayNumber = localDate.getDate();
+            } else {
+                date = scheduledDate || '';
+            }
+        } else if (startTimeBtn && endTimeBtn) {
+            // Fallback to old buttons
+            startTime = startTimeBtn.textContent;
+            endTime = endTimeBtn.textContent;
+            const dateButton = document.querySelector('button[onclick="toggleTimePicker()"]');
+            date = dateButton ? dateButton.textContent : '';
+        } else {
+            date = '';
+            startTime = '';
+            endTime = '';
+        }
+        
+        // Get location and description from new always-visible inputs or fallback to old system
+        const locationInput = document.getElementById('locationInput');
+        const descriptionInput = document.getElementById('descriptionInput');
+        const locationText = document.getElementById('locationText');
+        const descriptionText = document.getElementById('descriptionText');
+        
+        let location, description;
+        if (locationInput && !locationInput.classList.contains('hidden')) {
+            location = locationInput.value;
+        } else if (locationText) {
+            location = locationText.textContent;
+        } else {
+            location = '';
+        }
+        
+        if (descriptionInput && descriptionInput.tagName === 'TEXTAREA') {
+            description = descriptionInput.value;
+        } else if (descriptionText) {
+            description = descriptionText.textContent;
+        } else {
+            description = '';
+        }
         const eventType = (document.getElementById('eventTypeSelect') && document.getElementById('eventTypeSelect').value) || 'Event';
         const reminder = (document.getElementById('reminderText') && document.getElementById('reminderText').textContent) || '30 minutes before';
          
@@ -1890,61 +2289,51 @@ window.saveEvent = function() {
          }
          console.log('Selected color:', selectedColor); // Debug log
          
-         // Extract date number from the date string (e.g., "Wednesday, 1 October" -> "1")
-         const dateNumber = date.match(/\d+/);
-         const dayNumber = dateNumber ? dateNumber[0] : '1';
-         console.log('Day number:', dayNumber); // Debug log
-         
-        // Parse date string to get proper date format (e.g., "Friday, 15 November 2025" -> "2025-11-15")
-        // Format is: "DayName, Day MonthName Year" or "DayName, Day MonthName"
-        // Use manual formatting to avoid timezone conversion issues
-        let scheduledDate = null;
-        try {
-            console.log('Original date string:', date); // Debug log
-            
-            // Remove day name prefix if present (e.g., "Friday, " or "Friday,")
-            let dateToParse = date.replace(/^[A-Za-z]+,\s*/i, '').trim();
-            console.log('Date after removing day name:', dateToParse); // Debug log
-            
-            // Parse the date: "15 November 2025" or "15 November"
-            const dateMatch = dateToParse.match(/^(\d{1,2})\s+(\w+)(?:\s+(\d{4}))?$/);
-            if (dateMatch) {
-                const day = parseInt(dateMatch[1]);
-                const monthName = dateMatch[2];
-                const year = dateMatch[3] ? parseInt(dateMatch[3]) : currentCalendarDate.getFullYear();
-                
-                console.log('Date match found:', { day, monthName, year, currentYear: currentCalendarDate.getFullYear() }); // Debug log
-                
-                const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
-                                  'july', 'august', 'september', 'october', 'november', 'december'];
-                const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthName.toLowerCase());
-                
-                console.log('Month index lookup:', { monthName: monthName.toLowerCase(), monthIndex }); // Debug log
-                
-                if (monthIndex !== -1) {
-                    // Format date directly as YYYY-MM-DD without timezone conversion
-                    // This avoids the issue where toISOString() converts to UTC and might shift the date
-                    const month = (monthIndex + 1).toString().padStart(2, '0');
-                    const dayStr = day.toString().padStart(2, '0');
-                    scheduledDate = `${year}-${month}-${dayStr}`; // Format: YYYY-MM-DD (no timezone conversion)
-                    
-                    console.log('✅ Successfully parsed date:', { dateString: date, parsedDate: dateToParse, year, monthIndex, month: monthIndex + 1, monthName, day, scheduledDate });
-                } else {
-                    console.error('❌ Month not found:', monthName);
+        // If we didn't get dayNumber/scheduledDate from the ISO date input, derive it from legacy display string
+        if (dayNumber == null) {
+            const dn = date && typeof date === 'string' ? date.match(/\d{1,2}/) : null;
+            dayNumber = dn ? parseInt(dn[0], 10) : 1;
+        }
+        console.log('Day number:', dayNumber); // Debug log
+
+        // If scheduledDate wasn't set from the ISO input, parse the legacy display string
+        if (!scheduledDate) {
+            try {
+                console.log('Original date string:', date); // Debug log
+
+                // Remove day name prefix if present (e.g., "Friday, " or "Friday,")
+                let dateToParse = (date || '').replace(/^[A-Za-z]+,\s*/i, '').trim();
+                console.log('Date after removing day name:', dateToParse); // Debug log
+
+                // Parse the date: "15 November 2025" or "15 November"
+                const dateMatch = dateToParse.match(/^(\d{1,2})\s+(\w+)(?:\s+(\d{4}))?$/);
+                if (dateMatch) {
+                    const day = parseInt(dateMatch[1], 10);
+                    const monthName = dateMatch[2];
+                    const year = dateMatch[3] ? parseInt(dateMatch[3], 10) : currentCalendarDate.getFullYear();
+
+                    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june',
+                                      'july', 'august', 'september', 'october', 'november', 'december'];
+                    const monthIndex = monthNames.findIndex(m => m === monthName.toLowerCase());
+
+                    if (monthIndex !== -1) {
+                        const month = String(monthIndex + 1).padStart(2, '0');
+                        const dayStr = String(day).padStart(2, '0');
+                        scheduledDate = `${year}-${month}-${dayStr}`;
+                    }
                 }
-            } else {
-                console.error('❌ Date regex did not match:', dateToParse);
-                // Fallback: try to use currentCalendarDate
-                console.log('Attempting fallback with currentCalendarDate...');
-                const fallbackDate = currentCalendarDate;
-                const fallbackYear = fallbackDate.getFullYear();
-                const fallbackMonth = (fallbackDate.getMonth() + 1).toString().padStart(2, '0');
-                const fallbackDay = fallbackDate.getDate().toString().padStart(2, '0');
-                scheduledDate = `${fallbackYear}-${fallbackMonth}-${fallbackDay}`;
-                console.log('⚠️ Using fallback date:', scheduledDate);
+
+                // Fallback if still missing
+                if (!scheduledDate) {
+                    const fallbackDate = currentCalendarDate;
+                    const fallbackYear = fallbackDate.getFullYear();
+                    const fallbackMonth = String(fallbackDate.getMonth() + 1).padStart(2, '0');
+                    const fallbackDay = String(fallbackDate.getDate()).padStart(2, '0');
+                    scheduledDate = `${fallbackYear}-${fallbackMonth}-${fallbackDay}`;
+                }
+            } catch (e) {
+                console.error('❌ Date parsing error:', e);
             }
-        } catch (e) {
-            console.error('❌ Date parsing error:', e);
         }
          
         // Create or update event object
@@ -1956,7 +2345,7 @@ window.saveEvent = function() {
                     ...events[idx],
                     title: title.trim(),
                     date: date,
-                    dayNumber: parseInt(dayNumber),
+                    dayNumber: parseInt(dayNumber, 10),
                     startTime: startTime,
                     endTime: endTime,
                     location: location !== 'Add location' ? location : '',
@@ -1973,20 +2362,31 @@ window.saveEvent = function() {
                 id: Date.now(), // Unique ID
                 title: title.trim(),
                 date: date,
-                dayNumber: parseInt(dayNumber),
+                dayNumber: parseInt(dayNumber, 10),
                 startTime: startTime,
                 endTime: endTime,
                 location: location !== 'Add location' ? location : '',
                 description: description !== 'Add description or a Google Drive attachment' ? description : '',
                 color: selectedColor,
                 type: eventType,
-                reminder: reminder
+                reminder: reminder,
+                // Store a lightweight representation of attachments on the client side
+                attachments: currentEventAttachments.map(file => ({
+                    name: file.name,
+                    size: file.size,
+                    type: file.type
+                }))
             };
             // Add event to storage
             events.push(eventData);
         } else {
             // Update existing event
             eventData.reminder = reminder;
+            eventData.attachments = currentEventAttachments.map(file => ({
+                name: file.name,
+                size: file.size,
+                type: file.type
+            }));
         }
          
          console.log('Event data created:', eventData); // Debug log
@@ -1998,7 +2398,7 @@ window.saveEvent = function() {
          console.log('Events saved to local storage'); // Debug log
          
          // Also save to database via API
-         if (typeof createSchedule === 'function' && scheduledDate) {
+         if (scheduledDate) {
              const scheduleData = {
                  title: title.trim(),
                  description: description !== 'Add description or a Google Drive attachment' ? description : '',
@@ -2011,23 +2411,79 @@ window.saveEvent = function() {
              // Schedule reminder notification
              scheduleReminderNotification(eventData);
              
-             createSchedule(scheduleData).then(success => {
-                 if (success) {
-                     console.log('Schedule saved to database');
-                     // Reload schedules from database
-                     if (typeof loadSchedules === 'function') {
-                         loadSchedules();
-                     }
-                 }
-             }).catch(error => {
-                 console.error('Error saving schedule to database:', error);
-             });
+             // Collect attachment files from the hidden input for upload
+             const attachmentInput = document.getElementById('eventAttachmentsInput');
+             const attachmentFiles = attachmentInput && attachmentInput.files ? Array.from(attachmentInput.files) : [];
+
+             // Check if we're editing an existing schedule or creating a new one
+             if (isEditingExisting && currentOpenedEventId && typeof updateSchedule === 'function') {
+                 // Update existing schedule
+                updateSchedule(currentOpenedEventId, scheduleData).then(success => {
+                    if (success) {
+                        console.log('Schedule updated in database');
+                        // Reload schedules from database
+                        if (typeof loadSchedules === 'function') {
+                            loadSchedules();
+                        }
+                        
+                        // Check for notifications after updating schedule
+                        setTimeout(async () => {
+                            if (typeof checkNotifications === 'function') {
+                                await checkNotifications();
+                            }
+                            // Reload notifications to display them immediately
+                            if (typeof loadNotifications === 'function') {
+                                await loadNotifications();
+                            }
+                            // Update badge
+                            if (typeof updateNotificationBadge === 'function') {
+                                await updateNotificationBadge();
+                            }
+                        }, 500);
+                    }
+                }).catch(error => {
+                    console.error('Error updating schedule in database:', error);
+                });
+             } else if (typeof createSchedule === 'function') {
+                 // Create new schedule (and upload any selected attachments)
+                createSchedule(scheduleData, attachmentFiles).then(success => {
+                    if (success) {
+                        console.log('Schedule saved to database');
+                        // Reload schedules from database
+                        if (typeof loadSchedules === 'function') {
+                            loadSchedules();
+                        }
+                        
+                        // Check for notifications after creating schedule
+                        setTimeout(async () => {
+                            if (typeof checkNotifications === 'function') {
+                                await checkNotifications();
+                            }
+                            // Reload notifications to display them immediately
+                            if (typeof loadNotifications === 'function') {
+                                await loadNotifications();
+                            }
+                            // Update badge
+                            if (typeof updateNotificationBadge === 'function') {
+                                await updateNotificationBadge();
+                            }
+                        }, 500);
+                    }
+                }).catch(error => {
+                    console.error('Error saving schedule to database:', error);
+                });
+             }
          }
          
-         // Update calendar display
-         renderEventsOnCalendar();
+        // Update calendar display
+        renderEventsOnCalendar();
         renderMyEvents();
          console.log('Calendar rendered'); // Debug log
+         
+        // Check for today's events after adding/updating event
+        setTimeout(() => {
+            checkTodaysEvents();
+        }, 500);
          
         // Close modal automatically - no popup alert
          closeCreateModal();
@@ -2158,7 +2614,7 @@ function renderMyEvents() {
 				row.className = 'group flex items-center justify-between rounded-lg px-2 py-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/60';
 
 				const title = document.createElement('div');
-				title.className = 'text-[13px] font-semibold text-text-light dark:text-text-dark truncate';
+				title.className = 'text-[13px] font-medium text-text-muted-light dark:text-text-muted-dark truncate';
 				title.textContent = ev.title || 'Untitled Event';
 
 				const menu = document.createElement('button');
@@ -2413,14 +2869,28 @@ function openEventDetail(event) {
     
     // Display time if available
     const detailTime = document.getElementById('detailTime');
+    const detailTimeText = document.getElementById('detailTimeText');
+    let timeText = '';
+    
     if (event.startTime && event.endTime) {
-        detailTime.textContent = `${event.startTime} - ${event.endTime}`;
+        timeText = `${event.startTime} - ${event.endTime}`;
     } else if (event.startTime) {
-        detailTime.textContent = event.startTime;
+        timeText = event.startTime;
     } else if (event.scheduled_time) {
-        detailTime.textContent = event.scheduled_time;
+        timeText = event.scheduled_time;
+    } else if (event.time) {
+        timeText = event.time;
+    }
+    
+    if (detailTimeText) {
+        detailTimeText.textContent = timeText;
+    }
+    
+    // Show/hide time element based on whether time exists
+    if (timeText.trim() === '') {
+        detailTime.style.display = 'none';
     } else {
-        detailTime.textContent = '';
+        detailTime.style.display = 'flex';
     }
     
     // Display event type
@@ -2433,35 +2903,118 @@ function openEventDetail(event) {
         detailTypeContainer.classList.add('hidden');
     }
     
-    // Display location (only if it exists)
+    // Display location (always show, with placeholder if empty)
     const detailLocationContainer = document.getElementById('detailLocationContainer');
     const detailLocation = document.getElementById('detailLocation');
     if (event.location && event.location.trim() !== '' && event.location !== 'Add location') {
         detailLocation.textContent = event.location;
-        detailLocationContainer.classList.remove('hidden');
+        detailLocation.classList.remove('text-text-muted-light', 'dark:text-text-muted-dark', 'italic');
+        detailLocation.classList.add('text-text-light', 'dark:text-text-dark');
     } else {
-        detailLocationContainer.classList.add('hidden');
+        detailLocation.textContent = 'No location specified';
+        detailLocation.classList.remove('text-text-light', 'dark:text-text-dark');
+        detailLocation.classList.add('text-text-muted-light', 'dark:text-text-muted-dark', 'italic');
     }
+    detailLocationContainer.classList.remove('hidden');
     
-    // Display description (only if it exists)
+    // Display description (always show, with placeholder if empty)
     const detailDescriptionContainer = document.getElementById('detailDescriptionContainer');
     const detailDescription = document.getElementById('detailDescription');
     if (event.description && event.description.trim() !== '' && event.description !== 'Add description or a Google Drive attachment') {
         detailDescription.textContent = event.description;
-        detailDescriptionContainer.classList.remove('hidden');
+        detailDescription.classList.remove('text-text-muted-light', 'dark:text-text-muted-dark', 'italic');
+        detailDescription.classList.add('text-text-light', 'dark:text-text-dark');
     } else {
-        detailDescriptionContainer.classList.add('hidden');
+        detailDescription.textContent = 'No description provided';
+        detailDescription.classList.remove('text-text-light', 'dark:text-text-dark');
+        detailDescription.classList.add('text-text-muted-light', 'dark:text-text-muted-dark', 'italic');
+    }
+    detailDescriptionContainer.classList.remove('hidden');
+    
+    // Load and display attachments (if any) for this schedule/event
+    const detailAttachmentsContainer = document.getElementById('detailAttachmentsContainer');
+    const detailAttachments = document.getElementById('detailAttachments');
+    if (detailAttachmentsContainer && detailAttachments) {
+        // Clear previous list
+        detailAttachments.innerHTML = '';
+        detailAttachmentsContainer.classList.add('hidden');
+
+        const scheduleId = event.id;
+        if (scheduleId) {
+            fetch(`${ATTACHMENTS_API}?schedule_id=${encodeURIComponent(scheduleId)}`)
+                .then(resp => resp.json())
+                .then(data => {
+                    if (!data || !data.success || !Array.isArray(data.attachments) || data.attachments.length === 0) {
+                        return;
+                    }
+
+                    data.attachments.forEach(att => {
+                        const link = document.createElement('a');
+                        link.href = att.file_path || '#';
+                        link.target = '_blank';
+                        link.rel = 'noopener noreferrer';
+                        link.className = 'flex items-center gap-2 text-primary hover:underline text-sm';
+
+                        const icon = document.createElement('span');
+                        icon.className = 'material-symbols-outlined text-[18px]';
+                        icon.textContent = 'description';
+
+                        const nameSpan = document.createElement('span');
+                        nameSpan.textContent = att.original_name || att.file_name;
+
+                        const sizeSpan = document.createElement('span');
+                        sizeSpan.className = 'text-[11px] text-text-muted-light dark:text-text-muted-dark';
+                        if (att.file_size) {
+                            const sizeMb = (att.file_size / (1024 * 1024)).toFixed(1);
+                            sizeSpan.textContent = `(${sizeMb}MB)`;
+                        }
+
+                        link.appendChild(icon);
+                        link.appendChild(nameSpan);
+                        if (sizeSpan.textContent) {
+                            link.appendChild(sizeSpan);
+                        }
+
+                        detailAttachments.appendChild(link);
+                    });
+
+                    if (detailAttachments.children.length > 0) {
+                        detailAttachmentsContainer.classList.remove('hidden');
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to load schedule attachments:', err);
+                });
+        }
     }
     
     // Display reminder (use saved reminder or default)
     const detailReminder = document.getElementById('detailReminder');
     detailReminder.textContent = event.reminder || '30 minutes before';
 
-    	// Ensure container centers content and resets any prior inline offsets
-	const card = document.querySelector('#eventDetailModal > div');
-	if (card) { card.style.marginTop = '0px'; }
-	modal.classList.remove('hidden');
-	modal.classList.add('flex');
+    // Ensure modal is properly centered
+    const card = document.querySelector('#eventDetailModal > div');
+    if (card) {
+        // Reset any inline positioning styles that might interfere
+        card.style.marginTop = '';
+        card.style.marginLeft = '';
+        card.style.marginRight = '';
+        card.style.marginBottom = '';
+        card.style.top = '';
+        card.style.left = '';
+        card.style.right = '';
+        card.style.bottom = '';
+        card.style.transform = '';
+        card.style.position = '';
+    }
+    // Reset modal positioning
+    modal.style.top = '';
+    modal.style.left = '';
+    modal.style.right = '';
+    modal.style.bottom = '';
+    modal.style.transform = '';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
     modal.style.display = 'flex';
 }
 
@@ -2677,6 +3230,8 @@ function renderSidebarCalendar() {
         grid.appendChild(button);
     }
 }
+
+ // (Year dropdown removed from the date picker header; month+year is shown in #currentMonthDisplay)
  
  function selectDate(dateElement) {
      if (!dateElement) {
@@ -2726,22 +3281,27 @@ function renderSidebarCalendar() {
          return;
      }
      
-     // If this is from the date picker modal, update the date field and close modal
+    // If this is from the date picker modal, update the date field and close modal
      const datePickerVisible = datePickerModal && !datePickerModal.classList.contains('hidden');
      if (isFromDatePicker || datePickerVisible) {
-         // Update the date button text in the create modal
-         const dateButton = document.querySelector('button[onclick="toggleTimePicker()"]');
-         if (dateButton) {
-             const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-             
-             const dayName = dayNames[date.getDay()];
-             const monthName = monthNames[date.getMonth()];
-            
-             // Include year so events can be accurately scoped across months/years
-             const formattedDate = `${dayName}, ${selectedDate} ${monthName} ${selectedYear}`;
-             dateButton.textContent = formattedDate;
-         }
+       // Update the new date inputs in the create modal (preferred)
+       const eventDateInput = document.getElementById('eventDateInput'); // display (MM/DD/YYYY)
+       const eventDateIso = document.getElementById('eventDateIso'); // ISO (YYYY-MM-DD)
+       const mm = String(date.getMonth() + 1).padStart(2, '0');
+       const dd = String(date.getDate()).padStart(2, '0');
+       const yyyy = String(date.getFullYear());
+       if (eventDateIso) eventDateIso.value = `${yyyy}-${mm}-${dd}`;
+       if (eventDateInput) eventDateInput.value = `${mm}/${dd}/${yyyy}`;
+
+        // Backward compatibility: update the old date button if it exists
+        const dateButton = document.querySelector('button[onclick="toggleTimePicker()"]');
+        if (dateButton) {
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            const dayName = dayNames[date.getDay()];
+            const monthName = monthNames[date.getMonth()];
+            dateButton.textContent = `${dayName}, ${selectedDate} ${monthName} ${selectedYear}`;
+        }
          
          // Close the date picker modal
          closeDatePickerModal();
@@ -2802,20 +3362,25 @@ document.addEventListener('click', function(e) {
 }, true); // Use capture phase
 
 // Close modal when clicking outside
-document.getElementById('createModal').addEventListener('click', function(e) {
-    const datePickerModal = document.getElementById('datePickerModal');
-    
-    // If date picker modal is open, don't close create modal - let date picker handle its own clicks
-    if (datePickerModal && !datePickerModal.classList.contains('hidden')) {
-        // Don't close create modal if date picker is open
-        return;
-    }
-    
-    // Only close if clicking directly on the backdrop (this element)
-    if (e.target === this) {
-        closeCreateModal();
-    }
-});
+const createModalElement = document.getElementById('createModal');
+if (createModalElement) {
+    createModalElement.addEventListener('click', function(e) {
+        const datePickerModal = document.getElementById('datePickerModal');
+        
+        // If date picker modal is open, don't close create modal - let date picker handle its own clicks
+        if (datePickerModal && !datePickerModal.classList.contains('hidden')) {
+            // Don't close create modal if date picker is open
+            return;
+        }
+        
+        // Only close if clicking directly on the backdrop (this element)
+        if (e.target === this) {
+            if (typeof closeCreateModal === 'function') {
+                closeCreateModal();
+            }
+        }
+    });
+}
 
 // Close date picker modal when clicking outside - REMOVED to prevent blocking date button clicks
 
@@ -2845,25 +3410,58 @@ document.addEventListener('click', function(e) {
  
  // Add event listeners for input fields
  document.addEventListener('DOMContentLoaded', function() {
-     // Location input events
-     document.getElementById('locationInput').addEventListener('keypress', function(e) {
-         if (e.key === 'Enter') {
+     // Location input events (only if it's hidden, otherwise it's always visible)
+     const locationInput = document.getElementById('locationInput');
+     if (locationInput && locationInput.classList.contains('hidden')) {
+         locationInput.addEventListener('keypress', function(e) {
+             if (e.key === 'Enter') {
+                 editLocation();
+             }
+         });
+         locationInput.addEventListener('blur', function() {
              editLocation();
-         }
-     });
-     document.getElementById('locationInput').addEventListener('blur', function() {
-         editLocation();
+         });
+     }
+     
+     // Description input events (only if it's not a textarea)
+     const descriptionInput = document.getElementById('descriptionInput');
+     if (descriptionInput && descriptionInput.tagName !== 'TEXTAREA') {
+         descriptionInput.addEventListener('keypress', function(e) {
+             if (e.key === 'Enter') {
+                 editDescription();
+             }
+         });
+         descriptionInput.addEventListener('blur', function() {
+             editDescription();
+         });
+     }
+     
+     // Event type tag buttons
+     document.querySelectorAll('.event-type-tag').forEach(button => {
+         button.addEventListener('click', function() {
+             // Remove active class from all buttons
+             document.querySelectorAll('.event-type-tag').forEach(btn => {
+                 btn.classList.remove('active', 'bg-primary/10', 'text-primary', 'border-primary/20', 'font-semibold');
+                 btn.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-400', 'border-slate-200', 'dark:border-slate-700', 'font-medium');
+             });
+             // Add active class to clicked button
+             this.classList.add('active', 'bg-primary/10', 'text-primary', 'border-primary/20', 'font-semibold');
+             this.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-400', 'border-slate-200', 'dark:border-slate-700', 'font-medium');
+             // Update hidden select
+             const eventTypeSelect = document.getElementById('eventTypeSelect');
+             if (eventTypeSelect) {
+                 eventTypeSelect.value = this.getAttribute('data-type');
+             }
+         });
      });
      
-     // Description input events
-     document.getElementById('descriptionInput').addEventListener('keypress', function(e) {
-         if (e.key === 'Enter') {
-             editDescription();
-         }
-     });
-     document.getElementById('descriptionInput').addEventListener('blur', function() {
-         editDescription();
-     });
+     // Repeat select handler
+     const repeatSelect = document.getElementById('repeatSelect');
+     if (repeatSelect) {
+         repeatSelect.addEventListener('change', function() {
+             selectRepeatOption(this.value);
+         });
+     }
      
      // Close repeat dropdown when clicking outside
      document.addEventListener('click', function(e) {
@@ -3029,14 +3627,51 @@ document.addEventListener('click', function(e) {
         if (!evt) return;
         // Prefill fields
         document.getElementById('eventTitle').value = evt.title || '';
+        // Date/time (new inputs)
+        const eventDateInput = document.getElementById('eventDateInput'); // display
+        const eventDateIso = document.getElementById('eventDateIso'); // ISO
+        if ((eventDateInput || eventDateIso) && evt.date) {
+            // evt.date format: "DayName, D MonthName YYYY"
+            const dateToParse = String(evt.date).replace(/^[A-Za-z]+,\s*/i, '').trim();
+            const m = dateToParse.match(/^(\d{1,2})\s+(\w+)\s+(\d{4})$/);
+            if (m) {
+                const day = parseInt(m[1], 10);
+                const monthName = m[2].toLowerCase();
+                const year = parseInt(m[3], 10);
+                const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+                const monthIndex = monthNames.indexOf(monthName);
+                if (monthIndex !== -1) {
+                    const mm = String(monthIndex + 1).padStart(2, '0');
+                    const dd = String(day).padStart(2, '0');
+                    if (eventDateIso) eventDateIso.value = `${year}-${mm}-${dd}`;
+                    if (eventDateInput) eventDateInput.value = `${mm}/${dd}/${year}`;
+                }
+            }
+        }
+        const startTimeInput = document.getElementById('startTimeInput');
+        const endTimeInput = document.getElementById('endTimeInput');
+        if (startTimeInput && evt.startTime) startTimeInput.value = time24ToDisplay(evt.startTime);
+        if (endTimeInput && evt.endTime) endTimeInput.value = time24ToDisplay(evt.endTime);
+
+        // Back-compat elements (only if they exist)
         const dateBtn = document.querySelector('button[onclick="toggleTimePicker()"]');
         if (dateBtn && evt.date) dateBtn.textContent = evt.date;
-        if (evt.startTime) document.getElementById('startTimeBtn').textContent = evt.startTime;
-        if (evt.endTime) document.getElementById('endTimeBtn').textContent = evt.endTime;
+        const startTimeBtn = document.getElementById('startTimeBtn');
+        const endTimeBtn = document.getElementById('endTimeBtn');
+        if (startTimeBtn && evt.startTime) startTimeBtn.textContent = time24ToDisplay(evt.startTime);
+        if (endTimeBtn && evt.endTime) endTimeBtn.textContent = time24ToDisplay(evt.endTime);
+
+        // Location/description (new inputs)
+        const locationInput = document.getElementById('locationInput');
+        if (locationInput) locationInput.value = evt.location || '';
+        const descriptionInput = document.getElementById('descriptionInput');
+        if (descriptionInput && descriptionInput.tagName === 'TEXTAREA') descriptionInput.value = evt.description || '';
+
+        // Back-compat text spans (only if they exist)
         const locationText = document.getElementById('locationText');
-        locationText.textContent = evt.location ? evt.location : 'Add location';
+        if (locationText) locationText.textContent = evt.location ? evt.location : 'Add location';
         const descriptionText = document.getElementById('descriptionText');
-        descriptionText.textContent = evt.description ? evt.description : 'Add description or a Google Drive attachment';
+        if (descriptionText) descriptionText.textContent = evt.description ? evt.description : 'Add description or a Google Drive attachment';
         // Reminder
         const reminderText = document.getElementById('reminderText');
         if (reminderText) {
@@ -3054,6 +3689,100 @@ document.addEventListener('click', function(e) {
         detailModal.style.display = 'none';
         isEditingExisting = true;
         openCreateModal();
+    });
+    
+    // Reminder button -> open create modal prefilled and focus on reminder
+    const detailReminderBtn = document.getElementById('detailReminderBtn');
+    if (detailReminderBtn) detailReminderBtn.addEventListener('click', () => {
+        if (!currentOpenedEventId) return;
+        const evt = events.find(ev => String(ev.id) === String(currentOpenedEventId));
+        if (!evt) return;
+        // Prefill fields
+        document.getElementById('eventTitle').value = evt.title || '';
+        // Date/time (new inputs)
+        const eventDateInput = document.getElementById('eventDateInput'); // display
+        const eventDateIso = document.getElementById('eventDateIso'); // ISO
+        if ((eventDateInput || eventDateIso) && evt.date) {
+            const dateToParse = String(evt.date).replace(/^[A-Za-z]+,\s*/i, '').trim();
+            const m = dateToParse.match(/^(\d{1,2})\s+(\w+)\s+(\d{4})$/);
+            if (m) {
+                const day = parseInt(m[1], 10);
+                const monthName = m[2].toLowerCase();
+                const year = parseInt(m[3], 10);
+                const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+                const monthIndex = monthNames.indexOf(monthName);
+                if (monthIndex !== -1) {
+                    const mm = String(monthIndex + 1).padStart(2, '0');
+                    const dd = String(day).padStart(2, '0');
+                    if (eventDateIso) eventDateIso.value = `${year}-${mm}-${dd}`;
+                    if (eventDateInput) eventDateInput.value = `${mm}/${dd}/${year}`;
+                }
+            }
+        }
+        const startTimeInput = document.getElementById('startTimeInput');
+        const endTimeInput = document.getElementById('endTimeInput');
+        if (startTimeInput && evt.startTime) startTimeInput.value = time24ToDisplay(evt.startTime);
+        if (endTimeInput && evt.endTime) endTimeInput.value = time24ToDisplay(evt.endTime);
+
+        // Back-compat elements (only if they exist)
+        const dateBtn = document.querySelector('button[onclick="toggleTimePicker()"]');
+        if (dateBtn && evt.date) dateBtn.textContent = evt.date;
+        const startTimeBtn = document.getElementById('startTimeBtn');
+        const endTimeBtn = document.getElementById('endTimeBtn');
+        if (startTimeBtn && evt.startTime) startTimeBtn.textContent = time24ToDisplay(evt.startTime);
+        if (endTimeBtn && evt.endTime) endTimeBtn.textContent = time24ToDisplay(evt.endTime);
+
+        // Location/description (new inputs)
+        const locationInput = document.getElementById('locationInput');
+        if (locationInput) locationInput.value = evt.location || '';
+        const descriptionInput = document.getElementById('descriptionInput');
+        if (descriptionInput && descriptionInput.tagName === 'TEXTAREA') descriptionInput.value = evt.description || '';
+
+        // Back-compat text spans (only if they exist)
+        const locationText = document.getElementById('locationText');
+        if (locationText) locationText.textContent = evt.location ? evt.location : 'Add location';
+        const descriptionText = document.getElementById('descriptionText');
+        if (descriptionText) descriptionText.textContent = evt.description ? evt.description : 'Add description or a Google Drive attachment';
+        // Reminder
+        const reminderText = document.getElementById('reminderText');
+        if (reminderText) {
+            reminderText.textContent = evt.reminder || '30 minutes before';
+        }
+        // Color button
+        const colorBtn = document.querySelector('button[onclick="toggleColorPicker()"]');
+        if (colorBtn && evt.color) {
+            colorBtn.className = colorBtn.className.replace(/bg-\w+-\d+|bg-transparent|border-2\sborder-\w+-\d+/g, '').trim();
+            colorBtn.className += ` ${evt.color}`;
+        }
+        // Close detail modal, open create modal in edit mode
+        detailModal.classList.add('hidden');
+        detailModal.classList.remove('flex');
+        detailModal.style.display = 'none';
+        isEditingExisting = true;
+        openCreateModal();
+        
+        // Update reminder dropdown visual state and focus
+        setTimeout(() => {
+            const currentReminder = evt.reminder || '30 minutes before';
+            const reminderOptions = document.querySelectorAll('.reminder-option');
+            reminderOptions.forEach(opt => {
+                const check = opt.querySelector('.reminder-check');
+                if (opt.getAttribute('data-value') === currentReminder) {
+                    opt.classList.add('bg-blue-50', 'dark:bg-blue-900/20');
+                    if (check) check.classList.remove('hidden');
+                } else {
+                    opt.classList.remove('bg-blue-50', 'dark:bg-blue-900/20');
+                    if (check) check.classList.add('hidden');
+                }
+            });
+            
+            const reminderButton = document.getElementById('reminderButton');
+            if (reminderButton) {
+                reminderButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Open the reminder dropdown
+                toggleReminderDropdown();
+            }
+        }, 150);
     });
     // Delete current event/schedule
     const detailDeleteBtn = document.getElementById('detailDeleteBtn');
@@ -3166,6 +3895,12 @@ document.addEventListener('click', function(e) {
                     detailModal.style.visibility = 'hidden';
                 }
                 
+                // Close attendance modal if it's open for this deleted event
+                const attendanceModal = document.getElementById('eventAttendanceModal');
+                if (attendanceModal && attendanceModal.dataset.eventId === String(currentOpenedEventId)) {
+                    attendanceModal.classList.add('hidden');
+                }
+                
                 // Also remove any confirmation modals that might be lingering
                 const confirmModal = document.getElementById('confirmModal');
                 if (confirmModal) {
@@ -3207,7 +3942,7 @@ document.addEventListener('click', function(e) {
                 }
                 
                 if (deleted) {
-                    showToast('Schedule deleted successfully', 'success');
+                    showDeleteSuccessModal();
                 } else {
                     showToast('Event removed from display', 'info');
                 }
@@ -3271,10 +4006,7 @@ document.addEventListener('click', function(e) {
    const ctxDelete = document.getElementById('ctxDelete');
   if (ctxDelete) ctxDelete.addEventListener('click', async () => {
       if (!ctxTargetEventId) return;
-      
-      const confirmed = await showConfirm('Are you sure you want to delete this schedule?', 'Delete Schedule', 'Delete', 'Cancel');
-      if (!confirmed) return;
-       
+      // Direct delete without confirmation modal / dark overlay
        try {
            console.log('Attempting to delete schedule with ID:', ctxTargetEventId);
            
@@ -3303,7 +4035,13 @@ document.addEventListener('click', function(e) {
            console.log('Delete result:', result);
            
            if (result.success) {
-               showToast('Schedule deleted successfully', 'success');
+               // Close attendance modal if it's open for this deleted event
+               const attendanceModal = document.getElementById('eventAttendanceModal');
+               if (attendanceModal && attendanceModal.dataset.eventId === String(ctxTargetEventId)) {
+                   attendanceModal.classList.add('hidden');
+               }
+               
+               showDeleteSuccessModal();
                
                // Reload directly from database (single source of truth)
                // No localStorage manipulation - database is authoritative
@@ -3364,31 +4102,108 @@ function toggleUserSettings() {
      notificationDropdown.classList.toggle('hidden');
  }
  
- // Select notification option
- function selectNotification(option) {
-     // Replace "Add notification" text with the selected option
-     const addNotificationElement = document.querySelector('div[onclick="toggleNotificationDropdown()"]');
-     addNotificationElement.innerHTML = `
-         ${option}
-         
-         <!-- Notification Dropdown -->
-         <div id="notificationDropdown" class="hidden absolute bottom-6 left-0 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-48">
-             <div class="py-2">
-                 <div class="px-4 py-2 text-xs font-medium text-gray-500 border-b border-gray-100">When the event starts</div>
-                 <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectNotification('5 minutes before')">5 minutes before</div>
-                 <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectNotification('10 minutes before')">10 minutes before</div>
-                 <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectNotification('15 minutes before')">15 minutes before</div>
-                 <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectNotification('30 minutes before')">30 minutes before</div>
-                 <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectNotification('1 hour before')">1 hour before</div>
-                 <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectNotification('1 day before')">1 day before</div>
-                 <div class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onclick="selectNotification('Custom...')">Custom...</div>
-             </div>
-         </div>
-     `;
-     
-    // Close dropdown
-    const notificationDropdown = document.getElementById('notificationDropdown');
-    notificationDropdown.classList.add('hidden');
+// Select notification option
+function selectNotification(option) {
+    // Replace "Add notification" text with the selected option
+    const addNotificationElement = document.querySelector('div[onclick="toggleNotificationDropdown()"]');
+    
+    // Handle "Days before expiry" option
+    if (option === 'Days before expiry') {
+        addNotificationElement.innerHTML = `
+            <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-700 dark:text-gray-300">Days before expiry:</span>
+                <input type="number" id="notificationDaysInput" min="1" max="365" placeholder="Enter days" class="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100" value="" />
+                <button onclick="saveNotificationDays()" class="px-2 py-1 text-xs bg-primary text-white rounded hover:bg-primary/90">Save</button>
+            </div>
+            
+            <!-- Notification Dropdown -->
+            <div id="notificationDropdown" class="hidden absolute bottom-6 left-0 bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-48">
+                <div class="py-2">
+                    <div class="px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">When the event starts</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('5 minutes before')">5 minutes before</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('10 minutes before')">10 minutes before</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('15 minutes before')">15 minutes before</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('30 minutes before')">30 minutes before</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('1 hour before')">1 hour before</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('1 day before')">1 day before</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('Days before expiry')">Days before expiry</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('Custom...')">Custom...</div>
+                </div>
+            </div>
+        `;
+        // Focus on the input field and add Enter key handler
+        setTimeout(() => {
+            const input = document.getElementById('notificationDaysInput');
+            if (input) {
+                input.focus();
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        saveNotificationDays();
+                    }
+                });
+            }
+        }, 100);
+    } else {
+        addNotificationElement.innerHTML = `
+            ${option}
+            
+            <!-- Notification Dropdown -->
+            <div id="notificationDropdown" class="hidden absolute bottom-6 left-0 bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-48">
+                <div class="py-2">
+                    <div class="px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">When the event starts</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('5 minutes before')">5 minutes before</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('10 minutes before')">10 minutes before</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('15 minutes before')">15 minutes before</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('30 minutes before')">30 minutes before</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('1 hour before')">1 hour before</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('1 day before')">1 day before</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('Days before expiry')">Days before expiry</div>
+                    <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('Custom...')">Custom...</div>
+                </div>
+            </div>
+        `;
+    }
+    
+   // Close dropdown
+   const notificationDropdown = document.getElementById('notificationDropdown');
+   notificationDropdown.classList.add('hidden');
+}
+
+// Save notification days before expiry
+function saveNotificationDays() {
+    const input = document.getElementById('notificationDaysInput');
+    const days = parseInt(input.value);
+    
+    if (!days || days < 1 || days > 365) {
+        alert('Please enter a valid number of days (1-365)');
+        return;
+    }
+    
+    const addNotificationElement = document.querySelector('div[onclick="toggleNotificationDropdown()"]');
+    addNotificationElement.innerHTML = `
+        <span class="text-sm text-gray-700 dark:text-gray-300">${days} days before expiry</span>
+        
+        <!-- Notification Dropdown -->
+        <div id="notificationDropdown" class="hidden absolute bottom-6 left-0 bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-48">
+            <div class="py-2">
+                <div class="px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">When the event starts</div>
+                <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('5 minutes before')">5 minutes before</div>
+                <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('10 minutes before')">10 minutes before</div>
+                <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('15 minutes before')">15 minutes before</div>
+                <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('30 minutes before')">30 minutes before</div>
+                <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('1 hour before')">1 hour before</div>
+                <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('1 day before')">1 day before</div>
+                <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('Days before expiry')">Days before expiry</div>
+                <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer" onclick="selectNotification('Custom...')">Custom...</div>
+            </div>
+        </div>
+    `;
+    
+    // Store the notification preference (you can save this to your event data)
+    if (typeof window.currentEventData !== 'undefined') {
+        window.currentEventData.notificationDaysBeforeExpiry = days;
+    }
 }
 
 // Toggle reminder dropdown
@@ -3405,6 +4220,19 @@ function selectReminder(option) {
     if (reminderText) {
         reminderText.textContent = option;
     }
+    
+    // Update visual selection in dropdown
+    const reminderOptions = document.querySelectorAll('.reminder-option');
+    reminderOptions.forEach(opt => {
+        const check = opt.querySelector('.reminder-check');
+        if (opt.getAttribute('data-value') === option) {
+            opt.classList.add('bg-blue-50', 'dark:bg-blue-900/20');
+            if (check) check.classList.remove('hidden');
+        } else {
+            opt.classList.remove('bg-blue-50', 'dark:bg-blue-900/20');
+            if (check) check.classList.add('hidden');
+        }
+    });
     
     // Close the dropdown
     toggleReminderDropdown();
@@ -3455,8 +4283,40 @@ function selectColor(colorName, element) {
 <script>
 const API_BASE = 'api/scheduler.php';
 const AUTH_TOKEN = '<?php echo $token; ?>';
+const ATTACHMENTS_API = 'api/scheduler-attachments.php';
 
-window.createSchedule = async function(scheduleData) {
+/**
+ * Upload a single attachment file for a schedule.
+ * Returns true/false for success; errors are logged and surfaced via toast.
+ */
+async function uploadScheduleAttachment(scheduleId, file) {
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('schedule_id', scheduleId);
+
+        const response = await fetch(ATTACHMENTS_API, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            console.error('Attachment upload failed:', result);
+            showToast('Attachment upload failed: ' + (result.error || 'Unknown error'), 'error');
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.error('Attachment upload error:', error);
+        showToast('Attachment upload failed: ' + error.message, 'error');
+        return false;
+    }
+}
+
+window.createSchedule = async function(scheduleData, attachmentFiles = []) {
     try {
         const response = await fetch(API_BASE + '?action=create', {
             method: 'POST',
@@ -3470,8 +4330,58 @@ window.createSchedule = async function(scheduleData) {
         const result = await response.json();
 
         if (result.success) {
+            const scheduleId = result.id;
+
+            // If we have a schedule ID and attachments, upload them
+            if (scheduleId && Array.isArray(attachmentFiles) && attachmentFiles.length > 0) {
+                for (const file of attachmentFiles) {
+                    // Client-side guard: enforce 10MB and allowed extensions before hitting API
+                    const maxSize = 10 * 1024 * 1024;
+                    if (file.size > maxSize) {
+                        showToast(`"${file.name}" is larger than 10MB and was skipped.`, 'warning');
+                        continue;
+                    }
+
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    const allowedExts = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
+                    if (!allowedExts.includes(ext)) {
+                        showToast(`"${file.name}" has an invalid type and was skipped.`, 'warning');
+                        continue;
+                    }
+
+                    await uploadScheduleAttachment(scheduleId, file);
+                }
+            }
+
             showToast('Schedule created successfully!', 'success');
             if (typeof loadSchedules === 'function') loadSchedules();
+
+            // Check for notifications after creating schedule (including schedule notifications)
+            setTimeout(async () => {
+                if (typeof checkNotifications === 'function') {
+                    await checkNotifications();
+                }
+                // Reload notifications to display them immediately
+                if (typeof loadNotifications === 'function') {
+                    await loadNotifications();
+                }
+                // Update badge
+                if (typeof updateNotificationBadge === 'function') {
+                    await updateNotificationBadge();
+                }
+            }, 500);
+
+            // Clear attachment input and preview after successful save
+            const attachmentInput = document.getElementById('eventAttachmentsInput');
+            const attachmentsList = document.getElementById('attachmentsList');
+            if (attachmentInput) {
+                attachmentInput.value = '';
+            }
+            if (attachmentsList) {
+                attachmentsList.innerHTML = '';
+            }
+            currentEventAttachments = [];
+
             return true;
         } else {
             showToast('Error: ' + (result.error || 'Schedule creation failed'), 'error');
@@ -3485,6 +4395,14 @@ window.createSchedule = async function(scheduleData) {
 
 window.loadSchedules = async function() {
     try {
+        // Clear events array FIRST to prevent showing stale data
+        console.log('🔄 Loading schedules from database...');
+        events = [];
+        localStorage.setItem('calendarEvents', JSON.stringify(events));
+        // Clear the calendar display immediately
+        renderEventsOnCalendar();
+        renderMyEvents();
+        
         const response = await fetch(API_BASE + '?action=list', {
             method: 'GET',
             headers: {
@@ -3494,13 +4412,37 @@ window.loadSchedules = async function() {
 
         const result = await response.json();
 
-        if (result.success && result.schedules) {
-            console.log('✅ Loaded schedules from database:', result.schedules.length);
+        if (result.success) {
+            // Handle both empty array and undefined/null cases
+            const schedules = result.schedules || [];
+            console.log('✅ Loaded schedules from database:', schedules.length);
+            
+            if (schedules.length === 0) {
+                // No schedules in database - ensure events array is empty
+                console.log('ℹ️ No schedules found in database, clearing events');
+                events = [];
+                localStorage.setItem('calendarEvents', JSON.stringify(events));
+                
+                // Clean up all reminders since there are no events
+                if (typeof cleanupRemindersForDeletedEvents === 'function') {
+                    cleanupRemindersForDeletedEvents();
+                }
+                
+                renderEventsOnCalendar();
+                renderMyEvents();
+                
+                // Clear schedules container if it exists
+                if (typeof renderSchedules === 'function') {
+                    renderSchedules([]);
+                }
+                
+                return [];
+            }
             
             // Update the events array with database schedules (database is single source of truth)
             // Convert database schedules to calendar events format
             // IMPORTANT: Parse date manually to avoid timezone conversion issues
-            const dbSchedules = result.schedules.map(schedule => {
+            const dbSchedules = schedules.map(schedule => {
                 // Parse date string manually (format: YYYY-MM-DD) to avoid timezone issues
                 // new Date("2025-11-15") interprets as UTC midnight, which can shift the date
                 const dateStr = schedule.scheduled_date; // e.g., "2025-11-15"
@@ -3518,12 +4460,15 @@ window.loadSchedules = async function() {
                 const eventObj = {
                     id: schedule.id, // Use database ID
                     title: schedule.title,
-                    location: schedule.description || '',
+                    description: schedule.description || '',
+                    location: '', // Location is separate from description
                     date: `${dayNames[scheduleDate.getDay()]}, ${day} ${monthNames[month]} ${year}`,
                     dayNumber: day,
                     month: month,
                     year: year,
-                    time: schedule.scheduled_time || '',
+                    startTime: schedule.scheduled_time || '',
+                    scheduled_time: schedule.scheduled_time || '', // Keep for compatibility
+                    time: schedule.scheduled_time || '', // Keep for compatibility
                     color: 'bg-blue-500', // Default color
                     dbId: schedule.id // Store database ID for reference
                 };
@@ -3553,21 +4498,43 @@ window.loadSchedules = async function() {
             
             console.log('✅ Events array updated, current calendar month/year:', currentCalendarDate.getMonth() + 1, currentCalendarDate.getFullYear());
             
+            // Clean up reminders for deleted events
+            if (typeof cleanupRemindersForDeletedEvents === 'function') {
+                cleanupRemindersForDeletedEvents();
+            }
+            
             // Re-render calendar with database schedules
             renderEventsOnCalendar();
             renderMyEvents();
             
             // Also render in schedules container if it exists
-            renderSchedules(result.schedules);
+            if (typeof renderSchedules === 'function') {
+                renderSchedules(schedules);
+            }
+            
+            // Check for today's events and show attendance confirmation modal
+            setTimeout(() => {
+                checkTodaysEvents();
+            }, 500);
             
             console.log('✅ Calendar re-rendered with schedules');
             
-            return result.schedules;
+            return schedules;
         } else {
             console.error('❌ Failed to load schedules:', result);
+            // On error, keep events cleared to avoid showing stale data
+            events = [];
+            localStorage.setItem('calendarEvents', JSON.stringify(events));
+            renderEventsOnCalendar();
+            renderMyEvents();
         }
     } catch (error) {
         console.error('Load schedules error:', error);
+        // On error, keep events cleared to avoid showing stale data
+        events = [];
+        localStorage.setItem('calendarEvents', JSON.stringify(events));
+        renderEventsOnCalendar();
+        renderMyEvents();
     }
 };
 
@@ -3576,10 +4543,6 @@ window.deleteSchedule = async function(scheduleId) {
         showToast('Error: Schedule ID is missing', 'error');
         return;
     }
-    
-    const confirmed = await showConfirm('Are you sure you want to delete this schedule?', 'Delete Schedule', 'Delete', 'Cancel');
-    if (!confirmed) return;
-
     console.log('Attempting to delete schedule with ID:', scheduleId);
     
     try {
@@ -3608,7 +4571,13 @@ window.deleteSchedule = async function(scheduleId) {
         console.log('Delete result:', result);
 
         if (result.success) {
-            showToast('Schedule deleted successfully', 'success');
+            // Close attendance modal if it's open for this deleted event
+            const attendanceModal = document.getElementById('eventAttendanceModal');
+            if (attendanceModal && attendanceModal.dataset.eventId === String(scheduleId)) {
+                attendanceModal.classList.add('hidden');
+            }
+            
+            showDeleteSuccessModal();
             
             // Reload directly from database (single source of truth)
             // No localStorage manipulation - database is authoritative
@@ -3707,6 +4676,70 @@ document.addEventListener('DOMContentLoaded', async function() {
     } catch (error) {
         console.log('No profile data found in localStorage');
     }
+
+    // Initialize attachments dropzone behaviour
+    try {
+        const dropzone = document.getElementById('attachmentsDropzone');
+        const fileInput = document.getElementById('eventAttachmentsInput');
+        const listContainer = document.getElementById('attachmentsList');
+
+        if (dropzone && fileInput) {
+            const refreshAttachmentPreview = () => {
+                currentEventAttachments = Array.from(fileInput.files || []);
+                if (!listContainer) return;
+
+                listContainer.innerHTML = '';
+                if (currentEventAttachments.length === 0) return;
+
+                currentEventAttachments.forEach(file => {
+                    const item = document.createElement('div');
+                    item.className = 'flex items-center text-[10px] text-slate-600 dark:text-slate-300';
+
+                    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+                    item.innerHTML = `
+                        <span class="material-symbols-outlined mr-1 text-xs">description</span>
+                        <span class="truncate max-w-[180px]" title="${file.name}">${file.name}</span>
+                        <span class="ml-1 text-[9px] text-slate-400">(${sizeMb}MB)</span>
+                    `;
+                    listContainer.appendChild(item);
+                });
+            };
+
+            dropzone.addEventListener('click', () => fileInput.click());
+            dropzone.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    fileInput.click();
+                }
+            });
+
+            fileInput.addEventListener('change', () => {
+                // Client-side validation for size/type before preview
+                const dt = new DataTransfer();
+                Array.from(fileInput.files || []).forEach(file => {
+                    const maxSize = 10 * 1024 * 1024;
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    const allowedExts = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
+
+                    if (file.size > maxSize) {
+                        showToast(`"${file.name}" is larger than 10MB and was skipped.`, 'warning');
+                        return;
+                    }
+                    if (!allowedExts.includes(ext)) {
+                        showToast(`"${file.name}" has an invalid type and was skipped.`, 'warning');
+                        return;
+                    }
+
+                    dt.items.add(file);
+                });
+
+                fileInput.files = dt.files;
+                refreshAttachmentPreview();
+            });
+        }
+    } catch (err) {
+        console.error('Error initializing attachments UI:', err);
+    }
 });
 </script>
 
@@ -3731,11 +4764,12 @@ document.addEventListener('DOMContentLoaded', async function() {
             notificationList.addEventListener('keydown', handleNotificationListKeydown);
         }
         
-        // Toggle dropdown
+        // Toggle dropdown - Always refresh notifications when opening to ensure sync across all pages
         notificationBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             notificationDropdown.classList.toggle('hidden');
             if (!notificationDropdown.classList.contains('hidden')) {
+                // Always reload notifications from API to ensure we have the latest from all pages
                 loadNotifications();
             }
         });
@@ -3747,13 +4781,394 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
         
+        // Create all notifications modal if it doesn't exist
+        function createAllNotificationsModal() {
+            if (document.getElementById('allNotificationsModal')) {
+                return; // Modal already exists
+            }
+            
+            const modalHTML = `
+                <div id="allNotificationsModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 dark:bg-black/70 backdrop-blur-sm hidden">
+                    <div class="w-full max-w-4xl bg-card-light dark:bg-card-dark rounded-xl shadow-2xl m-4 flex flex-col max-h-[90vh] border border-border-light dark:border-border-dark">
+                        <!-- Modal Header -->
+                        <div class="p-6 border-b border-border-light dark:border-border-dark flex-shrink-0">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-xl font-semibold text-text-light dark:text-text-dark">All Notifications</h3>
+                                    <p class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1">Manage your MOU/MOA notifications</p>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <button id="markAllReadModalBtn" class="px-4 py-2 text-sm font-medium text-primary bg-primary/10 dark:bg-primary/20 rounded-lg hover:bg-primary/20 dark:hover:bg-primary/30">
+                                        Mark All Read
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Filter Tabs -->
+                        <div class="px-6 py-4 border-b border-border-light dark:border-border-dark flex-shrink-0">
+                            <div class="flex space-x-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                                <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm" data-filter="all">
+                                    All
+                                </button>
+                                <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400" data-filter="critical">
+                                    Critical
+                                </button>
+                                <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400" data-filter="unread">
+                                    Unread
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Notifications List -->
+                        <div id="allNotificationsList" class="flex-1 overflow-y-auto p-6">
+                            <div class="text-center py-12">
+                                <span class="material-symbols-outlined text-6xl text-text-muted-light dark:text-text-muted-dark mb-4 block">notifications_off</span>
+                                <p class="text-text-muted-light dark:text-text-muted-dark text-lg">Loading notifications...</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Modal Footer -->
+                        <div class="p-6 border-t border-border-light dark:border-border-dark flex-shrink-0">
+                            <div class="flex items-center justify-between">
+                                <div class="text-sm text-text-muted-light dark:text-text-muted-dark">
+                                    <span id="notificationsCount">0</span> notifications
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <button id="clearOldNotifications" class="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
+                                        Clear All
+                                    </button>
+                                    <button id="closeAllNotificationsModalBtn2" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            setupAllNotificationsModalEvents();
+        }
+        
+        // Setup event listeners for the all notifications modal
+        function setupAllNotificationsModalEvents() {
+            const modal = document.getElementById('allNotificationsModal');
+            if (!modal) return;
+            
+            const closeBtn2 = document.getElementById('closeAllNotificationsModalBtn2');
+            const markAllReadBtn = document.getElementById('markAllReadModalBtn');
+            const clearOldBtn = document.getElementById('clearOldNotifications');
+            const tabs = document.querySelectorAll('.notification-tab');
+            
+            // Close modal handler
+            if (closeBtn2) {
+                closeBtn2.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeAllNotificationsModal();
+                });
+            }
+            
+            // Close modal when clicking outside
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeAllNotificationsModal();
+                }
+            });
+            
+            // Close modal with Escape key
+            const escapeHandler = function(e) {
+                if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+                    closeAllNotificationsModal();
+                }
+            };
+            document.addEventListener('keydown', escapeHandler);
+            
+            // Mark all as read
+            if (markAllReadBtn) {
+                markAllReadBtn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    try {
+                        const response = await fetch('api/notifications.php', {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ action: 'mark_all_read' })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            await loadAllNotificationsIntoModal();
+                            if (typeof updateNotificationBadge === 'function') {
+                                await updateNotificationBadge();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error marking all as read:', error);
+                    }
+                });
+            }
+            
+            // Clear all notifications
+            let isClearingAll = false;
+            if (clearOldBtn) {
+                clearOldBtn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    if (isClearingAll) return;
+                    isClearingAll = true;
+                    
+                    try {
+                        const response = await fetch('api/notifications.php', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'mark_all_read' })
+                        });
+                        if (response.ok) {
+                            await loadAllNotificationsIntoModal();
+                            if (typeof updateNotificationBadge === 'function') {
+                                await updateNotificationBadge();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error clearing notifications:', error);
+                    } finally {
+                        isClearingAll = false;
+                    }
+                });
+            }
+            
+            // Tab filtering
+            if (tabs && tabs.length > 0) {
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', function() {
+                        tabs.forEach(t => {
+                            t.classList.remove('bg-white', 'dark:bg-gray-700', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+                            t.classList.add('text-gray-600', 'dark:text-gray-400');
+                        });
+                        this.classList.remove('text-gray-600', 'dark:text-gray-400');
+                        this.classList.add('bg-white', 'dark:bg-gray-700', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+                        const filter = this.dataset.filter;
+                        filterAllNotifications(filter);
+                    });
+                });
+            }
+        }
+        
+        // Store notifications for filtering
+        let allNotificationsData = [];
+        
+        // Filter notifications
+        function filterAllNotifications(filter) {
+            const modalList = document.getElementById('allNotificationsList');
+            if (!modalList) return;
+            let filteredNotifications = allNotificationsData;
+            if (filter === 'unread') {
+                filteredNotifications = allNotificationsData.filter(n => !n.is_read);
+            } else if (filter === 'critical') {
+                filteredNotifications = allNotificationsData.filter(n => 
+                    n.type === 'mou_expired' || 
+                    (n.type === 'mou_expiring_soon' && n.mou_days_until_expiry !== undefined && n.mou_days_until_expiry <= 3)
+                );
+            }
+            renderNotificationsInModal(filteredNotifications);
+        }
+        
+        // Render notifications in modal
+        function renderNotificationsInModal(notifications) {
+            const modalList = document.getElementById('allNotificationsList');
+            const countElement = document.getElementById('notificationsCount');
+            if (!modalList) return;
+            if (countElement) countElement.textContent = notifications.length;
+            if (notifications.length === 0) {
+                modalList.innerHTML = `<div class="text-center py-12"><span class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-600 mb-4 block">notifications_off</span><p class="text-gray-500 dark:text-gray-400 text-lg">No notifications</p></div>`;
+                return;
+            }
+            // Use existing rendering logic from loadAllNotificationsIntoModal
+        }
+        
+        // Show all notifications modal
+        function showAllNotificationsModal() {
+            createAllNotificationsModal();
+            const modal = document.getElementById('allNotificationsModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                loadAllNotificationsIntoModal();
+            }
+        }
+        
+        // Close all notifications modal
+        function closeAllNotificationsModal() {
+            const modal = document.getElementById('allNotificationsModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+        
+        // Load all notifications into the modal
+        async function loadAllNotificationsIntoModal() {
+            const modalList = document.getElementById('allNotificationsList');
+            const countElement = document.getElementById('notificationsCount');
+            
+            if (!modalList) return;
+            
+            try {
+                const response = await fetch('api/notifications.php');
+                const data = await response.json();
+                
+                if (data.notifications && Array.isArray(data.notifications)) {
+                    let allNotifications = data.notifications;
+                    
+                    // Sort by created_at (most recent first)
+                    allNotifications.sort((a, b) => {
+                        const dateA = new Date(a.created_at);
+                        const dateB = new Date(b.created_at);
+                        return dateB - dateA;
+                    });
+                    
+                    // Update count
+                    if (countElement) {
+                        countElement.textContent = allNotifications.length;
+                    }
+                    
+                    // Render notifications
+                    if (allNotifications.length === 0) {
+                        modalList.innerHTML = `
+                            <div class="text-center py-12">
+                                <span class="material-symbols-outlined text-6xl text-text-muted-light dark:text-text-muted-dark mb-4 block">notifications_off</span>
+                                <p class="text-text-muted-light dark:text-text-muted-dark text-lg">No notifications</p>
+                            </div>
+                        `;
+                    } else {
+                        modalList.innerHTML = allNotifications.map(notif => {
+                            const timeAgo = getTimeAgo(notif.created_at);
+                            const icon = getNotificationIcon(notif.type);
+                            const bgColor = getNotificationBgColor(notif.type);
+                            const targetUrl = getNotificationUrl(notif);
+                            const urlAttribute = targetUrl ? ` data-url="${encodeURIComponent(targetUrl)}"` : '';
+                            const isMouNotification = notif.related_type === 'mou_moa';
+                            const isConfirmed = notif.is_confirmed || false;
+                            
+                            // Add Renew/Renewed buttons for MOU notifications that aren't confirmed
+                            let actionButtons = '';
+                            if (isMouNotification && !isConfirmed) {
+                                actionButtons = `
+                                    <div class="mt-3 flex gap-2">
+                                        <button onclick="event.stopPropagation(); if(typeof confirmMouRenewal === 'function') confirmMouRenewal(${notif.id}, 'renewed', ${notif.related_id})" 
+                                                class="px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                            <span class="material-symbols-outlined text-sm">check_circle</span>
+                                            Renewed
+                                        </button>
+                                        <button onclick="event.stopPropagation(); if(typeof confirmMouRenewal === 'function') confirmMouRenewal(${notif.id}, 'not_renewed', ${notif.related_id})" 
+                                                class="px-3 py-1.5 text-xs font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                            <span class="material-symbols-outlined text-sm">cancel</span>
+                                            Not Renewed
+                                        </button>
+                                    </div>
+                                `;
+                            } else if (isMouNotification && isConfirmed) {
+                                const statusText = notif.mou_renewal_status === 'renewed' ? 'Renewed' : 'Not Renewed';
+                                const statusColor = notif.mou_renewal_status === 'renewed' ? 'text-green-500' : 'text-red-500';
+                                actionButtons = `
+                                    <div class="mt-2">
+                                        <p class="text-xs ${statusColor} font-medium flex items-center gap-1">
+                                            <span class="material-symbols-outlined text-sm">${notif.mou_renewal_status === 'renewed' ? 'check_circle' : 'cancel'}</span>
+                                            Status: ${statusText}
+                                        </p>
+                                    </div>
+                                `;
+                            }
+                            
+                            const actionHint = targetUrl && !isMouNotification ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
+                            
+                            return `
+                                <div class="p-4 border-b border-border-light dark:border-border-dark hover:bg-background-light dark:hover:bg-background-dark cursor-pointer transition-colors ${notif.is_read ? 'opacity-60' : ''}" 
+                                     data-notification-id="${notif.id}"${urlAttribute}>
+                                    <div class="flex items-start gap-3">
+                                        <div class="flex-shrink-0 w-10 h-10 rounded-full ${bgColor} flex items-center justify-center">
+                                            <span class="material-symbols-outlined text-white text-lg">${icon}</span>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-medium text-text-light dark:text-text-dark">${escapeHtml(notif.title)}</p>
+                                            <p class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1">${escapeHtml(notif.message)}</p>
+                                            <p class="text-xs text-text-muted-light dark:text-text-muted-dark mt-1">${timeAgo}</p>
+                                            ${actionHint}
+                                            ${actionButtons}
+                                        </div>
+                                        ${!notif.is_read ? '<div class="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>' : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                        
+                        // Add click handlers for notifications in modal
+                        modalList.querySelectorAll('[data-notification-id]').forEach(item => {
+                            item.addEventListener('click', async function(e) {
+                                // Don't trigger if clicking on buttons
+                                if (e.target.closest('button')) {
+                                    return;
+                                }
+                                
+                                const notificationId = Number(item.dataset.notificationId);
+                                if (notificationId) {
+                                    await markNotificationAsRead(notificationId);
+                                    const targetUrl = decodeUrlAttribute(item.dataset.url);
+                                    if (targetUrl) {
+                                        closeAllNotificationsModal();
+                                        window.location.href = targetUrl;
+                                    }
+                                }
+                            });
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading notifications into modal:', error);
+                modalList.innerHTML = `
+                    <div class="text-center py-12">
+                        <span class="material-symbols-outlined text-6xl text-red-500 mb-4 block">error</span>
+                        <p class="text-text-light dark:text-text-dark text-lg">Error loading notifications</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // View all notifications - open modal
+        if (viewAllNotifications) {
+            viewAllNotifications.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                // Close dropdown first
+                if (notificationDropdown) {
+                    notificationDropdown.classList.add('hidden');
+                }
+                showAllNotificationsModal();
+            }, true); // Use capture phase to ensure it runs first
+        }
+        
         // Check for new notifications and create them
         async function checkNotifications() {
             try {
+                console.log('Checking for notifications...');
                 const response = await fetch('api/notifications.php?action=check');
                 const data = await response.json();
                 if (data.success) {
                     console.log('Notifications checked:', data);
+                    if (data.mou_notifications_created > 0) {
+                        console.log(`✓ Created ${data.mou_notifications_created} MOU notification(s)`);
+                    }
+                    if (data.schedule_notifications_created > 0) {
+                        console.log(`✓ Created ${data.schedule_notifications_created} schedule notification(s)`);
+                    } else {
+                        console.log('No new schedule notifications created (may already exist or no schedules found)');
+                    }
+                } else {
+                    console.warn('Notification check failed:', data);
                 }
             } catch (error) {
                 console.error('Error checking notifications:', error);
@@ -3761,18 +5176,61 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         // Load notifications from API
+        let hasPlayedInitialNotificationSound = false;
         async function loadNotifications() {
             try {
                 const response = await fetch('api/notifications.php');
                 const data = await response.json();
                 if (data.notifications) {
-                    notifications = data.notifications;
+                    const previousNotifications = notifications || [];
+                    
+                    // De-duplicate exact duplicate notifications (same source & message)
+                    // while still keeping ALL distinct notifications (including schedules).
+                    const dedupMap = new Map();
+                    data.notifications.forEach(notif => {
+                        const key = [
+                            notif.related_type || '',
+                            notif.related_id || '',
+                            notif.type || '',
+                            notif.message || '',
+                            notif.title || ''
+                        ].join('|');
+                        if (!dedupMap.has(key)) {
+                            dedupMap.set(key, notif);
+                        }
+                    });
+                    notifications = Array.from(dedupMap.values());
+                    
+                    // Sort by created_at (most recent first)
+                    notifications.sort((a, b) => {
+                        const dateA = new Date(a.created_at);
+                        const dateB = new Date(b.created_at);
+                        return dateB - dateA;
+                    });
+                    
                     updateNotificationDisplay();
                     updateNotificationBadge();
-                    // Play sound for new MOU/MOA notifications
-                    if (window.checkAndPlayMouNotificationSound) {
-                        window.checkAndPlayMouNotificationSound(notifications);
+                    
+                    // Process notifications for bars and sounds
+                    if (window.processNotificationsForBars) {
+                        window.processNotificationsForBars(notifications, previousNotifications);
                     }
+                    
+                    // Play sound for new MOU/MOA notifications (skip on very first page load)
+                    const newNotifications = previousNotifications.length > 0 
+                        ? notifications.filter(n => !previousNotifications.some(p => p.id === n.id))
+                        : notifications;
+                    
+                    if (hasPlayedInitialNotificationSound) {
+                        if (window.NotificationSound && window.NotificationSound.checkAndPlay) {
+                            window.NotificationSound.checkAndPlay(newNotifications);
+                        } else if (window.checkAndPlayMouNotificationSound) {
+                            window.checkAndPlayMouNotificationSound(newNotifications);
+                        }
+                    }
+                    
+                    // Mark that we've handled the first load
+                    hasPlayedInitialNotificationSound = true;
                 }
             } catch (error) {
                 console.error('Error loading notifications:', error);
@@ -3782,17 +5240,34 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Get unread count
         async function updateNotificationBadge() {
             try {
+                // Get badge element dynamically to avoid scope issues
+                const badge = document.getElementById('notificationBadge');
+                
+                const enabled = window.areNotificationsEnabled ? await window.areNotificationsEnabled() : true;
+                if (!enabled) {
+                    if (badge) {
+                        badge.classList.add('hidden');
+                    }
+                    return;
+                }
+
                 const response = await fetch('api/notifications.php?action=count');
+                if (!response.ok) {
+                    console.error('Failed to get notification count:', response.status, response.statusText);
+                    return;
+                }
                 const data = await response.json();
                 const count = data.count || 0;
                 
-                if (notificationBadge) {
+                if (badge) {
                     if (count > 0) {
-                        notificationBadge.textContent = count > 99 ? '99+' : count;
-                        notificationBadge.classList.remove('hidden');
+                        badge.textContent = count > 99 ? '99+' : count;
+                        badge.classList.remove('hidden');
                     } else {
-                        notificationBadge.classList.add('hidden');
+                        badge.classList.add('hidden');
                     }
+                } else {
+                    console.warn('Notification badge element not found');
                 }
             } catch (error) {
                 console.error('Error updating notification badge:', error);
@@ -3821,7 +5296,40 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const bgColor = getNotificationBgColor(notif.type);
                 const targetUrl = getNotificationUrl(notif);
                 const urlAttribute = targetUrl ? ` data-url="${encodeURIComponent(targetUrl)}"` : '';
-                const actionHint = targetUrl ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
+                const isMouNotification = notif.related_type === 'mou_moa';
+                const isConfirmed = notif.is_confirmed || false;
+                
+                // Show confirmation buttons for MOU notifications that haven't been confirmed
+                let confirmationButtons = '';
+                if (isMouNotification && !isConfirmed) {
+                    confirmationButtons = `
+                        <div class="mt-3 flex gap-2">
+                            <button onclick="event.stopPropagation(); if(typeof confirmMouRenewal === 'function') confirmMouRenewal(${notif.id}, 'renewed', ${notif.related_id})" 
+                                    class="px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">check_circle</span>
+                                Renewed
+                            </button>
+                            <button onclick="event.stopPropagation(); if(typeof confirmMouRenewal === 'function') confirmMouRenewal(${notif.id}, 'not_renewed', ${notif.related_id})" 
+                                    class="px-3 py-1.5 text-xs font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">cancel</span>
+                                Not Renewed
+                            </button>
+                        </div>
+                    `;
+                } else if (isMouNotification && isConfirmed) {
+                    const statusText = notif.mou_renewal_status === 'renewed' ? 'Renewed' : 'Not Renewed';
+                    const statusColor = notif.mou_renewal_status === 'renewed' ? 'text-green-500' : 'text-red-500';
+                    confirmationButtons = `
+                        <div class="mt-2">
+                            <p class="text-xs ${statusColor} font-medium flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">${notif.mou_renewal_status === 'renewed' ? 'check_circle' : 'cancel'}</span>
+                                Status: ${statusText}
+                            </p>
+                        </div>
+                    `;
+                }
+                
+                const actionHint = targetUrl && !isMouNotification ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
                 
                 return `
                     <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark ${notif.is_read ? 'opacity-60' : ''}" 
@@ -3838,6 +5346,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${escapeHtml(notif.message)}</p>
                                 <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${timeAgo}</p>
                                 ${actionHint}
+                                ${confirmationButtons}
                             </div>
                             ${!notif.is_read ? '<div class="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>' : ''}
                         </div>
@@ -3998,6 +5507,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         async function refreshNotificationIndicators() {
             try {
                 await checkNotifications();
+                await loadNotifications(); // Load notifications after checking
                 await updateNotificationBadge();
             } catch (error) {
                 console.error('Error refreshing notification indicators:', error);
@@ -4006,12 +5516,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Initialize: Check for notifications and load them
         document.addEventListener('DOMContentLoaded', () => {
+            // Update badge immediately on page load
+            updateNotificationBadge();
+            
             refreshNotificationIndicators();
             
             // Refresh notifications every 5 minutes
             setInterval(() => {
                 refreshNotificationIndicators();
             }, 5 * 60 * 1000);
+            
+            // Update badge every 30 seconds for real-time updates
+            setInterval(() => {
+                updateNotificationBadge();
+            }, 30000);
         });
     })();
 
@@ -4124,14 +5642,44 @@ function scheduleReminderNotification(event) {
     console.log('✅ Reminder scheduled for:', reminderTime, 'Event:', event.title);
 }
 
+// Clean up reminders for events that no longer exist
+function cleanupRemindersForDeletedEvents() {
+    const reminders = JSON.parse(localStorage.getItem('scheduleReminders') || '[]');
+    const eventIds = new Set(events.map(e => String(e.id)));
+    
+    // Filter out reminders for events that no longer exist
+    const validReminders = reminders.filter(reminder => {
+        const eventExists = eventIds.has(String(reminder.eventId));
+        if (!eventExists) {
+            console.log('🧹 Cleaning up reminder for deleted event:', reminder.eventId, reminder.eventTitle);
+        }
+        return eventExists;
+    });
+    
+    if (validReminders.length !== reminders.length) {
+        localStorage.setItem('scheduleReminders', JSON.stringify(validReminders));
+        console.log(`🧹 Cleaned up ${reminders.length - validReminders.length} reminders for deleted events`);
+    }
+}
+
 // Check reminders periodically
 function checkScheduleReminders() {
+    // First, clean up reminders for deleted events
+    cleanupRemindersForDeletedEvents();
+    
     const reminders = JSON.parse(localStorage.getItem('scheduleReminders') || '[]');
     const now = new Date();
+    const eventIds = new Set(events.map(e => String(e.id)));
     
     reminders.forEach(reminder => {
         // Skip if already confirmed
         if (reminder.confirmed) return;
+        
+        // Skip if event no longer exists
+        if (!eventIds.has(String(reminder.eventId))) {
+            console.log('⏭️ Skipping reminder for deleted event:', reminder.eventId);
+            return;
+        }
         
         const reminderTime = new Date(reminder.reminderTime);
         const timeDiff = reminderTime.getTime() - now.getTime();
@@ -4161,17 +5709,32 @@ function checkScheduleReminders() {
     // Clean up old confirmed reminders (older than 1 day)
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const activeReminders = reminders.filter(r => {
+        // Remove reminders for deleted events
+        if (!eventIds.has(String(r.eventId))) {
+            return false;
+        }
         if (r.confirmed) {
             const reminderTime = new Date(r.reminderTime);
             return reminderTime > oneDayAgo;
         }
-        return true; // Keep unconfirmed reminders
+        return true; // Keep unconfirmed reminders for existing events
     });
     localStorage.setItem('scheduleReminders', JSON.stringify(activeReminders));
 }
 
 // Show reminder notification and confirmation modal
 function showScheduleReminder(reminder) {
+    // Verify event still exists before showing reminder
+    const eventExists = events.some(e => String(e.id) === String(reminder.eventId));
+    if (!eventExists) {
+        console.log('⏭️ Skipping reminder - event no longer exists:', reminder.eventId);
+        // Remove the reminder from localStorage
+        const reminders = JSON.parse(localStorage.getItem('scheduleReminders') || '[]');
+        const filteredReminders = reminders.filter(r => r.id !== reminder.id);
+        localStorage.setItem('scheduleReminders', JSON.stringify(filteredReminders));
+        return;
+    }
+    
     // Request browser notification permission
     if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
@@ -4198,6 +5761,15 @@ function showScheduleReminder(reminder) {
     // Show toast notification
     showToast(`Reminder: ${reminder.eventTitle} - ${reminder.eventDate} at ${reminder.eventTime}`, 'info', 8000);
     
+    // Play reminder sound using shared notification sound system (respects user sound settings)
+    if (window.NotificationSound && typeof window.NotificationSound.play === 'function') {
+        try {
+            window.NotificationSound.play();
+        } catch (e) {
+            console.warn('Failed to play schedule reminder sound:', e);
+        }
+    }
+    
     // Show attendance confirmation modal
     showAttendanceConfirmationModal(reminder);
 }
@@ -4207,12 +5779,34 @@ function showAttendanceConfirmationModal(reminder) {
     const modal = document.getElementById('eventAttendanceModal');
     if (!modal) return;
     
+    // Verify event still exists before showing modal
+    const eventExists = events.some(e => String(e.id) === String(reminder.eventId));
+    if (!eventExists) {
+        console.log('⏭️ Skipping attendance modal - event no longer exists:', reminder.eventId);
+        // Remove the reminder from localStorage
+        const reminders = JSON.parse(localStorage.getItem('scheduleReminders') || '[]');
+        const filteredReminders = reminders.filter(r => r.id !== reminder.id);
+        localStorage.setItem('scheduleReminders', JSON.stringify(filteredReminders));
+        // Close modal if it's open for this event
+        if (modal.dataset.eventId === String(reminder.eventId)) {
+            modal.classList.add('hidden');
+        }
+        return;
+    }
+    
+    // Don't show if modal is already open (unless it's for a different event)
+    const currentReminderId = modal.dataset.reminderId;
+    if (!modal.classList.contains('hidden') && currentReminderId === reminder.id) {
+        return; // Already showing this reminder
+    }
+    
     // Update modal content
     document.getElementById('attendanceEventTitle').textContent = reminder.eventTitle;
     document.getElementById('attendanceEventDetails').textContent = `${reminder.eventDate} at ${reminder.eventTime}`;
     
-    // Store current reminder ID for button handlers
+    // Store current reminder ID and event ID for button handlers
     modal.dataset.reminderId = reminder.id;
+    modal.dataset.eventId = reminder.eventId;
     
     // Show modal
     modal.classList.remove('hidden');
@@ -4220,6 +5814,40 @@ function showAttendanceConfirmationModal(reminder) {
     // Focus the modal for accessibility
     const yesBtn = document.getElementById('attendanceYesBtn');
     if (yesBtn) yesBtn.focus();
+}
+
+// Show not attending confirmation modal
+function showNotAttendingModal() {
+    const modal = document.getElementById('notAttendingModal');
+    if (!modal) return;
+    
+    // Show modal
+    modal.classList.remove('hidden');
+    
+    // Focus the close button for accessibility
+    const closeBtn = document.getElementById('notAttendingCloseBtn');
+    if (closeBtn) closeBtn.focus();
+    
+    // Auto-close after 5 seconds
+    setTimeout(() => {
+        if (modal && !modal.classList.contains('hidden')) {
+            modal.classList.add('hidden');
+        }
+    }, 5000);
+}
+
+// Show delete success feedback (no full-screen dark overlay)
+function showDeleteSuccessModal() {
+    // Ensure the full-screen overlay stays hidden
+    const modal = document.getElementById('deleteSuccessModal');
+    if (modal && !modal.classList.contains('hidden')) {
+        modal.classList.add('hidden');
+    }
+
+    // Use existing toast system instead
+    if (typeof showToast === 'function') {
+        showToast('Schedule deleted successfully', 'success');
+    }
 }
 
 // Handle attendance confirmation
@@ -4231,19 +5859,37 @@ function confirmAttendance(reminderId, attending) {
         reminders[index].confirmed = true;
         reminders[index].attending = attending;
         reminders[index].confirmedAt = new Date().toISOString();
+        
+        // Also mark all reminders for this event as confirmed
+        const eventId = reminders[index].eventId;
+        reminders.forEach(r => {
+            if (r.eventId === eventId) {
+                r.confirmed = true;
+                r.attending = attending;
+            }
+        });
+        
+        // Store confirmed event IDs separately for today's events check
+        const confirmedEvents = JSON.parse(localStorage.getItem('confirmedAttendanceEvents') || '[]');
+        if (!confirmedEvents.includes(eventId)) {
+            confirmedEvents.push(eventId);
+            localStorage.setItem('confirmedAttendanceEvents', JSON.stringify(confirmedEvents));
+        }
+        
         localStorage.setItem('scheduleReminders', JSON.stringify(reminders));
         
-        // Close modal
+        // Close attendance confirmation modal
         const modal = document.getElementById('eventAttendanceModal');
         if (modal) {
             modal.classList.add('hidden');
         }
         
-        // Show confirmation message
+        // Show confirmation message or modal
         if (attending) {
             showToast('Great! We\'ll see you at the event.', 'success');
         } else {
-            showToast('Noted. Reminders for this event will stop.', 'info');
+            // Show not attending modal instead of toast
+            showNotAttendingModal();
         }
     }
 }
@@ -4256,18 +5902,78 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (yesBtn) {
         yesBtn.addEventListener('click', () => {
-            const reminderId = attendanceModal.dataset.reminderId;
+            const reminderId = attendanceModal?.dataset.reminderId;
+            const eventId = attendanceModal?.dataset.eventId;
             if (reminderId) {
                 confirmAttendance(reminderId, true);
+            } else if (eventId) {
+                // Fallback: confirm by eventId if reminderId not found
+                const reminders = JSON.parse(localStorage.getItem('scheduleReminders') || '[]');
+                const reminder = reminders.find(r => r.eventId === eventId);
+                if (reminder) {
+                    confirmAttendance(reminder.id, true);
+                } else {
+                    // Direct confirmation by eventId
+                    const confirmedEvents = JSON.parse(localStorage.getItem('confirmedAttendanceEvents') || '[]');
+                    if (!confirmedEvents.includes(eventId)) {
+                        confirmedEvents.push(eventId);
+                        localStorage.setItem('confirmedAttendanceEvents', JSON.stringify(confirmedEvents));
+                    }
+                    if (attendanceModal) {
+                        attendanceModal.classList.add('hidden');
+                    }
+                    showToast('Great! We\'ll see you at the event.', 'success');
+                }
             }
         });
     }
     
     if (noBtn) {
         noBtn.addEventListener('click', () => {
-            const reminderId = attendanceModal.dataset.reminderId;
+            const reminderId = attendanceModal?.dataset.reminderId;
+            const eventId = attendanceModal?.dataset.eventId;
             if (reminderId) {
                 confirmAttendance(reminderId, false);
+            } else if (eventId) {
+                // Fallback: confirm by eventId if reminderId not found
+                const reminders = JSON.parse(localStorage.getItem('scheduleReminders') || '[]');
+                const reminder = reminders.find(r => r.eventId === eventId);
+                if (reminder) {
+                    confirmAttendance(reminder.id, false);
+                } else {
+                    // Direct confirmation by eventId
+                    const confirmedEvents = JSON.parse(localStorage.getItem('confirmedAttendanceEvents') || '[]');
+                    if (!confirmedEvents.includes(eventId)) {
+                        confirmedEvents.push(eventId);
+                        localStorage.setItem('confirmedAttendanceEvents', JSON.stringify(confirmedEvents));
+                    }
+                    if (attendanceModal) {
+                        attendanceModal.classList.add('hidden');
+                    }
+                    // Show not attending modal instead of toast
+                    showNotAttendingModal();
+                }
+            }
+        });
+    }
+    
+    // Set up not attending modal close button
+    const notAttendingModal = document.getElementById('notAttendingModal');
+    const notAttendingCloseBtn = document.getElementById('notAttendingCloseBtn');
+    
+    if (notAttendingCloseBtn) {
+        notAttendingCloseBtn.addEventListener('click', () => {
+            if (notAttendingModal) {
+                notAttendingModal.classList.add('hidden');
+            }
+        });
+    }
+    
+    // Close not attending modal when clicking outside
+    if (notAttendingModal) {
+        notAttendingModal.addEventListener('click', (e) => {
+            if (e.target === notAttendingModal) {
+                notAttendingModal.classList.add('hidden');
             }
         });
     }
@@ -4281,17 +5987,125 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+    
+    // Set up delete success modal close button
+    const deleteSuccessModal = document.getElementById('deleteSuccessModal');
+    const deleteSuccessCloseBtn = document.getElementById('deleteSuccessCloseBtn');
+    
+    if (deleteSuccessCloseBtn) {
+        deleteSuccessCloseBtn.addEventListener('click', () => {
+            if (deleteSuccessModal) {
+                deleteSuccessModal.classList.add('hidden');
+            }
+        });
+    }
+    
+    // Close delete success modal when clicking outside
+    if (deleteSuccessModal) {
+        deleteSuccessModal.addEventListener('click', (e) => {
+            if (e.target === deleteSuccessModal) {
+                deleteSuccessModal.classList.add('hidden');
+            }
+        });
+    }
 });
+
+// Check for events that are today and show attendance confirmation modal
+function checkTodaysEvents() {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const confirmedEvents = JSON.parse(localStorage.getItem('confirmedAttendanceEvents') || '[]');
+    
+    // Check if modal is already open
+    const modal = document.getElementById('eventAttendanceModal');
+    if (modal && !modal.classList.contains('hidden')) {
+        return; // Don't show another modal if one is already open
+    }
+    
+    // Find events that are today and not confirmed
+    const todaysEvents = events.filter(event => {
+        // Skip if already confirmed
+        if (confirmedEvents.includes(event.id)) {
+            return false;
+        }
+        
+        // Parse event date
+        const dateStr = event.date || '';
+        if (!dateStr) return false;
+        
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        let day, month, year;
+        const dayMatch = dateStr.match(/\b(\d{1,2})\b/);
+        if (dayMatch) day = parseInt(dayMatch[1]);
+        
+        const monthIndex = monthNames.findIndex(m => dateStr.includes(m));
+        if (monthIndex !== -1) month = monthIndex;
+        
+        const yearMatch = dateStr.match(/\b(19|20)\d{2}\b/);
+        if (yearMatch) {
+            year = parseInt(yearMatch[0]);
+        } else {
+            year = now.getFullYear();
+        }
+        
+        if (!day || month === undefined) {
+            return false;
+        }
+        
+        // Check if event is today
+        const eventDate = new Date(year, month, day);
+        return eventDate.getTime() === today.getTime();
+    });
+    
+    // Show modal for the first unconfirmed event that's today
+    if (todaysEvents.length > 0) {
+        const event = todaysEvents[0]; // Show first event
+        const timeStr = event.startTime || event.time || '';
+        
+        // Check if we already have a reminder for this event today
+        const reminders = JSON.parse(localStorage.getItem('scheduleReminders') || '[]');
+        let reminder = reminders.find(r => r.eventId === event.id && r.reminderText === 'Today');
+        
+        // If no reminder exists, create one
+        if (!reminder) {
+            reminder = {
+                id: `today-${event.id}-${Date.now()}`,
+                eventId: event.id,
+                eventTitle: event.title,
+                eventDate: event.date,
+                eventTime: timeStr,
+                reminderTime: new Date().toISOString(),
+                reminderText: 'Today',
+                shown: false,
+                confirmed: false
+            };
+            reminders.push(reminder);
+            localStorage.setItem('scheduleReminders', JSON.stringify(reminders));
+        }
+        
+        // Only show if not already confirmed
+        if (!reminder.confirmed) {
+            showAttendanceConfirmationModal(reminder);
+        }
+    }
+}
 
 // Start checking reminders every 30 seconds for more responsive notifications
 setInterval(checkScheduleReminders, 30000);
+// Check for today's events every 30 seconds as well
+setInterval(checkTodaysEvents, 30000);
 
 // Check reminders on page load and schedule reminders for existing events
 document.addEventListener('DOMContentLoaded', () => {
     checkScheduleReminders();
     
-    // Schedule reminders for existing events
+    // Check for today's events on page load (after a short delay to ensure events are loaded)
     setTimeout(() => {
+        checkTodaysEvents();
+        
+        // Schedule reminders for existing events
         events.forEach(event => {
             if (event.reminder && event.reminder !== 'None') {
                 scheduleReminderNotification(event);

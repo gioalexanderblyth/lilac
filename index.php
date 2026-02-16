@@ -34,7 +34,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
                 $_SESSION['user_id'] = $userId;
                 $_SESSION['username'] = $username;
-                $_SESSION['role'] = $role;
                 $_SESSION['user'] = [
                     'id' => $userId,
                     'username' => $username,
@@ -76,7 +75,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
-                $_SESSION['role'] = $user['role'];
                 $_SESSION['user'] = [
                     'id' => $user['id'],
                     'username' => $user['username'],

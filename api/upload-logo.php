@@ -6,7 +6,7 @@
 session_start();
 
 // Check authentication and admin role
-if (!isset($_SESSION['user_id']) || $_SESSION['user']['role'] !== 'admin') {
+if (!isset($_SESSION['user_id']) || (($_SESSION['user'] ?? [])['role'] ?? '') !== 'admin') {
     http_response_code(403);
     echo json_encode(['error' => 'Unauthorized. Admin access required.']);
     exit;

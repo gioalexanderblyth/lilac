@@ -5,6 +5,8 @@
  *
  * Currently supported fields:
  * - institution
+ * - location
+ * - term (duration in years)
  */
 
 // Suppress error display and use output buffering to catch any accidental output
@@ -412,6 +414,46 @@ function extractLocationsFromText($text) {
         }
     }
 
+    // Patterns for "based in ..."
+    if (preg_match_all('/based\s+in\s+([^\.;\n]{5,180})/i', $raw, $m3)) {
+        foreach ($m3[1] as $loc) {
+            $c = cleanLocationCandidate($loc);
+            if ($c !== '') {
+                $locations[] = ['value' => $c, 'method' => 'based'];
+            }
+        }
+    }
+
+    // Patterns for "headquartered in ..."
+    if (preg_match_all('/headquartered\s+(?:in|at)\s+([^\.;\n]{5,180})/i', $raw, $m4)) {
+        foreach ($m4[1] as $loc) {
+            $c = cleanLocationCandidate($loc);
+            if ($c !== '') {
+                $locations[] = ['value' => $c, 'method' => 'headquartered'];
+            }
+        }
+    }
+
+    // Patterns for "from [location]" (e.g., "University from Japan")
+    if (preg_match_all('/\b(university|college|institute|institution|school|academy)\s+from\s+([^\.;\n]{5,180})/i', $raw, $m5)) {
+        foreach ($m5[2] as $loc) {
+            $c = cleanLocationCandidate($loc);
+            if ($c !== '') {
+                $locations[] = ['value' => $c, 'method' => 'from'];
+            }
+        }
+    }
+
+    // Patterns for "in [City, Country]" after institution names
+    if (preg_match_all('/\b(university|college|institute|institution|school|academy)\s+[^,\n]{0,60}?\s+in\s+([^\.;\n]{5,180})/i', $raw, $m6)) {
+        foreach ($m6[2] as $loc) {
+            $c = cleanLocationCandidate($loc);
+            if ($c !== '') {
+                $locations[] = ['value' => $c, 'method' => 'in_pattern'];
+            }
+        }
+    }
+
     // De-dupe while preserving order
     $seen = [];
     $unique = [];
@@ -423,6 +465,91 @@ function extractLocationsFromText($text) {
     }
 
     return $unique;
+}
+
+function extractTermFromText($text) {
+    $raw = normalizeWhitespaceKeepNewlines($text);
+    $lower = strtolower($raw);
+    
+    $term = null;
+    $confidence = 0;
+    $method = '';
+    
+    // Pattern 1: "term of X years" or "term: X years" or "term is X years"
+    if (preg_match('/\bterm\s*(?:of|is|:|=)\s*(\d+)\s*(?:year|years)\b/i', $raw, $m)) {
+        $years = intval($m[1]);
+        if ($years > 0 && $years <= 50) { // Reasonable range
+            $term = $years . ' ' . ($years == 1 ? 'Year' : 'Years');
+            $confidence = 0.9;
+            $method = 'term_of';
+        }
+    }
+    
+    // Pattern 2: "valid for X years" or "validity of X years"
+    if (!$term && preg_match('/\b(?:valid|validity)\s+(?:for|of)\s*(\d+)\s*(?:year|years)\b/i', $raw, $m)) {
+        $years = intval($m[1]);
+        if ($years > 0 && $years <= 50) {
+            $term = $years . ' ' . ($years == 1 ? 'Year' : 'Years');
+            $confidence = 0.85;
+            $method = 'valid_for';
+        }
+    }
+    
+    // Pattern 3: "duration of X years" or "duration: X years"
+    if (!$term && preg_match('/\bduration\s*(?:of|:|=)\s*(\d+)\s*(?:year|years)\b/i', $raw, $m)) {
+        $years = intval($m[1]);
+        if ($years > 0 && $years <= 50) {
+            $term = $years . ' ' . ($years == 1 ? 'Year' : 'Years');
+            $confidence = 0.85;
+            $method = 'duration';
+        }
+    }
+    
+    // Pattern 4: "renewable for X years" or "renewable every X years"
+    if (!$term && preg_match('/\brenewable\s+(?:for|every)\s*(\d+)\s*(?:year|years)\b/i', $raw, $m)) {
+        $years = intval($m[1]);
+        if ($years > 0 && $years <= 50) {
+            $term = $years . ' ' . ($years == 1 ? 'Year' : 'Years');
+            $confidence = 0.8;
+            $method = 'renewable';
+        }
+    }
+    
+    // Pattern 5: "effective for X years" or "effective period of X years"
+    if (!$term && preg_match('/\beffective\s+(?:for|period\s+of)\s*(\d+)\s*(?:year|years)\b/i', $raw, $m)) {
+        $years = intval($m[1]);
+        if ($years > 0 && $years <= 50) {
+            $term = $years . ' ' . ($years == 1 ? 'Year' : 'Years');
+            $confidence = 0.8;
+            $method = 'effective';
+        }
+    }
+    
+    // Pattern 6: "X years" near term-related keywords (less specific, lower confidence)
+    if (!$term && preg_match('/\b(?:term|validity|duration|period|agreement|mou|moa)\b[^.]{0,100}?(\d+)\s*(?:year|years)\b/i', $raw, $m)) {
+        $years = intval($m[1]);
+        if ($years > 0 && $years <= 50) {
+            $term = $years . ' ' . ($years == 1 ? 'Year' : 'Years');
+            $confidence = 0.6;
+            $method = 'contextual';
+        }
+    }
+    
+    // Pattern 7: "X year(s) term" (number before "year" and "term" after)
+    if (!$term && preg_match('/\b(\d+)\s*(?:year|years)\s+term\b/i', $raw, $m)) {
+        $years = intval($m[1]);
+        if ($years > 0 && $years <= 50) {
+            $term = $years . ' ' . ($years == 1 ? 'Year' : 'Years');
+            $confidence = 0.75;
+            $method = 'years_term';
+        }
+    }
+    
+    return [
+        'term' => $term,
+        'confidence' => $confidence,
+        'method' => $method
+    ];
 }
 
 function scoreInstitutionLine($line) {
@@ -954,6 +1081,37 @@ function extractInstitutionLocationFromText($text, $instData) {
         }
     }
 
+    // Also collect patterns like "based in", "headquartered in", "from [location]"
+    $additionalPatterns = [
+        '/\b(based\s+in|headquartered\s+in|from)\s+([^\n\.]{5,180}?)(?:(?:\s*,?\s*hereinafter\b)|\.|\n|$)/i',
+        '/\b(institution|university|college|institute)\s+(?:in|at)\s+([^\n\.]{5,180}?)(?:(?:\s*,?\s*hereinafter\b)|\.|\n|$)/i',
+    ];
+    
+    foreach ($additionalPatterns as $pattern) {
+        if (preg_match_all($pattern, $raw, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $loc = cleanLocationCandidate($m[2] ?? $m[1] ?? '');
+                if ($loc !== '') {
+                    // Check if this location is associated with the partner institution
+                    // by looking at context before the match
+                    $contextStart = max(0, strpos($raw, $m[0]) - 100);
+                    $context = substr($raw, $contextStart, 200);
+                    $contextLower = strtolower($context);
+                    
+                    // If institution name appears in context, this is likely the partner location
+                    if ($institution && strpos($contextLower, $institutionLower) !== false) {
+                        if (!$isCpu($institution)) {
+                            $pairs[] = ['name' => $institution, 'loc' => $loc];
+                        }
+                    } elseif (!preg_match('/central\s+philippine\s+university|cpu/i', $context)) {
+                        // If no CPU mention, might be partner location
+                        $pairs[] = ['name' => '', 'loc' => $loc];
+                    }
+                }
+            }
+        }
+    }
+
     // 1) Exact/contains match vs chosen institution (which should already be filtered from CPU)
     foreach ($pairs as $p) {
         $nLower = strtolower($p['name']);
@@ -999,7 +1157,429 @@ function extractInstitutionLocationFromText($text, $instData) {
         return $pairs[0]['loc'];
     }
 
+    // 5) Use the more comprehensive extractLocationsFromText as final fallback
+    $allLocations = extractLocationsFromText($text);
+    if (!empty($allLocations)) {
+        // Filter out locations that might be CPU-related
+        foreach ($allLocations as $locData) {
+            $locValue = strtolower($locData['value']);
+            // Skip if it contains CPU-related terms
+            if (!preg_match('/central\s+philippine\s+university|cpu|iloilo\s+city/i', $locValue)) {
+                return $locData['value'];
+            }
+        }
+        // If all contain CPU terms, return first anyway (might be false positive filter)
+        return $allLocations[0]['value'];
+    }
+
     return '';
+}
+
+/**
+ * Institution-to-Country lookup table for known institutions.
+ * Maps institution name patterns (case-insensitive partial matches) to countries.
+ */
+function getInstitutionCountryLookup() {
+    return [
+        // Korea
+        'HALLA' => 'Korea',
+        'Halla' => 'Korea',
+        'Hallym' => 'Korea',
+        'Hanyang' => 'Korea',
+        'Korea' => 'Korea',
+        'Korean' => 'Korea',
+        'Seoul' => 'Korea',
+        'Daegu' => 'Korea',
+        'Busan' => 'Korea',
+        'Incheon' => 'Korea',
+        'Daejeon' => 'Korea',
+        'Gwangju' => 'Korea',
+        
+        // Japan
+        'IKUEI' => 'Japan',
+        'Ikuei' => 'Japan',
+        'Japanese' => 'Japan',
+        'Tokyo' => 'Japan',
+        'Osaka' => 'Japan',
+        'Kyoto' => 'Japan',
+        'Kobe' => 'Japan',
+        'Nagoya' => 'Japan',
+        'Yokohama' => 'Japan',
+        'Saitama' => 'Japan',
+        'Hiroshima' => 'Japan',
+        'Sendai' => 'Japan',
+        'Nagata' => 'Japan',
+        
+        // Vietnam
+        'TRA VINH' => 'Vietnam',
+        'Tra Vinh' => 'Vietnam',
+        'Travinh' => 'Vietnam',
+        'Vietnamese' => 'Vietnam',
+        'Hanoi' => 'Vietnam',
+        'Ho Chi Minh' => 'Vietnam',
+        'Da Nang' => 'Vietnam',
+        'Hue' => 'Vietnam',
+        'Can Tho' => 'Vietnam',
+        
+        // China
+        'Chinese' => 'China',
+        'Beijing' => 'China',
+        'Shanghai' => 'China',
+        'Guangzhou' => 'China',
+        'Shenzhen' => 'China',
+        'Fujian' => 'China',
+        'Zhangzhou' => 'China',
+        'Xiamen' => 'China',
+        'Chengdu' => 'China',
+        'Hangzhou' => 'China',
+        
+        // Thailand
+        'Thai' => 'Thailand',
+        'Bangkok' => 'Thailand',
+        'Chiang Mai' => 'Thailand',
+        
+        // Indonesia
+        'Indonesian' => 'Indonesia',
+        'Jakarta' => 'Indonesia',
+        'Surabaya' => 'Indonesia',
+        'Bandung' => 'Indonesia',
+        
+        // Malaysia
+        'Malaysian' => 'Malaysia',
+        'Kuala Lumpur' => 'Malaysia',
+        'Malaysia' => 'Malaysia',
+        
+        // Singapore
+        'Singapore' => 'Singapore',
+        'Singaporean' => 'Singapore',
+        
+        // India
+        'Indian' => 'India',
+        'Mumbai' => 'India',
+        'Delhi' => 'India',
+        'Bangalore' => 'India',
+        'Chennai' => 'India',
+        
+        // Taiwan
+        'Taiwanese' => 'Taiwan',
+        'Taipei' => 'Taiwan',
+        'Taiwan' => 'Taiwan',
+        
+        // Australia
+        'Australian' => 'Australia',
+        'Sydney' => 'Australia',
+        'Melbourne' => 'Australia',
+        'Brisbane' => 'Australia',
+        
+        // Canada
+        'Canadian' => 'Canada',
+        'Toronto' => 'Canada',
+        'Vancouver' => 'Canada',
+        'Montreal' => 'Canada',
+        
+        // United States
+        'American' => 'United States',
+        'New York' => 'United States',
+        'Los Angeles' => 'United States',
+        'Chicago' => 'United States',
+        'Houston' => 'United States',
+    ];
+}
+
+/**
+ * Look up country from institution name using the lookup table.
+ * Returns country name if found, null otherwise.
+ */
+function lookupInstitutionCountry($institutionName) {
+    if (empty($institutionName)) {
+        return null;
+    }
+    
+    $lookup = getInstitutionCountryLookup();
+    $institutionUpper = strtoupper(trim($institutionName));
+    
+    foreach ($lookup as $pattern => $country) {
+        if (stripos($institutionUpper, $pattern) !== false) {
+            return $country;
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Detect explicit location patterns from text.
+ * Looks for: "executed at", "made and entered into at", stamped cities, address blocks.
+ * Returns array of detected locations with their patterns.
+ */
+function detectExplicitLocations($text) {
+    $raw = normalizeWhitespaceKeepNewlines($text);
+    $locations = [];
+    
+    // Pattern 1: "executed at [location]"
+    if (preg_match_all('/executed\s+at\s+([^\.;\n]{5,180}?)(?:(?:\s*,?\s*hereinafter\b)|\.|\n|$)/i', $raw, $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $m) {
+            $loc = cleanLocationCandidate($m[1]);
+            if ($loc !== '') {
+                $locations[] = [
+                    'value' => $loc,
+                    'pattern' => 'executed_at',
+                    'confidence' => 0.9
+                ];
+            }
+        }
+    }
+    
+    // Pattern 2: "made and entered into at [location]"
+    if (preg_match_all('/made\s+and\s+entered\s+into\s+at\s+([^\.;\n]{5,180}?)(?:(?:\s*,?\s*hereinafter\b)|\.|\n|$)/i', $raw, $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $m) {
+            $loc = cleanLocationCandidate($m[1]);
+            if ($loc !== '') {
+                $locations[] = [
+                    'value' => $loc,
+                    'pattern' => 'made_entered_at',
+                    'confidence' => 0.9
+                ];
+            }
+        }
+    }
+    
+    // Pattern 3: "signed at [location]" or "signed in [location]"
+    if (preg_match_all('/signed\s+(?:at|in)\s+([^\.;\n]{5,180}?)(?:(?:\s*,?\s*hereinafter\b)|\.|\n|$)/i', $raw, $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $m) {
+            $loc = cleanLocationCandidate($m[1]);
+            if ($loc !== '') {
+                $locations[] = [
+                    'value' => $loc,
+                    'pattern' => 'signed_at',
+                    'confidence' => 0.85
+                ];
+            }
+        }
+    }
+    
+    // Pattern 4: Stamped cities (common pattern: "City, Country" on separate line or after signature)
+    // Look for standalone city/country patterns near signature blocks
+    if (preg_match_all('/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*,\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*$/m', $raw, $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $m) {
+            $city = trim($m[1]);
+            $country = trim($m[2]);
+            // Check if country is a known country name
+            $countryResult = detectCountry($country, null);
+            if ($countryResult['country'] !== 'Country not reliable') {
+                $locations[] = [
+                    'value' => $countryResult['country'],
+                    'pattern' => 'stamped_city',
+                    'confidence' => 0.8
+                ];
+            }
+        }
+    }
+    
+    // Pattern 5: Address blocks (lines that look like addresses with city, country)
+    $lines = preg_split("/\n+/", $raw);
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if (strlen($line) < 10 || strlen($line) > 200) continue;
+        
+        // Check if line contains address-like patterns
+        if (preg_match('/\b(street|avenue|road|boulevard|drive|way|city|province|state|country)\b/i', $line)) {
+            $countryResult = detectCountry($line, null);
+            if ($countryResult['country'] !== 'Country not reliable') {
+                $locations[] = [
+                    'value' => $countryResult['country'],
+                    'pattern' => 'address_block',
+                    'confidence' => 0.75
+                ];
+            }
+        }
+    }
+    
+    // De-duplicate by value
+    $seen = [];
+    $unique = [];
+    foreach ($locations as $loc) {
+        $key = strtolower(preg_replace('/\s+/', ' ', $loc['value']));
+        if (!isset($seen[$key])) {
+            $seen[$key] = true;
+            $unique[] = $loc;
+        }
+    }
+    
+    return $unique;
+}
+
+/**
+ * Infer country from contextual clues (organization type, signatory context).
+ * Returns country name and confidence score.
+ */
+function inferCountryFromContext($text, $institutionName) {
+    $raw = normalizeWhitespaceKeepNewlines($text);
+    $lower = strtolower($raw);
+    
+    // Context clues for different countries
+    $contextClues = [
+        'Korea' => [
+            'patterns' => ['korean', 'republic of korea', 'rok', 'south korea'],
+            'confidence' => 0.6
+        ],
+        'Japan' => [
+            'patterns' => ['japanese', 'nippon', 'nihon'],
+            'confidence' => 0.6
+        ],
+        'Vietnam' => [
+            'patterns' => ['vietnamese', 'socialist republic of vietnam', 'sr vietnam'],
+            'confidence' => 0.6
+        ],
+        'China' => [
+            'patterns' => ['chinese', 'people\'s republic of china', 'prc', 'mainland china'],
+            'confidence' => 0.6
+        ],
+        'Thailand' => [
+            'patterns' => ['thai', 'kingdom of thailand'],
+            'confidence' => 0.6
+        ],
+        'Indonesia' => [
+            'patterns' => ['indonesian', 'republic of indonesia'],
+            'confidence' => 0.6
+        ],
+        'Malaysia' => [
+            'patterns' => ['malaysian', 'federation of malaysia'],
+            'confidence' => 0.6
+        ],
+    ];
+    
+    foreach ($contextClues as $country => $clue) {
+        foreach ($clue['patterns'] as $pattern) {
+            if (stripos($lower, $pattern) !== false) {
+                return [
+                    'country' => $country,
+                    'confidence' => $clue['confidence'],
+                    'source' => 'contextual'
+                ];
+            }
+        }
+    }
+    
+    // Check organization type patterns
+    // Government agencies often indicate country
+    if (preg_match('/\b(ministry|department|bureau|agency)\s+of\s+([^,\n]{5,60})/i', $raw, $m)) {
+        $orgName = trim($m[2]);
+        $countryResult = detectCountry($orgName, $institutionName);
+        if ($countryResult['country'] !== 'Country not reliable' && $countryResult['country'] !== 'Philippines') {
+            return [
+                'country' => $countryResult['country'],
+                'confidence' => 0.55,
+                'source' => 'contextual'
+            ];
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Confidence-based location extraction with fallback strategy.
+ * Returns array with: country, confidence (0-1), source (explicit|inferred|unknown)
+ */
+function extractLocationWithConfidence($text, $institutionData) {
+    $institution = trim((string)($institutionData['institution'] ?? ''));
+    $confidenceThreshold = 0.5; // Minimum confidence to return a result
+    
+    $result = [
+        'country' => null,
+        'confidence' => 0.0,
+        'source' => 'unknown'
+    ];
+    
+    // Priority 1: Explicit text detection
+    $explicitLocations = detectExplicitLocations($text);
+    if (!empty($explicitLocations)) {
+        // Use the location with highest confidence
+        usort($explicitLocations, function($a, $b) {
+            return $b['confidence'] <=> $a['confidence'];
+        });
+        
+        $bestLocation = $explicitLocations[0];
+        $normalizedCountry = normalizeLocationToCountry($bestLocation['value'], $institution);
+        
+        if ($normalizedCountry !== '') {
+            $result['country'] = $normalizedCountry;
+            $result['confidence'] = $bestLocation['confidence'];
+            $result['source'] = 'explicit';
+            return $result;
+        }
+    }
+    
+    // Priority 2: Institution-to-Country lookup
+    if ($institution !== '') {
+        $lookupCountry = lookupInstitutionCountry($institution);
+        if ($lookupCountry !== null) {
+            $result['country'] = $lookupCountry;
+            $result['confidence'] = 0.85; // High confidence for known mappings
+            $result['source'] = 'inferred';
+            return $result;
+        }
+    }
+    
+    // Priority 3: Extract from existing location extraction methods
+    $locationRaw = extractInstitutionLocationFromText($text, $institutionData);
+    if ($locationRaw !== '') {
+        $normalizedCountry = normalizeLocationToCountry($locationRaw, $institution);
+        if ($normalizedCountry !== '') {
+            $result['country'] = $normalizedCountry;
+            $result['confidence'] = 0.7; // Medium confidence for extracted locations
+            $result['source'] = 'inferred';
+            return $result;
+        }
+    }
+    
+    // Priority 4: Contextual inference
+    $contextResult = inferCountryFromContext($text, $institution);
+    if ($contextResult !== null && $contextResult['confidence'] >= $confidenceThreshold) {
+        $result['country'] = $contextResult['country'];
+        $result['confidence'] = $contextResult['confidence'];
+        $result['source'] = $contextResult['source'];
+        return $result;
+    }
+    
+    // Priority 5: Fallback to full-text country detection (lower confidence)
+    $cpuPatterns = [
+        '/central\s+philippine\s+university/i',
+        '/\bcpu\b/i',
+    ];
+    $filteredText = $text;
+    foreach ($cpuPatterns as $pattern) {
+        $filteredText = preg_replace($pattern, '', $filteredText);
+    }
+    
+    $countryResult = detectCountry($filteredText, $institution);
+    if ($countryResult['country'] !== 'Country not reliable') {
+        // Only return if it's a foreign country (not Philippines) or if institution also indicates Philippines
+        if ($countryResult['country'] !== 'Philippines') {
+            $result['country'] = $countryResult['country'];
+            $result['confidence'] = 0.5; // Lower confidence for fallback
+            $result['source'] = 'inferred';
+        } elseif ($institution !== '') {
+            $institutionResult = detectCountry($institution, null);
+            if ($institutionResult['country'] === 'Philippines') {
+                $result['country'] = 'Philippines';
+                $result['confidence'] = 0.5;
+                $result['source'] = 'inferred';
+            }
+        }
+    }
+    
+    // Only return if confidence meets threshold
+    if ($result['confidence'] < $confidenceThreshold) {
+        return [
+            'country' => null,
+            'confidence' => $result['confidence'],
+            'source' => 'unknown'
+        ];
+    }
+    
+    return $result;
 }
 
 /**
@@ -1631,72 +2211,37 @@ try {
     }
 
     $institutionFields = extractInstitutionFromText($extracted);
-    $locationRaw = extractInstitutionLocationFromText($extracted, $institutionFields);
-
-    $locationMethod = 'none';
-    $partnerInstitution = (string)($institutionFields['institution'] ?? '');
-
-    // Country-only: first try partner-tied location string with institution name
-    // This helps detect country from institution name (e.g., "CENTRAL PHILIPPINE UNIVERSITY")
-    $locationField = normalizeLocationToCountry($locationRaw, $partnerInstitution);
-    if ($locationField) {
-        $locationMethod = 'matched_institution';
-    }
-
-    // If we didn't get a country from the partner-tied string, try safe fallback logic:
-    // prefer non-PH countries from full text; only return PH if tied to partner.
-    if (!$locationField) {
-        $locationField = detectPartnerCountryFromOcr($extracted, $partnerInstitution, $locationRaw);
-        if ($locationField) {
-            $locationMethod = 'partner_country';
-        }
-    }
-
-    // Final fallback: detect any country mention from full text with institution name
-    // Prioritize foreign countries (non-Philippines) since CPU is in Philippines
-    if (!$locationField) {
-        // Filter out CPU mentions to avoid false positives
-        $cpuPatterns = [
-            '/central\s+philippine\s+university/i',
-            '/\bcpu\b/i',
-        ];
-        $filteredExtracted = $extracted;
-        foreach ($cpuPatterns as $pattern) {
-            $filteredExtracted = preg_replace($pattern, '', $filteredExtracted);
-        }
-        
-        $result = detectCountry($filteredExtracted, $partnerInstitution);
-        if ($result['country'] !== 'Country not reliable') {
-            // Prefer foreign countries
-            if ($result['country'] !== 'Philippines') {
-                $locationField = $result['country'];
-                $locationMethod = 'country_fallback';
-            } else {
-                // Only return Philippines if partner institution also indicates Philippines
-                // (both parties in Philippines)
-                if ($partnerInstitution !== '') {
-                    $partnerResult = detectCountry($partnerInstitution, null);
-                    if ($partnerResult['country'] === 'Philippines') {
-                        $locationField = 'Philippines';
-                        $locationMethod = 'country_fallback';
-                    }
-                }
-            }
-        }
-    }
+    
+    // Use confidence-based location extraction
+    $locationResult = extractLocationWithConfidence($extracted, $institutionFields);
+    
+    $locationField = $locationResult['country'];
+    $locationConfidence = $locationResult['confidence'];
+    $locationSource = $locationResult['source'];
+    
+    // Extract term/duration
+    $termResult = extractTermFromText($extracted);
+    $termField = $termResult['term'];
+    $termConfidence = $termResult['confidence'];
+    $termMethod = $termResult['method'];
 
     $debug = isset($_GET['debug']) && $_GET['debug'] === '1';
     $resp = [
         'success' => true,
         'fields' => [
             'institution' => $institutionFields['institution'],
-            'location' => $locationField
+            'location' => $locationField,
+            'term' => $termField
         ],
         'meta' => [
             'institution_confidence' => $institutionFields['confidence'],
             'institution_method' => $institutionFields['method'],
-            'location_method' => $locationMethod,
-            'between_parties' => $institutionFields['between_parties']
+            'location_confidence' => $locationConfidence,
+            'location_source' => $locationSource,
+            'location_requires_review' => ($locationField === null || $locationConfidence < 0.5),
+            'between_parties' => $institutionFields['between_parties'],
+            'term_confidence' => $termConfidence,
+            'term_method' => $termMethod
         ]
     ];
 

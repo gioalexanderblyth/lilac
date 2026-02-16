@@ -27,7 +27,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $userId = $_SESSION['user_id'];
-$isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+$isAdmin = (($_SESSION['user'] ?? [])['role'] ?? '') === 'admin';
 
 // Get database connection
 try {

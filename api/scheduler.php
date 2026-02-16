@@ -24,7 +24,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $userId = $_SESSION['user_id'];
-$userRole = $_SESSION['user']['role'] ?? 'user';
+$userRole = (($_SESSION['user'] ?? [])['role'] ?? 'user');
 $isAdmin = ($userRole === 'admin');
 
 require_once __DIR__ . '/config.php';

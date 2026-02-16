@@ -53,14 +53,13 @@ try {
     if ($dbUser) {
         $isAdmin = ($dbUser['role'] === 'admin');
         // Update session if role changed
-        if (isset($_SESSION['role']) && $_SESSION['role'] !== $dbUser['role']) {
-            $_SESSION['role'] = $dbUser['role'];
+        if (isset($_SESSION['user']['role']) && $_SESSION['user']['role'] !== $dbUser['role']) {
             $_SESSION['user']['role'] = $dbUser['role'];
         }
     }
 } catch (Exception $e) {
     // Fallback to session role on error
-    $isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+    $isAdmin = isset($_SESSION['user']['role']) && $_SESSION['user']['role'] === 'admin';
 }
 
 // Calculate status based on end date
@@ -202,6 +201,47 @@ function getAllEntries($pdo, $userId, $isAdmin) {
             if (isset($entry['type'])) {
                 $entry['category'] = $entry['type'];
             }
+            
+            // Fetch all files for this entry
+            try {
+                // Ensure mou_moa_files table exists
+                try {
+                    $pdo->exec("CREATE TABLE IF NOT EXISTS `mou_moa_files` (
+                        `id` int(11) NOT NULL AUTO_INCREMENT,
+                        `mou_moa_id` int(11) NOT NULL,
+                        `file_name` varchar(255) NOT NULL,
+                        `file_path` varchar(500) NOT NULL,
+                        `file_size` int(11) DEFAULT NULL,
+                        `uploaded_at` timestamp NOT NULL DEFAULT current_timestamp(),
+                        `is_primary` tinyint(1) DEFAULT 0,
+                        PRIMARY KEY (`id`),
+                        KEY `idx_mou_moa_id` (`mou_moa_id`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+                } catch (PDOException $e) {
+                    // Table might already exist, ignore
+                }
+                
+                $filesStmt = $pdo->prepare("SELECT id, file_name, file_path, file_size, uploaded_at, is_primary FROM mou_moa_files WHERE mou_moa_id = ? ORDER BY is_primary DESC, uploaded_at ASC");
+                $filesStmt->execute([$entry['id']]);
+                $files = $filesStmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                // If no files in mou_moa_files table, check if there's a file in the main entry (backward compatibility)
+                if (empty($files) && !empty($entry['file_name']) && !empty($entry['file_path'])) {
+                    $entry['files'] = [[
+                        'id' => null,
+                        'file_name' => $entry['file_name'],
+                        'file_path' => $entry['file_path'],
+                        'file_size' => null,
+                        'uploaded_at' => $entry['created_at'],
+                        'is_primary' => 1
+                    ]];
+                } else {
+                    $entry['files'] = $files;
+                }
+            } catch (PDOException $e) {
+                // If error fetching files, just set empty array
+                $entry['files'] = [];
+            }
         }
 
         return $entries;
@@ -213,6 +253,23 @@ function getAllEntries($pdo, $userId, $isAdmin) {
 // Get single entry
 function getEntry($pdo, $id) {
     try {
+        // Ensure mou_moa_files table exists
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS `mou_moa_files` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `mou_moa_id` int(11) NOT NULL,
+                `file_name` varchar(255) NOT NULL,
+                `file_path` varchar(500) NOT NULL,
+                `file_size` int(11) DEFAULT NULL,
+                `uploaded_at` timestamp NOT NULL DEFAULT current_timestamp(),
+                `is_primary` tinyint(1) DEFAULT 0,
+                PRIMARY KEY (`id`),
+                KEY `idx_mou_moa_id` (`mou_moa_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        } catch (PDOException $e) {
+            // Table might already exist, ignore
+        }
+        
         $stmt = $pdo->prepare("SELECT * FROM mou_moa WHERE id = ?");
         $stmt->execute([$id]);
         $entry = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -226,6 +283,42 @@ function getEntry($pdo, $id) {
         if (isset($entry['type'])) {
             $entry['category'] = $entry['type'];
         }
+        
+        // Fetch all files for this entry
+        $filesStmt = $pdo->prepare("SELECT id, file_name, file_path, file_size, uploaded_at, is_primary FROM mou_moa_files WHERE mou_moa_id = ? ORDER BY is_primary DESC, uploaded_at ASC");
+        $filesStmt->execute([$id]);
+        $files = $filesStmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // If no files in mou_moa_files table, check if there's a file in the main entry (backward compatibility)
+        if (empty($files) && !empty($entry['file_name']) && !empty($entry['file_path'])) {
+            $entry['files'] = [[
+                'id' => null,
+                'file_name' => $entry['file_name'],
+                'file_path' => $entry['file_path'],
+                'file_size' => null,
+                'uploaded_at' => $entry['created_at'],
+                'is_primary' => 1
+            ]];
+        } else {
+            $entry['files'] = $files;
+        }
+        
+        // Keep backward compatibility: set file_name and file_path from primary file
+        if (!empty($entry['files'])) {
+            $primaryFile = null;
+            foreach ($entry['files'] as $file) {
+                if ($file['is_primary'] == 1) {
+                    $primaryFile = $file;
+                    break;
+                }
+            }
+            if (!$primaryFile) {
+                $primaryFile = $entry['files'][0]; // Use first file if no primary
+            }
+            $entry['file_name'] = $primaryFile['file_name'];
+            $entry['file_path'] = $primaryFile['file_path'];
+        }
+        
         return $entry;
     } catch (PDOException $e) {
         throw new Exception('Failed to fetch entry: ' . $e->getMessage());
@@ -235,8 +328,9 @@ function getEntry($pdo, $id) {
 // Add new MOU/MOA entry
 function addEntry($pdo, $data, $userId) {
     try {
-        // Validate required fields (contact_email is optional)
-        $required = ['institution', 'location', 'term', 'sign_date', 'end_date'];
+        // Validate required fields (contact_email, term, and end_date are optional)
+        // Frontend only requires Institution, Location, and Sign Date for new entries.
+        $required = ['institution', 'location', 'sign_date'];
         foreach ($required as $field) {
             if (empty($data[$field])) {
                 throw new Exception("Field '$field' is required");
@@ -248,8 +342,8 @@ function addEntry($pdo, $data, $userId) {
             throw new Exception('Invalid email format');
         }
 
-        // Calculate status
-        $status = calculateStatus($data['end_date']);
+        // Calculate status (use Pending if no end date provided)
+        $status = calculateStatus($data['end_date'] ?? '');
 
         $stmt = $pdo->prepare("
             INSERT INTO mou_moa (
@@ -265,9 +359,9 @@ function addEntry($pdo, $data, $userId) {
             $data['institution'],
             $data['location'],
             $data['contact_email'] ?? null, // Allow null for optional contact email
-            $data['term'],
-            $data['sign_date'],
-            $data['end_date'],
+            $data['term'] ?? null,
+            $data['sign_date'] ?? null,
+            $data['end_date'] ?? null,
             $status,
             $data['file_name'] ?? null,
             $data['file_path'] ?? null,
@@ -277,7 +371,45 @@ function addEntry($pdo, $data, $userId) {
             $data['description'] ?? null
         ]);
 
-        return $pdo->lastInsertId();
+        $mouMoaId = $pdo->lastInsertId();
+        
+        // Store additional files if provided
+        if (isset($data['additional_files']) && is_array($data['additional_files'])) {
+            try {
+                // Ensure mou_moa_files table exists
+                try {
+                    $pdo->exec("CREATE TABLE IF NOT EXISTS `mou_moa_files` (
+                        `id` int(11) NOT NULL AUTO_INCREMENT,
+                        `mou_moa_id` int(11) NOT NULL,
+                        `file_name` varchar(255) NOT NULL,
+                        `file_path` varchar(500) NOT NULL,
+                        `file_size` int(11) DEFAULT NULL,
+                        `uploaded_at` timestamp NOT NULL DEFAULT current_timestamp(),
+                        `is_primary` tinyint(1) DEFAULT 0,
+                        PRIMARY KEY (`id`),
+                        KEY `idx_mou_moa_id` (`mou_moa_id`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+                } catch (PDOException $e) {
+                    // Table might already exist, ignore
+                }
+                
+                $fileStmt = $pdo->prepare("INSERT INTO mou_moa_files (mou_moa_id, file_name, file_path, file_size, is_primary) VALUES (?, ?, ?, ?, ?)");
+                foreach ($data['additional_files'] as $index => $file) {
+                    $fileStmt->execute([
+                        $mouMoaId,
+                        $file['file_name'],
+                        $file['file_path'],
+                        $file['file_size'] ?? null,
+                        $index === 0 ? 0 : 0 // First additional file is not primary (primary is in main entry)
+                    ]);
+                }
+            } catch (PDOException $e) {
+                // Log error but don't fail the entry creation
+                error_log('Error storing additional files for MOU/MOA ' . $mouMoaId . ': ' . $e->getMessage());
+            }
+        }
+        
+        return $mouMoaId;
     } catch (PDOException $e) {
         throw new Exception('Failed to add entry: ' . $e->getMessage());
     }
@@ -286,8 +418,10 @@ function addEntry($pdo, $data, $userId) {
 // Update MOU/MOA entry
 function updateEntry($pdo, $id, $data) {
     try {
-        // Validate required fields (contact_email is optional)
-        $required = ['institution', 'location', 'term', 'sign_date', 'end_date'];
+        // Validate required fields
+        // Contact_email, term, and end_date are optional to match frontend behavior.
+        // We only strictly require institution, location, and sign_date.
+        $required = ['institution', 'location', 'sign_date'];
         foreach ($required as $field) {
             if (!isset($data[$field]) || $data[$field] === '') {
                 throw new Exception("Field '$field' is required");
@@ -577,16 +711,59 @@ try {
 
                 // Handle file upload if present
                 $data = $_POST;
-                $hasFile = isset($_FILES['file']) && $_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE;
+                $primaryFileInfo = null;
+                $additionalFiles = [];
+                $hasFile = false;
                 
-                if ($hasFile) {
-                    // Get old file path for deletion
+                // Check for single file (backward compatibility)
+                if (isset($_FILES['file']) && $_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE) {
+                    $hasFile = true;
                     $oldEntry = getEntry($pdo, $id);
+                    $primaryFileInfo = handleFileUpload($_FILES['file']);
+                    $data['file_name'] = $primaryFileInfo['file_name'];
+                    $data['file_path'] = $primaryFileInfo['file_path'];
+                }
+                
+                // Check for multiple files (files[] array)
+                if (isset($_FILES['files']) && is_array($_FILES['files']['name'])) {
+                    $hasFile = true;
+                    if (!$primaryFileInfo) {
+                        $oldEntry = getEntry($pdo, $id);
+                    }
                     
-                    // Upload new file
-                    $fileInfo = handleFileUpload($_FILES['file']);
-                    $data['file_name'] = $fileInfo['file_name'];
-                    $data['file_path'] = $fileInfo['file_path'];
+                    $fileCount = count($_FILES['files']['name']);
+                    for ($i = 0; $i < $fileCount; $i++) {
+                        if ($_FILES['files']['error'][$i] === UPLOAD_ERR_OK) {
+                            $file = [
+                                'name' => $_FILES['files']['name'][$i],
+                                'type' => $_FILES['files']['type'][$i],
+                                'tmp_name' => $_FILES['files']['tmp_name'][$i],
+                                'error' => $_FILES['files']['error'][$i],
+                                'size' => $_FILES['files']['size'][$i]
+                            ];
+                            
+                            $fileInfo = handleFileUpload($file);
+                            
+                            // First file becomes primary if no primary file exists
+                            if ($i === 0 && !$primaryFileInfo) {
+                                $primaryFileInfo = $fileInfo;
+                                $data['file_name'] = $fileInfo['file_name'];
+                                $data['file_path'] = $fileInfo['file_path'];
+                            } else {
+                                // Additional files
+                                $additionalFiles[] = [
+                                    'file_name' => $fileInfo['file_name'],
+                                    'file_path' => $fileInfo['file_path'],
+                                    'file_size' => $file['size']
+                                ];
+                            }
+                        }
+                    }
+                }
+                
+                // Store additional files in data array
+                if (!empty($additionalFiles)) {
+                    $data['additional_files'] = $additionalFiles;
                 }
 
                 // Map 'category' from form to 'type' for database
@@ -596,9 +773,44 @@ try {
                 }
 
                 $success = updateEntry($pdo, $id, $data);
+                
+                // Store additional files if update was successful
+                if ($success && !empty($additionalFiles)) {
+                    try {
+                        // Ensure mou_moa_files table exists
+                        try {
+                            $pdo->exec("CREATE TABLE IF NOT EXISTS `mou_moa_files` (
+                                `id` int(11) NOT NULL AUTO_INCREMENT,
+                                `mou_moa_id` int(11) NOT NULL,
+                                `file_name` varchar(255) NOT NULL,
+                                `file_path` varchar(500) NOT NULL,
+                                `file_size` int(11) DEFAULT NULL,
+                                `uploaded_at` timestamp NOT NULL DEFAULT current_timestamp(),
+                                `is_primary` tinyint(1) DEFAULT 0,
+                                PRIMARY KEY (`id`),
+                                KEY `idx_mou_moa_id` (`mou_moa_id`)
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+                        } catch (PDOException $e) {
+                            // Table might already exist, ignore
+                        }
+                        
+                        $fileStmt = $pdo->prepare("INSERT INTO mou_moa_files (mou_moa_id, file_name, file_path, file_size, is_primary) VALUES (?, ?, ?, ?, ?)");
+                        foreach ($additionalFiles as $file) {
+                            $fileStmt->execute([
+                                $id,
+                                $file['file_name'],
+                                $file['file_path'],
+                                $file['file_size'] ?? null,
+                                0 // Additional files are not primary
+                            ]);
+                        }
+                    } catch (PDOException $e) {
+                        error_log('Error storing additional files for MOU/MOA ' . $id . ': ' . $e->getMessage());
+                    }
+                }
 
-                // Delete old file if update was successful
-                if ($success && $hasFile && !empty($oldEntry['file_path'])) {
+                // Delete old primary file if update was successful and new file was uploaded
+                if ($success && $hasFile && isset($oldEntry) && !empty($oldEntry['file_path'])) {
                     deleteFile($oldEntry['file_path']);
                 }
 
@@ -612,10 +824,51 @@ try {
 
             // Handle file upload if present
             $data = $_POST;
+            $primaryFileInfo = null;
+            $additionalFiles = [];
+            
+            // Check for single file (backward compatibility)
             if (isset($_FILES['file']) && $_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE) {
-                $fileInfo = handleFileUpload($_FILES['file']);
-                $data['file_name'] = $fileInfo['file_name'];
-                $data['file_path'] = $fileInfo['file_path'];
+                $primaryFileInfo = handleFileUpload($_FILES['file']);
+                $data['file_name'] = $primaryFileInfo['file_name'];
+                $data['file_path'] = $primaryFileInfo['file_path'];
+            }
+            
+            // Check for multiple files (files[] array)
+            if (isset($_FILES['files']) && is_array($_FILES['files']['name'])) {
+                $fileCount = count($_FILES['files']['name']);
+                for ($i = 0; $i < $fileCount; $i++) {
+                    if ($_FILES['files']['error'][$i] === UPLOAD_ERR_OK) {
+                        $file = [
+                            'name' => $_FILES['files']['name'][$i],
+                            'type' => $_FILES['files']['type'][$i],
+                            'tmp_name' => $_FILES['files']['tmp_name'][$i],
+                            'error' => $_FILES['files']['error'][$i],
+                            'size' => $_FILES['files']['size'][$i]
+                        ];
+                        
+                        $fileInfo = handleFileUpload($file);
+                        
+                        // First file becomes primary
+                        if ($i === 0 && !$primaryFileInfo) {
+                            $primaryFileInfo = $fileInfo;
+                            $data['file_name'] = $fileInfo['file_name'];
+                            $data['file_path'] = $fileInfo['file_path'];
+                        } else {
+                            // Additional files
+                            $additionalFiles[] = [
+                                'file_name' => $fileInfo['file_name'],
+                                'file_path' => $fileInfo['file_path'],
+                                'file_size' => $file['size']
+                            ];
+                        }
+                    }
+                }
+            }
+            
+            // Store additional files in data array
+            if (!empty($additionalFiles)) {
+                $data['additional_files'] = $additionalFiles;
             }
 
             // Map 'category' from form to 'type' for database

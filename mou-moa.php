@@ -53,7 +53,6 @@ try {
             // Update session if role changed
             if (isset($_SESSION['user']['role']) && $_SESSION['user']['role'] !== $dbUser['role']) {
                 $_SESSION['user']['role'] = $dbUser['role'];
-                $_SESSION['role'] = $dbUser['role'];
             }
         }
     } else {
@@ -113,7 +112,32 @@ try {
     // Check for entry parameter immediately and store it for later use
     (function() {
         const urlParams = new URLSearchParams(window.location.search);
-        const entryId = urlParams.get('entry');
+        let entryId = urlParams.get('entry');
+        const renew = urlParams.get('renew');
+        const notifId = urlParams.get('notif');
+
+        // If navigation came from the notification "Renewed" flow, we may have stored intent in sessionStorage.
+        try {
+            const open = sessionStorage.getItem('mouRenewal:open');
+            const storedEntryId = sessionStorage.getItem('mouRenewal:entryId');
+            const storedNotifId = sessionStorage.getItem('mouRenewal:notificationId');
+            if (!entryId && open === '1' && storedEntryId) {
+                entryId = storedEntryId;
+            }
+            if (!notifId && storedNotifId) {
+                window.pendingRenewNotificationId = storedNotifId;
+            }
+            if ((renew === '1' || open === '1') && (entryId || storedEntryId)) {
+                window.pendingRenewModal = true;
+            }
+        } catch (_) {
+            // ignore storage failures
+        }
+
+        if (notifId) {
+            window.pendingRenewNotificationId = notifId;
+        }
+
         if (entryId) {
             console.log('Entry parameter detected:', entryId);
             // Store entry ID for later use when page is fully loaded
@@ -582,26 +606,28 @@ try {
 </button>
     
     <!-- Notification Dropdown -->
-    <div id="notificationDropdown" class="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-background-dark rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[9999] hidden max-h-96 overflow-y-auto">
-        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+    <!-- Make header and footer fixed, inner list scrollable (single inner scrollbar) -->
+    <div id="notificationDropdown" class="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-background-dark rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[9999] hidden flex flex-col max-h-96">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
             <div class="flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Notifications</h3>
-                <button id="markAllReadBtn" class="text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">
+                <a href="#" id="markAllReadBtn" class="text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">
                     Mark all read
-                </button>
+                </a>
             </div>
         </div>
         
-        <div id="notificationList" class="max-h-80 overflow-y-auto">
+        <!-- Scrollable list area -->
+        <div id="notificationList" class="flex-1 min-h-0 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700">
             <!-- Notifications will be populated here -->
-            <div id="noNotifications" class="p-6 text-center text-gray-500 dark:text-gray-400">
-                <span class="material-symbols-outlined text-4xl mb-2 block">notifications_off</span>
-                <p>No notifications</p>
-            </div>
+        </div>
+        <div id="noNotifications" class="p-6 text-center text-gray-500 dark:text-gray-400 flex-shrink-0">
+            <span class="material-symbols-outlined text-4xl mb-2 block">notifications_off</span>
+            <p>No notifications</p>
         </div>
         
-        <div class="p-4 border-t border-gray-200 dark:border-gray-700">
-            <button id="viewAllNotifications" class="w-full text-center text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">
+        <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+            <button type="button" id="viewAllNotifications" class="w-full text-center text-sm text-primary hover:text-primary/80 dark:text-primary-400 dark:hover:text-primary-300">
                 View all notifications
             </button>
         </div>
@@ -879,6 +905,7 @@ try {
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="location">Location</label>
                     <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="location" placeholder="e.g., Iloilo City" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"/>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400" id="autoLocationText"></p>
                 </div>
             </div>
             
@@ -896,7 +923,7 @@ try {
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="end-date">End Date</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="end-date">End Date <span class="text-gray-500 dark:text-gray-400 text-xs">(Optional)</span></label>
                     <div class="relative">
                         <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer pr-10" id="end-date" type="date" autocomplete="off" placeholder="mm/dd/yyyy"/>
                         <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none">calendar_today</span>
@@ -906,11 +933,11 @@ try {
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="term">Term</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="term">Term <span class="text-gray-500 dark:text-gray-400 text-xs">(Optional)</span></label>
                     <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="term" placeholder="e.g., 3 Years" type="text"/>
                 </div>
                 <div aria-live="polite">
-                    <p class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</p>
+                    <p class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status <span class="text-gray-500 dark:text-gray-400 text-xs">(Optional)</span></p>
                     <div class="w-full bg-gray-100 dark:bg-background-dark/30 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400" id="auto-status" role="status">
                         <span id="autoStatusText">Auto-determined</span>
                     </div>
@@ -929,34 +956,38 @@ try {
                         <span id="autoCategoryText"></span>
                     </p>
                 </div>
-            </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Add More Files</label>
+                    <button type="button" id="addMoreFilesBtn" class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-background-dark/70 focus:outline-none focus:ring-2 focus:ring-primary transition-colors flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-sm">add</span>
+                        <span>Add More Files</span>
+                    </button>
+                </div>
+                </div>
             
             <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Document</label>
-                <div class="mt-2 flex justify-center rounded-lg border border-dashed border-gray-300 dark:border-gray-700 px-6 py-6">
+                <div id="mouDropZone" class="mt-2 flex justify-center rounded-lg border border-dashed border-gray-300 dark:border-gray-700 px-6 py-6">
                     <div class="text-center">
                         <span class="material-symbols-outlined text-4xl text-gray-400 dark:text-gray-600">cloud_upload</span>
                         <div class="mt-2 flex text-sm leading-6 text-gray-600 dark:text-gray-400">
                             <label class="relative cursor-pointer rounded-md font-semibold text-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 dark:focus-within:ring-offset-background-dark hover:text-primary/80" for="file-upload">
-                                <span>Upload a file</span>
-                                <input class="sr-only" id="file-upload" name="file-upload" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"/>
+                                <span>Upload file(s)</span>
+                                <input class="sr-only" id="file-upload" name="file-upload" type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"/>
                             </label>
                             <p class="pl-1">or drag and drop</p>
                         </div>
                         <p class="text-xs leading-5 text-gray-600 dark:text-gray-500">PDF, DOCX up to 10MB</p>
                     </div>
                 </div>
-                <!-- Selected file display -->
+                <!-- Selected files display -->
                 <div id="selected-file-display" class="mt-3 hidden">
-                    <div class="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
-                        <div class="flex items-center gap-2">
-                            <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-sm">check_circle</span>
-                            <span class="text-sm text-green-700 dark:text-green-300" id="selected-file-name"></span>
-                        </div>
-                        <button type="button" id="remove-file" class="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200">
-                            <span class="material-symbols-outlined text-sm">close</span>
-                        </button>
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-xs text-gray-600 dark:text-gray-400">
+                            Select the file to use for auto-fill (primary).
+                        </p>
                     </div>
+                    <div id="selected-files-list" class="space-y-2"></div>
                 </div>
             </div>
         </div>
@@ -1005,7 +1036,62 @@ try {
                     Download
                 </button>
             </div>
-            <button id="closeFileViewerBtn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800">Close</button>
+            <!-- Footer close button removed (top-right X + Escape key handle closing) -->
+        </div>
+    </div>
+</div>
+
+<!-- Renew MOU/MOA Modal -->
+<div id="renewMouModal" class="fixed inset-0 z-[10010] flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+    <div class="w-full max-w-lg bg-white dark:bg-background-dark rounded-xl shadow-2xl m-4 flex flex-col max-h-[90vh]">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 flex items-center justify-between">
+            <div>
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white" id="renewMouTitle">Renew MOU/MOA</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1" id="renewMouSubtitle">Update dates and term for this agreement.</p>
+            </div>
+            <button id="closeRenewMouModal" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400" type="button">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        
+        <!-- Modal Body -->
+        <div class="p-6 space-y-4 overflow-y-auto">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="renew-sign-date">Sign Date</label>
+                    <div class="relative">
+                        <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer pr-10" id="renew-sign-date" type="date" autocomplete="off" placeholder="mm/dd/yyyy"/>
+                        <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none">calendar_today</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="renew-end-date">End Date</label>
+                    <div class="relative">
+                        <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer pr-10" id="renew-end-date" type="date" autocomplete="off" placeholder="mm/dd/yyyy"/>
+                        <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none">calendar_today</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="renew-term">Term</label>
+                    <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="renew-term" placeholder="e.g., 3 Years" type="text"/>
+                </div>
+                <div aria-live="polite">
+                    <p class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</p>
+                    <div class="w-full bg-gray-100 dark:bg-background-dark/30 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400" id="renew-auto-status" role="status">
+                        <span id="renewAutoStatusText">Auto-determined</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Footer -->
+        <div class="p-4 bg-gray-50 dark:bg-background-dark/30 rounded-b-xl flex justify-end gap-3 flex-shrink-0">
+            <button id="renewCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800" type="button">Cancel</button>
+            <button id="renewConfirmBtn" class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700" type="button">Renew</button>
         </div>
     </div>
 </div>
@@ -1091,17 +1177,6 @@ try {
     const IS_ADMIN = window.IS_ADMIN;
     const USER_ID = window.USER_ID;
 
-    // Debug: Log the values
-    console.log('=== PERMISSION DEBUG ===');
-    console.log('User Role:', window.USER_ROLE);
-    console.log('window.IS_ADMIN:', window.IS_ADMIN);
-    console.log('Type:', typeof window.IS_ADMIN);
-    if (window.IS_ADMIN) {
-        console.log('✅ Admin user - should see edit and delete buttons');
-    } else {
-        console.log('❌ Regular user - edit buttons should be hidden');
-    }
-    console.log('======================');
 </script>
 
 <!-- Bulk Operations JavaScript -->
@@ -1566,8 +1641,52 @@ try {
             const saveBtn = document.getElementById('saveBtn');
             const fileUploadInput = document.getElementById('file-upload');
             const selectedFileDisplay = document.getElementById('selected-file-display');
-            const selectedFileNameDisplay = document.getElementById('selected-file-name');
-            const removeFileBtn = document.getElementById('remove-file');
+            const selectedFilesList = document.getElementById('selected-files-list');
+
+            // Multi-file selection state (for the Add/Edit modal)
+            let selectedMouFiles = [];
+            let primaryFileIndex = 0;
+
+            function syncFileInputFromState() {
+                if (!fileUploadInput) return;
+                try {
+                    const dt = new DataTransfer();
+                    selectedMouFiles.forEach(f => dt.items.add(f));
+                    fileUploadInput.files = dt.files;
+                } catch (e) {
+                    console.warn('Could not sync file input from state:', e);
+                }
+            }
+
+            function runAutoFillFromPrimary(options = {}) {
+                const primaryFile = selectedMouFiles[primaryFileIndex] || null;
+                if (!primaryFile) return;
+
+                const { fromPrimaryChange = false } = options;
+
+                // When user switches the primary MOU file, start fresh so new OCR
+                // results can overwrite the previous institution/location.
+                if (fromPrimaryChange) {
+                    const institutionInputEl = document.getElementById('institution');
+                    const locationInputEl = document.getElementById('location');
+                    const signDateEl = document.getElementById('sign-date');
+                    const endDateEl = document.getElementById('end-date');
+                    const termEl = document.getElementById('term');
+
+                    if (institutionInputEl) institutionInputEl.value = '';
+                    if (locationInputEl) locationInputEl.value = '';
+                    if (signDateEl) signDateEl.value = '';
+                    if (endDateEl) endDateEl.value = '';
+                    if (termEl) termEl.value = '';
+
+                    // Allow OCR to write new values
+                    institutionTouched = false;
+                    locationTouched = false;
+                }
+
+                analyzeDocumentType(primaryFile);
+                analyzeInstitution(primaryFile);
+            }
 
             // Pagination variables
             let currentPage = 1;
@@ -1579,6 +1698,7 @@ try {
             const MOU_FIELDS_OCR_URL = 'api/mou-moa-ocr.php';
             let institutionTouched = false;
             let locationTouched = false;
+            let termTouched = false;
             
             // Native date pickers (match Events & Activities behavior)
             function initDatePickers() {
@@ -1587,15 +1707,89 @@ try {
 
                 // Auto-open native picker on click where supported
                 if (signDateInput) {
-                    signDateInput.addEventListener('click', function() {
-                        if (typeof this.showPicker === 'function') this.showPicker();
+                    signDateInput.addEventListener('click', function(event) {
+                        // Guard against programmatic clicks, which are not considered a user gesture
+                        if (!event.isTrusted) return;
+                        if (typeof this.showPicker === 'function') {
+                            try {
+                                this.showPicker();
+                            } catch (e) {
+                                // Some browsers may still throw if they consider this non-user initiated
+                                console.warn('showPicker could not be opened:', e);
+                            }
+                        }
                     });
                 }
                 if (endDateInput) {
-                    endDateInput.addEventListener('click', function() {
-                        if (typeof this.showPicker === 'function') this.showPicker();
+                    endDateInput.addEventListener('click', function(event) {
+                        // Guard against programmatic clicks, which are not considered a user gesture
+                        if (!event.isTrusted) return;
+                        if (typeof this.showPicker === 'function') {
+                            try {
+                                this.showPicker();
+                            } catch (e) {
+                                // Some browsers may still throw if they consider this non-user initiated
+                                console.warn('showPicker could not be opened:', e);
+                            }
+                        }
                     });
                 }
+            }
+
+            // Normalize incoming date strings so <input type="date"> can display them (expects YYYY-MM-DD)
+            function normalizeDateForInput(dateStr) {
+                if (!dateStr) return '';
+                const s = String(dateStr).trim();
+                if (!s) return '';
+
+                // Already in correct format
+                if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+                // MM/DD/YYYY
+                const mdy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                if (mdy) {
+                    const mm = String(mdy[1]).padStart(2, '0');
+                    const dd = String(mdy[2]).padStart(2, '0');
+                    const yyyy = mdy[3];
+                    return `${yyyy}-${mm}-${dd}`;
+                }
+
+                // Try Date parsing (handles "March 20, 2025", etc.)
+                const d = new Date(s);
+                if (!isNaN(d.getTime())) {
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    return `${yyyy}-${mm}-${dd}`;
+                }
+
+                return '';
+            }
+
+            // Map stored category values to the exact <select> option values
+            function normalizeCategoryForSelect(category) {
+                if (!category) return '';
+                const s = String(category).trim();
+                if (!s) return '';
+
+                // Exact matches to option values
+                if (s === 'MOU (Memorandum of Understanding)' || s === 'MOA (Memorandum of Agreement)') return s;
+
+                const upper = s.toUpperCase();
+
+                // Common short forms / variants
+                if (upper === 'MOU' || upper.includes('MEMORANDUM OF UNDERSTANDING') || upper.includes(' MOU')) {
+                    return 'MOU (Memorandum of Understanding)';
+                }
+                if (upper === 'MOA' || upper.includes('MEMORANDUM OF AGREEMENT') || upper.includes(' MOA')) {
+                    return 'MOA (Memorandum of Agreement)';
+                }
+
+                // Fallback: simple contains checks
+                if (upper.includes('MOU')) return 'MOU (Memorandum of Understanding)';
+                if (upper.includes('MOA')) return 'MOA (Memorandum of Agreement)';
+
+                return '';
             }
 
             // Show modal when Add File button is clicked
@@ -1618,6 +1812,17 @@ try {
                     modal.classList.remove('hidden');
                     // Ensure modal appears on top (z-index already set to z-[100] in HTML)
                     modal.style.zIndex = '100';
+
+                    // Ensure the Add modal starts clean (prevents previous file name from persisting)
+                    try {
+                        if (typeof resetForm === 'function') resetForm();
+                        if (fileUploadInput) fileUploadInput.value = '';
+                        selectedMouFiles = [];
+                        primaryFileIndex = 0;
+                        updateSelectedFileDisplay([]);
+                        resetCategoryDetection();
+                        resetInstitutionDetection();
+                    } catch (_) {}
                     
                     // If details modal is open, ensure it stays open (don't close it)
                     if (isDetailsModalOpen) {
@@ -1627,7 +1832,9 @@ try {
                     }
                     
                     // Clear selected file display when opening modal
-                    updateSelectedFileDisplay(null);
+                    selectedMouFiles = [];
+                    primaryFileIndex = 0;
+                    updateSelectedFileDisplay([]);
                     resetInstitutionDetection();
                     
                     // Ensure native date picker click behavior is wired
@@ -1642,8 +1849,15 @@ try {
                 cancelBtn.addEventListener('click', function() {
                     modal.classList.add('hidden');
                     // Clear selected file display when closing modal
-                    updateSelectedFileDisplay(null);
-                    resetInstitutionDetection();
+                    try {
+                        if (fileUploadInput) fileUploadInput.value = '';
+                        selectedMouFiles = [];
+                        primaryFileIndex = 0;
+                        updateSelectedFileDisplay([]);
+                        resetCategoryDetection();
+                        resetInstitutionDetection();
+                        if (typeof resetForm === 'function') resetForm();
+                    } catch (_) {}
                 });
             }
 
@@ -1653,19 +1867,39 @@ try {
                     if (e.target === modal) {
                         modal.classList.add('hidden');
                         // Clear selected file display when closing modal
-                        updateSelectedFileDisplay(null);
-                        resetInstitutionDetection();
+                        try {
+                            if (fileUploadInput) fileUploadInput.value = '';
+                            selectedMouFiles = [];
+                            primaryFileIndex = 0;
+                            updateSelectedFileDisplay([]);
+                            resetCategoryDetection();
+                            resetInstitutionDetection();
+                            if (typeof resetForm === 'function') resetForm();
+                        } catch (_) {}
                     }
                 });
             }
 
-            // Function to update selected file display
-            function updateSelectedFileDisplay(file) {
-                if (file) {
-                    selectedFileNameDisplay.textContent = file.name;
+            // Function to update selected files display (shows count only)
+            function updateSelectedFileDisplay(files) {
+                if (!selectedFileDisplay || !selectedFilesList) return;
+
+                if (Array.isArray(files) && files.length) {
                     selectedFileDisplay.classList.remove('hidden');
+                    
+                    // Show only the count
+                    const count = files.length;
+                    const fileText = count === 1 ? 'file' : 'files';
+                    selectedFilesList.innerHTML = `
+                        <div class="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
+                            <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-sm">check_circle</span>
+                            <span class="text-sm text-green-700 dark:text-green-300">
+                                ${count} ${fileText} added
+                            </span>
+                        </div>
+                    `;
                 } else {
-                    selectedFileNameDisplay.textContent = '';
+                    selectedFilesList.innerHTML = '';
                     selectedFileDisplay.classList.add('hidden');
                 }
             }
@@ -1678,9 +1912,18 @@ try {
                 el.className = 'mt-1 text-xs text-gray-500 dark:text-gray-400';
             }
 
+            function setLocationHint(text, kind = 'neutral') {
+                const el = document.getElementById('autoLocationText');
+                if (!el) return;
+                // Per request: keep the UI silent (no status/hint text shown)
+                el.textContent = '';
+                el.className = 'mt-1 text-xs text-gray-500 dark:text-gray-400';
+            }
+
             function resetInstitutionDetection() {
                 institutionTouched = false;
                 locationTouched = false;
+                termTouched = false;
                 setInstitutionHint('Will auto-detect from document', 'neutral');
             }
 
@@ -2156,9 +2399,15 @@ try {
                         throw new Error('No institution detected from server OCR');
                     }
 
-                    // Force country-only location
+                    // Get location with confidence information
+                    const locationMeta = result.meta || {};
+                    const locationConfidence = locationMeta.location_confidence || 0;
+                    const locationSource = locationMeta.location_source || 'unknown';
+                    const requiresReview = locationMeta.location_requires_review || false;
+                    const confidenceThreshold = 0.5; // Minimum confidence to auto-populate
+                    
                     const detectedLocation = 'location' in (result.fields || {}) && result.fields.location
-                        ? normalizeLocationToCountry(String(result.fields.location).trim())
+                        ? String(result.fields.location).trim()
                         : '';
 
                     // Auto-fill only if user hasn't typed anything meaningful yet
@@ -2171,9 +2420,46 @@ try {
                         setInstitutionHint(`Detected: ${detected} (not applied)`, 'warning');
                     }
 
-                    // Auto-fill location if present and empty
+                    // Auto-fill location only if confidence is acceptable and field is empty
                     if (locationInput && detectedLocation && !locationTouched && !String(locationInput.value || '').trim()) {
-                        locationInput.value = detectedLocation;
+                        if (locationConfidence >= confidenceThreshold && !requiresReview) {
+                            locationInput.value = detectedLocation;
+                            const sourceLabel = locationSource === 'explicit' ? 'explicitly detected' : 
+                                              locationSource === 'inferred' ? 'inferred' : 'detected';
+                            setLocationHint(`Auto-filled: ${detectedLocation} (${sourceLabel}, confidence: ${Math.round(locationConfidence * 100)}%)`, 'success');
+                        } else {
+                            // Low confidence - show hint but don't auto-fill
+                            const sourceLabel = locationSource === 'explicit' ? 'explicitly detected' : 
+                                              locationSource === 'inferred' ? 'inferred' : 'detected';
+                            const confidenceText = locationConfidence > 0 ? ` (confidence: ${Math.round(locationConfidence * 100)}%)` : '';
+                            setLocationHint(`Detected: ${detectedLocation}${confidenceText} - Please review (${sourceLabel})`, 'warning');
+                        }
+                    } else if (locationInput && detectedLocation && locationConfidence >= confidenceThreshold) {
+                        // Location detected but field already has value - show hint
+                        const sourceLabel = locationSource === 'explicit' ? 'explicitly detected' : 
+                                          locationSource === 'inferred' ? 'inferred' : 'detected';
+                        setLocationHint(`Detected: ${detectedLocation} (${sourceLabel}, confidence: ${Math.round(locationConfidence * 100)}%) - not applied`, 'info');
+                    }
+
+                    // Handle term extraction
+                    const termInput = document.getElementById('term');
+                    const termMeta = result.meta || {};
+                    const termConfidence = termMeta.term_confidence || 0;
+                    const termMethod = termMeta.term_method || '';
+                    const detectedTerm = 'term' in (result.fields || {}) && result.fields.term
+                        ? String(result.fields.term).trim()
+                        : '';
+                    
+                    if (termInput && detectedTerm) {
+                        const currentTerm = String(termInput.value || '').trim();
+                        
+                        // Auto-fill term only if confidence is acceptable and field is empty
+                        if (!currentTerm && !termTouched && termConfidence >= confidenceThreshold) {
+                            termInput.value = detectedTerm;
+                        } else if (currentTerm && termConfidence >= confidenceThreshold) {
+                            // Term detected but field already has value - could show hint if needed
+                            console.log(`Detected term: ${detectedTerm} (confidence: ${Math.round(termConfidence * 100)}%, method: ${termMethod}) - not applied`);
+                        }
                     }
                 } catch (e) {
                     console.warn('Institution OCR (server) failed', e);
@@ -2384,53 +2670,239 @@ try {
             }
 
             // Event listener for file input change
+            const dropZone = document.getElementById('mouDropZone');
+
+            function isValidMouUpload(file) {
+                if (!file) return false;
+                // Validate file size (10MB)
+                if (file.size > 10 * 1024 * 1024) return false;
+
+                const allowedTypes = [
+                    'application/pdf',
+                    'application/msword', // .doc
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+                    'application/x-zip-compressed', // sometimes .docx detected as zip
+                    'application/zip',
+                    'image/png',
+                    'image/jpeg',
+                    'image/jpg',
+                    'image/webp'
+                ];
+
+                const name = String(file.name || '');
+                const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+                const allowedExt = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'webp'];
+
+                return allowedTypes.includes(file.type) || allowedExt.includes(ext);
+            }
+
+            function handleSelectedMouFile(file) {
+                if (!file) {
+                    selectedMouFiles = [];
+                    primaryFileIndex = 0;
+                    updateSelectedFileDisplay([]);
+                    resetCategoryDetection();
+                    resetInstitutionDetection();
+                    return;
+                }
+
+                if (!isValidMouUpload(file)) {
+                    alert('Please select a PDF, DOC/DOCX, or an image (PNG, JPG, WEBP) up to 10MB.');
+                    if (fileUploadInput) fileUploadInput.value = '';
+                    selectedMouFiles = [];
+                    primaryFileIndex = 0;
+                    updateSelectedFileDisplay([]);
+                    resetCategoryDetection();
+                    resetInstitutionDetection();
+                    return;
+                }
+
+                selectedMouFiles = [file];
+                primaryFileIndex = 0;
+                syncFileInputFromState();
+                updateSelectedFileDisplay(selectedMouFiles);
+                runAutoFillFromPrimary();
+            }
+
             if (fileUploadInput) {
                 fileUploadInput.addEventListener('change', function(event) {
-                    const file = this.files[0];
-                    if (file) {
-                        // Validate file type (PDF, DOCX, and common image types)
-                        const allowedTypes = [
-                            'application/pdf',
-                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                            'image/png', 'image/jpeg', 'image/jpg', 'image/webp'
-                        ];
-                        if (!allowedTypes.includes(file.type)) {
-                            alert('Please select a PDF, DOCX, or an image (PNG, JPG, WEBP).');
-                            this.value = '';
+                    const newFiles = Array.from(this.files || []);
+                    if (!newFiles.length) {
+                        // If no files selected and we have existing files, keep them
+                        if (selectedMouFiles.length > 0) {
+                            syncFileInputFromState();
                             return;
                         }
-                        
-                        // Validate file size (10MB = 10 * 1024 * 1024 bytes)
-                        if (file.size > 10 * 1024 * 1024) {
-                            alert('File size must be less than 10MB.');
-                            this.value = '';
-                            return;
-                        }
-                        
-                        updateSelectedFileDisplay(file);
-                        
-                        // Analyze file content to detect MOU vs MOA
-                        analyzeDocumentType(file);
-                        
-                        // Analyze file content to auto-fill Institution
-                        analyzeInstitution(file);
-                    } else {
-                        updateSelectedFileDisplay(null);
+                        selectedMouFiles = [];
+                        primaryFileIndex = 0;
+                        updateSelectedFileDisplay([]);
                         resetCategoryDetection();
                         resetInstitutionDetection();
+                        return;
+                    }
+
+                    // Validate new files
+                    for (const f of newFiles) {
+                        if (!isValidMouUpload(f)) {
+                            alert('Please select PDF, DOC/DOCX, or image files (PNG, JPG, WEBP) up to 10MB each.');
+                            if (fileUploadInput) fileUploadInput.value = '';
+                            syncFileInputFromState();
+                            return;
+                        }
+                    }
+
+                    // Check for duplicate files by name
+                    const existingNames = new Set(selectedMouFiles.map(f => f.name));
+                    const uniqueNewFiles = newFiles.filter(f => !existingNames.has(f.name));
+                    
+                    if (uniqueNewFiles.length === 0 && newFiles.length > 0) {
+                        alert('Some files are already selected. Please select different files.');
+                        if (fileUploadInput) fileUploadInput.value = '';
+                        syncFileInputFromState();
+                        return;
+                    }
+
+                    // Append new files to existing ones
+                    selectedMouFiles = [...selectedMouFiles, ...uniqueNewFiles];
+                    
+                    // If this is the first file, set it as primary
+                    if (selectedMouFiles.length === uniqueNewFiles.length) {
+                        primaryFileIndex = 0;
+                    }
+                    
+                    syncFileInputFromState();
+                    updateSelectedFileDisplay(selectedMouFiles);
+                    
+                    // Only run auto-fill if this is the first file or if user wants to switch primary
+                    if (selectedMouFiles.length === uniqueNewFiles.length) {
+                        runAutoFillFromPrimary();
                     }
                 });
             }
 
-            // Event listener for remove file button
-            if (removeFileBtn) {
-                removeFileBtn.addEventListener('click', function() {
-                    fileUploadInput.value = ''; // Clear the file input
-                    updateSelectedFileDisplay(null); // Hide the display
-                    resetCategoryDetection();
-                    resetInstitutionDetection();
+            // Add More Files button event listener
+            const addMoreFilesBtn = document.getElementById('addMoreFilesBtn');
+            if (addMoreFilesBtn && fileUploadInput) {
+                addMoreFilesBtn.addEventListener('click', () => {
+                    fileUploadInput.click();
                 });
             }
+
+            // Drag & drop support for the upload area
+            if (dropZone && fileUploadInput) {
+                const dragActiveClasses = ['ring-2', 'ring-primary', 'bg-primary/5', 'border-primary'];
+
+                function setDropZoneActive(active) {
+                    dragActiveClasses.forEach(cls => dropZone.classList.toggle(cls, active));
+                }
+
+                // Prevent browser from opening the file on drop
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
+                    dropZone.addEventListener(evt, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
+                });
+
+                dropZone.addEventListener('dragenter', () => setDropZoneActive(true));
+                dropZone.addEventListener('dragover', () => setDropZoneActive(true));
+                dropZone.addEventListener('dragleave', () => setDropZoneActive(false));
+                dropZone.addEventListener('drop', (e) => {
+                    setDropZoneActive(false);
+                    const newFiles = e.dataTransfer && e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+                    if (!newFiles.length) return;
+
+                    // Validate new files
+                    for (const f of newFiles) {
+                        if (!isValidMouUpload(f)) {
+                            alert('Please drop PDF, DOC/DOCX, or image files (PNG, JPG, WEBP) up to 10MB each.');
+                            return;
+                        }
+                    }
+
+                    // Check for duplicate files by name
+                    const existingNames = new Set(selectedMouFiles.map(f => f.name));
+                    const uniqueNewFiles = newFiles.filter(f => !existingNames.has(f.name));
+                    
+                    if (uniqueNewFiles.length === 0 && newFiles.length > 0) {
+                        alert('Some files are already selected. Please drop different files.');
+                        return;
+                    }
+
+                    // Append new files to existing ones
+                    selectedMouFiles = [...selectedMouFiles, ...uniqueNewFiles];
+                    
+                    // If this is the first file, set it as primary
+                    if (selectedMouFiles.length === uniqueNewFiles.length) {
+                        primaryFileIndex = 0;
+                    }
+                    
+                    syncFileInputFromState();
+                    updateSelectedFileDisplay(selectedMouFiles);
+                    
+                    // Only run auto-fill if this is the first file
+                    if (selectedMouFiles.length === uniqueNewFiles.length) {
+                        runAutoFillFromPrimary();
+                    }
+                });
+            }
+
+            // Global drop guard: when Add modal is open, prevent the browser from navigating to dropped files.
+            // This also makes drop work even if the user drops slightly outside the dashed drop zone.
+            function isAddModalOpen() {
+                return !!(modal && !modal.classList.contains('hidden'));
+            }
+
+            function getDroppedFiles(e) {
+                const files = e && e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files : null;
+                return files ? Array.from(files) : [];
+            }
+
+            document.addEventListener('dragover', function(e) {
+                if (!isAddModalOpen()) return;
+                e.preventDefault();
+            }, true);
+
+            document.addEventListener('drop', function(e) {
+                if (!isAddModalOpen()) return;
+                e.preventDefault();
+
+                const newFiles = getDroppedFiles(e);
+                if (!newFiles.length) return;
+
+                // Validate new files
+                for (const f of newFiles) {
+                    if (!isValidMouUpload(f)) {
+                        alert('Please drop PDF, DOC/DOCX, or image files (PNG, JPG, WEBP) up to 10MB each.');
+                        return;
+                    }
+                }
+
+                // Check for duplicate files by name
+                const existingNames = new Set(selectedMouFiles.map(f => f.name));
+                const uniqueNewFiles = newFiles.filter(f => !existingNames.has(f.name));
+                
+                if (uniqueNewFiles.length === 0 && newFiles.length > 0) {
+                    alert('Some files are already selected. Please drop different files.');
+                    return;
+                }
+
+                // Append new files to existing ones
+                selectedMouFiles = [...selectedMouFiles, ...uniqueNewFiles];
+                
+                // If this is the first file, set it as primary
+                if (selectedMouFiles.length === uniqueNewFiles.length) {
+                    primaryFileIndex = 0;
+                }
+                
+                syncFileInputFromState();
+                updateSelectedFileDisplay(selectedMouFiles);
+                
+                // Only run auto-fill if this is the first file
+                if (selectedMouFiles.length === uniqueNewFiles.length) {
+                    runAutoFillFromPrimary();
+                }
+            }, true);
 
             // Track manual edits and force uppercase so OCR doesn't overwrite user input
             const institutionInput = document.getElementById('institution');
@@ -2459,7 +2931,27 @@ try {
                 });
             }
 
+            // Track manual edits to term field
+            const termInput = document.getElementById('term');
+            if (termInput) {
+                termInput.addEventListener('input', function(e) {
+                    if (String(e.target.value || '').trim().length > 0) {
+                        termTouched = true;
+                    }
+                });
+
+                termInput.addEventListener('paste', function(e) {
+                    setTimeout(() => {
+                        if (String(e.target.value || '').trim().length > 0) {
+                            termTouched = true;
+                        }
+                    }, 0);
+                });
+            }
+
             // Enhanced status determination with "Expires Soon"
+            // Uses 180 days as the threshold for "Expires Soon" to match
+            // the default MOU/MOA expiration notification window.
             function determineStatus(endDate) {
                 if (!endDate) {
                     return 'Auto-determined';
@@ -2477,7 +2969,8 @@ try {
                 
                 if (endDateObj < today) {
                     return 'Expired';
-                } else if (daysUntilExpiry <= 30) {
+                } else if (daysUntilExpiry <= 180) {
+                    // Within 180 days: treat as "Expires Soon"
                     return 'Expires Soon';
                 } else {
                     return 'Active';
@@ -2627,13 +3120,14 @@ try {
             
             // Add event listeners for auto-calculation
             const signDateInput = document.getElementById('sign-date');
-            const termInput = document.getElementById('term');
             
             signDateInput.addEventListener('change', autoCalculateEndDate);
             signDateInput.addEventListener('input', autoCalculateEndDate);
             
-            termInput.addEventListener('change', autoCalculateEndDate);
-            termInput.addEventListener('input', autoCalculateEndDate);
+            if (termInput) {
+                termInput.addEventListener('change', autoCalculateEndDate);
+                termInput.addEventListener('input', autoCalculateEndDate);
+            }
             
             // (Institution uppercase + manual tracking handled above)
             
@@ -2650,11 +3144,14 @@ try {
                     const endDateInput = document.getElementById('end-date');
                     const signDate = signDateInput ? signDateInput.value : '';
                     const endDate = endDateInput ? endDateInput.value : '';
-                    const fileUpload = document.getElementById('file-upload').files[0];
+                    const fileInputEl = document.getElementById('file-upload');
+                    const selectedFiles = fileInputEl && fileInputEl.files ? Array.from(fileInputEl.files) : [];
+                    const fileUpload = selectedFiles.length ? (selectedFiles[primaryFileIndex] || selectedFiles[0]) : null;
                     
                     // Validate required fields (contact details is now optional)
-                    if (!institution || !location || !term || !signDate || !endDate) {
-                        alert('Please fill in all required fields (Institution, Location, Term, Sign Date, and End Date).');
+                    // Term, End Date, and Status are optional. Require only Institution, Location, and Sign Date.
+                    if (!institution || !location || !signDate) {
+                        alert('Please fill in all required fields (Institution, Location, and Sign Date).');
                         return;
                     }
                     
@@ -2734,9 +3231,25 @@ try {
                             await loadFromDatabase();
                             
                             // Check for notifications after saving (especially for expired MOU)
-                            if (typeof checkNotifications === 'function') {
-                                await checkNotifications();
-                            }
+                            // Add a small delay to ensure database is updated
+                            setTimeout(async () => {
+                                if (typeof checkNotifications === 'function') {
+                                    console.log('Checking notifications after saving new MOU...');
+                                    await checkNotifications();
+                                }
+                                // Also reload notifications to display them immediately
+                                if (typeof loadNotifications === 'function') {
+                                    await loadNotifications();
+                                } else if (window.loadNotifications) {
+                                    await window.loadNotifications();
+                                }
+                                // Update badge
+                                if (typeof updateNotificationBadge === 'function') {
+                                    await updateNotificationBadge();
+                                } else if (window.updateNotificationBadge) {
+                                    await window.updateNotificationBadge();
+                                }
+                            }, 500);
                         }
                         
                         // Reset form
@@ -2895,14 +3408,19 @@ try {
                 if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
                     modal.classList.add('hidden');
                     // Clear selected file display when closing modal
-                    updateSelectedFileDisplay(null);
+                    try {
+                        if (fileUploadInput) fileUploadInput.value = '';
+                        updateSelectedFileDisplay(null);
+                        resetCategoryDetection();
+                        resetInstitutionDetection();
+                        if (typeof resetForm === 'function') resetForm();
+                    } catch (_) {}
                 }
             });
 
             // File Viewer Modal Functionality
             const fileViewerModal = document.getElementById('fileViewerModal');
             const closeFileViewer = document.getElementById('closeFileViewer');
-            const closeFileViewerBtn = document.getElementById('closeFileViewerBtn');
             const fileViewerTitle = document.getElementById('fileViewerTitle');
             const fileViewerSubtitle = document.getElementById('fileViewerSubtitle');
             const fileViewerContent = document.getElementById('fileViewerContent');
@@ -3189,10 +3707,6 @@ try {
                 closeFileViewer.addEventListener('click', closeFileViewerModal);
             }
             
-            if (closeFileViewerBtn) {
-                closeFileViewerBtn.addEventListener('click', closeFileViewerModal);
-            }
-            
             if (downloadFile) {
                 downloadFile.addEventListener('click', downloadCurrentFile);
             }
@@ -3257,9 +3771,11 @@ try {
                     if (entry.category) formData.append('category', entry.category);
                     if (entry.description) formData.append('description', entry.description);
 
-                    // Add file if present
-                    if (fileInput && fileInput.files && fileInput.files[0]) {
-                        formData.append('file', fileInput.files[0]);
+                    // Add files if present (support multiple uploads)
+                    if (fileInput && fileInput.files && fileInput.files.length) {
+                        Array.from(fileInput.files).forEach(f => {
+                            formData.append('files[]', f);
+                        });
                     }
 
                     const response = await fetch(API_BASE_URL, {
@@ -3305,9 +3821,11 @@ try {
                     if (entry.category) formData.append('category', entry.category);
                     if (entry.description) formData.append('description', entry.description);
 
-                    // Add file if present
-                    if (fileInput && fileInput.files && fileInput.files[0]) {
-                        formData.append('file', fileInput.files[0]);
+                    // Add files if present (support multiple uploads)
+                    if (fileInput && fileInput.files && fileInput.files.length) {
+                        Array.from(fileInput.files).forEach(f => {
+                            formData.append('files[]', f);
+                        });
                     }
 
                     // Use POST for FormData (PHP handles POST FormData correctly)
@@ -3759,6 +4277,12 @@ try {
                 } else if (typeof loadNotifications === 'function') {
                     await loadNotifications();
                 }
+                // Ensure badge is updated after loading
+                if (typeof updateNotificationBadge === 'function') {
+                    await updateNotificationBadge();
+                } else if (window.updateNotificationBadge) {
+                    await window.updateNotificationBadge();
+                }
                 
                 // Check if we need to open edit mode (from documents page)
                 const editMouId = sessionStorage.getItem('editMouId');
@@ -3837,6 +4361,7 @@ try {
                     const locationField = document.getElementById('location');
                     const contactField = document.getElementById('contact');
                     const termField = document.getElementById('term');
+                    const categoryField = document.getElementById('category');
                     const signDateField = document.getElementById('sign-date');
                     const endDateField = document.getElementById('end-date');
                     
@@ -3844,12 +4369,13 @@ try {
                     if (locationField) locationField.value = entryToEdit.location || '';
                     if (contactField) contactField.value = entryToEdit.contact_email || '';
                     if (termField) termField.value = entryToEdit.term || '';
-                    
+                    if (categoryField) categoryField.value = normalizeCategoryForSelect(entryToEdit.category);
+
                     // Ensure native date picker click behavior is wired and set values
                     setTimeout(() => {
-                        initDatePickers();
-                        if (signDateField) signDateField.value = entryToEdit.sign_date || '';
-                        if (endDateField) endDateField.value = entryToEdit.end_date || '';
+                        if (typeof initDatePickers === 'function') initDatePickers();
+                        if (signDateField) signDateField.value = normalizeDateForInput(entryToEdit.sign_date);
+                        if (endDateField) endDateField.value = normalizeDateForInput(entryToEdit.end_date);
                     }, 0);
                     
                     console.log('Form fields populated successfully');
@@ -3923,6 +4449,19 @@ try {
                 } catch (error) {
                     console.error('Error opening modal:', error);
                 }
+            }
+
+            // Expose a few helpers for other modals/scripts (e.g., Renew modal in details view)
+            try {
+                window.__mouMoa = window.__mouMoa || {};
+                window.__mouMoa.updateEntry = updateEntry;
+                window.__mouMoa.loadFromDatabase = loadFromDatabase;
+                window.__mouMoa.calculateEndDate = calculateEndDate;
+                window.__mouMoa.determineStatus = determineStatus;
+                window.__mouMoa.normalizeDateForInput = normalizeDateForInput;
+                window.__mouMoa.normalizeCategoryForSelect = normalizeCategoryForSelect;
+            } catch (e) {
+                console.warn('Failed to expose MOU/MOA helpers', e);
             }
         });
     </script>
@@ -4455,6 +4994,10 @@ try {
                 
                 if (data.success) {
                     console.log('Successfully marked as renewed');
+                    // Clean up localStorage when notification is renewed
+                    if (notificationId) {
+                        removeMouBarSeenId(notificationId);
+                    }
                     // Reload notifications to reflect the confirmation
                     if (window.loadNotifications) {
                         await window.loadNotifications();
@@ -4485,6 +5028,24 @@ try {
         };
     </script>
     <script>
+        // Setup wrapper function for notification sound (compatibility)
+        (function() {
+            // Wait for NotificationSound to be available
+            function setupSoundWrapper() {
+                if (window.NotificationSound && !window.checkAndPlayMouNotificationSound) {
+                    window.checkAndPlayMouNotificationSound = function(notifications) {
+                        if (window.NotificationSound && window.NotificationSound.checkAndPlay) {
+                            window.NotificationSound.checkAndPlay(notifications);
+                        }
+                    };
+                } else if (!window.NotificationSound) {
+                    // Retry after a short delay if NotificationSound isn't loaded yet
+                    setTimeout(setupSoundWrapper, 100);
+                }
+            }
+            setupSoundWrapper();
+        })();
+        
         document.addEventListener('DOMContentLoaded', function() {
             const notificationBtn = document.getElementById('notificationBtn');
             const notificationDropdown = document.getElementById('notificationDropdown');
@@ -4496,11 +5057,12 @@ try {
             
             if (!notificationBtn || !notificationDropdown) return; // Exit if elements don't exist
 
-            // Toggle notification dropdown
-            notificationBtn.addEventListener('click', function(e) {
+            // Toggle dropdown - Always refresh notifications when opening to ensure sync across all pages
+            notificationBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 notificationDropdown.classList.toggle('hidden');
                 if (!notificationDropdown.classList.contains('hidden')) {
+                    // Always reload notifications from API to ensure we have the latest from all pages
                     loadNotifications();
                 }
             });
@@ -4517,28 +5079,21 @@ try {
                 markAllNotificationsAsRead();
             });
             
-            // View all notifications - opens modal with all notifications
+            // View all notifications - open modal
             if (viewAllNotifications && !viewAllNotifications.dataset.listenerAttached) {
                 viewAllNotifications.dataset.listenerAttached = 'true';
-                
-                // Create and append the modal to body if it doesn't exist
-                if (!document.getElementById('allNotificationsModal')) {
-                    createAllNotificationsModal();
-                }
-                
                 viewAllNotifications.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('View all notifications clicked - opening modal');
-                    
-                    // Close dropdown if open
+                    e.stopImmediatePropagation();
                     if (notificationDropdown) {
                         notificationDropdown.classList.add('hidden');
                     }
-                    
-                    // Show the modal
-                showAllNotificationsModal();
-                }, { once: false });
+                    // Use existing modal function
+                    if (typeof showAllNotificationsModal === 'function') {
+                        showAllNotificationsModal();
+                    }
+                }, true); // Use capture phase to ensure it runs first
             }
             
             // Use API-based notification system instead of localStorage
@@ -4563,12 +5118,28 @@ try {
             async function checkNotifications() {
                 try {
                     const response = await fetch('api/notifications.php?action=check');
+                    
+                    // Check if response is OK
+                    if (!response.ok) {
+                        const text = await response.text();
+                        console.error('Error checking notifications: HTTP ' + response.status, text);
+                        return;
+                    }
+                    
+                    // Check if response is JSON
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await response.text();
+                        console.error('Error checking notifications: Expected JSON but got:', text.substring(0, 200));
+                        return;
+                    }
+                    
                     const data = await response.json();
                     if (data.success) {
                         console.log('Notifications checked:', data);
-                        // Reload notifications after check (this will trigger sound if new expiring notifications)
+                        // Reload notifications after check to update badge and dropdown
                         await loadNotifications();
-                        updateNotificationBadge();
+                        await updateNotificationBadge();
                     }
                 } catch (error) {
                     console.error('Error checking notifications:', error);
@@ -4576,44 +5147,112 @@ try {
             }
             
             // Load notifications from API
+            let hasPlayedInitialNotificationSound = false;
             async function loadNotifications() {
                 try {
                     const response = await fetch('api/notifications.php');
                     const data = await response.json();
                     if (data.notifications) {
+                        console.log('Loaded notifications from API:', data.notifications.length, 'total');
+                        console.log('Notification types:', data.notifications.map(n => ({ type: n.type, related_type: n.related_type, title: n.title })));
+                        
                         const previousNotificationIds = new Set(notifications.map(n => n.id));
-                        const previousNotifications = [...notifications];
-                        notifications = data.notifications;
                         
-                        // Check for new expiring MOU/MOA notifications and play sound
+                        // Deduplicate MOU notifications: keep only the most recent one for each MOU+type combination
+                        const mouNotificationMap = new Map();
+                        const otherNotifications = [];
+                        
+                        data.notifications.forEach(notif => {
+                            if (notif.related_type === 'mou_moa' && notif.related_id) {
+                                // Create a unique key for MOU notifications: related_id + type
+                                const key = `${notif.related_id}_${notif.type}`;
+                                
+                                if (!mouNotificationMap.has(key)) {
+                                    mouNotificationMap.set(key, notif);
+                                } else {
+                                    // Keep the most recent one
+                                    const existing = mouNotificationMap.get(key);
+                                    const existingDate = new Date(existing.created_at);
+                                    const currentDate = new Date(notif.created_at);
+                                    
+                                    if (currentDate > existingDate) {
+                                        mouNotificationMap.set(key, notif);
+                                    }
+                                }
+                            } else {
+                                // Keep ALL non-MOU notifications as-is (schedules, events, etc.)
+                                // This ensures all notifications from all pages are shown
+                                otherNotifications.push(notif);
+                            }
+                        });
+                        
+                        // Combine deduplicated MOU notifications with ALL other notifications
+                        // This ensures schedules, events, and all other notification types are included
+                        notifications = [...Array.from(mouNotificationMap.values()), ...otherNotifications];
+                        
+                        console.log('After processing - MOU notifications:', mouNotificationMap.size, 'Other notifications:', otherNotifications.length);
+                        console.log('Total notifications to display:', notifications.length);
+                        
+                        // Sort by created_at (most recent first)
+                        notifications.sort((a, b) => {
+                            const dateA = new Date(a.created_at);
+                            const dateB = new Date(b.created_at);
+                            return dateB - dateA;
+                        });
+                        
+                        updateNotificationDisplay();
+                        updateNotificationBadge();
+                        
+                        // Show notification bars for expired MOU notifications
                         const newNotifications = notifications.filter(n => !previousNotificationIds.has(n.id));
-                        if (window.NotificationSound && window.NotificationSound.checkAndPlay) {
-                            window.NotificationSound.checkAndPlay(newNotifications);
-                        }
-                        
-                        // Show notification bar (one at a time) for new MOU expired notifications
                         const expiredMouNotifications = newNotifications.filter(n =>
                             n.type === 'mou_expired' &&
                             n.related_type === 'mou_moa'
                         );
-                        expiredMouNotifications.forEach(notif => showMouNotificationBar(notif));
                         
-                        // Check initial expiring notifications on first load
-                        if (previousNotifications.length === 0 && window.NotificationSound && window.NotificationSound.checkInitial) {
-                            window.NotificationSound.checkInitial(notifications);
-                            
-                            // Queue MOU expired notifications on first load (one at a time)
-                            // Note: we intentionally do NOT rely on `is_read` here; some users may have read
-                            // the notification in the dropdown but still want the swipe queue to surface all expired MOUs.
-                            const expiredMouNotificationsOnLoad = notifications.filter(n =>
+                        // Play sound for new MOU/MOA notifications (including expired)
+                        // Only pass new notifications to avoid re-playing sounds for existing notifications.
+                        // Also skip sound on very first page load to avoid a beep when simply opening the page.
+                        if (hasPlayedInitialNotificationSound && newNotifications.length > 0) {
+                            if (window.checkAndPlayMouNotificationSound) {
+                                window.checkAndPlayMouNotificationSound(newNotifications);
+                            } else if (window.NotificationSound && window.NotificationSound.checkAndPlay) {
+                                // Fallback to direct call if wrapper not available
+                                window.NotificationSound.checkAndPlay(newNotifications);
+                            }
+                        }
+                        
+                        expiredMouNotifications.forEach(notif => {
+                            if (typeof showMouNotificationBar === 'function') {
+                                showMouNotificationBar(notif);
+                            }
+                        });
+                        
+                        // On first load, show all expired MOU notifications (no sound on first open)
+                        if (previousNotificationIds.size === 0) {
+                            const allExpiredMouNotifications = notifications.filter(n =>
                                 n.type === 'mou_expired' &&
                                 n.related_type === 'mou_moa'
                             );
-                            expiredMouNotificationsOnLoad.forEach((notif) => showMouNotificationBar(notif));
+                            
+                            // Play sound for initial expired MOU notifications
+                            if (allExpiredMouNotifications.length > 0) {
+                                // We no longer auto-play sound on first page load to avoid
+                                // beeping every time the user opens the page.
+                            }
+                            
+                            allExpiredMouNotifications.forEach((notif) => {
+                                if (notif.id != null && typeof removeMouBarSeenId === 'function') {
+                                    removeMouBarSeenId(notif.id);
+                                }
+                                if (typeof showMouNotificationBar === 'function') {
+                                    showMouNotificationBar(notif);
+                                }
+                            });
                         }
                         
-                        updateNotificationDisplay();
-                        updateNotificationBadge();
+                        // Mark that we've handled the first load
+                        hasPlayedInitialNotificationSound = true;
                     }
                 } catch (error) {
                     console.error('Error loading notifications:', error);
@@ -4623,39 +5262,68 @@ try {
             // Get unread count
             async function updateNotificationBadge() {
                 try {
+                    // Get badge element dynamically to avoid scope issues
+                    const badge = document.getElementById('notificationBadge');
+                    
+                    const enabled = window.areNotificationsEnabled ? await window.areNotificationsEnabled() : true;
+                    if (!enabled) {
+                        if (badge) {
+                            badge.classList.add('hidden');
+                        }
+                        return;
+                    }
+
                     const response = await fetch('api/notifications.php?action=count');
+                    if (!response.ok) {
+                        console.error('Failed to get notification count:', response.status, response.statusText);
+                        return;
+                    }
                     const data = await response.json();
                     const count = data.count || 0;
                     
-                    if (notificationBadge) {
+                    if (badge) {
                         if (count > 0) {
-                            notificationBadge.textContent = count > 99 ? '99+' : count;
-                    notificationBadge.classList.remove('hidden');
-                } else {
-                    notificationBadge.classList.add('hidden');
+                            badge.textContent = count > 99 ? '99+' : count;
+                            badge.classList.remove('hidden');
+                            console.log('Notification badge updated:', count, 'unread notifications');
+                        } else {
+                            badge.classList.add('hidden');
+                            console.log('Notification badge hidden: no unread notifications');
                         }
+                    } else {
+                        console.warn('Notification badge element not found');
                     }
                 } catch (error) {
                     console.error('Error updating notification badge:', error);
                 }
             }
             
-            // Update notification display
+            // Update notification display - EXACT COPY FROM documents.php
             function updateNotificationDisplay() {
                 if (!notificationList) return;
                 
                 if (notifications.length === 0) {
                     if (noNotifications) {
-                    noNotifications.classList.remove('hidden');
+                        noNotifications.classList.remove('hidden');
                     }
                     notificationList.innerHTML = '';
                     return;
                 }
                 
                 if (noNotifications) {
-                noNotifications.classList.add('hidden');
+                    noNotifications.classList.add('hidden');
                 }
                 
+                console.log('Updating notification display with', notifications.length, 'notifications');
+                console.log('Notification breakdown:', {
+                    mou: notifications.filter(n => n.related_type === 'mou_moa').length,
+                    schedule: notifications.filter(n => n.related_type === 'schedule').length,
+                    event: notifications.filter(n => n.related_type === 'event').length,
+                    other: notifications.filter(n => !n.related_type || (n.related_type !== 'mou_moa' && n.related_type !== 'schedule' && n.related_type !== 'event')).length
+                });
+                
+                // Display ALL notifications from ALL pages - no filtering
+                // This ensures MOU, schedule, event, and all other notification types are shown
                 notificationList.innerHTML = notifications.map(notif => {
                     const timeAgo = getTimeAgo(notif.created_at);
                     const icon = getNotificationIcon(notif.type);
@@ -4667,42 +5335,43 @@ try {
                     const isMouNotification = notif.related_type === 'mou_moa';
                     const isConfirmed = notif.is_confirmed || false;
                     
-                    // Add Renew/Renewed buttons for MOU notifications that aren't confirmed
-                    let actionButtons = '';
+                    // Show confirmation buttons for MOU notifications that haven't been confirmed (same as dashboard)
+                    let confirmationButtons = '';
                     if (isMouNotification && !isConfirmed) {
-                        actionButtons = `
+                        confirmationButtons = `
                             <div class="mt-3 flex gap-2">
-                                <button data-action="renew" data-notification-id="${notif.id}" data-entry-id="${notif.related_id}" 
-                                        class="renew-mou-btn px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-sm">edit</span>
-                                    Renew
-                                </button>
-                                <button data-action="renewed" data-notification-id="${notif.id}" 
-                                        class="renewed-mou-btn px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                <button onclick="event.stopPropagation(); confirmMouRenewal(${notif.id}, 'renewed', ${notif.related_id})" 
+                                        class="px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center gap-1">
                                     <span class="material-symbols-outlined text-sm">check_circle</span>
                                     Renewed
                                 </button>
+                                <button onclick="event.stopPropagation(); confirmMouRenewal(${notif.id}, 'not_renewed', ${notif.related_id})" 
+                                        class="px-3 py-1.5 text-xs font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-sm">cancel</span>
+                                    Not Renewed
+                                </button>
                             </div>
                         `;
-                    } else if (isMouNotification && isConfirmed && notif.mou_renewal_status === 'renewed') {
-                        actionButtons = `
+                    } else if (isMouNotification && isConfirmed) {
+                        const statusText = notif.mou_renewal_status === 'renewed' ? 'Renewed' : 'Not Renewed';
+                        const statusColor = notif.mou_renewal_status === 'renewed' ? 'text-green-500' : 'text-red-500';
+                        confirmationButtons = `
                             <div class="mt-2">
-                                <p class="text-xs text-green-500 font-medium flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-sm">check_circle</span>
-                                    Status: Renewed
+                                <p class="text-xs ${statusColor} font-medium flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-sm">${notif.mou_renewal_status === 'renewed' ? 'check_circle' : 'cancel'}</span>
+                                    Status: ${statusText}
                                 </p>
                             </div>
                         `;
                     }
                     
                     const actionHint = targetUrl && !isMouNotification ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
+                    // All notifications should be clickable, including unconfirmed MOU notifications
+                    const clickableClass = 'cursor-pointer';
                     
                     return `
-                        <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark ${notif.is_read ? 'opacity-60' : ''}" 
-                             role="button"
-                             tabindex="0"
-                             data-id="${notif.id}"
-                             data-notification-id="${notif.id}"${relatedTypeAttr}${relatedIdAttr}${urlAttribute}>
+                        <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${clickableClass} focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark ${notif.is_read ? 'opacity-60' : ''}" 
+                             role="button" tabindex="0" data-id="${notif.id}" data-notification-id="${notif.id}"${relatedTypeAttr}${relatedIdAttr}${urlAttribute}>
                             <div class="flex items-start gap-3">
                                 <div class="flex-shrink-0 w-10 h-10 rounded-full ${bgColor} flex items-center justify-center">
                                     <span class="material-symbols-outlined text-white text-lg">${icon}</span>
@@ -4712,8 +5381,8 @@ try {
                                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${escapeHtml(notif.message)}</p>
                                     <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${timeAgo}</p>
                                     ${actionHint}
-                                    ${actionButtons}
-                                    </div>
+                                    ${confirmationButtons}
+                                </div>
                                 ${!notif.is_read ? '<div class="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>' : ''}
                             </div>
                         </div>
@@ -4722,6 +5391,13 @@ try {
             }
             
             function handleNotificationListClick(event) {
+                // Check if clicked on a button (including confirmation buttons)
+                const clickedButton = event.target.closest('button');
+                if (clickedButton && (clickedButton.textContent.includes('Renewed') || clickedButton.textContent.includes('Not Renewed'))) {
+                    // Let the button's onclick handler handle it (it has event.stopPropagation())
+                    return;
+                }
+                
                 // Check if clicked on a button
                 const renewBtn = event.target.closest('.renew-mou-btn');
                 const renewedBtn = event.target.closest('.renewed-mou-btn');
@@ -4938,6 +5614,38 @@ try {
                 return colors[type] || 'bg-gray-500';
             }
             
+            function getNotificationUrl(notif) {
+                if (!notif || !notif.related_type || !notif.related_id) {
+                    return '';
+                }
+                
+                const encodedId = encodeURIComponent(notif.related_id);
+                
+                if (notif.related_type === 'mou_moa') {
+                    return `mou-moa.php?entry=${encodedId}`;
+                }
+                
+                if (notif.related_type === 'event') {
+                    return `events-activities.php?event=${encodedId}`;
+                }
+                
+                if (notif.related_type === 'schedule') {
+                    return `scheduler.php`;
+                }
+                
+                return '';
+            }
+            
+            function decodeUrlAttribute(value) {
+                if (!value) return '';
+                try {
+                    return decodeURIComponent(value);
+                } catch (error) {
+                    console.warn('Unable to decode notification URL attribute:', error);
+                    return value;
+                }
+            }
+            
             /**
              * Show Facebook-style notification bar in lower right corner
              * @param {Object} notification - Notification object
@@ -4946,15 +5654,60 @@ try {
                 // Check if user has disabled notification bars
                 const barsEnabled = localStorage.getItem('notification_bars_enabled') !== 'false';
                 if (!barsEnabled) {
+                    console.log('Notification bars are disabled');
                     return;
                 }
 
-                // Avoid re-showing the same expired notification every page load
+                if (!notification || !notification.id) {
+                    console.error('Invalid notification object:', notification);
+                    return;
+                }
+
+                // For expired MOUs: Always show if notification exists (not yet renewed)
                 if (notification?.type === 'mou_expired' && notification?.id != null) {
                     if (!shouldShowMouExpiredBar(notification.id)) {
+                        console.log('Notification bar blocked for notification ID:', notification.id);
                         return;
                     }
                 }
+                
+                // Play sound when notification bar appears for MOU/MOA notifications
+                const isMouNotification = (notification.type === 'mou_expiring' || notification.type === 'mou_expired');
+                if (isMouNotification) {
+                    console.log('[MOU Notification Bar] Playing sound for notification:', notification.id, notification.type, 'related_type:', notification.related_type);
+                    
+                    // Check if this notification has already played sound
+                    const hasPlayedSound = window.NotificationSound && 
+                                         window.NotificationSound._hasPlayedSound && 
+                                         window.NotificationSound._hasPlayedSound(notification.id);
+                    
+                    if (!hasPlayedSound) {
+                        // Directly call play function - bypass filter since we know it's a MOU notification
+                        if (window.NotificationSound && window.NotificationSound.play) {
+                            console.log('[MOU Notification Bar] Directly calling NotificationSound.play()');
+                            window.NotificationSound.play();
+                            
+                            // Mark this notification as having played sound
+                            if (window.NotificationSound._markAsPlayed) {
+                                window.NotificationSound._markAsPlayed(notification.id);
+                            }
+                        } else if (window.NotificationSound && window.NotificationSound.checkAndPlay) {
+                            console.log('[MOU Notification Bar] Calling NotificationSound.checkAndPlay');
+                            window.NotificationSound.checkAndPlay([notification]);
+                        } else if (window.checkAndPlayMouNotificationSound) {
+                            console.log('[MOU Notification Bar] Calling checkAndPlayMouNotificationSound wrapper');
+                            window.checkAndPlayMouNotificationSound([notification]);
+                        } else {
+                            console.warn('[MOU Notification Bar] NotificationSound not available!');
+                        }
+                    } else {
+                        console.log('[MOU Notification Bar] Sound already played for notification:', notification.id);
+                    }
+                } else {
+                    console.log('[MOU Notification Bar] Not a MOU notification:', notification.type, notification.related_type);
+                }
+                
+                console.log('Showing notification bar for:', notification.title, 'ID:', notification.id);
 
                 // One-at-a-time queue for MOU bars (swipe right to dismiss)
                 if (!window.__mouBarQueue) window.__mouBarQueue = [];
@@ -4989,7 +5742,33 @@ try {
 
             function shouldShowMouExpiredBar(notificationId) {
                 if (notificationId == null) return true;
-                return !getMouExpiredBarSeenSet().has(String(notificationId));
+                
+                // For expired MOUs: Always show if notification exists (not yet renewed)
+                // Check if notification still exists in current notifications
+                try {
+                    const currentNotifications = getNotifications();
+                    if (currentNotifications && Array.isArray(currentNotifications) && currentNotifications.length > 0) {
+                        const notificationExists = currentNotifications.some(
+                            n => n.id == notificationId && n.type === 'mou_expired' && n.related_type === 'mou_moa'
+                        );
+                        
+                        if (notificationExists) {
+                            // Notification exists = MOU is still expired and not renewed
+                            // Always show it, clear localStorage so it can show again
+                            removeMouBarSeenId(notificationId);
+                            return true;
+                        } else {
+                            // Notification no longer exists (was renewed/deleted)
+                            removeMouBarSeenId(notificationId);
+                            return false;
+                        }
+                    }
+                } catch (_) {
+                    // If getNotifications fails, allow showing (will be verified when loaded)
+                }
+                
+                // If notifications not loaded yet, allow showing (expired MOUs should persist until renewed)
+                return true;
             }
 
             function markMouExpiredBarSeen(notificationId) {
@@ -4998,8 +5777,122 @@ try {
                 set.add(String(notificationId));
                 try {
                     localStorage.setItem('mou_expired_bar_seen_ids_v1', JSON.stringify(Array.from(set)));
+                    // Store timestamp for cleanup purposes
+                    try {
+                        const raw = localStorage.getItem('mou_expired_bar_seen_timestamps_v1');
+                        const timestamps = raw ? JSON.parse(raw) : {};
+                        timestamps[String(notificationId)] = Date.now();
+                        localStorage.setItem('mou_expired_bar_seen_timestamps_v1', JSON.stringify(timestamps));
+                    } catch (_) {
+                        // ignore timestamp storage failures
+                    }
                 } catch (_) {
                     // ignore storage failures
+                }
+            }
+
+            /**
+             * Clean up stale notification IDs from localStorage
+             * Removes IDs that no longer exist in the current notifications
+             */
+            function cleanupStaleMouBarSeenIds(currentNotifications) {
+                if (!currentNotifications || !Array.isArray(currentNotifications)) return;
+                
+                const seenSet = getMouExpiredBarSeenSet();
+                if (seenSet.size === 0) return;
+                
+                // Get all current expired MOU notification IDs
+                const currentExpiredMouIds = new Set(
+                    currentNotifications
+                        .filter(n => n.type === 'mou_expired' && n.related_type === 'mou_moa' && n.id != null)
+                        .map(n => String(n.id))
+                );
+                
+                // Remove IDs that no longer exist
+                let hasChanges = false;
+                const idsToRemove = [];
+                seenSet.forEach(id => {
+                    if (!currentExpiredMouIds.has(id)) {
+                        idsToRemove.push(id);
+                        hasChanges = true;
+                    }
+                });
+                
+                if (hasChanges) {
+                    idsToRemove.forEach(id => seenSet.delete(id));
+                    try {
+                        localStorage.setItem('mou_expired_bar_seen_ids_v1', JSON.stringify(Array.from(seenSet)));
+                        // Reset the cached set so it reloads on next access
+                        window.__mouExpiredBarSeenSet = null;
+                    } catch (_) {
+                        // ignore storage failures
+                    }
+                }
+            }
+
+            /**
+             * Clean up old localStorage entries (older than 90 days)
+             * This prevents localStorage from growing indefinitely
+             */
+            function cleanupOldMouBarSeenIds() {
+                try {
+                    // Store timestamps with IDs to track when they were added
+                    const raw = localStorage.getItem('mou_expired_bar_seen_timestamps_v1');
+                    if (!raw) return;
+                    
+                    const timestamps = JSON.parse(raw) || {};
+                    const ninetyDaysAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
+                    
+                    let hasChanges = false;
+                    const idsToRemove = [];
+                    
+                    Object.keys(timestamps).forEach(id => {
+                        if (timestamps[id] < ninetyDaysAgo) {
+                            idsToRemove.push(id);
+                            delete timestamps[id];
+                            hasChanges = true;
+                        }
+                    });
+                    
+                    if (hasChanges) {
+                        // Remove from seen set
+                        const seenSet = getMouExpiredBarSeenSet();
+                        idsToRemove.forEach(id => seenSet.delete(id));
+                        
+                        localStorage.setItem('mou_expired_bar_seen_ids_v1', JSON.stringify(Array.from(seenSet)));
+                        localStorage.setItem('mou_expired_bar_seen_timestamps_v1', JSON.stringify(timestamps));
+                        window.__mouExpiredBarSeenSet = null;
+                    }
+                } catch (_) {
+                    // ignore storage failures
+                }
+            }
+
+            /**
+             * Remove notification ID from localStorage when MOU is renewed
+             */
+            function removeMouBarSeenId(notificationId) {
+                if (notificationId == null) return;
+                const set = getMouExpiredBarSeenSet();
+                if (set.has(String(notificationId))) {
+                    set.delete(String(notificationId));
+                    try {
+                        localStorage.setItem('mou_expired_bar_seen_ids_v1', JSON.stringify(Array.from(set)));
+                        // Also remove from timestamps if it exists
+                        try {
+                            const raw = localStorage.getItem('mou_expired_bar_seen_timestamps_v1');
+                            if (raw) {
+                                const timestamps = JSON.parse(raw) || {};
+                                delete timestamps[String(notificationId)];
+                                localStorage.setItem('mou_expired_bar_seen_timestamps_v1', JSON.stringify(timestamps));
+                            }
+                        } catch (_) {
+                            // ignore timestamp cleanup failures
+                        }
+                        window.__mouExpiredBarSeenSet = null;
+                    } catch (_) {
+                        // ignore storage failures
+                    }
                 }
             }
             
@@ -5051,17 +5944,52 @@ try {
                     </div>
                 `;
 
-                // Click to navigate to MOU detail (unless it was a drag)
+                // Click to open MOU/MOA Details modal (unless it was a drag)
                 if (notification?.related_id && notification?.related_type === 'mou_moa') {
                     card.addEventListener('click', function(e) {
+                        // Don't trigger if it was a drag/swipe
                         if (card.dataset.suppressClick === '1') return;
+                        // Don't trigger if clicking on a button
                         if (e.target.closest('button')) return;
 
-                        if (typeof showMouDetail === 'function') {
-                            showMouDetail(notification.related_id);
-                        } else if (typeof editEntry === 'function') {
-                            editEntry(notification.related_id);
-                        }
+                        // Fetch the entry and open the modal
+                        (async function() {
+                            try {
+                                const response = await fetch(`api/mou-moa.php?action=get&id=${notification.related_id}`);
+                                const result = await response.json();
+                                
+                                if (result.success && result.data) {
+                                    // Open the modal using the correct function
+                                    if (typeof window.showMouDetails === 'function') {
+                                        window.showMouDetails(result.data);
+                                        
+                                        // Ensure modal is visible
+                                        const modal = document.getElementById('mouDetailsModal');
+                                        if (modal) {
+                                            modal.classList.remove('hidden');
+                                            modal.style.display = 'flex';
+                                        }
+                                        
+                                        // Highlight the entry
+                                        if (typeof highlightEntry === 'function') {
+                                            highlightEntry(parseInt(notification.related_id));
+                                        }
+                                    } else {
+                                        // Fallback: navigate to URL
+                                        window.location.href = `mou-moa.php?entry=${notification.related_id}`;
+                                    }
+                                } else {
+                                    console.error('Failed to load entry:', result.error);
+                                    // Fallback: navigate to URL
+                                    window.location.href = `mou-moa.php?entry=${notification.related_id}`;
+                                }
+                            } catch (error) {
+                                console.error('Error loading entry:', error);
+                                // Fallback: navigate to URL
+                                window.location.href = `mou-moa.php?entry=${notification.related_id}`;
+                            }
+                        })();
+                        
                         // Once opened, move to the next queued notification
                         dismissCurrentMouNotificationBar(card, { animate: false });
                     });
@@ -5158,7 +6086,8 @@ try {
                     if (!dragging) return;
                     const dx = e.clientX - startX;
                     currentX = Math.max(0, dx); // only allow dragging to the right
-                    if (currentX > 6) moved = true;
+                    // Only consider it a "move" if moved more than 20px to avoid suppressing legitimate clicks
+                    if (currentX > 20) moved = true;
 
                     const rotate = Math.min(6, currentX / 40); // subtle
                     const opacity = Math.max(0.2, 1 - currentX / 320);
@@ -5178,9 +6107,13 @@ try {
                     card.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
                     card.style.transform = 'translateX(0)';
                     card.style.opacity = '1';
-                    if (moved) {
+                    // Only suppress click if there was significant movement (more than 20px)
+                    if (moved && currentX > 20) {
                         card.dataset.suppressClick = '1';
                         setTimeout(() => { card.dataset.suppressClick = '0'; }, 250);
+                    } else {
+                        // Clear suppress flag immediately for small movements
+                        card.dataset.suppressClick = '0';
                     }
                 };
 
@@ -5213,38 +6146,6 @@ try {
             
             // Make removeNotificationPaper globally accessible
             window.removeNotificationPaper = removeNotificationPaper;
-            
-            function getNotificationUrl(notif) {
-                if (!notif || !notif.related_type || !notif.related_id) {
-                    return '';
-                }
-                
-                const encodedId = encodeURIComponent(notif.related_id);
-                
-                if (notif.related_type === 'mou_moa') {
-                    return `mou-moa.php?entry=${encodedId}`;
-                }
-                
-                if (notif.related_type === 'event') {
-                    return `events-activities.php?event=${encodedId}`;
-                }
-                
-                if (notif.related_type === 'schedule') {
-                    return `scheduler.php`;
-                }
-                
-                return '';
-            }
-            
-            function decodeUrlAttribute(value) {
-                if (!value) return '';
-                try {
-                    return decodeURIComponent(value);
-                } catch (error) {
-                    console.warn('Unable to decode notification URL attribute:', error);
-                    return value;
-                }
-            }
             
             // Highlight entry in table
             function highlightEntry(entryId) {
@@ -5287,18 +6188,55 @@ try {
             window.checkNotifications = checkNotifications;
             window.updateNotificationBadge = updateNotificationBadge;
             
-            // Initialize: Check for notifications and load them
-            (async function() {
-                // Force check notifications on page load to ensure all expired MOUs have notifications
-                await checkNotifications();
-                await loadNotifications();
-                await updateNotificationBadge();
-                
-                // Refresh notifications every 5 minutes
-                setInterval(() => {
-                    refreshNotificationIndicators();
-                }, 5 * 60 * 1000);
-            })();
+            // Confirm MOU renewal function (same as dashboard)
+            window.confirmMouRenewal = async function(notificationId, renewalStatus, entryId) {
+                // For "renewed": open the MOU/MOA renew flow (edit sign date + term) instead of immediately confirming.
+                if (renewalStatus === 'renewed') {
+                    if (typeof window.openMouRenewalFlow === 'function') {
+                        window.openMouRenewalFlow(notificationId, entryId);
+                    } else {
+                        if (!entryId) {
+                            alert('Error: missing MOU/MOA entry id for renewal.');
+                            return;
+                        }
+                        window.location.href = `mou-moa.php?entry=${encodeURIComponent(entryId)}&renew=1&notif=${encodeURIComponent(notificationId)}`;
+                    }
+                    return;
+                }
+                try {
+                    const response = await fetch('api/notifications.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            action: 'confirm_mou_renewal',
+                            notification_id: notificationId,
+                            renewal_status: renewalStatus
+                        })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        // Reload notifications to update the display
+                        await loadNotifications();
+                        await updateNotificationBadge();
+                    } else {
+                        console.error('Failed to confirm MOU renewal:', data);
+                        alert('Failed to update renewal status: ' + (data.error || 'Unknown error'));
+                    }
+                } catch (error) {
+                    console.error('Error confirming MOU renewal:', error);
+                    alert('Error updating renewal status: ' + error.message);
+                }
+            };
+            
+            // Update badge on page load (like documents.php)
+            updateNotificationBadge();
+            
+            // Update badge every 30 seconds for real-time updates
+            setInterval(() => {
+                updateNotificationBadge();
+            }, 30000);
             
             // Show all notifications modal
             function showAllNotificationsModal() {
@@ -5335,7 +6273,44 @@ try {
                     const data = await response.json();
                     
                     if (data.notifications && Array.isArray(data.notifications)) {
-                        const allNotifications = data.notifications;
+                        let allNotifications = data.notifications;
+                        
+                        // Deduplicate MOU notifications: keep only the most recent one for each MOU+type combination
+                        const mouNotificationMap = new Map();
+                        const otherNotifications = [];
+                        
+                        allNotifications.forEach(notif => {
+                            if (notif.related_type === 'mou_moa' && notif.related_id) {
+                                // Create a unique key for MOU notifications: related_id + type
+                                const key = `${notif.related_id}_${notif.type}`;
+                                
+                                if (!mouNotificationMap.has(key)) {
+                                    mouNotificationMap.set(key, notif);
+                                } else {
+                                    // Keep the most recent one
+                                    const existing = mouNotificationMap.get(key);
+                                    const existingDate = new Date(existing.created_at);
+                                    const currentDate = new Date(notif.created_at);
+                                    
+                                    if (currentDate > existingDate) {
+                                        mouNotificationMap.set(key, notif);
+                                    }
+                                }
+                            } else {
+                                // Keep non-MOU notifications as-is
+                                otherNotifications.push(notif);
+                            }
+                        });
+                        
+                        // Combine deduplicated MOU notifications with other notifications
+                        allNotifications = [...Array.from(mouNotificationMap.values()), ...otherNotifications];
+                        
+                        // Sort by created_at (most recent first)
+                        allNotifications.sort((a, b) => {
+                            const dateA = new Date(a.created_at);
+                            const dateB = new Date(b.created_at);
+                            return dateB - dateA;
+                        });
                         
                         // Update count
                         if (countElement) {
@@ -5481,7 +6456,7 @@ try {
                                         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your MOU/MOA notifications</p>
                                     </div>
                                     <div class="flex items-center gap-3">
-                                        <button id="markAllReadModalBtn" class="px-4 py-2 text-sm font-medium text-primary bg-primary/10 rounded-lg hover:bg-primary/20">
+                                        <button id="markAllReadModalBtn" class="px-4 py-2 text-sm font-medium text-primary bg-primary/10 dark:bg-primary/20 rounded-lg hover:bg-primary/20 dark:hover:bg-primary/30">
                                             Mark All Read
                                         </button>
                                     </div>
@@ -5516,7 +6491,7 @@ try {
                                     </div>
                                     <div class="flex items-center gap-3">
                                         <button id="clearOldNotifications" class="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
-                                            Clear Old
+                                            Clear All
                                         </button>
                                         <button id="closeAllNotificationsModalBtn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800">
                                             Close
@@ -5592,15 +6567,24 @@ try {
                     });
                 }
                 
-                // Clear old notifications
+                // Clear all notifications
+                let isClearingAll = false;
                 if (clearOldBtn) {
                     clearOldBtn.addEventListener('click', async function(e) {
                         e.preventDefault();
                         e.stopPropagation();
+                        
+                        // Prevent double-click while a clear operation is in progress
+                        if (isClearingAll) {
+                            return;
+                        }
+                        isClearingAll = true;
                         try {
                             await clearOldNotifications();
                         } catch (error) {
-                            console.error('Error clearing old notifications:', error);
+                            console.error('Error clearing notifications:', error);
+                        } finally {
+                            isClearingAll = false;
                         }
                     });
                 }
@@ -5748,6 +6732,33 @@ try {
                 const notificationsCount = document.getElementById('notificationsCount');
                 
                 if (!notificationsList || !notificationsCount) return;
+                
+                // Deduplicate MOU notifications in filtered list
+                const mouNotificationMap = new Map();
+                const otherNotifications = [];
+                
+                filteredNotifications.forEach(notif => {
+                    if (notif.related_type === 'mou_moa' && notif.related_id) {
+                        const key = `${notif.related_id}_${notif.type}`;
+                        
+                        if (!mouNotificationMap.has(key)) {
+                            mouNotificationMap.set(key, notif);
+                        } else {
+                            const existing = mouNotificationMap.get(key);
+                            const existingDate = new Date(existing.created_at);
+                            const currentDate = new Date(notif.created_at);
+                            
+                            if (currentDate > existingDate) {
+                                mouNotificationMap.set(key, notif);
+                            }
+                        }
+                    } else {
+                        otherNotifications.push(notif);
+                    }
+                });
+                
+                // Combine deduplicated notifications
+                filteredNotifications = [...Array.from(mouNotificationMap.values()), ...otherNotifications];
                 
                 notificationsCount.textContent = filteredNotifications.length;
                 
@@ -5922,56 +6933,58 @@ try {
                 }
             }
 
-            // Clear old notifications (older than 30 days)
+            // "Clear all" in the modal: permanently delete all notifications
             async function clearOldNotifications() {
                 try {
                     const currentNotifications = getNotifications();
-                    const thirtyDaysAgo = new Date();
-                    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
                     
-                    // Find old notifications to delete
-                    // Exclude expired MOU notifications - they will be recreated automatically
-                    // Only delete old notifications that are NOT expired MOU notifications
-                    const oldNotifications = currentNotifications.filter(notification => {
-                        const notificationDate = new Date(notification.created_at || notification.timestamp);
-                        const isOld = notificationDate <= thirtyDaysAgo;
-                        const isExpiredMou = notification.type === 'mou_expired' && notification.related_type === 'mou_moa';
-                        
-                        // Only delete if it's old AND not an expired MOU notification
-                        return isOld && !isExpiredMou;
-                    });
-                    
-                    if (oldNotifications.length === 0) {
+                    if (currentNotifications.length === 0) {
                         if (typeof showToast === 'function') {
-                            showToast('No old notifications to clear (expired MOU notifications are kept until renewed)', 'info');
+                            showToast('No notifications to clear', 'info');
                         } else {
-                            alert('No old notifications to clear. Expired MOU notifications are kept until the MOU is renewed or deleted.');
+                            alert('No notifications to clear.');
                         }
                         return;
                     }
                     
-                    // Delete old notifications via API
-                    const deletePromises = oldNotifications.map(notif => 
-                        fetch(`api/notifications.php?id=${notif.id}`, {
-                            method: 'DELETE'
-                        }).then(res => res.json())
-                    );
+                    let totalCleared = 0;
                     
-                    const results = await Promise.all(deletePromises);
-                    const successCount = results.filter(r => r.success).length;
+                    // Helper to delete a batch of notifications
+                    const deleteBatch = async (notifs) => {
+                        if (!notifs || notifs.length === 0) return 0;
+                        const deletePromises = notifs.map(notif =>
+                            fetch(`api/notifications.php?id=${notif.id}`, {
+                                method: 'DELETE'
+                            }).then(res => res.json()).catch(() => ({ success: false }))
+                        );
+                        const results = await Promise.all(deletePromises);
+                        return results.filter(r => r && r.success).length;
+                    };
+                    
+                    // First deletion pass
+                    totalCleared += await deleteBatch(currentNotifications);
                     
                     // Reload notifications to sync with server
                     await loadNotifications();
+                    
+                    // Safety second pass: if anything is still left, try once more
+                    const remaining = getNotifications();
+                    if (remaining && remaining.length > 0) {
+                        totalCleared += await deleteBatch(remaining);
+                        await loadNotifications();
+                    }
+                    
+                    // Refresh modal + badge after all passes
                     await loadAllNotificationsIntoModal();
                     updateNotificationBadge();
                     
                     if (typeof showToast === 'function') {
-                        showToast(`Cleared ${successCount} old notification(s). Expired MOU notifications are kept until renewed.`, 'success');
+                        showToast(`Cleared ${totalCleared} notification(s)`, 'success');
                     }
                 } catch (error) {
-                    console.error('Error clearing old notifications:', error);
+                    console.error('Error clearing notifications:', error);
                     if (typeof showToast === 'function') {
-                        showToast('Error clearing old notifications', 'error');
+                        showToast('Error clearing notifications', 'error');
                     }
                 }
             }
@@ -6116,9 +7129,7 @@ try {
                             View File
                         </button>
                     </div>
-                    <button id="closeMouDetailsBtn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-background-dark/50 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800">
-                        Close
-                    </button>
+                    <!-- Footer close button removed (top-right X + Escape key handle closing) -->
                 </div>
             </div>
         </div>
@@ -6129,12 +7140,288 @@ try {
         document.addEventListener('DOMContentLoaded', function() {
             const mouDetailsModal = document.getElementById('mouDetailsModal');
             const closeMouDetails = document.getElementById('closeMouDetails');
-            const closeMouDetailsBtn = document.getElementById('closeMouDetailsBtn');
             const editMouFromDetails = document.getElementById('editMouFromDetails');
             const viewFileFromDetails = document.getElementById('viewFileFromDetails');
             const renewMouFromDetails = document.getElementById('renewMouFromDetails');
             
             let currentMouData = null;
+
+            // Renew modal elements
+            const renewMouModal = document.getElementById('renewMouModal');
+            const closeRenewMouModal = document.getElementById('closeRenewMouModal');
+            const renewCancelBtn = document.getElementById('renewCancelBtn');
+            const renewConfirmBtn = document.getElementById('renewConfirmBtn');
+            const renewSignDateInput = document.getElementById('renew-sign-date');
+            const renewEndDateInput = document.getElementById('renew-end-date');
+            const renewTermInput = document.getElementById('renew-term');
+            const renewAutoStatusText = document.getElementById('renewAutoStatusText');
+
+            let currentRenewMouData = null;
+
+            function determineStatusForRenew(endDate) {
+                if (window.__mouMoa && typeof window.__mouMoa.determineStatus === 'function') {
+                    return window.__mouMoa.determineStatus(endDate);
+                }
+                if (!endDate) return 'Auto-determined';
+                const today = new Date();
+                const endDateObj = new Date(endDate);
+                today.setHours(0, 0, 0, 0);
+                endDateObj.setHours(0, 0, 0, 0);
+                const daysUntilExpiry = Math.ceil((endDateObj - today) / (1000 * 60 * 60 * 24));
+                if (endDateObj < today) return 'Expired';
+                if (daysUntilExpiry <= 180) return 'Expires Soon';
+                return 'Active';
+            }
+
+            function setRenewStatusDisplay(status) {
+                if (!renewAutoStatusText) return;
+                renewAutoStatusText.textContent = status || 'Auto-determined';
+                if (status === 'Active') {
+                    renewAutoStatusText.className = 'text-green-600 dark:text-green-400';
+                } else if (status === 'Expired') {
+                    renewAutoStatusText.className = 'text-red-600 dark:text-red-400';
+                } else if (status === 'Expires Soon') {
+                    renewAutoStatusText.className = 'text-yellow-600 dark:text-yellow-400';
+                } else {
+                    renewAutoStatusText.className = 'text-gray-500 dark:text-gray-400';
+                }
+            }
+
+            function calculateRenewEndDate(signDate, term) {
+                if (window.__mouMoa && typeof window.__mouMoa.calculateEndDate === 'function') {
+                    return window.__mouMoa.calculateEndDate(signDate, term);
+                }
+                if (!signDate || !term) return null;
+
+                let number, unit;
+                const termMatch = term.match(/(\d+)\s*(year|years|month|months|day|days)/i);
+                if (termMatch) {
+                    number = parseInt(termMatch[1]);
+                    unit = termMatch[2].toLowerCase();
+                } else {
+                    const numberMatch = term.match(/(\d+)/);
+                    if (numberMatch) {
+                        number = parseInt(numberMatch[1]);
+                        unit = 'years';
+                    } else {
+                        return null;
+                    }
+                }
+
+                const startDate = new Date(signDate);
+                if (isNaN(startDate.getTime())) return null;
+                const endDate = new Date(startDate);
+                switch (unit) {
+                    case 'year':
+                    case 'years':
+                        endDate.setFullYear(startDate.getFullYear() + number);
+                        break;
+                    case 'month':
+                    case 'months':
+                        endDate.setMonth(startDate.getMonth() + number);
+                        break;
+                    case 'day':
+                    case 'days':
+                        endDate.setDate(startDate.getDate() + number);
+                        break;
+                    default:
+                        return null;
+                }
+                return endDate.toISOString().split('T')[0];
+            }
+
+            function openRenewModal(mouData) {
+                if (!renewMouModal) return;
+                currentRenewMouData = mouData;
+
+                // Prefill fields (default to existing values)
+                if (renewSignDateInput) renewSignDateInput.value = mouData.sign_date || '';
+                if (renewTermInput) renewTermInput.value = mouData.term || '';
+
+                // If we have sign_date + term but no end_date, compute; otherwise use existing end_date
+                let endVal = mouData.end_date || '';
+                if (!endVal && mouData.sign_date && mouData.term) {
+                    endVal = calculateRenewEndDate(mouData.sign_date, mouData.term) || '';
+                }
+                if (renewEndDateInput) renewEndDateInput.value = endVal;
+
+                // Update status display
+                setRenewStatusDisplay(determineStatusForRenew(endVal));
+
+                // Show modal (stack above details modal)
+                renewMouModal.classList.remove('hidden');
+                renewMouModal.style.display = 'flex';
+                // Ensure it's above the details modal even if details modal was forced to a very high z-index
+                renewMouModal.style.zIndex = '10010';
+
+                // Auto-open native picker on genuine user click where supported
+                if (renewSignDateInput) {
+                    renewSignDateInput.addEventListener('click', function(event) {
+                        // Guard against programmatic clicks, which are not considered a user gesture
+                        if (!event.isTrusted) return;
+                        if (typeof this.showPicker === 'function') {
+                            try {
+                                this.showPicker();
+                            } catch (e) {
+                                // Some browsers may still throw if they consider this non-user initiated
+                                console.warn('showPicker could not be opened:', e);
+                            }
+                        }
+                    }, { once: true });
+                }
+                if (renewEndDateInput) {
+                    renewEndDateInput.addEventListener('click', function(event) {
+                        if (!event.isTrusted) return;
+                        if (typeof this.showPicker === 'function') {
+                            try {
+                                this.showPicker();
+                            } catch (e) {
+                                console.warn('showPicker could not be opened:', e);
+                            }
+                        }
+                    }, { once: true });
+                }
+            }
+
+            // Make renew modal opener globally accessible (used by notification "Renewed" flow)
+            window.openRenewModal = openRenewModal;
+
+            function closeRenewModal() {
+                if (!renewMouModal) return;
+                renewMouModal.classList.add('hidden');
+                renewMouModal.style.display = 'none';
+                currentRenewMouData = null;
+            }
+
+            async function confirmMouRenewalNotifications(entryId) {
+                if (!entryId) return;
+                try {
+                    const response = await fetch('api/notifications.php');
+                    const data = await response.json();
+                    if (data.notifications && Array.isArray(data.notifications)) {
+                        const mouNotifications = data.notifications.filter(
+                            n => n.related_type === 'mou_moa' && n.related_id == entryId && !n.is_confirmed
+                        );
+                        for (const notif of mouNotifications) {
+                            try {
+                                const renewResponse = await fetch('api/notifications.php', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        action: 'confirm_mou_renewal',
+                                        notification_id: notif.id,
+                                        renewal_status: 'renewed'
+                                    })
+                                });
+                                const renewData = await renewResponse.json();
+                                if (renewData.success) {
+                                    // Clean up localStorage when notification is renewed
+                                    removeMouBarSeenId(notif.id);
+                                } else {
+                                    console.error('Failed to mark notification as renewed:', renewData.error);
+                                }
+                            } catch (error) {
+                                console.error('Error marking notification as renewed:', error);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching notifications:', error);
+                }
+            }
+
+            // Renew modal event listeners
+            if (closeRenewMouModal) closeRenewMouModal.addEventListener('click', closeRenewModal);
+            if (renewCancelBtn) renewCancelBtn.addEventListener('click', closeRenewModal);
+            if (renewMouModal) {
+                renewMouModal.addEventListener('click', function(e) {
+                    if (e.target === renewMouModal) closeRenewModal();
+                });
+            }
+
+            function autoUpdateRenewEndAndStatus() {
+                const signDate = renewSignDateInput ? renewSignDateInput.value : '';
+                const term = renewTermInput ? renewTermInput.value.trim() : '';
+                if (signDate && term && renewEndDateInput) {
+                    const calculated = calculateRenewEndDate(signDate, term);
+                    if (calculated) {
+                        renewEndDateInput.value = calculated;
+                    }
+                }
+                const endDate = renewEndDateInput ? renewEndDateInput.value : '';
+                setRenewStatusDisplay(determineStatusForRenew(endDate));
+            }
+
+            if (renewSignDateInput) {
+                renewSignDateInput.addEventListener('change', autoUpdateRenewEndAndStatus);
+                renewSignDateInput.addEventListener('input', autoUpdateRenewEndAndStatus);
+            }
+            if (renewTermInput) {
+                renewTermInput.addEventListener('change', autoUpdateRenewEndAndStatus);
+                renewTermInput.addEventListener('input', autoUpdateRenewEndAndStatus);
+            }
+            if (renewEndDateInput) {
+                renewEndDateInput.addEventListener('change', autoUpdateRenewEndAndStatus);
+                renewEndDateInput.addEventListener('input', autoUpdateRenewEndAndStatus);
+            }
+
+            if (renewConfirmBtn) {
+                renewConfirmBtn.addEventListener('click', async function() {
+                    if (!currentRenewMouData || !currentRenewMouData.id) {
+                        alert('Error: MOU/MOA ID not found');
+                        return;
+                    }
+                    const signDate = renewSignDateInput ? renewSignDateInput.value : '';
+                    const endDate = renewEndDateInput ? renewEndDateInput.value : '';
+                    const term = renewTermInput ? renewTermInput.value.trim() : '';
+                    if (!signDate || !endDate || !term) {
+                        alert('Please fill in Sign Date, End Date, and Term.');
+                        return;
+                    }
+
+                    const status = determineStatusForRenew(endDate);
+                    const updatedEntry = {
+                        ...currentRenewMouData,
+                        sign_date: signDate,
+                        end_date: endDate,
+                        term: term,
+                        status: status
+                    };
+
+                    try {
+                        renewConfirmBtn.disabled = true;
+                        renewConfirmBtn.textContent = 'Renewing...';
+
+                        if (!window.__mouMoa || typeof window.__mouMoa.updateEntry !== 'function') {
+                            throw new Error('Update function not available. Please refresh the page.');
+                        }
+
+                        await window.__mouMoa.updateEntry(updatedEntry, null);
+
+                        if (window.__mouMoa && typeof window.__mouMoa.loadFromDatabase === 'function') {
+                            await window.__mouMoa.loadFromDatabase();
+                        }
+
+                        // Refresh the details modal content behind
+                        if (typeof window.showMouDetails === 'function') {
+                            window.showMouDetails(updatedEntry);
+                        }
+
+                        // Mark related notifications as renewed (only after successful renew)
+                        await confirmMouRenewalNotifications(updatedEntry.id);
+                        if (window.loadNotifications) window.loadNotifications();
+                        if (window.updateNotificationBadge) window.updateNotificationBadge();
+
+                        closeRenewModal();
+                    } catch (error) {
+                        console.error('Renew failed:', error);
+                        alert('Failed to renew MOU/MOA: ' + (error.message || 'Unknown error'));
+                    } finally {
+                        renewConfirmBtn.disabled = false;
+                        renewConfirmBtn.textContent = 'Renew';
+                    }
+                });
+            }
             
             // Function to show MOU details modal
             function showMouDetails(mouData) {
@@ -6213,22 +7500,91 @@ try {
                     document.getElementById('detailDaysUntilExpiry').textContent = '-';
                 }
                 
-                // Handle file information
+                // Handle file information - display all files
                 const fileInfoElement = document.getElementById('detailFileInfo');
                 const viewFileBtn = document.getElementById('viewFileFromDetails');
 
-                if (mouData.file_name && mouData.file_path) {
-                    fileInfoElement.innerHTML = `
-                        <div class="flex items-center gap-2">
-                            <span class="material-symbols-outlined text-primary">description</span>
-                            <span class="font-medium">${mouData.file_name}</span>
-                        </div>
-                    `;
-                    viewFileBtn.classList.remove('hidden');
-                    viewFileBtn.onclick = () => showFileViewer(mouData.file_path, mouData.file_name);
-                } else {
+                if (fileInfoElement) {
+                    // Clear any previous content safely
+                    fileInfoElement.innerHTML = '';
+                }
+
+                // Get all files from mouData.files array or fallback to single file
+                const allFiles = mouData.files && Array.isArray(mouData.files) && mouData.files.length > 0 
+                    ? mouData.files 
+                    : (mouData.file_name && mouData.file_path ? [{
+                        file_name: mouData.file_name,
+                        file_path: mouData.file_path,
+                        is_primary: 1
+                    }] : []);
+
+                if (allFiles.length > 0 && fileInfoElement) {
+                    // Create a container for all files
+                    const filesContainer = document.createElement('div');
+                    filesContainer.className = 'space-y-2';
+
+                    allFiles.forEach((file, index) => {
+                        const row = document.createElement('div');
+                        row.className = 'flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50';
+
+                        const left = document.createElement('div');
+                        left.className = 'flex items-center gap-2 min-w-0 flex-1';
+
+                        const docIcon = document.createElement('span');
+                        docIcon.className = 'material-symbols-outlined text-primary flex-shrink-0';
+                        docIcon.textContent = 'description';
+
+                        const nameContainer = document.createElement('div');
+                        nameContainer.className = 'min-w-0 flex-1';
+
+                        const nameSpan = document.createElement('span');
+                        nameSpan.className = 'font-medium truncate block text-sm';
+                        nameSpan.textContent = file.file_name || file.file_name;
+                        nameSpan.title = file.file_name || file.file_name;
+
+                        // Add primary badge if this is the primary file
+                        if (file.is_primary === 1 || (index === 0 && allFiles.length > 1)) {
+                            const primaryBadge = document.createElement('span');
+                            primaryBadge.className = 'ml-2 px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded';
+                            primaryBadge.textContent = 'Primary';
+                            nameContainer.appendChild(primaryBadge);
+                        }
+
+                        nameContainer.insertBefore(nameSpan, nameContainer.firstChild);
+                        left.appendChild(docIcon);
+                        left.appendChild(nameContainer);
+
+                        const inlineViewBtn = document.createElement('button');
+                        inlineViewBtn.type = 'button';
+                        inlineViewBtn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary bg-primary/10 rounded-lg hover:bg-primary/20 flex-shrink-0';
+
+                        const viewIcon = document.createElement('span');
+                        viewIcon.className = 'material-symbols-outlined text-base';
+                        viewIcon.textContent = 'visibility';
+
+                        const viewText = document.createElement('span');
+                        viewText.textContent = 'View';
+
+                        inlineViewBtn.appendChild(viewIcon);
+                        inlineViewBtn.appendChild(viewText);
+                        inlineViewBtn.onclick = () => showFileViewer(file.file_path, file.file_name);
+
+                        row.appendChild(left);
+                        row.appendChild(inlineViewBtn);
+                        filesContainer.appendChild(row);
+                    });
+
+                    fileInfoElement.appendChild(filesContainer);
+
+                    // Set primary file for the main view button
+                    const primaryFile = allFiles.find(f => f.is_primary === 1) || allFiles[0];
+                    if (viewFileBtn && primaryFile) {
+                        viewFileBtn.classList.remove('hidden');
+                        viewFileBtn.onclick = () => showFileViewer(primaryFile.file_path, primaryFile.file_name);
+                    }
+                } else if (fileInfoElement) {
                     fileInfoElement.textContent = 'No file attached';
-                    viewFileBtn.classList.add('hidden');
+                    if (viewFileBtn) viewFileBtn.classList.add('hidden');
                 }
 
                 // Show/hide edit button based on admin status
@@ -6275,103 +7631,7 @@ try {
                 
                 // Set up Renew button handler
                 if (renewBtn) {
-                    renewBtn.onclick = async () => {
-                        if (!mouData.id) {
-                            alert('Error: MOU/MOA ID not found');
-                            return;
-                        }
-                        
-                        // Find and mark related notifications as renewed
-                        try {
-                            const response = await fetch('api/notifications.php');
-                            const data = await response.json();
-                            
-                            if (data.notifications && Array.isArray(data.notifications)) {
-                                const mouNotifications = data.notifications.filter(
-                                    n => n.related_type === 'mou_moa' && n.related_id == mouData.id && !n.is_confirmed
-                                );
-                                
-                                // Mark each notification as renewed
-                                for (const notif of mouNotifications) {
-                                    try {
-                                        const renewResponse = await fetch('api/notifications.php', {
-                                            method: 'POST',
-                                            headers: {
-                                                'Content-Type': 'application/json'
-                                            },
-                                            body: JSON.stringify({
-                                                action: 'confirm_mou_renewal',
-                                                notification_id: notif.id,
-                                                renewal_status: 'renewed'
-                                            })
-                                        });
-                                        
-                                        const renewData = await renewResponse.json();
-                                        if (!renewData.success) {
-                                            console.error('Failed to mark notification as renewed:', renewData.error);
-                                        }
-                                    } catch (error) {
-                                        console.error('Error marking notification as renewed:', error);
-                                    }
-                                }
-                            }
-                        } catch (error) {
-                            console.error('Error fetching notifications:', error);
-                        }
-                        
-                        // Keep the details modal open but open add modal on top (higher z-index)
-                        // The add modal will appear in front of the details modal
-                        
-                        // Open the Add MOU/MOA File modal
-                        const addFileModal = document.getElementById('addFileModal');
-                        if (addFileModal) {
-                            // Reset editing state
-                            window.editingEntryId = undefined;
-                            
-                            // Reset modal title and button text for adding
-                            const modalTitle = document.querySelector('#addFileModal h3');
-                            const saveBtn = document.getElementById('saveBtn');
-                            if (modalTitle) modalTitle.textContent = 'Add MOU/MOA File';
-                            if (saveBtn) saveBtn.textContent = 'Save';
-                            
-                            // Show the add modal - it will appear on top of details modal (higher z-index)
-                            addFileModal.classList.remove('hidden');
-                            // Ensure modal appears on top (z-index already set to z-[100] in HTML)
-                            addFileModal.style.zIndex = '100';
-                            
-                            // Keep details modal open behind the add modal
-                            mouDetailsModal.style.zIndex = '50';
-                            console.log('Add modal opened on top of details modal (from renew)');
-                            
-                            // Clear selected file display when opening modal
-                            if (typeof updateSelectedFileDisplay === 'function') {
-                                updateSelectedFileDisplay(null);
-                            }
-                            if (typeof resetInstitutionDetection === 'function') {
-                                resetInstitutionDetection();
-                            }
-                            
-                            // Ensure native date picker click behavior is wired
-                            setTimeout(() => {
-                                if (typeof initDatePickers === 'function') {
-                                    initDatePickers();
-                                }
-                            }, 0);
-                        }
-                        
-                        // Refresh notifications if function exists
-                        if (window.loadNotifications) {
-                            window.loadNotifications();
-                        }
-                        if (window.updateNotificationBadge) {
-                            window.updateNotificationBadge();
-                        }
-                        
-                        // Refresh the table to show updated status
-                        if (typeof loadFromDatabase === 'function') {
-                            loadFromDatabase();
-                        }
-                    };
+                    renewBtn.onclick = () => openRenewModal(mouData);
                 }
                 
                 // Set up edit button with better error handling
@@ -6409,6 +7669,7 @@ try {
                                 const locationField = document.getElementById('location');
                                 const contactField = document.getElementById('contact');
                                 const termField = document.getElementById('term');
+                                const categoryField = document.getElementById('category');
                                 const signDateField = document.getElementById('sign-date');
                                 const endDateField = document.getElementById('end-date');
                                 
@@ -6416,12 +7677,21 @@ try {
                                 if (locationField) locationField.value = entryToEdit.location || '';
                                 if (contactField) contactField.value = entryToEdit.contact_email || '';
                                 if (termField) termField.value = entryToEdit.term || '';
+                                if (categoryField) {
+                                    const normalizeCategory = (window.__mouMoa && typeof window.__mouMoa.normalizeCategoryForSelect === 'function')
+                                        ? window.__mouMoa.normalizeCategoryForSelect
+                                        : (v) => (v ? String(v) : '');
+                                    categoryField.value = normalizeCategory(entryToEdit.category);
+                                }
                                 
-                                // Initialize date pickers and set values
+                                // Initialize date pickers (if available here) and set values
                                 setTimeout(() => {
-                                    initDatePickers();
-                                    if (signDateField) signDateField.value = entryToEdit.sign_date || '';
-                                    if (endDateField) endDateField.value = entryToEdit.end_date || '';
+                                    if (typeof initDatePickers === 'function') initDatePickers();
+                                    const normalize = (window.__mouMoa && typeof window.__mouMoa.normalizeDateForInput === 'function')
+                                        ? window.__mouMoa.normalizeDateForInput
+                                        : (v) => (v ? String(v) : '');
+                                    if (signDateField) signDateField.value = normalize(entryToEdit.sign_date);
+                                    if (endDateField) endDateField.value = normalize(entryToEdit.end_date);
                                 }, 0);
                                 
                                 console.log('Form fields populated successfully from details modal');
@@ -6517,7 +7787,6 @@ try {
             
             // Event listeners
             closeMouDetails.addEventListener('click', closeMouDetailsModal);
-            closeMouDetailsBtn.addEventListener('click', closeMouDetailsModal);
             
             // Close modal when clicking outside
             mouDetailsModal.addEventListener('click', function(e) {
@@ -6600,6 +7869,22 @@ try {
                                 console.log('showMouDetails called');
                             } else {
                                 console.error('showMouDetails function not found!');
+                            }
+
+                            // If we came from a "Renewed" notification intent, open the Renew modal immediately
+                            if (window.pendingRenewModal && typeof openRenewModal === 'function') {
+                                try {
+                                    openRenewModal(result.data);
+                                } catch (e) {
+                                    console.warn('Failed to auto-open renew modal:', e);
+                                }
+                                window.pendingRenewModal = false;
+                                // Clear stored intent (best-effort)
+                                try {
+                                    sessionStorage.removeItem('mouRenewal:open');
+                                    sessionStorage.removeItem('mouRenewal:entryId');
+                                    sessionStorage.removeItem('mouRenewal:notificationId');
+                                } catch (_) {}
                             }
                             
                             // IMPORTANT: Force modal to be visible immediately

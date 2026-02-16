@@ -6,7 +6,7 @@
 session_start();
 
 // Check authentication and admin role
-if (!isset($_SESSION['user_id']) || $_SESSION['user']['role'] !== 'admin') {
+if (!isset($_SESSION['user_id']) || (($_SESSION['user'] ?? [])['role'] ?? '') !== 'admin') {
     header('Location: index.php');
     exit;
 }

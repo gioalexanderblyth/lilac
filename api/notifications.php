@@ -89,32 +89,148 @@ function getMinimumNotificationPeriod($pdo) {
 }
 
 /**
+ * Get maximum notification period across all users (for creating notifications)
+ * This ensures notifications are created for all MOUs that any user wants to be notified about
+ */
+function getMaximumNotificationPeriod($pdo) {
+    try {
+        $stmt = $pdo->query("
+            SELECT MAX(CAST(preference_value AS UNSIGNED)) as max_period 
+            FROM user_preferences 
+            WHERE preference_key = 'mou_notification_period_days' 
+            AND preference_value REGEXP '^[0-9]+$'
+            AND CAST(preference_value AS UNSIGNED) > 0
+        ");
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($result && isset($result['max_period']) && $result['max_period'] > 0) {
+            return (int)$result['max_period'];
+        }
+        
+        // Default: 6 months (180 days)
+        return 180;
+    } catch (Exception $e) {
+        error_log('Error getting maximum notification period: ' . $e->getMessage());
+        return 180; // Default fallback
+    }
+}
+
+/**
+ * Get maximum days before expiry preference across all users
+ * This is the second reminder notification (closer to expiration)
+ */
+function getMaximumDaysBeforeExpiry($pdo) {
+    try {
+        $stmt = $pdo->query("
+            SELECT MAX(CAST(preference_value AS UNSIGNED)) as max_days 
+            FROM user_preferences 
+            WHERE preference_key = 'days_before_expiry' 
+            AND preference_value REGEXP '^[0-9]+$'
+            AND CAST(preference_value AS UNSIGNED) > 0
+        ");
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($result && isset($result['max_days']) && $result['max_days'] > 0) {
+            return (int)$result['max_days'];
+        }
+        
+        // Default: 30 days before expiry (if no preference set)
+        return 30;
+    } catch (Exception $e) {
+        error_log('Error getting maximum days before expiry: ' . $e->getMessage());
+        return 30; // Default fallback
+    }
+}
+
+/**
+ * Clean up duplicate notifications
+ * Removes duplicate notifications keeping only the most recent one
+ */
+function cleanupDuplicateNotifications($pdo) {
+    try {
+        // Remove duplicate expired notifications (keep the most recent one)
+        $pdo->exec("
+            DELETE n1 FROM notifications n1
+            INNER JOIN notifications n2 
+            WHERE n1.id < n2.id
+            AND n1.related_id = n2.related_id
+            AND n1.related_type = n2.related_type
+            AND n1.type = n2.type
+            AND n1.user_id IS NULL
+            AND n2.user_id IS NULL
+            AND n1.related_type = 'mou_moa'
+            AND n1.type = 'mou_expired'
+        ");
+        
+        // Remove duplicate expiring notifications (keep the most recent one)
+        $pdo->exec("
+            DELETE n1 FROM notifications n1
+            INNER JOIN notifications n2 
+            WHERE n1.id < n2.id
+            AND n1.related_id = n2.related_id
+            AND n1.related_type = n2.related_type
+            AND n1.type = n2.type
+            AND n1.user_id IS NULL
+            AND n2.user_id IS NULL
+            AND n1.related_type = 'mou_moa'
+            AND (n1.type = 'mou_expiring' OR n1.type = 'mou_expiring_soon')
+        ");
+        
+        return true;
+    } catch (Exception $e) {
+        error_log('Error cleaning up duplicate notifications: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
  * Check for MOU/MOA expiring soon and create notifications
- * Supports customizable notification periods per user (default: 6 months)
+ * Creates two types of notifications:
+ * 1. Initial notification based on "MOU/MOA Expiration Notifications" (default: 180 days)
+ * 2. Second reminder based on "Days Before Expiry Date" (default: 30 days)
  */
 function checkMouExpiration($pdo, $userId = null) {
     try {
+        // Clean up any existing duplicate notifications first
+        cleanupDuplicateNotifications($pdo);
+        
         $today = date('Y-m-d');
         $todayDate = new DateTime();
         $todayDate->setTime(0, 0, 0);
         
-        // Get minimum notification period across all users (or default 6 months)
-        $notificationPeriodDays = getMinimumNotificationPeriod($pdo);
-        $notificationDate = date('Y-m-d', strtotime("+{$notificationPeriodDays} days"));
+        // Get both notification periods
+        // 1. Initial notification period (default: 180 days / 6 months)
+        $initialNotificationPeriodDays = getMaximumNotificationPeriod($pdo);
+        $initialNotificationDate = date('Y-m-d', strtotime("+{$initialNotificationPeriodDays} days"));
+        
+        // 2. Days before expiry reminder (default: 30 days)
+        $daysBeforeExpiry = getMaximumDaysBeforeExpiry($pdo);
+        $reminderNotificationDate = date('Y-m-d', strtotime("+{$daysBeforeExpiry} days"));
         
         // Get all MOU/MOA entries that are:
         // 1. Expired (end_date < today) - check ALL expired MOUs, not just recent ones
-        // 2. Expiring within the notification period (end_date between today and notificationDate)
+        // 2. Expiring within either notification period (initial or reminder)
+        // 3. Invalid/zero dates (0000-00-00) should be treated as expired
+        // 4. CRITICAL: Always include MOUs expiring in 3 days or less, regardless of settings
+        // Use the maximum of both periods to get all relevant MOUs, but ensure we catch urgent ones
+        $maxPeriod = max($initialNotificationPeriodDays, $daysBeforeExpiry, 3); // At least 3 days to catch urgent expirations
+        $maxNotificationDate = date('Y-m-d', strtotime("+{$maxPeriod} days"));
+        $urgentDate = date('Y-m-d', strtotime("+3 days")); // Always check 3 days ahead for urgent expirations
+        
         $sql = "SELECT id, title, institution, partner, end_date, user_id, status 
                 FROM mou_moa 
                 WHERE end_date IS NOT NULL 
                 AND deleted_at IS NULL
                 AND (
+                    end_date = '0000-00-00' OR
+                    end_date = '' OR
                     end_date < ? OR 
+                    (end_date >= ? AND end_date <= ?) OR
+                    -- CRITICAL: Always catch MOUs expiring in 3 days or less
                     (end_date >= ? AND end_date <= ?)
                 )";
         
-        $params = [$today, $today, $notificationDate];
+        $params = [$today, $today, $maxNotificationDate, $today, $urgentDate];
         
         // If user_id is provided, filter by user
         if ($userId) {
@@ -129,83 +245,164 @@ function checkMouExpiration($pdo, $userId = null) {
         $notificationsCreated = 0;
         
         foreach ($mous as $mou) {
-            // Calculate days until expiration (signed: negative = expired, positive = days remaining)
-            $endDate = new DateTime($mou['end_date']);
-            $endDate->setTime(0, 0, 0);
-            $diff = $todayDate->diff($endDate);
-            $daysUntilExpiry = (int)$diff->format('%r%a'); // Signed integer: positive = future, negative = past
-            
-            // Determine notification type
-            $type = 'mou_expiring';
-            if ($daysUntilExpiry < 0) {
-                // Already expired
+            // Handle invalid/zero dates - treat as expired
+            if (empty($mou['end_date']) || $mou['end_date'] == '0000-00-00' || $mou['end_date'] == '') {
+                // Treat zero/invalid dates as expired
+                $daysUntilExpiry = -1;
                 $type = 'mou_expired';
-            } elseif ($daysUntilExpiry == 0) {
-                // Expires today
-                $type = 'mou_expired';
+            } else {
+                // Calculate days until expiration (signed: negative = expired, positive = days remaining)
+                try {
+                    $endDate = new DateTime($mou['end_date']);
+                    $endDate->setTime(0, 0, 0);
+                    $diff = $todayDate->diff($endDate);
+                    $daysUntilExpiry = (int)$diff->format('%r%a'); // Signed integer: positive = future, negative = past
+                } catch (Exception $e) {
+                    // Invalid date format - treat as expired
+                    error_log('Invalid end_date for MOU ' . $mou['id'] . ': ' . $mou['end_date']);
+                    $daysUntilExpiry = -1; // Treat as expired
+                }
             }
             
-            // For expiring notifications, check if we're within the notification window
-            // We should notify if the MOU is expiring within the notification period
-            // But we also need to check if it's the right time to notify (not too early)
-            if ($type === 'mou_expiring' && $daysUntilExpiry > $notificationPeriodDays) {
-                // Too early to notify, skip
-                continue;
-            }
+            $mouName = $mou['title'] ?: $mou['institution'] ?: $mou['partner'] ?: 'Untitled';
             
-            // Check if notification already exists for this MOU (global notification with user_id = NULL)
-            // For expired: check if notification exists at all (expired MOUs should persist until renewed/deleted)
-            // For expiring: check within last 7 days to allow updates if MOU status changes
-            if ($type === 'mou_expired') {
-                // For expired MOUs, check if notification exists regardless of age
-                // This ensures expired notifications persist until the MOU is renewed or deleted
+            // Handle expired MOUs first
+            if ($daysUntilExpiry < 0 || $daysUntilExpiry == 0) {
+                // Check if expired notification already exists (use COUNT to be more robust)
                 $checkStmt = $pdo->prepare("
-                    SELECT id FROM notifications 
+                    SELECT COUNT(*) as count FROM notifications 
                     WHERE related_id = ? 
                     AND related_type = 'mou_moa' 
                     AND type = 'mou_expired'
                     AND user_id IS NULL
                 ");
                 $checkStmt->execute([$mou['id']]);
-            } else {
-                // For expiring MOUs, check within last 7 days to allow updates
+                $result = $checkStmt->fetch(PDO::FETCH_ASSOC);
+                $existingCount = (int)($result['count'] ?? 0);
+                
+                if ($existingCount == 0) {
+                    $title = "MOU/MOA Expired: " . $mouName;
+                    // Handle invalid dates
+                    if (empty($mou['end_date']) || $mou['end_date'] == '0000-00-00' || $mou['end_date'] == '') {
+                        $message = "The MOU/MOA with " . ($mou['institution'] ?: $mou['partner'] ?: 'partner') . " has an invalid expiration date.";
+                    } else {
+                        $dateTimestamp = strtotime($mou['end_date']);
+                        if ($dateTimestamp === false) {
+                            $message = "The MOU/MOA with " . ($mou['institution'] ?: $mou['partner'] ?: 'partner') . " has an invalid expiration date.";
+                        } else {
+                            $message = "The MOU/MOA with " . ($mou['institution'] ?: $mou['partner'] ?: 'partner') . " expired on " . date('F j, Y', $dateTimestamp) . ".";
+                        }
+                    }
+                    
+                    $insertStmt = $pdo->prepare("
+                        INSERT INTO notifications (user_id, type, title, message, related_id, related_type, created_at)
+                        VALUES (NULL, ?, ?, ?, ?, 'mou_moa', NOW())
+                    ");
+                    $insertStmt->execute(['mou_expired', $title, $message, $mou['id']]);
+                    $notificationsCreated++;
+                }
+                continue; // Skip to next MOU
+            }
+            
+            // For expiring MOUs, create two separate notifications:
+            // 1. Initial notification (mou_expiring) - when within initial notification period
+            // 2. Reminder notification (mou_expiring_soon) - when within days before expiry period
+            
+            // CRITICAL: Always notify for MOUs expiring in 3 days or less, regardless of settings
+            // This ensures urgent expirations are never missed
+            $isUrgentExpiration = $daysUntilExpiry <= 3 && $daysUntilExpiry > 0;
+            
+            // Check and create initial notification (first notification)
+            if ($daysUntilExpiry <= $initialNotificationPeriodDays && $daysUntilExpiry > $daysBeforeExpiry) {
+                // Within initial notification period but not yet in reminder period
+                // Check if notification already exists (regardless of age to prevent duplicates)
                 $checkStmt = $pdo->prepare("
                     SELECT id FROM notifications 
                     WHERE related_id = ? 
                     AND related_type = 'mou_moa' 
                     AND type = 'mou_expiring'
                     AND user_id IS NULL
-                    AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
                 ");
                 $checkStmt->execute([$mou['id']]);
-            }
-            $existing = $checkStmt->fetch();
-            
-            if (!$existing) {
-                // Create notification
-                $mouName = $mou['title'] ?: $mou['institution'] ?: $mou['partner'] ?: 'Untitled';
+                $existing = $checkStmt->fetch();
                 
-                if ($type === 'mou_expired') {
-                    $title = "MOU/MOA Expired: " . $mouName;
-                    $message = "The MOU/MOA with " . ($mou['institution'] ?: $mou['partner'] ?: 'partner') . " expired on " . date('F j, Y', strtotime($mou['end_date'])) . ".";
-                } else {
+                if (!$existing) {
                     $title = "MOU/MOA Expiring Soon: " . $mouName;
-                    $message = "The MOU/MOA with " . ($mou['institution'] ?: $mou['partner'] ?: 'partner') . " will expire in " . $daysUntilExpiry . " day(s) on " . date('F j, Y', strtotime($mou['end_date'])) . ".";
+                    $dateTimestamp = strtotime($mou['end_date']);
+                    $message = "The MOU/MOA with " . ($mou['institution'] ?: $mou['partner'] ?: 'partner') . " will expire in " . $daysUntilExpiry . " day(s) on " . date('F j, Y', $dateTimestamp) . ".";
+                    
+                    $insertStmt = $pdo->prepare("
+                        INSERT INTO notifications (user_id, type, title, message, related_id, related_type, created_at)
+                        VALUES (NULL, ?, ?, ?, ?, 'mou_moa', NOW())
+                    ");
+                    $insertStmt->execute(['mou_expiring', $title, $message, $mou['id']]);
+                    $notificationsCreated++;
+                }
+            }
+            
+            // Check and create reminder notification (second notification - days before expiry)
+            // Also include urgent expirations (3 days or less) even if outside normal reminder period
+            if ($daysUntilExpiry <= $daysBeforeExpiry || $isUrgentExpiration) {
+                // Within reminder notification period
+                // IMPORTANT: Delete any existing mou_expiring notification for this MOU
+                // since mou_expiring_soon is more urgent and should replace it
+                $deleteExpiringStmt = $pdo->prepare("
+                    DELETE FROM notifications 
+                    WHERE related_id = ? 
+                    AND related_type = 'mou_moa' 
+                    AND type = 'mou_expiring'
+                    AND user_id IS NULL
+                ");
+                $deleteExpiringStmt->execute([$mou['id']]);
+                
+                // For critical expirations (3 days or less), always create/update notification
+                // For others, check if notification already exists (regardless of age to prevent duplicates)
+                $isCritical = $daysUntilExpiry <= 3;
+                
+                if ($isCritical) {
+                    // For critical expirations, delete old mou_expiring_soon notification and create fresh one
+                    // This ensures users always see the updated countdown
+                    $deleteStmt = $pdo->prepare("
+                        DELETE FROM notifications 
+                        WHERE related_id = ? 
+                        AND related_type = 'mou_moa' 
+                        AND type = 'mou_expiring_soon'
+                        AND user_id IS NULL
+                    ");
+                    $deleteStmt->execute([$mou['id']]);
+                } else {
+                    // For non-critical, check if notification already exists (regardless of age to prevent duplicates)
+                    $checkStmt = $pdo->prepare("
+                        SELECT id FROM notifications 
+                        WHERE related_id = ? 
+                        AND related_type = 'mou_moa' 
+                        AND type = 'mou_expiring_soon'
+                        AND user_id IS NULL
+                    ");
+                    $checkStmt->execute([$mou['id']]);
+                    $existing = $checkStmt->fetch();
+                    
+                    if ($existing) {
+                        continue; // Skip creating duplicate notification
+                    }
                 }
                 
-                // Create notification with user_id = NULL so it's visible to all users
-                // This makes MOU/MOA notifications visible on all pages
-                $insertStmt = $pdo->prepare("
-                    INSERT INTO notifications (user_id, type, title, message, related_id, related_type, created_at)
-                    VALUES (NULL, ?, ?, ?, ?, 'mou_moa', NOW())
-                ");
-                $insertStmt->execute([
-                    $type,
-                    $title,
-                    $message,
-                    $mou['id']
-                ]);
-                $notificationsCreated++;
+                // Create the notification
+                $title = "MOU/MOA Expiring Soon - Reminder: " . $mouName;
+                $dateTimestamp = strtotime($mou['end_date']);
+                $message = "REMINDER: The MOU/MOA with " . ($mou['institution'] ?: $mou['partner'] ?: 'partner') . " will expire in " . $daysUntilExpiry . " day(s) on " . date('F j, Y', $dateTimestamp) . ". Please renew soon.";
+                
+                try {
+                    $insertStmt = $pdo->prepare("
+                        INSERT INTO notifications (user_id, type, title, message, related_id, related_type, created_at)
+                        VALUES (NULL, ?, ?, ?, ?, 'mou_moa', NOW())
+                    ");
+                    $insertStmt->execute(['mou_expiring_soon', $title, $message, $mou['id']]);
+                    $notificationsCreated++;
+                    error_log("Created MOU expiring_soon notification for MOU ID: " . $mou['id'] . ", days until expiry: " . $daysUntilExpiry);
+                } catch (Exception $e) {
+                    error_log('Error creating MOU expiring_soon notification for MOU ' . $mou['id'] . ': ' . $e->getMessage());
+                }
             }
         }
         
@@ -316,8 +513,9 @@ function checkUpcomingEvents($pdo, $userId = null) {
  */
 function checkUpcomingSchedules($pdo, $userId = null) {
     try {
-        // Get schedules happening within 7 days
-        $sevenDaysFromNow = date('Y-m-d', strtotime('+7 days'));
+        // Get schedules happening within 30 days (extended from 7 to catch more schedules)
+        // This ensures notifications are created for schedules further in the future
+        $thirtyDaysFromNow = date('Y-m-d', strtotime('+30 days'));
         $today = date('Y-m-d');
         
         $sql = "SELECT id, title, scheduled_date, scheduled_time, user_id, status 
@@ -327,7 +525,7 @@ function checkUpcomingSchedules($pdo, $userId = null) {
                 AND scheduled_date <= ? 
                 AND status = 'scheduled'";
         
-        $params = [$today, $sevenDaysFromNow];
+        $params = [$today, $thirtyDaysFromNow];
         
         // If user_id is provided, filter by user
         if ($userId) {
@@ -338,6 +536,8 @@ function checkUpcomingSchedules($pdo, $userId = null) {
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $upcomingSchedules = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        error_log('Schedule notification check: Found ' . count($upcomingSchedules) . ' upcoming schedule(s)');
         
         $notificationsCreated = 0;
         
@@ -357,19 +557,19 @@ function checkUpcomingSchedules($pdo, $userId = null) {
             }
             
             // Check if notification already exists for this schedule (global notification with user_id = NULL)
-            // Check within last 7 days to allow updates if schedule status changes
+            // Don't check date restriction - if schedule exists and is upcoming, create/update notification
             $checkStmt = $pdo->prepare("
                 SELECT id FROM notifications 
                 WHERE related_id = ? 
                 AND related_type = 'schedule' 
                 AND type = ? 
                 AND user_id IS NULL
-                AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
             ");
             $checkStmt->execute([$schedule['id'], $type]);
             $existing = $checkStmt->fetch();
             
             if (!$existing) {
+                // No notification exists - create one
                 // Create notification
                 $title = $daysUntilSchedule == 0
                     ? "Schedule Today: " . $schedule['title']
@@ -383,17 +583,24 @@ function checkUpcomingSchedules($pdo, $userId = null) {
                 
                 // Create notification with user_id = NULL so it's visible to all users
                 // This makes schedule notifications visible on all pages
-                $insertStmt = $pdo->prepare("
-                    INSERT INTO notifications (user_id, type, title, message, related_id, related_type, created_at)
-                    VALUES (NULL, ?, ?, ?, ?, 'schedule', NOW())
-                ");
-                $insertStmt->execute([
-                    $type,
-                    $title,
-                    $message,
-                    $schedule['id']
-                ]);
-                $notificationsCreated++;
+                try {
+                    $insertStmt = $pdo->prepare("
+                        INSERT INTO notifications (user_id, type, title, message, related_id, related_type, created_at)
+                        VALUES (NULL, ?, ?, ?, ?, 'schedule', NOW())
+                    ");
+                    $insertStmt->execute([
+                        $type,
+                        $title,
+                        $message,
+                        $schedule['id']
+                    ]);
+                    $notificationsCreated++;
+                    error_log("Created schedule notification for schedule ID: " . $schedule['id'] . ", title: " . $schedule['title'] . ", days until: " . $daysUntilSchedule);
+                } catch (Exception $e) {
+                    error_log('Error creating schedule notification for schedule ' . $schedule['id'] . ': ' . $e->getMessage());
+                }
+            } else {
+                error_log("Schedule notification already exists for schedule ID: " . $schedule['id'] . ", type: " . $type);
             }
         }
         
@@ -409,6 +616,9 @@ function checkUpcomingSchedules($pdo, $userId = null) {
  */
 function getNotifications($pdo, $userId, $unreadOnly = false) {
     try {
+        // Get user's notification preference
+        $userNotificationPeriod = getUserMouNotificationPeriod($pdo, $userId);
+        
         // For global notifications (user_id IS NULL), check notification_reads table
         // For user-specific notifications, use the is_read field
         // Exclude MOU notifications that have been confirmed by this user
@@ -447,15 +657,27 @@ function getNotifications($pdo, $userId, $unreadOnly = false) {
                     n.related_type != 'mou_moa' 
                     OR n.related_type IS NULL
                     OR (
-                        -- For expired MOUs: only show if NOT confirmed as renewed
+                        -- For expired MOUs: always show (they're already expired)
                         (n.type = 'mou_expired' AND (nc.id IS NULL OR nc.renewal_status != 'renewed'))
                         OR
-                        -- For expiring MOUs: show if not confirmed as renewed
-                        (n.type != 'mou_expired' AND (nc.id IS NULL OR nc.renewal_status = 'not_renewed'))
+                        -- For expiring MOUs: only show if within user's notification period and not confirmed as renewed
+                        (n.type = 'mou_expiring' 
+                         AND (nc.id IS NULL OR nc.renewal_status = 'not_renewed')
+                         AND m.end_date IS NOT NULL 
+                         AND m.end_date != '' 
+                         AND m.end_date != '0000-00-00'
+                         AND DATEDIFF(m.end_date, CURDATE()) <= ?)
+                        OR
+                        -- For reminder notifications (mou_expiring_soon): always show if not confirmed as renewed
+                        (n.type = 'mou_expiring_soon' 
+                         AND (nc.id IS NULL OR nc.renewal_status = 'not_renewed')
+                         AND m.end_date IS NOT NULL 
+                         AND m.end_date != '' 
+                         AND m.end_date != '0000-00-00')
                     )
                 )";
         
-        $params = [$userId, $userId, $userId];
+        $params = [$userId, $userId, $userId, $userNotificationPeriod];
         
         if ($unreadOnly) {
             $sql .= " AND (
@@ -464,13 +686,28 @@ function getNotifications($pdo, $userId, $unreadOnly = false) {
             )";
         }
         
-        $sql .= " ORDER BY n.created_at DESC LIMIT 50";
+        $sql .= " GROUP BY n.id ORDER BY n.created_at DESC LIMIT 50";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
+        // Additional deduplication: Remove any duplicates by notification ID
+        $seenIds = [];
+        $deduplicatedNotifications = [];
+        foreach ($notifications as $notif) {
+            if (!in_array($notif['id'], $seenIds)) {
+                $seenIds[] = $notif['id'];
+                $deduplicatedNotifications[] = $notif;
+            }
+        }
+        $notifications = $deduplicatedNotifications;
+        
         // Format dates and use is_read_for_user
+        // Also filter MOU expiring notifications based on user preference (additional check for edge cases)
+        $today = new DateTime();
+        $today->setTime(0, 0, 0);
+        
         foreach ($notifications as &$notif) {
             $notif['created_at'] = date('Y-m-d H:i:s', strtotime($notif['created_at']));
             $notif['read_at'] = $notif['read_at'] ? date('Y-m-d H:i:s', strtotime($notif['read_at'])) : null;
@@ -480,7 +717,7 @@ function getNotifications($pdo, $userId, $unreadOnly = false) {
             // Calculate criticality for MOU notifications
             if ($notif['related_type'] === 'mou_moa' && $notif['mou_end_date']) {
                 $endDate = new DateTime($notif['mou_end_date']);
-                $today = new DateTime();
+                $endDate->setTime(0, 0, 0);
                 $daysDiff = (int)$today->diff($endDate)->format('%r%a');
                 $notif['mou_days_until_expiry'] = $daysDiff;
                 $notif['mou_is_expired'] = $daysDiff < 0;
@@ -488,7 +725,20 @@ function getNotifications($pdo, $userId, $unreadOnly = false) {
             unset($notif['is_read_for_user']); // Remove helper field
         }
         
-        return $notifications;
+        // Additional filtering: Remove expiring MOU notifications outside user's preference period
+        $filteredNotifications = [];
+        foreach ($notifications as $notif) {
+            if ($notif['related_type'] === 'mou_moa' && $notif['type'] === 'mou_expiring') {
+                // Check if this expiring notification is within user's preference period
+                if (isset($notif['mou_days_until_expiry']) && $notif['mou_days_until_expiry'] > $userNotificationPeriod) {
+                    // Skip this notification - it's outside the user's preference period
+                    continue;
+                }
+            }
+            $filteredNotifications[] = $notif;
+        }
+        
+        return $filteredNotifications;
     } catch (Exception $e) {
         error_log('Error getting notifications: ' . $e->getMessage());
         return [];
@@ -589,43 +839,13 @@ function deleteNotification($pdo, $notificationId, $userId) {
  */
 function getUnreadCount($pdo, $userId) {
     try {
-        // Count user-specific unread notifications
-        // Plus global notifications that this user hasn't read
-        // Exclude MOU notifications that have been confirmed
-        $stmt = $pdo->prepare("
-            SELECT COUNT(*) as count 
-            FROM notifications n
-            LEFT JOIN notification_reads nr ON n.id = nr.notification_id AND nr.user_id = ? AND n.user_id IS NULL
-            LEFT JOIN mou_moa m ON n.related_type = 'mou_moa' AND n.related_id = m.id
-            LEFT JOIN events e ON n.related_type = 'event' AND n.related_id = e.id
-            LEFT JOIN schedules s ON n.related_type = 'schedule' AND n.related_id = s.id
-            LEFT JOIN notification_confirmations nc ON n.id = nc.notification_id AND nc.user_id = ? AND n.related_type = 'mou_moa'
-            WHERE (n.user_id = ? OR n.user_id IS NULL)
-            AND (
-                n.related_type IS NULL
-                OR (n.related_type = 'mou_moa' AND m.id IS NOT NULL AND (m.deleted_at IS NULL OR m.deleted_at = ''))
-                OR (n.related_type = 'event' AND e.id IS NOT NULL)
-                OR (n.related_type = 'schedule' AND s.id IS NOT NULL)
-            )
-            AND (
-                n.related_type != 'mou_moa' 
-                OR n.related_type IS NULL
-                OR (
-                    -- For expired MOUs: only show if NOT confirmed as renewed
-                    (n.type = 'mou_expired' AND (nc.id IS NULL OR nc.renewal_status != 'renewed'))
-                    OR
-                    -- For expiring MOUs: show if not confirmed as renewed
-                    (n.type != 'mou_expired' AND (nc.id IS NULL OR nc.renewal_status = 'not_renewed'))
-                )
-            )
-            AND (
-                (n.user_id IS NULL AND nr.id IS NULL) OR 
-                (n.user_id IS NOT NULL AND n.is_read = 0)
-            )
-        ");
-        $stmt->execute([$userId, $userId, $userId]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return (int)($result['count'] ?? 0);
+        // Get actual unread notifications using the same function that displays them
+        // This ensures the count exactly matches what's shown in the modal
+        // getNotifications with unreadOnly=true already filters to only unread notifications
+        $notifications = getNotifications($pdo, $userId, true);
+        
+        // Return the count - getNotifications with unreadOnly=true already filters out read ones
+        return count($notifications);
     } catch (Exception $e) {
         error_log('Error getting unread count: ' . $e->getMessage());
         return 0;
@@ -683,7 +903,7 @@ try {
         CREATE TABLE IF NOT EXISTS notifications (
             id INT(11) NOT NULL AUTO_INCREMENT,
             user_id INT(11) DEFAULT NULL,
-            type ENUM('mou_expiring','mou_expired','event_upcoming','event_today','system') DEFAULT 'system',
+            type ENUM('mou_expiring','mou_expiring_soon','mou_expired','event_upcoming','event_today','system') DEFAULT 'system',
             title VARCHAR(255) NOT NULL,
             message TEXT NOT NULL,
             related_id INT(11) DEFAULT NULL,
@@ -753,37 +973,70 @@ try {
                 // Pass null to check ALL MOU/MOA entries (not filtered by user)
                 // This ensures notifications are visible on all pages
                 
-                // Also migrate any existing user-specific MOU/Event/Schedule notifications to global (user_id = NULL)
-                // This ensures old notifications become visible to all users
                 try {
-                    $migrateStmt = $pdo->prepare("
-                        UPDATE notifications 
-                        SET user_id = NULL 
-                        WHERE related_type IN ('mou_moa', 'event', 'schedule') 
-                        AND user_id IS NOT NULL
-                        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                    ");
-                    $migrateStmt->execute();
+                    // Also migrate any existing user-specific MOU/Event/Schedule notifications to global (user_id = NULL)
+                    // This ensures old notifications become visible to all users
+                    try {
+                        $migrateStmt = $pdo->prepare("
+                            UPDATE notifications 
+                            SET user_id = NULL 
+                            WHERE related_type IN ('mou_moa', 'event', 'schedule') 
+                            AND user_id IS NOT NULL
+                            AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                        ");
+                        $migrateStmt->execute();
+                    } catch (Exception $e) {
+                        error_log('Error migrating notifications: ' . $e->getMessage());
+                    }
+                    
+                    $mouCount = 0;
+                    $eventCount = 0;
+                    $scheduleCount = 0;
+                    
+                    try {
+                        $mouCount = checkMouExpiration($pdo, null);
+                    } catch (Exception $e) {
+                        error_log('Error checking MOU expiration: ' . $e->getMessage());
+                    }
+                    
+                    try {
+                        $eventCount = checkUpcomingEvents($pdo, null);
+                    } catch (Exception $e) {
+                        error_log('Error checking upcoming events: ' . $e->getMessage());
+                    }
+                    
+                    try {
+                        $scheduleCount = checkUpcomingSchedules($pdo, null);
+                    } catch (Exception $e) {
+                        error_log('Error checking upcoming schedules: ' . $e->getMessage());
+                    }
+                    
+                    echo json_encode([
+                        'success' => true,
+                        'mou_notifications_created' => $mouCount,
+                        'event_notifications_created' => $eventCount,
+                        'schedule_notifications_created' => $scheduleCount,
+                        'total_created' => $mouCount + $eventCount + $scheduleCount
+                    ]);
                 } catch (Exception $e) {
-                    error_log('Error migrating notifications: ' . $e->getMessage());
+                    error_log('Error in notification check: ' . $e->getMessage());
+                    http_response_code(500);
+                    echo json_encode([
+                        'success' => false,
+                        'error' => 'Failed to check notifications: ' . $e->getMessage()
+                    ]);
                 }
-                
-                $mouCount = checkMouExpiration($pdo, null);
-                $eventCount = checkUpcomingEvents($pdo, null);
-                $scheduleCount = checkUpcomingSchedules($pdo, null);
-                
-                echo json_encode([
-                    'success' => true,
-                    'mou_notifications_created' => $mouCount,
-                    'event_notifications_created' => $eventCount,
-                    'schedule_notifications_created' => $scheduleCount,
-                    'total_created' => $mouCount + $eventCount + $scheduleCount
-                ]);
             } elseif ($action === 'count') {
+                // Clean up duplicates before getting count
+                cleanupDuplicateNotifications($pdo);
+                
                 // Get unread notification count
                 $count = getUnreadCount($pdo, $userId);
                 echo json_encode(['count' => $count]);
             } else {
+                // Clean up duplicates before retrieving notifications
+                cleanupDuplicateNotifications($pdo);
+                
                 // Get notifications
                 $unreadOnly = isset($_GET['unread_only']) && $_GET['unread_only'] === 'true';
                 $notifications = getNotifications($pdo, $userId, $unreadOnly);

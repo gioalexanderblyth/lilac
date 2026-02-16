@@ -5,3 +5,6 @@ logs/*.log
 
 # Cursor workspace storage files (shouldn't be in project)
 assets/c__Users_Admin_AppData_Roaming_Cursor*.png
+
+# Runtime/cache data
+data/upload_analysis_*.json

@@ -8,7 +8,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+$isAdmin = (($_SESSION['user'] ?? [])['role'] ?? 'user') === 'admin';
 
 // Get award category from URL
 $awardCategory = $_GET['category'] ?? null;
