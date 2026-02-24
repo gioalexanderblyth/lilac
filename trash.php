@@ -92,8 +92,13 @@ try {
         } catch (PDOException $e) {
             // Column might already exist, ignore
         }
+        try {
+            $pdo->exec("ALTER TABLE forms ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore
+        }
         
-        // Load deleted documents from MOU, MOA, Other Documents, Awards, and Events tables
+        // Load deleted documents from MOU, MOA, Other Documents, Awards, Events, and Forms tables
         $stmt = $pdo->query("
             SELECT
                 m.id,
@@ -173,6 +178,24 @@ try {
             FROM events e
             LEFT JOIN users u ON e.user_id = u.id
             WHERE e.deleted_at IS NOT NULL
+
+            UNION ALL
+
+            SELECT
+                f.id,
+                f.created_by as user_id,
+                f.title,
+                '' as description,
+                f.file_name,
+                f.file_path,
+                'Forms' as source_page,
+                f.created_at,
+                f.deleted_at,
+                u.username as uploaded_by,
+                'forms' as source_table
+            FROM forms f
+            LEFT JOIN users u ON f.created_by = u.id
+            WHERE f.deleted_at IS NOT NULL
 
             ORDER BY deleted_at DESC
         ");
@@ -351,6 +374,10 @@ try {
                 <span class="material-symbols-outlined flex-shrink-0">description</span>
                 <span class="sidebar-text whitespace-nowrap">Documents</span>
             </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="forms.php" title="Forms">
+                <span class="material-symbols-outlined flex-shrink-0">edit_note</span>
+                <span class="sidebar-text whitespace-nowrap">Forms</span>
+            </a>
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/40 dark:to-indigo-900/40 text-purple-600 dark:text-purple-400 font-semibold sidebar-nav-link border border-purple-200 dark:border-purple-800 shadow-sm" href="trash.php" title="Trash">
                 <span class="material-symbols-outlined filled flex-shrink-0">delete</span>
                 <span class="sidebar-text whitespace-nowrap">Trash</span>
@@ -424,9 +451,13 @@ try {
 </button>
 
 <button class="trash-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="page" data-value="Events & Activities">
-<span>Events & Activities</span>
-<span class="trash-filter-indicator hidden">✓</span>
-</button>
+                                    <span>Events & Activities</span>
+                                    <span class="trash-filter-indicator hidden">✓</span>
+                                </button>
+                                <button class="trash-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="page" data-value="Forms">
+                                    <span>Forms</span>
+                                    <span class="trash-filter-indicator hidden">✓</span>
+                                </button>
 
 <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
 
@@ -857,6 +888,8 @@ Clear Sort
                                 apiUrl = `api/awards.php?action=restore&id=${encodeURIComponent(id)}`;
                             } else if (source === 'events') {
                                 apiUrl = `api/events.php?action=restore&id=${encodeURIComponent(id)}`;
+                            } else if (source === 'forms') {
+                                apiUrl = `api/forms.php?action=restore&id=${encodeURIComponent(id)}`;
                             } else {
                                 apiUrl = `api/other-documents.php?action=restore&id=${encodeURIComponent(id)}`;
                             }
@@ -953,6 +986,8 @@ Clear Sort
                                 apiUrl = `api/delete-award.php?id=${encodeURIComponent(id)}&permanent=true`;
                             } else if (source === 'events') {
                                 apiUrl = `api/events.php?id=${encodeURIComponent(id)}&permanent=true`;
+                            } else if (source === 'forms') {
+                                apiUrl = `api/forms.php?id=${encodeURIComponent(id)}&permanent=true`;
                             } else {
                                 apiUrl = `api/other-documents.php?id=${encodeURIComponent(id)}&permanent=true`;
                             }

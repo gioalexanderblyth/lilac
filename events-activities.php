@@ -488,6 +488,10 @@ try {
                 <span class="material-symbols-outlined flex-shrink-0">description</span>
                 <span class="sidebar-text whitespace-nowrap">Documents</span>
             </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="forms.php" title="Forms">
+                <span class="material-symbols-outlined flex-shrink-0">edit_note</span>
+                <span class="sidebar-text whitespace-nowrap">Forms</span>
+            </a>
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="trash.php" title="Trash">
                 <span class="material-symbols-outlined flex-shrink-0">delete</span>
                 <span class="sidebar-text whitespace-nowrap">Trash</span>

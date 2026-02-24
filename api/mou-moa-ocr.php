@@ -38,6 +38,8 @@ if (!isset($_SESSION['user_id'])) {
 try {
     require_once __DIR__ . '/award-analysis-functions.php';
     require_once __DIR__ . '/mou-country-detector.php';
+    require_once __DIR__ . '/OCRExtractor.php';
+    require_once __DIR__ . '/AutoSuggestExtractor.php';
 } catch (Throwable $e) {
     ob_end_clean();
     http_response_code(500);
@@ -47,6 +49,78 @@ try {
 
 // Clear any output that might have been generated during includes
 ob_clean();
+
+/**
+ * Set to false to disable the simple extractMetadata() fallback (revert to previous behavior).
+ * When true, if main extraction returns empty institution or null country, we use extractMetadata().
+ */
+define('USE_EXTRACT_METADATA_FALLBACK', true);
+
+/** Max length for a single institution name (avoid sentences). */
+define('MOU_OCR_INSTITUTION_MAX_LEN', 90);
+
+/**
+ * Trim extracted text to institution name only — no trailing sentence or location.
+ * Stops at comma (when rest looks like location/boilerplate), hereinafter, located, etc.
+ */
+function trimToInstitutionNameOnly($s) {
+    $s = trim((string)$s);
+    if ($s === '') return '';
+
+    $s = preg_replace('/\s+/', ' ', $s);
+
+    // 1) Cut at sentence/boilerplate continuations (institution name never contains these)
+    if (preg_match('/^(.{4,120}?)\s+(?:hereinafter|herein\s+after|referred\s+to\s+as|located\s+(?:at|in)|agree\s+to|pursuant\s+to|whereas|the\s+republic\s+of|as\s+follows|for\s+the\s+purposes?|in\s+witness\s+whereof|signed\s+by|represented\s+by)\b/i', $s, $m)) {
+        $s = trim($m[1]);
+    }
+    if (preg_match('/^(.{4,120}?)\s+,?\s*(?:the\s+)?(?:republic\s+of|kingdom\s+of|state\s+of)\s+/i', $s, $m)) {
+        $s = trim($m[1]);
+    }
+
+    // 2) Take only up to first comma if what follows is clearly location/boilerplate
+    if (preg_match('/^([^,]{4,90}),\s*(?:the\s+)?(?:republic|kingdom|state|city|country|located|hereinafter|address|herein)/i', $s, $m)) {
+        $s = trim($m[1]);
+    }
+    if (preg_match('/^([^,]{4,90}),\s*[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s*,(?:\s*(?:republic|korea|japan|philippines|china|usa))/i', $s, $m)) {
+        $s = trim($m[1]);
+    }
+    // 2b) Trailing " the Republic of X" without comma
+    $s = preg_replace('/\s+(?:the\s+)?(?:republic|kingdom|state)\s+of\s+[A-Za-z\s]+$/i', '', $s);
+    // 2c) Trailing country name only when it's "X University Country" (not "University of the Philippines")
+    if (preg_match('/\s+(University|College|Institute|Institution|School|Academy|Polytechnic|Foundation)\s+(Korea|Japan|China|USA|UK|Singapore|Malaysia|Thailand|Vietnam|Indonesia|India|Australia|Canada)$/i', $s, $mx)) {
+        $s = preg_replace('/\s+' . preg_quote($mx[2], '/') . '$/i', '', $s);
+    }
+    $s = trim($s);
+
+    // 3) If still long, keep only the segment that ends with institution keyword (last occurrence)
+    $kw = '\b(University|College|Institute|Institution|School|Academy|Polytechnic|Foundation|Corporation|Inc\.?|LLC|Ltd\.?)\b';
+    if (strlen($s) > MOU_OCR_INSTITUTION_MAX_LEN && preg_match('/^(.{10,}' . $kw . '\s*)/i', $s, $m)) {
+        $s = trim($m[1]);
+    }
+    if (strlen($s) > MOU_OCR_INSTITUTION_MAX_LEN && preg_match_all('/' . $kw . '/i', $s, $kws, PREG_OFFSET_CAPTURE)) {
+        $last = end($kws[0]);
+        $end = $last[1] + strlen($last[0]);
+        $chunk = trim(substr($s, 0, $end));
+        if (strlen($chunk) >= 8 && preg_match('/' . $kw . '/i', $chunk)) {
+            $s = $chunk;
+        }
+    }
+
+    // 4) Allow optional ", Inc." or " Foundation" at end; strip anything after
+    if (preg_match('/^(.{4,}?\s+(?:University|College|Institute|Institution|School|Academy|Polytechnic|Foundation|Corporation)(?:\s*,\s*Inc\.?|\s+Inc\.?)?)\s*[,\.].*$/i', $s, $m)) {
+        $s = trim(preg_replace('/\s*[,\.]\s*$/', '', $m[1]));
+    }
+
+    $s = trim(preg_replace('/\s*[,\.;]\s*$/', '', $s));
+    // Strip trailing/leading parentheses and brackets (e.g. "Tra Vinh University (" -> "Tra Vinh University")
+    $s = trim(preg_replace('/[\s]*[\(\)\[\]]+\s*$/', '', $s));
+    $s = trim(preg_replace('/^[\s]*[\(\)\[\]]+\s*/', '', $s));
+    if (strlen($s) > MOU_OCR_INSTITUTION_MAX_LEN) {
+        $s = trim(substr($s, 0, MOU_OCR_INSTITUTION_MAX_LEN));
+        $s = preg_replace('/\s+\S+$/', '', $s); // don't cut mid-word
+    }
+    return $s;
+}
 
 function normalizeWhitespaceKeepNewlines($text) {
     $text = (string)($text ?? '');
@@ -58,10 +132,41 @@ function normalizeWhitespaceKeepNewlines($text) {
     return trim($text);
 }
 
+/**
+ * Preprocess raw OCR output to improve institution extraction.
+ * - Fix run-together words (e.g. "DaeguUniversity" -> "Daegu University")
+ * - Remove common OCR artifact patterns that break "at [Institution]" matching
+ */
+function preprocessOcrTextForInstitution($text) {
+    $text = (string)($text ?? '');
+    if ($text === '') return $text;
+
+    // Remove OCR artifacts that often appear in signature blocks (so "at Institution" is not broken)
+    $text = preg_replace('/_\s*[A-Za-z0-9\.]+\s*/u', ' ', $text);  // e.g. _J.gfl, _m_
+    $text = preg_replace('/\s*[_\x{00AD}]\s*/u', ' ', $text);      // underscore, soft hyphen
+
+    // Insert space before institution keywords when they're glued to the previous word (OCR often drops space)
+    $keywords = ['University', 'College', 'Institute', 'Institution', 'School', 'Academy', 'Polytechnic', 'Foundation', 'Corporation', 'Inc', 'LLC', 'Ltd'];
+    foreach ($keywords as $kw) {
+        // "SomethingUniversity" or "Something University" (already has space) -> keep or fix
+        $text = preg_replace('/\b([A-Za-z][a-z]+)(' . preg_quote($kw, '/') . ')\b/i', '$1 $2', $text);
+        $text = preg_replace('/\b([A-Z]{2,})(' . preg_quote($kw, '/') . ')\b/i', '$1 $2', $text);
+    }
+
+    // Collapse multiple spaces
+    $text = preg_replace('/\s+/', ' ', $text);
+    return trim($text);
+}
+
 function cleanInstitutionCandidate($s) {
     $s = trim((string)$s);
     $originalS = $s; // Keep original for early rejection checks
     $s = preg_replace('/\s+/', ' ', $s);
+
+    // Remove OCR artifacts in the middle of the string (e.g. "Daegu _J.gfl University" -> "Daegu University")
+    $s = preg_replace('/\s+_[A-Za-z0-9\.]+\s+/', ' ', $s);
+    $s = preg_replace('/_[A-Za-z0-9\.]+/', '', $s);
+    $s = preg_replace('/\s+/', ' ', trim($s));
 
     // EARLY REJECTION: If it starts with signature-related text and has no institution keywords, reject immediately
     if (preg_match('/^(signatures?|signed|signatory|witness)/i', $s)) {
@@ -372,7 +477,10 @@ function cleanInstitutionCandidate($s) {
         }
     }
 
-    return trim($s);
+    $s = trim($s);
+    // Ensure we return only institution name, not a full sentence
+    $s = trimToInstitutionNameOnly($s);
+    return $s;
 }
 
 function cleanLocationCandidate($s) {
@@ -674,78 +782,61 @@ function extractInstitutionFromText($text) {
     $candidates = [];
     $betweenParties = null; // [party1, party2]
 
-    // 1) Explicit label: "Institution: XYZ"
-    if (preg_match('/(?:partner\s+institution|institution|name\s+of\s+institution)\s*[:\-]\s*([^\n]{4,160})/i', $raw, $m)) {
+    // 1) Explicit label: "Institution: XYZ" — capture only up to first comma or sentence continuation
+    if (preg_match('/(?:partner\s+institution|institution|name\s+of\s+institution)\s*[:\-]\s*([^\n,]{4,90}?)(?:\s*,\s*(?:hereinafter|located|the\s+republic|address|referred)|\s*$)/i', $raw, $m)) {
+        $cand = cleanInstitutionCandidate($m[1]);
+        if ($cand !== '') $candidates[] = ['value' => $cand, 'method' => 'label'];
+    }
+    if (empty($candidates) && preg_match('/(?:partner\s+institution|institution|name\s+of\s+institution)\s*[:\-]\s*([^,\n]{4,90})/i', $raw, $m)) {
         $cand = cleanInstitutionCandidate($m[1]);
         if ($cand !== '') $candidates[] = ['value' => $cand, 'method' => 'label'];
     }
     
-    // 1b) Pattern: "... at [Institution]" (common in signature blocks)
-    // Extract institution names from patterns like "signatures this day at Daegu University"
-    // This pattern should be checked early and prioritized
-    // Improved pattern to handle OCR artifacts like "_J.gﬂ day of m_. 2012 at Daegu University"
-    // First try to match with institution keyword directly
-    if (preg_match_all('/\bat\s+([A-Z][A-Za-z\s]{3,}(?:\s+(?:University|College|Institute|Institution|School|Academy|Polytechnic|Foundation|Corporation|Inc|LLC|Ltd))[^\n,]*?)(?:\s*,\s*the|\s*$)/i', $raw, $matches, PREG_SET_ORDER)) {
+    // 1b) Pattern: "... at [Institution]" — capture ONLY the institution name (stop at comma, "the Republic", etc.)
+    $atPatternShort = '/\bat\s+([A-Z][A-Za-z\s]{2,50}?(?:\s+(?:University|College|Institute|Institution|School|Academy|Polytechnic|Foundation|Corporation))(?:\s*,\s*Inc\.?)?)\s*(?:,\s*(?:the\s+)?(?:republic|hereinafter|located)|[\.\n]|\s*$)/i';
+    $atPatternFallback = '/\bat\s+([^\n,]{4,80}?)\s*(?:,\s*the|,\s*republic|,\s*hereinafter|[\.\n]|\s*$)/i';
+    if (preg_match_all($atPatternShort, $raw, $matches, PREG_SET_ORDER)) {
         foreach ($matches as $m) {
-            // Extract just the institution part after "at"
             $institutionPart = trim($m[1]);
-            
-            // Remove trailing "the" or other articles
-            $institutionPart = preg_replace('/\s+,\s*the\s*$/i', '', $institutionPart);
-            $institutionPart = preg_replace('/\s+the\s*$/i', '', $institutionPart);
-            
-            // Remove OCR artifacts before cleaning
-            $institutionPart = preg_replace('/_[A-Za-z0-9\.]+/', '', $institutionPart); // Remove patterns like "_J.gﬂ"
-            $institutionPart = preg_replace('/\b(day|month|year)\s+of\s+[^\s]+\s+\d{4}\b/i', '', $institutionPart); // Remove date patterns
-            $institutionPart = preg_replace('/\b\d{4}\b/', '', $institutionPart); // Remove standalone years
-            $institutionPart = preg_replace('/\s+/', ' ', $institutionPart); // Normalize whitespace
-            $institutionPart = trim($institutionPart);
-            
-            // Clean it
+            $institutionPart = preg_replace('/_[A-Za-z0-9\.]+/', '', $institutionPart);
+            $institutionPart = preg_replace('/\b(day|month|year)\s+of\s+[^\s]+\s+\d{4}\b/i', '', $institutionPart);
+            $institutionPart = preg_replace('/\b\d{4}\b/', '', $institutionPart);
+            $institutionPart = preg_replace('/\s+/', ' ', trim($institutionPart));
             $cand = cleanInstitutionCandidate($institutionPart);
-            
-            // Double-check: must have institution keyword and not be mostly signature text
-            if ($cand !== '' && 
-                preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation)\b/i', $cand) &&
-                !preg_match('/^(signatures?|signed|signatory|witness|day|month|year|this|the)\b/i', $cand)) {
-                // Add at the beginning to prioritize it
+            if ($cand !== '' && preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation)\b/i', $cand) && !preg_match('/^(signatures?|signed|signatory|witness|day|month|year|this|the)\b/i', $cand)) {
                 array_unshift($candidates, ['value' => $cand, 'method' => 'at_pattern']);
             }
         }
-    } elseif (preg_match_all('/\bat\s+([^\n,]{5,120}?)(?:\s*,\s*the|\s*$)/i', $raw, $matches, PREG_SET_ORDER)) {
-        // Fallback: extract anything after "at" up to comma or end, then clean and validate
+    }
+    if (empty($candidates) && preg_match_all($atPatternFallback, $raw, $matches, PREG_SET_ORDER)) {
         foreach ($matches as $m) {
             $institutionPart = trim($m[1]);
-            
-            // Remove trailing "the" or other articles
             $institutionPart = preg_replace('/\s+,\s*the\s*$/i', '', $institutionPart);
-            $institutionPart = preg_replace('/\s+the\s*$/i', '', $institutionPart);
-            
-            // Remove OCR artifacts before cleaning
-            $institutionPart = preg_replace('/_[A-Za-z0-9\.]+/', '', $institutionPart); // Remove patterns like "_J.gﬂ"
-            $institutionPart = preg_replace('/\b(day|month|year)\s+of\s+[^\s]+\s+\d{4}\b/i', '', $institutionPart); // Remove date patterns
-            $institutionPart = preg_replace('/\b\d{4}\b/', '', $institutionPart); // Remove standalone years
-            $institutionPart = preg_replace('/\s+/', ' ', $institutionPart); // Normalize whitespace
-            $institutionPart = trim($institutionPart);
-            
-            // Only proceed if it contains an institution keyword
+            $institutionPart = preg_replace('/_[A-Za-z0-9\.]+/', '', $institutionPart);
+            $institutionPart = preg_replace('/\b(day|month|year)\s+of\s+[^\s]+\s+\d{4}\b/i', '', $institutionPart);
+            $institutionPart = preg_replace('/\b\d{4}\b/', '', $institutionPart);
+            $institutionPart = preg_replace('/\s+/', ' ', trim($institutionPart));
             if (preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation|corporation|inc|llc|ltd)\b/i', $institutionPart)) {
-                // Clean it
                 $cand = cleanInstitutionCandidate($institutionPart);
-                
-                // Double-check: must have institution keyword and not be mostly signature text
-                if ($cand !== '' && 
-                    preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation)\b/i', $cand) &&
-                    !preg_match('/^(signatures?|signed|signatory|witness|day|month|year|this|the)\b/i', $cand)) {
-                    // Add at the beginning to prioritize it
+                if ($cand !== '' && preg_match('/\b(university|college|institute|institution|school|academy|polytechnic|foundation)\b/i', $cand) && !preg_match('/^(signatures?|signed|signatory|witness|day|month|year|this|the)\b/i', $cand)) {
                     array_unshift($candidates, ['value' => $cand, 'method' => 'at_pattern']);
                 }
             }
         }
     }
 
-    // 2) "by and between X and Y" clause
-    if (preg_match('/\b(?:by\s+and\s+between|between)\b\s*([\s\S]{0,220}?)\s+(?:and|&)\s+([\s\S]{0,220}?)(?:\n|,|\.|;)/i', $raw, $m)) {
+    // 2) "by and between X and Y" — capture short phrases only (institution names, not sentences)
+    $betweenStrict = '/\b(?:by\s+and\s+between|between)\b\s*([^,\n]{4,85}?)\s+(?:and|&)\s+([^,\n]{4,85}?)(?:\n|,|\.|;|\s+hereinafter)/i';
+    if (preg_match($betweenStrict, $raw, $m)) {
+        $a = cleanInstitutionCandidate($m[1]);
+        $b = cleanInstitutionCandidate($m[2]);
+        if ($a !== '' && $b !== '') {
+            $betweenParties = [$a, $b];
+        }
+        if ($a !== '') $candidates[] = ['value' => $a, 'method' => 'between'];
+        if ($b !== '') $candidates[] = ['value' => $b, 'method' => 'between'];
+    }
+    if (!is_array($betweenParties) && preg_match('/\b(?:by\s+and\s+between|between)\b\s*([\s\S]{0,120}?)\s+(?:and|&)\s+([\s\S]{0,120}?)(?:\n|,|\.|;)/i', $raw, $m)) {
         $a = cleanInstitutionCandidate($m[1]);
         $b = cleanInstitutionCandidate($m[2]);
         if ($a !== '' && $b !== '') {
@@ -2128,6 +2219,61 @@ function detectPartnerCountryFromOcr($fullText, $partnerInstitution, $partnerLoc
     return '';
 }
 
+// =============================================================================
+// BEGIN parseOCRMetadata fallback (simple regex extraction)
+// To revert: set USE_EXTRACT_METADATA_FALLBACK to false above, or delete this
+// block and the fallback usage below (search for "USE_EXTRACT_METADATA_FALLBACK").
+// =============================================================================
+function parseOCRMetadata($text) {
+    $data = [
+        'institution' => null,
+        'country' => null
+    ];
+    $text = (string)$text;
+    if ($text === '') return $data;
+
+    // --- RULE 1: Find Country ---
+    $countries = ['Philippines', 'United States', 'USA', 'UK', 'Japan', 'China', 'Singapore', 'Korea'];
+
+    foreach ($countries as $c) {
+        if (preg_match('/\b' . preg_quote($c, '/') . '\b/i', $text)) {
+            $data['country'] = $c;
+            break;
+        }
+    }
+
+    // --- RULE 2: Find Institution ---
+    // [A-Z] (not [A-Z0-9]) so words must start with a letter — e.g. "2013" is ignored
+    $keywords = 'University|Institute|College|School|Academy|Department|Center|Centre|Hospital';
+    $pattern = '/\b((?:[A-Z][\w\']*\s+)*(?:' . $keywords . ')(?:\s+of\s+[A-Z][\w\s]+)?)/i';
+
+    if (preg_match($pattern, $text, $matches)) {
+        $raw_inst = trim($matches[1]);
+
+        // Sanitization: strip leading For|To|From|At|By|In|Near|Est|Since|Founded
+        $ignored_prefixes = 'For|To|From|At|By|In|Near|Est|Since|Founded';
+        $clean_inst = preg_replace('/^(' . $ignored_prefixes . ')\s+/i', '', $raw_inst);
+
+        // Extra cleanup: remove leading years if they snuck in (e.g. "2013 Halla" -> "Halla")
+        $clean_inst = preg_replace('/^\d{4}\s+/', '', $clean_inst);
+        $clean_inst = trim($clean_inst);
+
+        if ($clean_inst !== '') {
+            if (strlen($clean_inst) <= MOU_OCR_INSTITUTION_MAX_LEN) {
+                $data['institution'] = $clean_inst;
+            } else {
+                $data['institution'] = trim(substr($clean_inst, 0, MOU_OCR_INSTITUTION_MAX_LEN));
+                $data['institution'] = preg_replace('/\s+\S+$/', '', $data['institution']);
+            }
+        }
+    }
+
+    return $data;
+}
+// =============================================================================
+// END parseOCRMetadata fallback
+// =============================================================================
+
 try {
     if (!isset($_FILES['file']) || $_FILES['file']['error'] === UPLOAD_ERR_NO_FILE) {
         throw new Exception('No file uploaded');
@@ -2210,6 +2356,9 @@ try {
         }
     }
 
+    // Preprocess OCR text to fix run-together words and artifacts for better institution extraction
+    $extracted = preprocessOcrTextForInstitution($extracted);
+
     $institutionFields = extractInstitutionFromText($extracted);
     
     // Use confidence-based location extraction
@@ -2225,17 +2374,95 @@ try {
     $termConfidence = $termResult['confidence'];
     $termMethod = $termResult['method'];
 
+    // --- Fallback: AutoSuggestExtractor (DB) → OCRExtractor (anchor/stopper) → parseOCRMetadata ---
+    $institutionSuggestion = null; // Pending approval suggestion from AutoSuggestExtractor
+    if (defined('USE_EXTRACT_METADATA_FALLBACK') && USE_EXTRACT_METADATA_FALLBACK) {
+        $needInstitution = empty($institutionFields['institution']) || trim((string)$institutionFields['institution']) === '';
+        $needCountry = ($locationField === null || $locationField === '');
+        if ($needInstitution || $needCountry) {
+            $fallback = null;
+            // 1. Try AutoSuggestExtractor first (DB-backed: approved partners + auto-detect + save suggestion)
+            if ($needInstitution && class_exists('AutoSuggestExtractor')) {
+                try {
+                    $db = function_exists('getDatabaseConnection') ? getDatabaseConnection() : null;
+                    if ($db && !($db instanceof FileBasedDatabase)) {
+                        $autoExtractor = new AutoSuggestExtractor($db);
+                        $autoResult = $autoExtractor->extract($extracted);
+                        if (!empty($autoResult['institution'])) {
+                            $fallback = ['institution' => $autoResult['institution'], 'country' => null];
+                            $institutionFields['method'] = 'AutoSuggest_db_match';
+                        } elseif (!empty($autoResult['suggestion'])) {
+                            $institutionSuggestion = trim((string)$autoResult['suggestion']);
+                        }
+                    }
+                } catch (Throwable $e) {
+                    // Continue to OCRExtractor on failure
+                }
+            }
+            // 2. OCRExtractor (anchor/stopper rule-based)
+            if ($fallback === null && class_exists('OCRExtractor')) {
+                $extractor = new OCRExtractor();
+                $fallback = $extractor->extract($extracted);
+            }
+            if ($fallback === null || (empty($fallback['institution']) && empty($fallback['country']))) {
+                $fallback = parseOCRMetadata($extracted);
+            }
+            if ($needInstitution && !empty($fallback['institution'])) {
+                $raw = trim((string)$fallback['institution']);
+                $institutionFields['institution'] = trimToInstitutionNameOnly($raw) ?: $raw;
+                $institutionFields['confidence'] = ($institutionFields['method'] ?? '') === 'AutoSuggest_db_match' ? 'high' : 'low';
+                $institutionFields['method'] = $institutionFields['method'] ?? 'OCRExtractor_fallback';
+            }
+            if ($needCountry && !empty($fallback['country'])) {
+                $locationField = trim((string)$fallback['country']);
+                $locationConfidence = 0.5;
+                $locationSource = 'OCRExtractor_fallback';
+            }
+        }
+    }
+
+    // Build list of alternative institution candidates (institution name only, no extra text)
+    $institutionCandidates = [];
+    $addCandidate = function ($name) use (&$institutionCandidates) {
+        $name = trim((string)$name);
+        if ($name === '') return;
+        $trimmed = trimToInstitutionNameOnly($name) ?: $name;
+        if ($trimmed !== '' && !in_array($trimmed, $institutionCandidates)) {
+            $institutionCandidates[] = $trimmed;
+        }
+    };
+    if (!empty($institutionFields['institution'])) {
+        $addCandidate($institutionFields['institution']);
+    }
+    if (!empty($institutionSuggestion)) {
+        $addCandidate($institutionSuggestion);
+    }
+    if (is_array($institutionFields['between_parties'] ?? null)) {
+        foreach ($institutionFields['between_parties'] as $party) {
+            $addCandidate(is_string($party) ? $party : '');
+        }
+    }
+    $institutionCandidates = array_slice(array_values($institutionCandidates), 0, 5);
+
+    // Rule: output only the institution name — no location, no trailing sentence, nothing else
+    $institutionOutput = trim((string)($institutionFields['institution'] ?? ''));
+    if ($institutionOutput !== '') {
+        $institutionOutput = trimToInstitutionNameOnly($institutionOutput) ?: $institutionOutput;
+    }
+
     $debug = isset($_GET['debug']) && $_GET['debug'] === '1';
     $resp = [
         'success' => true,
         'fields' => [
-            'institution' => $institutionFields['institution'],
+            'institution' => $institutionOutput,
             'location' => $locationField,
             'term' => $termField
         ],
         'meta' => [
             'institution_confidence' => $institutionFields['confidence'],
             'institution_method' => $institutionFields['method'],
+            'institution_candidates' => $institutionCandidates,
+            'institution_pending_suggestion' => $institutionSuggestion,
             'location_confidence' => $locationConfidence,
             'location_source' => $locationSource,
             'location_requires_review' => ($locationField === null || $locationConfidence < 0.5),

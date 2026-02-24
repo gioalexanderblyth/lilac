@@ -1235,6 +1235,10 @@ try {
                     <span class="material-symbols-outlined flex-shrink-0">description</span>
                     <span class="sidebar-text whitespace-nowrap">Documents</span>
                 </a>
+                <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="forms.php" title="Forms">
+                    <span class="material-symbols-outlined flex-shrink-0">edit_note</span>
+                    <span class="sidebar-text whitespace-nowrap">Forms</span>
+                </a>
                 <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="trash.php" title="Trash">
                     <span class="material-symbols-outlined flex-shrink-0">delete</span>
                     <span class="sidebar-text whitespace-nowrap">Trash</span>
@@ -16091,11 +16095,15 @@ try {
 
             subtitleParts.push(formatRelativeTime(activity.timestamp));
 
+            const awardId = activity.id && parseInt(activity.id, 10) > 0 ? parseInt(activity.id, 10) : 0;
 
+            const wrapperClass = `flex items-start gap-3 ${borderClass} ${awardId ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg -mx-2 px-2 py-1 transition-colors' : ''}`;
+
+            const wrapperAttrs = awardId ? `role="button" tabindex="0" onclick="(window.viewSubmissionDetail || viewSubmissionDetail)(${awardId})" onkeydown="if(event.key==='Enter'||event.key===' '){(window.viewSubmissionDetail||viewSubmissionDetail)(${awardId});event.preventDefault();}"` : '';
 
             return `
 
-                <div class="flex items-start gap-3 ${borderClass}">
+                <div class="${wrapperClass}" ${wrapperAttrs}>
 
                     <div class="flex-shrink-0 w-10 h-10 rounded-full ${styles.bg} flex items-center justify-center">
 
@@ -16103,13 +16111,15 @@ try {
 
                     </div>
 
-                    <div class="flex-1">
+                    <div class="flex-1 min-w-0">
 
                         <p class="text-sm font-medium text-gray-900 dark:text-gray-100">${activity.title} - ${activity.status_label}</p>
 
                         <p class="text-xs text-gray-500 dark:text-gray-400">${subtitleParts.join(' â€¢ ')}</p>
 
                     </div>
+
+                    ${awardId ? '<span class="material-symbols-outlined text-base text-gray-400 flex-shrink-0">chevron_right</span>' : ''}
 
                 </div>
 

@@ -561,6 +561,10 @@ try {
                 <span class="material-symbols-outlined flex-shrink-0">description</span>
                 <span class="sidebar-text whitespace-nowrap">Documents</span>
             </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="forms.php" title="Forms">
+                <span class="material-symbols-outlined flex-shrink-0">edit_note</span>
+                <span class="sidebar-text whitespace-nowrap">Forms</span>
+            </a>
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="trash.php" title="Trash">
                 <span class="material-symbols-outlined flex-shrink-0">delete</span>
                 <span class="sidebar-text whitespace-nowrap">Trash</span>
@@ -901,6 +905,7 @@ try {
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="institution">Institution</label>
                     <input class="w-full bg-gray-50 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary" id="institution" placeholder="e.g., Central Philippine University" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"/>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400" id="autoInstitutionText">Will auto-detect from document</p>
+                    <div id="institutionOptions" class="mt-2 flex flex-wrap gap-2 hidden" aria-label="Alternative institution options"></div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="location">Location</label>
@@ -2395,8 +2400,34 @@ try {
                     }
 
                     const detected = (result.fields && result.fields.institution) ? String(result.fields.institution).trim() : '';
-                    if (!detected) {
+                    let candidates = (result.meta && result.meta.institution_candidates && Array.isArray(result.meta.institution_candidates))
+                        ? result.meta.institution_candidates.filter(c => c && String(c).trim())
+                        : [];
+                    const pendingSuggestion = (result.meta && result.meta.institution_pending_suggestion) ? String(result.meta.institution_pending_suggestion).trim() : '';
+                    if (pendingSuggestion && !candidates.includes(pendingSuggestion)) {
+                        candidates = [pendingSuggestion, ...candidates];
+                    }
+                    if (!detected && candidates.length === 0) {
                         throw new Error('No institution detected from server OCR');
+                    }
+                    const primaryInstitution = detected || (candidates.length > 0 ? String(candidates[0]).trim() : '');
+
+                    // Show alternative institution options (click to apply)
+                    const optionsEl = document.getElementById('institutionOptions');
+                    if (optionsEl && candidates.length > 0) {
+                        optionsEl.innerHTML = candidates.map(c => {
+                            const s = String(c).trim();
+                            const isPending = s === pendingSuggestion && pendingSuggestion ? ' (pending approval)' : '';
+                            return `<button type="button" class="px-3 py-1.5 text-xs rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800/60 border border-purple-200 dark:border-purple-700 transition-colors" data-institution="${s.replace(/"/g, '&quot;')}">${s}${isPending}</button>`;
+                        }).join('');
+                        optionsEl.classList.remove('hidden');
+                        optionsEl.querySelectorAll('button').forEach(btn => {
+                            btn.addEventListener('click', () => {
+                                institutionInput.value = btn.dataset.institution;
+                                institutionInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                setInstitutionHint('Selected from options', 'success');
+                            });
+                        });
                     }
 
                     // Get location with confidence information
@@ -2413,11 +2444,10 @@ try {
                     // Auto-fill only if user hasn't typed anything meaningful yet
                     const current = String(institutionInput.value || '').trim();
                     if (!current && !institutionTouched) {
-                        institutionInput.value = detected;
-                        setInstitutionHint(`Auto-filled: ${detected}`, 'success');
+                        institutionInput.value = primaryInstitution;
+                        setInstitutionHint(`Auto-filled: ${primaryInstitution}`, 'success');
                     } else {
-                        // Don't overwrite user input; still show what we detected
-                        setInstitutionHint(`Detected: ${detected} (not applied)`, 'warning');
+                        setInstitutionHint(`Detected: ${primaryInstitution} (not applied)`, 'warning');
                     }
 
                     // Auto-fill location only if confidence is acceptable and field is empty
@@ -3376,6 +3406,12 @@ try {
                 const selectedFileDisplay = document.getElementById('selected-file-display');
                 if (selectedFileDisplay) {
                     selectedFileDisplay.classList.add('hidden');
+                }
+                // Hide institution options
+                const institutionOptions = document.getElementById('institutionOptions');
+                if (institutionOptions) {
+                    institutionOptions.innerHTML = '';
+                    institutionOptions.classList.add('hidden');
                 }
             }
             
@@ -7757,7 +7793,7 @@ try {
                         }
                     })();
                 };
-                
+
                 // Show modal - ensure it's visible
                 console.log('Removing hidden class from modal');
                 mouDetailsModal.classList.remove('hidden');
