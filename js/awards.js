@@ -158,7 +158,7 @@
                                 <button data-target="${checklistToggleId}" class="text-xs underline text-primary hover:opacity-80">
                                     View Checklist (${checklist.criteria_met} of ${checklist.total_criteria} criteria met)
                                 </button>
-                                <div id="${checklistToggleId}" class="mt-2 transition-opacity duration-300 opacity-0">${checklistHtml}</div>
+                                <div id="${checklistToggleId}" class="mt-2 opacity-0 hidden">${checklistHtml}</div>
                             </div>` : ''}
                         </div>
                     </td>
@@ -174,11 +174,9 @@
                         if (target) {
                             // Simple fade-in/out
                             if (target.classList.contains('hidden')) {
-                                target.classList.remove('hidden');
-                                requestAnimationFrame(() => target.classList.remove('opacity-0'));
+                                target.classList.remove('hidden', 'opacity-0');
                             } else {
-                                target.classList.add('opacity-0');
-                                setTimeout(() => target.classList.add('hidden'), 300);
+                                target.classList.add('opacity-0', 'hidden');
                             }
                         }
                     });

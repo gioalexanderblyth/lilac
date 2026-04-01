@@ -1,4 +1,4 @@
-﻿// Dashboard functionality for LILAC Document Management System
+// Dashboard functionality for LILAC Document Management System
 class DashboardManager {
     constructor() {
         this.init();
@@ -79,7 +79,7 @@ class DashboardManager {
     showNotification(message, type = 'info') {
         // Create notification element
         const notification = document.createElement('div');
-        notification.className = `fixed top-20 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
+        notification.className = `fixed top-20 right-4 z-50 p-4 rounded-lg shadow-lg transform translate-x-full`;
         
         // Set colors based on type
         switch(type) {

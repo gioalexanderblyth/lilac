@@ -206,6 +206,58 @@ function createTables($pdo) {
 }
 
 /**
+ * Map extension to canonical MIME for award analysis (matches extractTextFromFile / validators).
+ */
+function getAwardFileMimeFromExtension($extension) {
+    $extension = strtolower((string) $extension);
+    $map = [
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'pdf' => 'application/pdf',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'mp3' => 'audio/mpeg',
+        'wav' => 'audio/wav',
+        'ogg' => 'audio/ogg',
+        'webm' => 'audio/webm',
+        'm4a' => 'audio/mp4',
+        'aac' => 'audio/aac',
+        'flac' => 'audio/flac',
+    ];
+    return $map[$extension] ?? null;
+}
+
+/**
+ * Resolve MIME for an upload/reanalyze file. On Windows/XAMPP, mime_content_type often returns
+ * application/octet-stream or application/zip for DOCX; fall back to extension so validation matches reality.
+ */
+function resolveAwardAnalysisMimeType(array $file) {
+    $allowedTypes = array_merge(ALLOWED_FILE_TYPES, ALLOWED_AUDIO_TYPES);
+    $extension = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
+    $fromExt = getAwardFileMimeFromExtension($extension);
+
+    $detected = null;
+    if (!empty($file['tmp_name']) && is_readable($file['tmp_name']) && function_exists('mime_content_type')) {
+        $detected = @mime_content_type($file['tmp_name']);
+    }
+
+    // DOCX is a ZIP container — servers often report application/zip
+    if ($extension === 'docx' && in_array($detected, ['application/zip', 'application/x-zip-compressed'], true)) {
+        $detected = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    }
+
+    if ($detected && in_array($detected, $allowedTypes, true)) {
+        return $detected;
+    }
+
+    if ($fromExt && in_array($fromExt, $allowedTypes, true)) {
+        return $fromExt;
+    }
+
+    return $detected ?: $fromExt;
+}
+
+/**
  * Validate file upload
  */
 function validateFileUpload($file) {
@@ -219,32 +271,10 @@ function validateFileUpload($file) {
         throw new Exception('File size exceeds ' . (MAX_FILE_SIZE / 1024 / 1024) . 'MB limit');
     }
     
-    // Check file type
-    $fileType = null;
-    if (function_exists('mime_content_type')) {
-        $fileType = mime_content_type($file['tmp_name']);
-    } else {
-        // Fallback: use file extension
-        $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $extensionMap = [
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'png' => 'image/png',
-            'pdf' => 'application/pdf',
-            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'mp3' => 'audio/mpeg',
-            'wav' => 'audio/wav',
-            'ogg' => 'audio/ogg',
-            'webm' => 'audio/webm',
-            'm4a' => 'audio/mp4',
-            'aac' => 'audio/aac',
-            'flac' => 'audio/flac'
-        ];
-        $fileType = $extensionMap[$extension] ?? null;
-    }
+    $fileType = resolveAwardAnalysisMimeType($file);
     
     // Check if it's an audio file (use larger size limit)
-    $isAudio = $fileType && in_array($fileType, ALLOWED_AUDIO_TYPES);
+    $isAudio = $fileType && in_array($fileType, ALLOWED_AUDIO_TYPES, true);
     $maxSize = $isAudio ? MAX_AUDIO_SIZE : MAX_FILE_SIZE;
     
     if ($file['size'] > $maxSize) {
@@ -253,7 +283,7 @@ function validateFileUpload($file) {
     
     // Check file type (allow both regular files and audio files)
     $allowedTypes = array_merge(ALLOWED_FILE_TYPES, ALLOWED_AUDIO_TYPES);
-    if (!$fileType || !in_array($fileType, $allowedTypes)) {
+    if (!$fileType || !in_array($fileType, $allowedTypes, true)) {
         throw new Exception('Invalid file type. Allowed types: JPG, PNG, PDF, DOCX, MP3, WAV, OGG, M4A, AAC, FLAC');
     }
     

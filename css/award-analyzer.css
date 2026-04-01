@@ -34,7 +34,6 @@
     cursor: pointer;
     padding: 4px;
     color: var(--text-muted, #64748b);
-    transition: color 0.2s;
 }
 
 .close-results-btn:hover {
@@ -55,7 +54,6 @@
     margin: 15px 0;
     border-radius: 8px;
     background: var(--background-light, #fafafa);
-    transition: box-shadow 0.2s;
 }
 
 .dark .award-card {
@@ -258,7 +256,6 @@
     color: var(--primary-color, #137fec);
     margin-bottom: 10px;
     user-select: none;
-    transition: background 0.2s;
 }
 
 .dark .keywords-header {

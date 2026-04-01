@@ -110,18 +110,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
 
         .fade-in {
-            animation: fadeIn 0.8s ease-in;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            opacity: 1 !important;
+            animation: none !important;
         }
 
         .input-group {
@@ -156,7 +146,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             transform: translateY(-50%);
             cursor: pointer;
             color: #9ca3af;
-            transition: color 0.2s;
             z-index: 2;
             line-height: 1;
         }

@@ -50,12 +50,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $error = 'Invalid username or password. For maintenance: admin/admin123 or user/user123';
             }
         } else {
-            // Database authentication
-            $stmt = $pdo->prepare('SELECT * FROM users WHERE username = ? AND status = "active"');
+            // Database authentication: load by username first so we can show a clear
+            // message when the account exists but is not active (otherwise it looks
+            // like "invalid user" with the same error as a wrong password).
+            $stmt = $pdo->prepare('SELECT * FROM users WHERE username = ?');
             $stmt->execute([$username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if ($user && password_verify($password, $user['password_hash'])) {
+            $userStatus = isset($user['status']) ? (string) $user['status'] : 'active';
+            if ($user && $userStatus !== 'active') {
+                $error = 'This account is not active. Contact an administrator if you need access.';
+                if (function_exists('logActivity')) {
+                    logActivity('Login blocked (inactive user): ' . $username, 'WARNING');
+                }
+            } elseif ($user && password_verify($password, $user['password_hash'])) {
                 // Create session token
                 $token = bin2hex(random_bytes(32));
                 $expiresAt = date('Y-m-d H:i:s', strtotime($remember ? '+30 days' : '+24 hours'));
@@ -133,24 +141,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             pointer-events: none;
         }
         
-        .image-hover {
-            transition: all 0.3s ease;
-        }
         .image-hover:hover {
-            transform: scale(1.05);
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
         }
-        .fade-in {
-            animation: fadeIn 0.8s ease-in;
+        .fade-in,
+        .stagger-1,
+        .stagger-2,
+        .stagger-3,
+        .stagger-4 {
+            opacity: 1 !important;
+            animation: none !important;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .stagger-1 { animation-delay: 0.1s; }
-        .stagger-2 { animation-delay: 0.2s; }
-        .stagger-3 { animation-delay: 0.3s; }
-        .stagger-4 { animation-delay: 0.4s; }
         
         /* Responsive improvements */
         @media (max-width: 768px) {
@@ -171,10 +172,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
         
         /* Modern Carousel Styles */
-        .carousel-slide {
-            transition: all 0.7s ease-in-out;
-        }
-        
         .carousel-slide.active {
             opacity: 1;
             transform: scale(1);
@@ -186,54 +183,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
         
         /* Toggle Button Animations */
-        .toggle-btn {
-            transition: all 0.3s ease-in-out;
-        }
-        
         .toggle-btn:hover {
-            transform: scale(1.1);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
         
-        /* Progress Bar Animation */
-        .progress-bar {
-            transition: width 0.1s ease-linear;
-        }
-        
-        /* Modern Carousel Container */
-        #modern-carousel {
-            transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
         /* Indicator Animations */
-        .indicator {
-            transition: all 0.3s ease-in-out;
-        }
-        
-        .indicator:hover {
-            transform: scale(1.2);
-        }
-        
         .indicator[data-active="true"] {
-            transform: scale(1.3);
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-        }
-
-        /* Smooth Gallery Transitions */
-        #featured-image,
-        #side-image-1,
-        #side-image-2,
-        #side-title-1,
-        #side-title-2,
-        #side-description-1,
-        #side-description-2 {
-            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* Gallery hover effects */
-        .lg\:col-span-8:hover #featured-image,
-        .lg\:col-span-4:hover img {
-            transform: scale(1.05);
         }
 
         /* Hover preview modal */
@@ -250,7 +206,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             z-index: 1000;
             opacity: 0;
             visibility: hidden;
-            transition: all 0.3s ease;
         }
 
         .hover-preview.active {
@@ -264,14 +219,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             object-fit: contain;
             border-radius: 12px;
             box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
-            transform: scale(0.9);
-            transition: transform 0.3s ease;
         }
 
-        .hover-preview.active img {
-            transform: scale(1);
-        }
-        
         /* Custom scrollbar for interval menu - Soft, Eye-Friendly Design */
         #interval-menu::-webkit-scrollbar {
             width: 6px;
@@ -286,7 +235,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         #interval-menu::-webkit-scrollbar-thumb {
             background: #cbd5e1;
             border-radius: 10px;
-            transition: all 0.3s ease;
         }
         
         #interval-menu::-webkit-scrollbar-thumb:hover {

@@ -307,12 +307,10 @@ try {
         /* Clickable table rows */
         tbody tr {
             cursor: pointer;
-            transition: all 0.2s ease;
         }
 
         tbody tr:hover {
             background-color: rgba(19, 127, 236, 0.05) !important;
-            transform: translateY(-1px);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
 
@@ -326,49 +324,13 @@ try {
             pointer-events: auto;
         }
 
-        /* Page Animation Effects */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
-
-        .page-animate {
-            animation: fadeInUp 0.6s ease-out forwards;
-            opacity: 0;
-        }
-
-        .page-animate-delay-1 {
-            animation: fadeInUp 0.6s ease-out 0.1s forwards;
-            opacity: 0;
-        }
-
-        .page-animate-delay-2 {
-            animation: fadeInUp 0.6s ease-out 0.2s forwards;
-            opacity: 0;
-        }
-
-        .header-animate {
-            animation: fadeIn 0.5s ease-out forwards;
-        }
-
+        .page-animate,
+        .page-animate-delay-1,
+        .page-animate-delay-2,
+        .header-animate,
         .content-animate {
-            animation: fadeInUp 0.7s ease-out 0.2s forwards;
-            opacity: 0;
+            opacity: 1 !important;
+            animation: none !important;
         }
 
         /* Draggable modal styles */
@@ -415,7 +377,6 @@ try {
         ::-webkit-scrollbar-thumb {
             background: #cbd5e1;
             border-radius: 4px;
-            transition: background-color 0.2s ease;
         }
 
         ::-webkit-scrollbar-thumb:hover {
@@ -471,6 +432,10 @@ try {
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
                 <span class="material-symbols-outlined flex-shrink-0">emoji_events</span>
                 <span class="sidebar-text whitespace-nowrap">Awards Progress</span>
+            </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="mobility-programs.php" title="Mobility Programs">
+                <span class="material-symbols-outlined flex-shrink-0">map</span>
+                <span class="sidebar-text whitespace-nowrap">Mobility Programs</span>
             </a>
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/40 dark:to-indigo-900/40 text-purple-600 dark:text-purple-400 font-semibold sidebar-nav-link border border-purple-200 dark:border-purple-800 shadow-sm" href="events-activities.php" title="Events & Activities">
                 <span class="material-symbols-outlined filled flex-shrink-0">event</span>
@@ -2472,7 +2437,7 @@ View all notifications
                         const contentType = response.headers.get('content-type') || '';
                         const responseText = await response.text();
                         // Guard against static servers returning raw PHP instead of executing it
-                        if (responseText.trim().startsWith('<?php')) {
+                        if (responseText.trim().startsWith('<?' + 'php')) {
                             throw new Error('Non-JSON response from API (PHP not executing)');
                         }
                         const result = JSON.parse(responseText);

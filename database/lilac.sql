@@ -641,7 +641,7 @@ CREATE TABLE `users` (
 
 INSERT INTO `users` (`id`, `username`, `email`, `phone`, `password_hash`, `reset_token`, `reset_token_expires`, `full_name`, `profile_picture`, `department`, `role`, `status`, `created_at`, `updated_at`, `last_login`) VALUES
 (1, 'admin', 'admin@cpu.edu.ph', NULL, '$2y$10$sVoVWIn8azmDdAgCBHXR3eTQSbbVqqBoYFs6SJ8THBXahh9kqaWiq', NULL, NULL, 'System Administrator', NULL, 'College of Arts and Sciences', 'admin', 'active', '2025-11-06 00:27:13', '2025-11-18 16:10:34', '2025-11-18 16:10:34'),
-(13, 'lesley', 'lesley.dignadice@cpu.edu.ph', NULL, '$2y$10$GcBInWiG0QehcKJA3dzc4eVJPssxF8rqoC/LAEZvt3p8I10.QFse6', NULL, NULL, 'Lesley Dignadice', NULL, 'Administration', 'admin', 'active', '2025-11-18 23:01:32', '2026-01-07 07:59:03', '2026-01-07 07:59:03');
+(13, 'lesley', 'lesley.dignadice@cpu.edu.ph', NULL, '$2y$10$0gr6aMh.SCphve7yhtin.euUkRYYGXbyrBmDPtxzEWxyzXNUZ1y2m', NULL, NULL, 'Lesley Dignadice', NULL, 'Administration', 'admin', 'active', '2025-11-18 23:01:32', '2026-01-07 07:59:03', '2026-01-07 07:59:03');
 
 -- --------------------------------------------------------
 

@@ -18,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/schema-helpers.php';
 
 // Check if user is authenticated
 if (!isset($_SESSION['user_id'])) {
@@ -32,27 +33,23 @@ $userId = $_SESSION['user_id'];
 try {
     $pdo = getDatabaseConnection();
 
+    // File-based fallback: no DB — return defaults so the UI does not 500 (notifications.js treats null as enabled)
     if ($pdo instanceof FileBasedDatabase) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'MySQL database required for preferences']);
+        http_response_code(200);
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            $key = $_GET['key'] ?? null;
+            if ($key) {
+                echo json_encode(['success' => true, 'value' => null]);
+            } else {
+                echo json_encode(['success' => true, 'preferences' => []]);
+            }
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Saving preferences requires MySQL/SQLite.']);
+        }
         exit();
     }
-    
-    // Create user_preferences table if it doesn't exist
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS user_preferences (
-            id INT(11) NOT NULL AUTO_INCREMENT,
-            user_id INT(11) NOT NULL,
-            preference_key VARCHAR(100) NOT NULL,
-            preference_value TEXT DEFAULT NULL,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            UNIQUE KEY unique_user_preference (user_id, preference_key),
-            KEY idx_user_id (user_id),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    ");
+
+    ensureUserPreferencesTable($pdo);
     
 } catch (Exception $e) {
     http_response_code(500);
@@ -118,12 +115,22 @@ try {
             $preferenceKey = $input['key'];
             $preferenceValue = $input['value'];
             
-            // Insert or update preference
-            $stmt = $pdo->prepare('
-                INSERT INTO user_preferences (user_id, preference_key, preference_value)
-                VALUES (?, ?, ?)
-                ON DUPLICATE KEY UPDATE preference_value = VALUES(preference_value), updated_at = CURRENT_TIMESTAMP
-            ');
+            // Insert or update preference (MySQL vs SQLite upsert)
+            if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+                $stmt = $pdo->prepare('
+                    INSERT INTO user_preferences (user_id, preference_key, preference_value)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(user_id, preference_key) DO UPDATE SET
+                        preference_value = excluded.preference_value,
+                        updated_at = CURRENT_TIMESTAMP
+                ');
+            } else {
+                $stmt = $pdo->prepare('
+                    INSERT INTO user_preferences (user_id, preference_key, preference_value)
+                    VALUES (?, ?, ?)
+                    ON DUPLICATE KEY UPDATE preference_value = VALUES(preference_value), updated_at = CURRENT_TIMESTAMP
+                ');
+            }
             $stmt->execute([$userId, $preferenceKey, $preferenceValue]);
             
             echo json_encode([

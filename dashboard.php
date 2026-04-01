@@ -652,17 +652,21 @@ try {
             // Column might already exist, ignore
         }
         
-        // Total documents - all files uploaded in Documents page
-        // Count from both mou_moa and other_documents tables (same as Documents page)
-        // Exclude deleted documents (those in trash)
-        $stmt = $pdo->query("
-            SELECT COUNT(*) as count FROM (
-                SELECT id FROM mou_moa WHERE (deleted_at IS NULL OR deleted_at = '')
-                UNION ALL
-                SELECT id FROM other_documents WHERE (deleted_at IS NULL OR deleted_at = '')
-            ) as combined_documents
-        ");
-        $statsData['total_documents'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
+        // Total documents - all files uploaded in Documents page (count each table separately so one failure does not zero the stat)
+        $totalDocCount = 0;
+        try {
+            $stmt = $pdo->query("SELECT COUNT(*) as count FROM mou_moa WHERE (deleted_at IS NULL OR deleted_at = '')");
+            $totalDocCount += (int) ($stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0);
+        } catch (Throwable $e) {
+            error_log('Dashboard: mou_moa document count skipped — ' . $e->getMessage());
+        }
+        try {
+            $stmt = $pdo->query("SELECT COUNT(*) as count FROM other_documents WHERE (deleted_at IS NULL OR deleted_at = '')");
+            $totalDocCount += (int) ($stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0);
+        } catch (Throwable $e) {
+            error_log('Dashboard: other_documents document count skipped — ' . $e->getMessage());
+        }
+        $statsData['total_documents'] = $totalDocCount;
         
         // Get upcoming events for table, excluding deleted events
         $stmt = $pdo->query("SELECT title, event_date, location, status FROM events WHERE event_date >= CURDATE() AND deleted_at IS NULL ORDER BY event_date ASC LIMIT 4");
@@ -827,71 +831,18 @@ try {
         .chartjs-legend-color {
             color: theme('colors.text-light');
         }
-        /* Sidebar entrance animation */
-        @keyframes slideInFromLeft {
-            from {
-                transform: translateX(-100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-        
-        @keyframes slideInFromRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-        
-        @keyframes fadeInUp {
-            from {
-                transform: translateY(20px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-        
-        .sidebar {
-            animation: slideInFromLeft 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .main-content {
-            animation: slideInFromRight 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
-        }
-        
-        /* Only show animation on first visit to dashboard */
-        .no-animation .sidebar {
-            animation: none;
-        }
-        
-        .no-animation .main-content {
-            animation: none;
-        }
-        
-        .no-animation .content-card {
-            animation: none;
-        }
-        
-        /* Staggered animations for content */
+        .sidebar,
+        .main-content,
         .content-card {
-            animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+            animation: none !important;
         }
-        
-        .content-card:nth-child(1) { animation-delay: 0.4s; }
-        .content-card:nth-child(2) { animation-delay: 0.5s; }
-        .content-card:nth-child(3) { animation-delay: 0.6s; }
-        .content-card:nth-child(4) { animation-delay: 0.7s; }
-        .content-card:nth-child(5) { animation-delay: 0.8s; }
+        .content-card:nth-child(1),
+        .content-card:nth-child(2),
+        .content-card:nth-child(3),
+        .content-card:nth-child(4),
+        .content-card:nth-child(5) {
+            animation-delay: 0s !important;
+        }
         
         .sidebar-collapsed .sidebar-text {
             display: none;
@@ -904,7 +855,6 @@ try {
             min-width: 16rem;
             max-width: 16rem;
             flex-shrink: 0;
-            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
         }
         .custom-select-wrapper {
             position: relative;
@@ -957,49 +907,13 @@ try {
         .sidebar-collapsed .sidebar-toggle-icon-closed { display: block; }
         .sidebar-toggle-icon-closed { display: none; }
 
-        /* Page Animation Effects */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
-
-        .page-animate {
-            animation: fadeInUp 0.6s ease-out forwards;
-            opacity: 0;
-        }
-
-        .page-animate-delay-1 {
-            animation: fadeInUp 0.6s ease-out 0.1s forwards;
-            opacity: 0;
-        }
-
-        .page-animate-delay-2 {
-            animation: fadeInUp 0.6s ease-out 0.2s forwards;
-            opacity: 0;
-        }
-
-        .header-animate {
-            animation: fadeIn 0.5s ease-out forwards;
-        }
-
+        .page-animate,
+        .page-animate-delay-1,
+        .page-animate-delay-2,
+        .header-animate,
         .content-animate {
-            animation: fadeInUp 0.7s ease-out 0.2s forwards;
-            opacity: 0;
+            opacity: 1 !important;
+            animation: none !important;
         }
 
         /* Ensure month selector dropdown opens downward */
@@ -1132,6 +1046,10 @@ try {
 <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
 <span class="material-symbols-outlined flex-shrink-0">emoji_events</span>
 <span class="sidebar-text whitespace-nowrap">Awards Progress</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="mobility-programs.php" title="Mobility Programs">
+<span class="material-symbols-outlined flex-shrink-0">map</span>
+<span class="sidebar-text whitespace-nowrap">Mobility Programs</span>
 </a>
 <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
 <span class="material-symbols-outlined flex-shrink-0">event</span>
@@ -2907,39 +2825,13 @@ Recent Activity
                 const data = await response.json();
                 if (data.notifications) {
                     const previousNotifications = notifications || [];
-                    
-                    // Standardize notification processing across all pages
-                    // Deduplicate MOU notifications: keep only the most recent one for each MOU+type combination
-                    const mouNotificationMap = new Map();
-                    const otherNotifications = [];
-                    
-                    data.notifications.forEach(notif => {
-                        if (notif.related_type === 'mou_moa' && notif.related_id) {
-                            // Create a unique key for MOU notifications: related_id + type
-                            const key = `${notif.related_id}_${notif.type}`;
-                            
-                            if (!mouNotificationMap.has(key)) {
-                                mouNotificationMap.set(key, notif);
-                            } else {
-                                // Keep the most recent one
-                                const existing = mouNotificationMap.get(key);
-                                const existingDate = new Date(existing.created_at);
-                                const currentDate = new Date(notif.created_at);
-                                
-                                if (currentDate > existingDate) {
-                                    mouNotificationMap.set(key, notif);
-                                }
-                            }
-                        } else {
-                            // Keep ALL non-MOU notifications as-is (schedules, events, etc.)
-                            otherNotifications.push(notif);
-                        }
-                    });
-                    
-                    // Combine deduplicated MOU notifications with ALL other notifications
-                    notifications = [...Array.from(mouNotificationMap.values()), ...otherNotifications];
-                    
-                    // Sort by created_at (most recent first)
+
+                    // Use the notifications exactly as returned by the API so that
+                    // this page matches other pages (awards, events, documents, etc.)
+                    // that also display all notifications.
+                    notifications = data.notifications.slice();
+
+                    // Sort by created_at (most recent first) for consistent ordering
                     notifications.sort((a, b) => {
                         const dateA = new Date(a.created_at);
                         const dateB = new Date(b.created_at);
@@ -2970,13 +2862,13 @@ Recent Activity
             }
         }
         
-        // Get unread count
+        // Get unread count - prefer using the currently loaded notifications
+        // so the badge matches exactly what is shown in the dropdown.
         async function updateNotificationBadge() {
             try {
-                // Get badge element dynamically to avoid scope issues
                 const badge = document.getElementById('notificationBadge');
-                
                 const enabled = window.areNotificationsEnabled ? await window.areNotificationsEnabled() : true;
+                
                 if (!enabled) {
                     if (badge) {
                         badge.classList.add('hidden');
@@ -2984,13 +2876,23 @@ Recent Activity
                     return;
                 }
 
-                const response = await fetch('api/notifications.php?action=count');
-                if (!response.ok) {
-                    console.error('Failed to get notification count:', response.status, response.statusText);
-                    return;
+                let count = 0;
+
+                // If we already have notifications loaded on this page, derive the
+                // unread count from that list so it cannot disagree with the UI.
+                if (Array.isArray(notifications) && notifications.length > 0) {
+                    count = notifications.filter(n => !n.is_read).length;
+                } else {
+                    // Fallback: ask the API for the unread count (used on initial load
+                    // before notifications have been fetched on this page).
+                    const response = await fetch('api/notifications.php?action=count');
+                    if (!response.ok) {
+                        console.error('Failed to get notification count:', response.status, response.statusText);
+                        return;
+                    }
+                    const data = await response.json();
+                    count = data.count || 0;
                 }
-                const data = await response.json();
-                const count = data.count || 0;
                 
                 if (badge) {
                     if (count > 0) {

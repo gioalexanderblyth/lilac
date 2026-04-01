@@ -153,7 +153,7 @@
         const icon = isExpired ? 'warning' : 'schedule';
         const iconColor = isExpired ? 'text-red-50' : 'text-yellow-50';
         
-        card.className = `${bgColor} text-white rounded-lg p-4 transform transition-all duration-300 translate-x-full opacity-0 mou-notification-card`;
+        card.className = `${bgColor} text-white rounded-lg p-4 transform translate-x-full opacity-0 mou-notification-card`;
         card.style.minWidth = '320px';
         card.style.maxWidth = '400px';
         card.style.zIndex = 10001;
@@ -172,7 +172,7 @@
                     <p class="text-[11px] opacity-80 mt-2">Drag right to dismiss</p>
                 </div>
                 <button onclick="window.removeNotificationPaper && window.removeNotificationPaper(this)" 
-                        class="flex-shrink-0 text-white hover:text-gray-200 transition-colors opacity-70 hover:opacity-100 z-10 relative">
+                        class="flex-shrink-0 text-white hover:text-gray-200 opacity-70 hover:opacity-100 z-10 relative">
                     <span class="material-symbols-outlined text-sm">close</span>
                 </button>
             </div>

@@ -1,4 +1,4 @@
-﻿
+
         // Notification System - Reusable for all pages
         // IMPORTANT: must run after DOM is ready, otherwise elements are null and the badge never updates.
         (function () {
@@ -137,13 +137,13 @@
                             <!-- Filter Tabs -->
                             <div class="px-6 py-4 border-b border-border-light dark:border-border-dark flex-shrink-0">
                                 <div class="flex space-x-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                                    <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm" data-filter="all">
+                                    <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm" data-filter="all">
                                         All
                                     </button>
-                                    <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400" data-filter="critical">
+                                    <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md text-gray-600 dark:text-gray-400" data-filter="critical">
                                         Critical
                                     </button>
-                                    <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400" data-filter="unread">
+                                    <button class="notification-tab px-4 py-2 text-sm font-medium rounded-md text-gray-600 dark:text-gray-400" data-filter="unread">
                                         Unread
                                     </button>
                                 </div>
@@ -444,12 +444,12 @@
                         actionButtons = `
                             <div class="mt-3 flex gap-2">
                                 <button onclick="event.stopPropagation(); if(typeof confirmMouRenewal === 'function') confirmMouRenewal(${notif.id}, 'renewed', ${notif.related_id})" 
-                                        class="px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                        class="px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg flex items-center gap-1">
                                     <span class="material-symbols-outlined text-sm">check_circle</span>
                                     Renewed
                                 </button>
                                 <button onclick="event.stopPropagation(); if(typeof confirmMouRenewal === 'function') confirmMouRenewal(${notif.id}, 'not_renewed', ${notif.related_id})" 
-                                        class="px-3 py-1.5 text-xs font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                        class="px-3 py-1.5 text-xs font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center gap-1">
                                     <span class="material-symbols-outlined text-sm">cancel</span>
                                     Not Renewed
                                 </button>
@@ -471,7 +471,7 @@
                     const actionHint = targetUrl && !isMouNotification ? '<p class="text-xs text-primary mt-2 font-semibold flex items-center gap-1">Open related record<span class="material-symbols-outlined text-sm">arrow_outward</span></p>' : '';
                     
                     return `
-                        <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors ${notif.is_read ? 'opacity-60' : ''}" 
+                        <div class="p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${notif.is_read ? 'opacity-60' : ''}" 
                              data-notification-id="${notif.id}"${urlAttribute}>
                             <div class="flex items-start gap-3">
                                 <div class="flex-shrink-0 w-10 h-10 rounded-full ${bgColor} flex items-center justify-center">
@@ -711,12 +711,12 @@
                         confirmationButtons = `
                             <div class="mt-3 flex gap-2">
                                 <button onclick="event.stopPropagation(); if(typeof confirmMouRenewal === 'function') confirmMouRenewal(${notif.id}, 'renewed', ${notif.related_id})" 
-                                        class="px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                        class="px-3 py-1.5 text-xs font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg flex items-center gap-1">
                                     <span class="material-symbols-outlined text-sm">check_circle</span>
                                     Renewed
                                 </button>
                                 <button onclick="event.stopPropagation(); if(typeof confirmMouRenewal === 'function') confirmMouRenewal(${notif.id}, 'not_renewed', ${notif.related_id})" 
-                                        class="px-3 py-1.5 text-xs font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center gap-1">
+                                        class="px-3 py-1.5 text-xs font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center gap-1">
                                     <span class="material-symbols-outlined text-sm">cancel</span>
                                     Not Renewed
                                 </button>
@@ -1180,7 +1180,7 @@
 
                                 <button onclick="confirmMouRenewal(${notif.id}, 'renewed', ${notif.related_id}); closeMouModal();" 
 
-                                        class="flex-1 px-4 py-2 text-sm font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center justify-center gap-2">
+                                        class="flex-1 px-4 py-2 text-sm font-medium bg-green-500 hover:bg-green-600 text-white rounded-lg flex items-center justify-center gap-2">
 
                                     <span class="material-symbols-outlined text-sm">check_circle</span>
 
@@ -1190,7 +1190,7 @@
 
                                 <button onclick="confirmMouRenewal(${notif.id}, 'not_renewed', ${notif.related_id}); closeMouModal();" 
 
-                                        class="flex-1 px-4 py-2 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center justify-center gap-2">
+                                        class="flex-1 px-4 py-2 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center gap-2">
 
                                     <span class="material-symbols-outlined text-sm">cancel</span>
 

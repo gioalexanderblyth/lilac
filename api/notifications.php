@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/schema-helpers.php';
 
 session_start();
 
@@ -890,15 +891,16 @@ function confirmMouRenewal($pdo, $notificationId, $userId, $renewalStatus) {
 // Main request handler
 try {
     $pdo = db();
-    
-    // Handle file-based database fallback
-    if ($pdo instanceof FileBasedDatabase) {
-        http_response_code(503);
-        echo json_encode(['error' => 'Database not available. Notifications require database connection.']);
-        exit;
+
+    // SQLite / file fallback: full notification logic uses MySQL-only SQL (e.g. DATEDIFF). Avoid 500s.
+    if ($pdo instanceof FileBasedDatabase || ($pdo instanceof PDO && isPdoSqlite($pdo))) {
+        requireAuth();
+        $methodEarly = $_SERVER['REQUEST_METHOD'];
+        $actionEarly = $_GET['action'] ?? '';
+        sendNotificationsDegradedResponse($methodEarly, $actionEarly);
     }
     
-    // Create notifications table if it doesn't exist
+    // Create notifications table if it doesn't exist (MySQL)
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS notifications (
             id INT(11) NOT NULL AUTO_INCREMENT,

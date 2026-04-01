@@ -463,39 +463,7 @@ try {
 
 
 
-        /* Document Scanning Animation */
-
-        @keyframes scan-line {
-
-            0% {
-
-                top: 0;
-
-                opacity: 0.75;
-
-            }
-
-            50% {
-
-                opacity: 1;
-
-            }
-
-            100% {
-
-                top: 100%;
-
-                opacity: 0.75;
-
-            }
-
-        }
-
-
-
         .animate-scan-line {
-
-            animation: scan-line 2s linear infinite;
 
             box-shadow: 0 0 20px rgba(19, 127, 236, 0.5);
 
@@ -553,30 +521,6 @@ try {
 
             overflow-y: auto;
 
-            animation: dropdownFadeIn 0.2s ease-out;
-
-        }
-
-
-
-        @keyframes dropdownFadeIn {
-
-            from {
-
-                opacity: 0;
-
-                transform: translateY(-8px);
-
-            }
-
-            to {
-
-                opacity: 1;
-
-                transform: translateY(0);
-
-            }
-
         }
 
 
@@ -618,8 +562,6 @@ try {
             padding: 0.75rem 1rem;
 
             cursor: pointer;
-
-            transition: all 0.15s ease;
 
             font-size: 0.875rem;
 
@@ -787,127 +729,15 @@ try {
 
 
 
-        /* Page Animation Effects */
-
-        @keyframes fadeInUp {
-
-            from {
-
-                opacity: 0;
-
-                transform: translateY(30px);
-
-            }
-
-            to {
-
-                opacity: 1;
-
-                transform: translateY(0);
-
-            }
-
-        }
-
-
-
-        @keyframes fadeIn {
-
-            from {
-
-                opacity: 0;
-
-            }
-
-            to {
-
-                opacity: 1;
-
-            }
-
-        }
-
-
-
-        @keyframes slideInRight {
-
-            from {
-
-                opacity: 0;
-
-                transform: translateX(30px);
-
-            }
-
-            to {
-
-                opacity: 1;
-
-                transform: translateX(0);
-
-            }
-
-        }
-
-
-
-        .page-animate {
-
-            animation: fadeInUp 0.6s ease-out forwards;
-
-            opacity: 0;
-
-        }
-
-
-
-        .page-animate-delay-1 {
-
-            animation: fadeInUp 0.6s ease-out 0.1s forwards;
-
-            opacity: 0;
-
-        }
-
-
-
-        .page-animate-delay-2 {
-
-            animation: fadeInUp 0.6s ease-out 0.2s forwards;
-
-            opacity: 0;
-
-        }
-
-
-
-        .page-animate-delay-3 {
-
-            animation: fadeInUp 0.6s ease-out 0.3s forwards;
-
-            opacity: 0;
-
-        }
-
-
-
-        .header-animate {
-
-            animation: fadeIn 0.5s ease-out forwards;
-
-        }
-
-
-
+        .page-animate,
+        .page-animate-delay-1,
+        .page-animate-delay-2,
+        .page-animate-delay-3,
+        .header-animate,
         .content-animate {
-
-            animation: fadeInUp 0.7s ease-out 0.2s forwards;
-
-            opacity: 0;
-
+            opacity: 1 !important;
+            animation: none !important;
         }
-
-
 
         /* WebKit scrollbar styling (Chrome, Safari, Edge) */
 
@@ -936,8 +766,6 @@ try {
             background: #cbd5e1;
 
             border-radius: 4px;
-
-            transition: background-color 0.2s ease;
 
         }
 
@@ -1218,6 +1046,10 @@ try {
                 <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/40 dark:to-indigo-900/40 text-purple-600 dark:text-purple-400 font-semibold sidebar-nav-link border border-purple-200 dark:border-purple-800 shadow-sm" href="user-awards.php" title="Awards Progress">
                     <span class="material-symbols-outlined filled flex-shrink-0">emoji_events</span>
                     <span class="sidebar-text whitespace-nowrap">Awards Progress</span>
+                </a>
+                <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="mobility-programs.php" title="Mobility Programs">
+                    <span class="material-symbols-outlined flex-shrink-0">map</span>
+                    <span class="sidebar-text whitespace-nowrap">Mobility Programs</span>
                 </a>
                 <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
                     <span class="material-symbols-outlined flex-shrink-0">event</span>
@@ -9629,6 +9461,7 @@ try {
 
             const awardListTab = document.getElementById('award-list-tab');
 
+
             const processContent = document.getElementById('process-content');
 
             const chedGuidanceContent = document.getElementById('ched-guidance-content');
@@ -9636,6 +9469,7 @@ try {
             const analyticsContent = document.getElementById('analytics-content');
 
             const awardListContent = document.getElementById('award-list-content');
+
 
             const isAdmin = <?php echo $isAdmin ? 'true' : 'false'; ?>;
 
@@ -9664,6 +9498,7 @@ try {
                     chedGuidanceContent.style.display = 'none';
 
                 }
+
 
                 
 
@@ -9702,6 +9537,7 @@ try {
                     chedGuidanceTab.classList.add('font-medium', 'text-text-muted-light', 'dark:text-text-muted-dark');
 
                 }
+
 
 
 
@@ -9765,6 +9601,7 @@ try {
 
                 }
 
+
                 
 
                 // Reset styles for clean animation
@@ -9806,6 +9643,7 @@ try {
                     chedGuidanceTab.classList.add('font-medium', 'text-text-muted-light', 'dark:text-text-muted-dark');
 
                 }
+
 
 
 
@@ -9879,6 +9717,7 @@ try {
 
                 }
 
+
                 
 
                 // Reset styles for clean animation
@@ -9920,6 +9759,7 @@ try {
                     chedGuidanceTab.classList.add('font-medium', 'text-text-muted-light', 'dark:text-text-muted-dark');
 
                 }
+
 
 
 
@@ -9995,6 +9835,7 @@ try {
 
 
 
+
                 if (chedGuidanceContent) {
 
                     chedGuidanceContent.style.opacity = '';
@@ -10039,6 +9880,7 @@ try {
 
 
 
+
                 if (chedGuidanceContent) {
 
                     chedGuidanceContent.classList.remove('hidden');
@@ -10064,8 +9906,6 @@ try {
                 }
 
             };
-
-
 
             if (processTab) {
 
@@ -10093,8 +9933,6 @@ try {
 
             }
 
-
-
             analyticsTab.addEventListener('click', (e) => {
 
                 e.preventDefault();
@@ -10115,37 +9953,46 @@ try {
 
 
 
-            // Set initial state - check for hash to determine which tab to show
+            const routeTabByHash = () => {
 
-            if (window.location.hash === '#analytics-content') {
-
-                switchToAnalytics();
-
-            } else if (window.location.hash === '#award-list') {
-
-                switchToAwardList();
-
-            } else if (window.location.hash === '#ched-guidelines') {
-
-                switchToGuidance();
-
-            } else {
-
-                // Default: show Process Award for regular users, Analytics for admins
-
-                if (processTab && processContent) {
-
-                    switchToProcess();
-
-                } else {
+                if (window.location.hash === '#analytics-content') {
 
                     switchToAnalytics();
 
+                } else if (window.location.hash === '#award-list') {
+
+                    switchToAwardList();
+
+                } else if (window.location.hash === '#ched-guidelines') {
+
+                    switchToGuidance();
+
+                } else if (window.location.hash === '#mobility-content') {
+
+                    window.location.href = 'mobility-programs.php';
+                    return;
+
+                } else {
+
+                    // Default: show Process Award for regular users, Analytics for admins
+
+                    if (processTab && processContent) {
+
+                        switchToProcess();
+
+                    } else {
+
+                        switchToAnalytics();
+
+                    }
+
                 }
 
-            }
+            };
 
-
+            // Set initial state + support sidebar hash navigation while staying on same page
+            routeTabByHash();
+            window.addEventListener('hashchange', routeTabByHash);
 
             // Awards functionality is handled by awards.js
 

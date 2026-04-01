@@ -125,10 +125,6 @@ try {
         .material-symbols-outlined.filled {
             font-variation-settings: 'FILL' 1;
         }
-        .sidebar {
-            width: 5rem;
-            transition: width 0.3s ease;
-        }
         .sidebar-collapsed .sidebar-text {
             display: none;
         }
@@ -140,7 +136,6 @@ try {
             min-width: 16rem;
             max-width: 16rem;
             flex-shrink: 0;
-            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
         }
         .sidebar-collapsed .sidebar {
             width: 5rem;
@@ -163,49 +158,13 @@ try {
         .sidebar-collapsed .sidebar-toggle-icon-closed { display: block; }
         .sidebar-toggle-icon-closed { display: none; }
 
-        /* Page Animation Effects */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
-
-        .page-animate {
-            animation: fadeInUp 0.6s ease-out forwards;
-            opacity: 0;
-        }
-
-        .page-animate-delay-1 {
-            animation: fadeInUp 0.6s ease-out 0.1s forwards;
-            opacity: 0;
-        }
-
-        .page-animate-delay-2 {
-            animation: fadeInUp 0.6s ease-out 0.2s forwards;
-            opacity: 0;
-        }
-
-        .header-animate {
-            animation: fadeIn 0.5s ease-out forwards;
-        }
-
+        .page-animate,
+        .page-animate-delay-1,
+        .page-animate-delay-2,
+        .header-animate,
         .content-animate {
-            animation: fadeInUp 0.7s ease-out 0.2s forwards;
-            opacity: 0;
+            opacity: 1 !important;
+            animation: none !important;
         }
 
         /* Custom scrollbar styling for all elements */
@@ -243,7 +202,6 @@ try {
         ::-webkit-scrollbar-thumb {
             background: #cbd5e1;
             border-radius: 4px;
-            transition: background-color 0.2s ease;
         }
 
         ::-webkit-scrollbar-thumb:hover {
@@ -294,6 +252,10 @@ try {
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
                 <span class="material-symbols-outlined flex-shrink-0">emoji_events</span>
                 <span class="sidebar-text whitespace-nowrap">Awards Progress</span>
+            </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="mobility-programs.php" title="Mobility Programs">
+                <span class="material-symbols-outlined flex-shrink-0">map</span>
+                <span class="sidebar-text whitespace-nowrap">Mobility Programs</span>
             </a>
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
                 <span class="material-symbols-outlined flex-shrink-0">event</span>

@@ -104,7 +104,7 @@
                 }
 
                 const toast = document.createElement('div');
-                toast.className = `toast-notification toast-${type} transform translate-x-full opacity-0 transition-all duration-300 ease-in-out`;
+                toast.className = `toast-notification toast-${type} transform translate-x-full opacity-0`;
                 
                 // Determine icon and colors based on type
                 const icons = {
@@ -127,7 +127,7 @@
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-medium break-words">${this.escapeHtml(message)}</p>
                         </div>
-                        <button onclick="this.closest('.toast-notification').remove()" class="flex-shrink-0 ml-2 hover:opacity-70 transition-opacity">
+                        <button onclick="this.closest('.toast-notification').remove()" class="flex-shrink-0 ml-2 hover:opacity-70">
                             <span class="material-symbols-outlined text-sm">close</span>
                         </button>
                     </div>

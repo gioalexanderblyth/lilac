@@ -5,7 +5,7 @@
 function showToast(message, type = 'info', duration = 5000) {
     // Create notification element
     const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 z-[10000] p-4 rounded-lg shadow-2xl max-w-sm transform transition-all duration-300 translate-x-full`;
+    notification.className = `fixed top-4 right-4 z-[10000] p-4 rounded-lg shadow-2xl max-w-sm transform translate-x-full`;
     
     // Set colors based on type
     const colors = {
@@ -27,7 +27,7 @@ function showToast(message, type = 'info', duration = 5000) {
         <div class="flex items-center gap-2">
             <span class="material-symbols-outlined text-sm">${icons[type] || icons.info}</span>
             <span class="text-sm font-medium flex-1">${escapeHtml(message)}</span>
-            <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-white hover:text-gray-200 transition-colors">
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-white hover:text-gray-200">
                 <span class="material-symbols-outlined text-sm">close</span>
             </button>
         </div>
@@ -65,10 +65,10 @@ function showConfirm(message, title = 'Confirm', confirmText = 'Confirm', cancel
                     <h3 class="text-lg font-semibold text-text-light dark:text-text-dark mb-4">${escapeHtml(title)}</h3>
                     <p class="text-sm text-text-muted-light dark:text-text-muted-dark mb-6 whitespace-pre-line">${escapeHtml(message)}</p>
                     <div class="flex justify-end gap-3">
-                        <button id="confirmCancel" class="px-4 py-2 text-sm rounded-lg border border-border-light dark:border-border-dark text-text-light dark:text-text-dark hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                        <button id="confirmCancel" class="px-4 py-2 text-sm rounded-lg border border-border-light dark:border-border-dark text-text-light dark:text-text-dark hover:bg-gray-100 dark:hover:bg-white/10">
                             ${escapeHtml(cancelText)}
                         </button>
-                        <button id="confirmOk" class="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors">
+                        <button id="confirmOk" class="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90">
                             ${escapeHtml(confirmText)}
                         </button>
                     </div>
@@ -131,10 +131,10 @@ function showPrompt(message, title = 'Input', defaultValue = '', placeholder = '
                         autofocus
                     />
                     <div class="flex justify-end gap-3">
-                        <button id="promptCancel" class="px-4 py-2 text-sm rounded-lg border border-border-light dark:border-border-dark text-text-light dark:text-text-dark hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                        <button id="promptCancel" class="px-4 py-2 text-sm rounded-lg border border-border-light dark:border-border-dark text-text-light dark:text-text-dark hover:bg-gray-100 dark:hover:bg-white/10">
                             Cancel
                         </button>
-                        <button id="promptOk" class="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors">
+                        <button id="promptOk" class="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90">
                             OK
                         </button>
                     </div>

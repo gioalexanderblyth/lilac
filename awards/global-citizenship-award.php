@@ -7,6 +7,7 @@
     <link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect"/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <link rel="stylesheet" href="../assets/css/motion-none.css"/>
     <script src="../assets/js/tailwindcss-runtime.js"></script>
     <script>
         // Apply theme immediately to prevent flash

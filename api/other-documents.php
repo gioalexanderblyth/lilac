@@ -217,7 +217,7 @@ try {
             $stmt = $pdo->prepare("
                 INSERT INTO other_documents
                 (user_id, title, description, file_name, file_path, category, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             ");
 
             $stmt->execute([
@@ -319,14 +319,14 @@ try {
             if ($fileUpdated) {
                 $stmt = $pdo->prepare("
                     UPDATE other_documents
-                    SET title = ?, description = ?, category = ?, file_name = ?, file_path = ?, updated_at = NOW()
+                    SET title = ?, description = ?, category = ?, file_name = ?, file_path = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                 ");
                 $stmt->execute([$title, $description, $category, $newFileName, $newFilePath, $id]);
             } else {
                 $stmt = $pdo->prepare("
                     UPDATE other_documents
-                    SET title = ?, description = ?, category = ?, updated_at = NOW()
+                    SET title = ?, description = ?, category = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                 ");
                 $stmt->execute([$title, $description, $category, $id]);
@@ -383,9 +383,13 @@ try {
                     ]);
                     exit();
                 } else {
-                    // For soft delete, document must exist
+                    // For soft delete, document must exist (do not throw — avoids 500 in catch)
+                    if (ob_get_level() > 0) {
+                        ob_clean();
+                    }
                     http_response_code(404);
-                    throw new Exception('Document not found');
+                    echo json_encode(['success' => false, 'error' => 'Document not found']);
+                    exit();
                 }
             }
 
@@ -519,7 +523,7 @@ try {
                     // Column might already exist, ignore
                 }
                 
-                $stmt = $pdo->prepare("UPDATE other_documents SET deleted_at = NOW() WHERE id = ?");
+                $stmt = $pdo->prepare("UPDATE other_documents SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?");
                 $stmt->execute([$id]);
 
                 echo json_encode([

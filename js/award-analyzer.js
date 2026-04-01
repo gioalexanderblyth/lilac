@@ -68,8 +68,21 @@ class AwardAnalyzer {
             formData.append('original_file_path', options.filePath);
         }
 
+        // API requires award_name for new uploads; default from filename / path so analysis always gets a title
+        let awardName = options.award_name;
+        if (!awardName) {
+            if (file instanceof File && file.name) {
+                awardName = file.name.replace(/\.[^/.]+$/, '') || 'Document analysis';
+            } else if (options.filePath) {
+                const seg = options.filePath.split(/[/\\]/).filter(Boolean).pop() || '';
+                awardName = seg.replace(/\.[^/.]+$/, '') || 'Document analysis';
+            } else {
+                awardName = 'Document analysis';
+            }
+        }
+        formData.append('award_name', awardName);
+
         // Add optional fields
-        if (options.award_name) formData.append('award_name', options.award_name);
         if (options.description) formData.append('description', options.description);
         if (options.document_id) formData.append('document_id', options.document_id);
         if (options.source_page) formData.append('source_page', options.source_page);
@@ -80,7 +93,13 @@ class AwardAnalyzer {
                 body: formData
             });
 
-            const result = await response.json();
+            const result = await response.json().catch(() => ({}));
+            
+            if (!response.ok && !result.success && !result.analysis) {
+                const msg = result.error || result.message || ('Request failed (' + response.status + ')');
+                alert('Error: ' + msg);
+                return;
+            }
             
             if (result.success || result.analysis) {
                 // Handle different response formats

@@ -1,9 +1,8 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Steady UI — mirror in assets/css/motion-none.css for runtime-Tailwind award pages */
-/* :root * beats single-class rules (e.g. .page-animate) when both use !important */
+/*
+  Steady UI: disable CSS transitions and animations.
+  Keep rules in sync with the block after @tailwind utilities in src/input.css.
+  Linked from pages that use runtime Tailwind (see awards/*.php).
+*/
 :root *,
 :root *::before,
 :root *::after {

@@ -73,7 +73,7 @@ try {
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
         .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1; }
         .sidebar-collapsed .sidebar-text, .sidebar-collapsed .sidebar-logo-text { display: none; }
-        .sidebar { width: 16rem; min-width: 16rem; max-width: 16rem; flex-shrink: 0; transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease; }
+        .sidebar { width: 16rem; min-width: 16rem; max-width: 16rem; flex-shrink: 0; }
         .sidebar-collapsed .sidebar { width: 5rem; min-width: 5rem; max-width: 5rem; }
         .sidebar-collapsed .sidebar-nav-link { justify-content: center; padding-left: 0; padding-right: 0; }
         .sidebar-collapsed .sidebar-profile-info, .sidebar-collapsed .sidebar-profile-picture { display: none; }
@@ -95,7 +95,7 @@ try {
         #forms-container.view-list .forms-table thead th { text-align: left; padding: 0.75rem 1rem; font-weight: 500; font-size: 0.875rem; color: rgb(107 114 128); border-bottom: 1px solid rgba(0,0,0,0.08); background: transparent; }
         .dark #forms-container.view-list .forms-table thead th { color: rgb(156 163 175); border-color: rgba(255,255,255,0.1); }
         #forms-container.view-list .forms-table thead th:last-child { text-align: right; }
-        #forms-container.view-list .forms-table tbody tr { border-bottom: 1px solid rgba(0,0,0,0.06); transition: background 0.15s; }
+        #forms-container.view-list .forms-table tbody tr { border-bottom: 1px solid rgba(0,0,0,0.06); }
         .dark #forms-container.view-list .forms-table tbody tr { border-color: rgba(255,255,255,0.06); }
         #forms-container.view-list .forms-table tbody tr:hover { background: rgba(0,0,0,0.02); }
         .dark #forms-container.view-list .forms-table tbody tr:hover { background: rgba(255,255,255,0.04); }
@@ -110,7 +110,7 @@ try {
         #forms-container.view-list .form-item-date { font-size: 0.875rem; color: rgb(107 114 128); }
         .dark #forms-container.view-list .form-item-date { color: rgb(156 163 175); }
         #forms-container.view-list .form-item-actions { display: flex; gap: 0.25rem; justify-content: flex-end; align-items: center; }
-        #forms-container.view-grid .form-item { display: flex; flex-direction: column; border: 1px solid rgba(0,0,0,0.08); border-radius: 0.75rem; overflow: hidden; background: inherit; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: box-shadow 0.2s, border-color 0.2s; }
+        #forms-container.view-grid .form-item { display: flex; flex-direction: column; border: 1px solid rgba(0,0,0,0.08); border-radius: 0.75rem; overflow: hidden; background: inherit; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
         #forms-container.view-grid .form-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-color: rgba(0,0,0,0.12); }
         .dark #forms-container.view-grid .form-item { border-color: rgba(255,255,255,0.08); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
         .dark #forms-container.view-grid .form-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.12); }
@@ -159,6 +159,10 @@ try {
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
                 <span class="material-symbols-outlined flex-shrink-0">emoji_events</span>
                 <span class="sidebar-text whitespace-nowrap">Awards Progress</span>
+            </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="mobility-programs.php" title="Mobility Programs">
+                <span class="material-symbols-outlined flex-shrink-0">map</span>
+                <span class="sidebar-text whitespace-nowrap">Mobility Programs</span>
             </a>
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
                 <span class="material-symbols-outlined flex-shrink-0">event</span>

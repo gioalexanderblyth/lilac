@@ -64,47 +64,39 @@ try {
     $isAdmin = isset($user['role']) && $user['role'] === 'admin';
 }
 
-// Load all deleted items from all tables
+// Load all deleted items from all tables (each source queried separately so one missing table does not empty the whole trash)
 $deletedItems = [];
+$trashUsesFileBasedDb = false;
 try {
     $pdo = getDatabaseConnection();
     if ($pdo instanceof FileBasedDatabase) {
-        // File-based system - no trash support
+        $trashUsesFileBasedDb = true;
     } else {
         // Ensure deleted_at columns exist
-        try {
-            $pdo->exec("ALTER TABLE mou_moa ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
-        } catch (PDOException $e) {
-            // Column might already exist, ignore
+        foreach (['mou_moa', 'other_documents', 'awards', 'events', 'forms'] as $tbl) {
+            try {
+                $pdo->exec("ALTER TABLE {$tbl} ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
+            } catch (PDOException $e) {
+                // Column might already exist, ignore
+            }
         }
-        try {
-            $pdo->exec("ALTER TABLE other_documents ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
-        } catch (PDOException $e) {
-            // Column might already exist, ignore
-        }
-        try {
-            $pdo->exec("ALTER TABLE awards ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
-        } catch (PDOException $e) {
-            // Column might already exist, ignore
-        }
-        try {
-            $pdo->exec("ALTER TABLE events ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
-        } catch (PDOException $e) {
-            // Column might already exist, ignore
-        }
-        try {
-            $pdo->exec("ALTER TABLE forms ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
-        } catch (PDOException $e) {
-            // Column might already exist, ignore
-        }
-        
-        // Load deleted documents from MOU, MOA, Other Documents, Awards, Events, and Forms tables
-        $stmt = $pdo->query("
+
+        $trashFetch = function (PDO $pdo, string $sql) {
+            try {
+                return $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Throwable $e) {
+                error_log('Trash: skipped segment — ' . $e->getMessage());
+                return [];
+            }
+        };
+
+        $merged = [];
+        $merged = array_merge($merged, $trashFetch($pdo, "
             SELECT
                 m.id,
                 m.user_id,
                 m.institution as title,
-                CONCAT('Institution: ', m.institution, ' | Contact: ', m.contact_email) as description,
+                CONCAT('Institution: ', IFNULL(m.institution,''), ' | Contact: ', IFNULL(m.contact_email,'')) as description,
                 m.file_name,
                 m.file_path,
                 'MOUs & MOAs' as source_page,
@@ -116,8 +108,8 @@ try {
             LEFT JOIN users u ON m.user_id = u.id
             WHERE m.deleted_at IS NOT NULL
 
-            UNION ALL
-
+        "));
+        $merged = array_merge($merged, $trashFetch($pdo, "
             SELECT
                 od.id,
                 od.user_id,
@@ -134,8 +126,9 @@ try {
             LEFT JOIN users u ON od.user_id = u.id
             WHERE od.deleted_at IS NOT NULL
 
-            UNION ALL
-
+        "));
+        // Awards: simplified (no award_analysis join — it was unused in SELECT and could break if that table differs)
+        $merged = array_merge($merged, $trashFetch($pdo, "
             SELECT
                 a.id,
                 a.user_id,
@@ -149,20 +142,11 @@ try {
                 u.username as uploaded_by,
                 'awards' as source_table
             FROM awards a
-            LEFT JOIN (
-                SELECT aa1.*
-                FROM award_analysis aa1
-                INNER JOIN (
-                    SELECT award_id, MAX(id) AS max_id
-                    FROM award_analysis
-                    GROUP BY award_id
-                ) latest ON latest.award_id = aa1.award_id AND latest.max_id = aa1.id
-            ) aa ON a.id = aa.award_id
             LEFT JOIN users u ON a.user_id = u.id
             WHERE a.deleted_at IS NOT NULL
 
-            UNION ALL
-
+        "));
+        $merged = array_merge($merged, $trashFetch($pdo, "
             SELECT
                 e.id,
                 e.user_id,
@@ -179,8 +163,8 @@ try {
             LEFT JOIN users u ON e.user_id = u.id
             WHERE e.deleted_at IS NOT NULL
 
-            UNION ALL
-
+        "));
+        $merged = array_merge($merged, $trashFetch($pdo, "
             SELECT
                 f.id,
                 f.created_by as user_id,
@@ -197,9 +181,14 @@ try {
             LEFT JOIN users u ON f.created_by = u.id
             WHERE f.deleted_at IS NOT NULL
 
-            ORDER BY deleted_at DESC
-        ");
-        $deletedItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        "));
+
+        usort($merged, function ($a, $b) {
+            $ta = strtotime($a['deleted_at'] ?? '1970-01-01');
+            $tb = strtotime($b['deleted_at'] ?? '1970-01-01');
+            return $tb <=> $ta;
+        });
+        $deletedItems = $merged;
     }
 } catch (Exception $e) {
     error_log('Trash load error: ' . $e->getMessage());
@@ -279,7 +268,6 @@ try {
             min-width: 16rem;
             max-width: 16rem;
             flex-shrink: 0;
-            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
         }
         .sidebar-collapsed .sidebar {
             width: 5rem;
@@ -303,11 +291,9 @@ try {
         .sidebar-toggle-icon-closed { display: none; }
         tbody tr {
             cursor: pointer;
-            transition: all 0.2s ease;
         }
         tbody tr:hover {
             background-color: rgba(19, 127, 236, 0.05) !important;
-            transform: translateY(-1px);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
         .dark tbody tr:hover {
@@ -357,6 +343,10 @@ try {
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
                 <span class="material-symbols-outlined flex-shrink-0">emoji_events</span>
                 <span class="sidebar-text whitespace-nowrap">Awards Progress</span>
+            </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="mobility-programs.php" title="Mobility Programs">
+                <span class="material-symbols-outlined flex-shrink-0">map</span>
+                <span class="sidebar-text whitespace-nowrap">Mobility Programs</span>
             </a>
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
                 <span class="material-symbols-outlined flex-shrink-0">event</span>
@@ -613,8 +603,13 @@ Clear Sort
 <td class="py-6 px-4 text-center text-text-muted-light dark:text-text-muted-dark" colspan="5">
 <div class="flex flex-col items-center justify-center">
 <span class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-500 mb-4">delete</span>
+<?php if (!empty($trashUsesFileBasedDb)): ?>
+<p class="text-lg font-medium text-text-muted-light dark:text-text-muted-dark mb-2">Trash is not available</p>
+<p class="text-sm text-text-muted-light dark:text-text-muted-dark max-w-md">Trash requires a database connection. Use MySQL (or your configured SQL backend) to soft-delete and restore items.</p>
+<?php else: ?>
 <p class="text-lg font-medium text-text-muted-light dark:text-text-muted-dark mb-2">Trash is empty</p>
 <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Deleted items will appear here</p>
+<?php endif; ?>
 </div>
 </td>
 </tr>

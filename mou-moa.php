@@ -166,7 +166,7 @@ try {
         box-shadow:
             0 10px 18px rgba(0, 0, 0, 0.18),
             0 4px 10px rgba(0, 0, 0, 0.12);
-        will-change: transform, opacity;
+        will-change: auto;
         touch-action: pan-y; /* allow horizontal swipe without blocking vertical scroll */
         user-select: none;
         cursor: grab;
@@ -188,28 +188,6 @@ try {
         overflow: hidden;
     }
     
-    /* Smooth animations for notification bars */
-    @keyframes slideInRight {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes slideOutRight {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-    }
 </style>
     <style>
         .material-symbols-outlined {
@@ -427,7 +405,6 @@ try {
             min-width: 16rem;
             max-width: 16rem;
             flex-shrink: 0;
-            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
         }
         .sidebar-collapsed .sidebar {
             width: 5rem;
@@ -452,12 +429,10 @@ try {
         /* Clickable table rows */
         tbody tr {
             cursor: pointer;
-            transition: all 0.2s ease;
         }
 
         tbody tr:hover {
             background-color: rgba(19, 127, 236, 0.05) !important;
-            transform: translateY(-1px);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
 
@@ -471,49 +446,13 @@ try {
             pointer-events: auto;
         }
 
-        /* Page Animation Effects */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
-
-        .page-animate {
-            animation: fadeInUp 0.6s ease-out forwards;
-            opacity: 0;
-        }
-
-        .page-animate-delay-1 {
-            animation: fadeInUp 0.6s ease-out 0.1s forwards;
-            opacity: 0;
-        }
-
-        .page-animate-delay-2 {
-            animation: fadeInUp 0.6s ease-out 0.2s forwards;
-            opacity: 0;
-        }
-
-        .header-animate {
-            animation: fadeIn 0.5s ease-out forwards;
-        }
-
+        .page-animate,
+        .page-animate-delay-1,
+        .page-animate-delay-2,
+        .header-animate,
         .content-animate {
-            animation: fadeInUp 0.7s ease-out 0.2s forwards;
-            opacity: 0;
+            opacity: 1 !important;
+            animation: none !important;
         }
 
         /* Fix for active sidebar link in dark mode - ensure dark gradient overrides light gradient */
@@ -544,6 +483,10 @@ try {
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
                 <span class="material-symbols-outlined flex-shrink-0">emoji_events</span>
                 <span class="sidebar-text whitespace-nowrap">Awards Progress</span>
+            </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="mobility-programs.php" title="Mobility Programs">
+                <span class="material-symbols-outlined flex-shrink-0">map</span>
+                <span class="sidebar-text whitespace-nowrap">Mobility Programs</span>
             </a>
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
                 <span class="material-symbols-outlined flex-shrink-0">event</span>

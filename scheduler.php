@@ -107,7 +107,6 @@ try {
             min-width: 16rem;
             max-width: 16rem;
             flex-shrink: 0;
-            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
         }
         .sidebar-collapsed .sidebar {
             width: 5rem;
@@ -129,7 +128,6 @@ try {
         }
         main {
             flex: 1;
-            transition: margin-left 0.3s ease;
             position: relative;
             z-index: 10;
         }
@@ -172,7 +170,6 @@ try {
             min-width: 16rem;
             max-width: 16rem;
             flex-shrink: 0;
-            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
         }
         .sidebar-collapsed .sidebar {
             width: 5rem;
@@ -186,49 +183,13 @@ try {
             display: none;
         }
 
-        /* Page Animation Effects */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
-
-        .page-animate {
-            animation: fadeInUp 0.6s ease-out forwards;
-            opacity: 0;
-        }
-
-        .page-animate-delay-1 {
-            animation: fadeInUp 0.6s ease-out 0.1s forwards;
-            opacity: 0;
-        }
-
-        .page-animate-delay-2 {
-            animation: fadeInUp 0.6s ease-out 0.2s forwards;
-            opacity: 0;
-        }
-
-        .header-animate {
-            animation: fadeIn 0.5s ease-out forwards;
-        }
-
+        .page-animate,
+        .page-animate-delay-1,
+        .page-animate-delay-2,
+        .header-animate,
         .content-animate {
-            animation: fadeInUp 0.7s ease-out 0.2s forwards;
-            opacity: 0;
+            opacity: 1 !important;
+            animation: none !important;
         }
         /* Draggable modal helpers */
         #createModal.dragging { align-items: flex-start; justify-content: flex-start; }
@@ -263,7 +224,38 @@ try {
             color: #94a3b8 !important;
         }
 
-        /* Time Picker Modal - ensure dark mode styling */
+        /* Time Picker Modal - center on screen and ensure dark mode styling */
+        #timePickerModal {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            left: 0 !important;
+            right: 0 !important;
+            top: 0 !important;
+            bottom: 0 !important;
+        }
+        /* When Upcoming Event modal is open: only show that modal - hide everything else that could overlap */
+        body.attendance-modal-open #timePickerModal,
+        body.attendance-modal-open #datePickerModal,
+        body.attendance-modal-open #createModal,
+        body.attendance-modal-open #calendarGrid {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            opacity: 0 !important;
+        }
+        /* Ensure attendance modal content is isolated and only shows: event icon, title, subtitle, date/time, question, No, Yes */
+        #eventAttendanceModal #attendanceModalContent,
+        #eventAttendanceModal .p-6 {
+            overflow: hidden !important;
+        }
+        #eventAttendanceModal #attendanceModalButtons {
+            flex-wrap: nowrap !important;
+        }
+        #timePickerModal > div {
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
         .dark #timePickerModal > div {
             background-color: #1e293b !important;
             border-color: #334155 !important;
@@ -382,6 +374,10 @@ try {
 <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
 <span class="material-symbols-outlined flex-shrink-0">emoji_events</span>
 <span class="sidebar-text whitespace-nowrap">Awards Progress</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="mobility-programs.php" title="Mobility Programs">
+<span class="material-symbols-outlined flex-shrink-0">map</span>
+<span class="sidebar-text whitespace-nowrap">Mobility Programs</span>
 </a>
 <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
 <span class="material-symbols-outlined flex-shrink-0">event</span>
@@ -716,7 +712,6 @@ try {
             </div>
             
             <div class="mb-6">
-                <p class="text-lg font-semibold text-text-light dark:text-text-dark mb-2" id="attendanceEventTitle">Event Title</p>
                 <p class="text-sm text-text-muted-light dark:text-text-muted-dark" id="attendanceEventDetails">Date and Time</p>
             </div>
             
@@ -724,7 +719,7 @@ try {
                 Are you going to attend this event?
             </p>
             
-            <div class="flex gap-3 justify-end">
+            <div id="attendanceModalButtons" class="flex gap-3 justify-end">
                 <button id="attendanceNoBtn" class="px-6 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
                     No
                 </button>
@@ -759,8 +754,28 @@ try {
     </div>
 </div>
 
+<!-- Attendance Confirmed (Success) Modal -->
+<div id="attendanceConfirmedModal" class="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-[10004] hidden">
+    <div class="bg-white dark:bg-card-dark rounded-2xl shadow-2xl w-full max-w-md mx-4 border border-border-light dark:border-border-dark">
+        <div class="p-6">
+            <div class="flex flex-col items-center text-center mb-6">
+                <div class="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mb-4">
+                    <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-3xl">check_circle</span>
+                </div>
+                <h3 class="text-xl font-bold text-text-light dark:text-text-dark mb-2">You're all set!</h3>
+                <p class="text-sm text-text-muted-light dark:text-text-muted-dark">
+                    Great! We'll see you at the event.
+                </p>
+            </div>
+            <div class="flex justify-end">
+                <button type="button" id="attendanceConfirmedCloseBtn" class="px-6 py-2 text-sm font-medium text-white bg-green-600 dark:bg-green-700 rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Delete Success Modal -->
-<div id="deleteSuccessModal" class="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-[10004] hidden">
+<div id="deleteSuccessModal" class="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-[10005] hidden">
     <div class="bg-white dark:bg-card-dark rounded-2xl shadow-2xl w-full max-w-md mx-4 border border-border-light dark:border-border-dark">
         <div class="p-6">
             <div class="flex flex-col items-center text-center mb-6">
@@ -1454,7 +1469,7 @@ try {
                                 </div>
                             </div>
                         </div>
-                        <button type="button" class="p-1.5 text-primary hover:bg-primary/5 rounded-full transition-colors cursor-pointer" onclick="toggleReminderDropdown(); return false;">
+                        <button type="button" id="reminderAddBtn" class="p-1.5 text-primary hover:bg-primary/5 rounded-full transition-colors cursor-pointer" onclick="event.stopPropagation(); toggleReminderDropdown();">
                             <span class="material-symbols-outlined text-sm">add</span>
                         </button>
                     </div>
@@ -1550,8 +1565,8 @@ try {
      </div>
  </div>
  
-<!-- Time Picker Popup -->
-<div id="timePickerModal" class="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 hidden">
+<!-- Time Picker Popup - hidden by default; only shown when user is in Create/Edit Event modal and clicks time -->
+<div id="timePickerModal" class="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 hidden" style="display: none !important;">
     <div class="bg-card-light dark:bg-card-dark rounded-lg shadow-xl w-full max-w-xs mx-4 border border-border-light dark:border-border-dark">
         <!-- Time Picker Header -->
         <div class="p-4 border-b border-border-light dark:border-border-dark">
@@ -1665,6 +1680,9 @@ let sidebarCalendarDate = new Date(now.getFullYear(), now.getMonth(), 1); // Cur
  }
  
  function closeCreateModal() {
+    // Close time picker whenever create modal closes (time picker only belongs to add/edit schedule flow)
+    if (typeof closeTimePickerModal === 'function') closeTimePickerModal();
+    
     const overlay = document.getElementById('createModal');
     if (overlay) {
         // Inline display styles override Tailwind's `hidden`, so reset both class + inline styles.
@@ -1745,9 +1763,24 @@ window.closeCreateModal = closeCreateModal;
              }
          }
     } else {
+        // Never show time picker when Upcoming Event notification is open
+        if (document.body.classList.contains('attendance-modal-open')) {
+            closeTimePickerModal();
+            return;
+        }
+        // Only show time picker when the Add/Edit Event modal is open (user is creating/editing a schedule)
+        const createModal = document.getElementById('createModal');
+        if (!createModal || createModal.classList.contains('hidden')) {
+            closeTimePickerModal();
+            return;
+        }
         currentTimeType = type;
         renderTimePicker();
-        document.getElementById('timePickerModal').classList.remove('hidden');
+        const timePickerEl = document.getElementById('timePickerModal');
+        timePickerEl.classList.remove('hidden');
+        timePickerEl.style.setProperty('display', 'flex', 'important');
+        timePickerEl.style.alignItems = 'center';
+        timePickerEl.style.justifyContent = 'center';
         // Focus the input field after a short delay to ensure it's visible
         setTimeout(() => {
             const timeInput = document.getElementById('timeInput');
@@ -1797,7 +1830,10 @@ window.closeCreateModal = closeCreateModal;
  window.closeDatePickerModal = closeDatePickerModal;
  
  function closeTimePickerModal() {
-     document.getElementById('timePickerModal').classList.add('hidden');
+     const el = document.getElementById('timePickerModal');
+     if (!el) return;
+     el.classList.add('hidden');
+     el.style.setProperty('display', 'none', 'important');
  }
  
 function renderTimePicker() {
@@ -2449,8 +2485,8 @@ window.saveEvent = function() {
                     console.error('Error updating schedule in database:', error);
                 });
              } else if (typeof createSchedule === 'function') {
-                 // Create new schedule (and upload any selected attachments)
-                createSchedule(scheduleData, attachmentFiles).then(success => {
+                 // Create new schedule (and upload any selected attachments); pass eventData.id so reminder can be re-keyed to DB id
+                createSchedule(scheduleData, attachmentFiles, eventData.id).then(success => {
                     if (success) {
                         console.log('Schedule saved to database');
                         // Reload schedules from database
@@ -3489,10 +3525,12 @@ document.addEventListener('click', function(e) {
          notificationDropdown.classList.add('hidden');
      }
      
-     // Close reminder dropdown when clicking outside
+     // Close reminder dropdown when clicking outside (don't close when clicking the + button)
      const reminderDropdown = document.getElementById('reminderDropdown');
      const reminderButton = document.getElementById('reminderButton');
-     if (reminderDropdown && reminderButton && !reminderDropdown.contains(e.target) && !reminderButton.contains(e.target)) {
+     const reminderAddBtn = document.getElementById('reminderAddBtn');
+     const inReminderArea = reminderDropdown && (reminderDropdown.contains(e.target) || (reminderButton && reminderButton.contains(e.target)) || (reminderAddBtn && reminderAddBtn.contains(e.target)));
+     if (reminderDropdown && !inReminderArea) {
          reminderDropdown.classList.add('hidden');
      }
      });
@@ -3903,6 +3941,7 @@ document.addEventListener('click', function(e) {
                 const attendanceModal = document.getElementById('eventAttendanceModal');
                 if (attendanceModal && attendanceModal.dataset.eventId === String(currentOpenedEventId)) {
                     attendanceModal.classList.add('hidden');
+                    document.body.classList.remove('attendance-modal-open');
                 }
                 
                 // Also remove any confirmation modals that might be lingering
@@ -4043,6 +4082,7 @@ document.addEventListener('click', function(e) {
                const attendanceModal = document.getElementById('eventAttendanceModal');
                if (attendanceModal && attendanceModal.dataset.eventId === String(ctxTargetEventId)) {
                    attendanceModal.classList.add('hidden');
+                   document.body.classList.remove('attendance-modal-open');
                }
                
                showDeleteSuccessModal();
@@ -4336,6 +4376,14 @@ window.createSchedule = async function(scheduleData, attachmentFiles = []) {
         if (result.success) {
             const scheduleId = result.id;
 
+            // Update reminder's eventId from temp client id to database id so the reminder still fires
+            const tempEventId = arguments[2]; // optional third param from saveEvent
+            if (scheduleId && tempEventId && scheduleData.reminder && scheduleData.reminder !== 'None') {
+                const reminders = JSON.parse(localStorage.getItem('scheduleReminders') || '[]');
+                const updated = reminders.map(r => (String(r.eventId) === String(tempEventId) ? { ...r, eventId: scheduleId } : r));
+                localStorage.setItem('scheduleReminders', JSON.stringify(updated));
+            }
+
             // If we have a schedule ID and attachments, upload them
             if (scheduleId && Array.isArray(attachmentFiles) && attachmentFiles.length > 0) {
                 for (const file of attachmentFiles) {
@@ -4357,7 +4405,6 @@ window.createSchedule = async function(scheduleData, attachmentFiles = []) {
                 }
             }
 
-            showToast('Schedule created successfully!', 'success');
             if (typeof loadSchedules === 'function') loadSchedules();
 
             // Check for notifications after creating schedule (including schedule notifications)
@@ -4579,6 +4626,7 @@ window.deleteSchedule = async function(scheduleId) {
             const attendanceModal = document.getElementById('eventAttendanceModal');
             if (attendanceModal && attendanceModal.dataset.eventId === String(scheduleId)) {
                 attendanceModal.classList.add('hidden');
+                document.body.classList.remove('attendance-modal-open');
             }
             
             showDeleteSuccessModal();
@@ -5187,23 +5235,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const data = await response.json();
                 if (data.notifications) {
                     const previousNotifications = notifications || [];
-                    
-                    // De-duplicate exact duplicate notifications (same source & message)
-                    // while still keeping ALL distinct notifications (including schedules).
-                    const dedupMap = new Map();
-                    data.notifications.forEach(notif => {
-                        const key = [
-                            notif.related_type || '',
-                            notif.related_id || '',
-                            notif.type || '',
-                            notif.message || '',
-                            notif.title || ''
-                        ].join('|');
-                        if (!dedupMap.has(key)) {
-                            dedupMap.set(key, notif);
-                        }
-                    });
-                    notifications = Array.from(dedupMap.values());
+
+                    // Use the notifications exactly as returned by the API so the
+                    // count and list match what other pages (awards, events, documents)
+                    // display, without any extra de-duplication on the client side.
+                    notifications = data.notifications.slice();
                     
                     // Sort by created_at (most recent first)
                     notifications.sort((a, b) => {
@@ -5241,13 +5277,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         }
         
-        // Get unread count
+        // Get unread count - prefer using the notifications already loaded
+        // on this page so the badge matches exactly what is rendered.
         async function updateNotificationBadge() {
             try {
-                // Get badge element dynamically to avoid scope issues
                 const badge = document.getElementById('notificationBadge');
-                
                 const enabled = window.areNotificationsEnabled ? await window.areNotificationsEnabled() : true;
+                
                 if (!enabled) {
                     if (badge) {
                         badge.classList.add('hidden');
@@ -5255,13 +5291,23 @@ document.addEventListener('DOMContentLoaded', async function() {
                     return;
                 }
 
-                const response = await fetch('api/notifications.php?action=count');
-                if (!response.ok) {
-                    console.error('Failed to get notification count:', response.status, response.statusText);
-                    return;
+                let count = 0;
+
+                // If notifications are loaded, derive the unread count locally so
+                // duplicate collapsing in the UI is reflected in the badge.
+                if (Array.isArray(notifications) && notifications.length > 0) {
+                    count = notifications.filter(n => !n.is_read).length;
+                } else {
+                    // Fallback: ask the API for the unread count when we haven't
+                    // populated the notifications array yet on this page.
+                    const response = await fetch('api/notifications.php?action=count');
+                    if (!response.ok) {
+                        console.error('Failed to get notification count:', response.status, response.statusText);
+                        return;
+                    }
+                    const data = await response.json();
+                    count = data.count || 0;
                 }
-                const data = await response.json();
-                const count = data.count || 0;
                 
                 if (badge) {
                     if (count > 0) {
@@ -5780,6 +5826,11 @@ function showScheduleReminder(reminder) {
 
 // Show attendance confirmation modal
 function showAttendanceConfirmationModal(reminder) {
+    // Close create modal, date picker, and time picker so only the notification is visible (no calendar/date elements showing through)
+    if (typeof closeTimePickerModal === 'function') closeTimePickerModal();
+    if (typeof closeDatePickerModal === 'function') closeDatePickerModal();
+    if (typeof closeCreateModal === 'function') closeCreateModal();
+    
     const modal = document.getElementById('eventAttendanceModal');
     if (!modal) return;
     
@@ -5794,6 +5845,7 @@ function showAttendanceConfirmationModal(reminder) {
         // Close modal if it's open for this event
         if (modal.dataset.eventId === String(reminder.eventId)) {
             modal.classList.add('hidden');
+            document.body.classList.remove('attendance-modal-open');
         }
         return;
     }
@@ -5804,40 +5856,224 @@ function showAttendanceConfirmationModal(reminder) {
         return; // Already showing this reminder
     }
     
-    // Update modal content
-    document.getElementById('attendanceEventTitle').textContent = reminder.eventTitle;
-    document.getElementById('attendanceEventDetails').textContent = `${reminder.eventDate} at ${reminder.eventTime}`;
+    // Rebuild modal body so it shows ONLY: event icon, Upcoming Event, Please confirm your attendance, date/time, question, No and Yes.
+    const card = modal.firstElementChild;
+    if (card) {
+        const dateTimeStr = `${reminder.eventDate || ''} at ${reminder.eventTime || ''}`.trim() || 'Date and time';
+        card.innerHTML = `
+            <div class="p-6 overflow-hidden" id="attendanceModalContent">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-xl">event</span>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-text-light dark:text-text-dark">Upcoming Event</h3>
+                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1">Please confirm your attendance</p>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <p class="text-sm text-text-muted-light dark:text-text-muted-dark" id="attendanceEventDetails">${escapeHtml(dateTimeStr)}</p>
+                </div>
+                <p class="text-text-light dark:text-text-dark mb-6">Are you going to attend this event?</p>
+                <div id="attendanceModalButtons" class="flex gap-3 justify-end flex-nowrap">
+                    <button type="button" id="attendanceNoBtn" class="px-6 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors shrink-0">No</button>
+                    <button type="button" id="attendanceYesBtn" class="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shrink-0">Yes</button>
+                </div>
+            </div>
+        `;
+        // Re-attach button handlers (they were lost when we replaced innerHTML)
+        if (typeof setupAttendanceModalButtonHandlers === 'function') setupAttendanceModalButtonHandlers();
+    } else {
+        const detailsEl = document.getElementById('attendanceEventDetails');
+        if (detailsEl) detailsEl.textContent = `${reminder.eventDate || ''} at ${reminder.eventTime || ''}`.trim() || 'Date and time';
+    }
     
     // Store current reminder ID and event ID for button handlers
     modal.dataset.reminderId = reminder.id;
     modal.dataset.eventId = reminder.eventId;
     
-    // Show modal
+    // Force time picker, date picker, and create modal fully off-screen so "Yest" / "24" can't show on top
+    document.body.classList.add('attendance-modal-open');
+    if (typeof closeTimePickerModal === 'function') closeTimePickerModal();
+    if (typeof closeDatePickerModal === 'function') closeDatePickerModal();
+    function hideOtherOverlays() {
+        [document.getElementById('timePickerModal'), document.getElementById('datePickerModal'), document.getElementById('createModal')].forEach(function(el) {
+            if (!el) return;
+            el.classList.add('hidden');
+            el.style.setProperty('display', 'none', 'important');
+            el.style.setProperty('visibility', 'hidden', 'important');
+            el.style.setProperty('position', 'fixed', 'important');
+            el.style.setProperty('left', '-99999px', 'important');
+            el.style.setProperty('top', '0', 'important');
+            el.style.setProperty('z-index', '-1', 'important');
+            el.style.setProperty('pointer-events', 'none', 'important');
+        });
+    }
+    hideOtherOverlays();
+    
+    // Show modal (ensure it's on top)
+    modal.style.setProperty('z-index', '999999', 'important');
     modal.classList.remove('hidden');
+    
+    setTimeout(hideOtherOverlays, 0);
+    
+    // Remove any injected nodes immediately via MutationObserver (only allow our event content + No/Yes)
+    function removeUnwantedAttendanceNodes() {
+        const row = document.getElementById('attendanceModalButtons');
+        if (row) {
+            for (let i = row.children.length - 1; i >= 0; i--) {
+                const el = row.children[i];
+                if (!el.id || (el.id !== 'attendanceNoBtn' && el.id !== 'attendanceYesBtn')) el.remove();
+            }
+        }
+        const p6 = modal.querySelector('.p-6, #attendanceModalContent');
+        if (p6) {
+            p6.querySelectorAll('button').forEach(function(btn) {
+                if (btn.id !== 'attendanceNoBtn' && btn.id !== 'attendanceYesBtn') btn.remove();
+            });
+            p6.querySelectorAll('span, div').forEach(function(el) {
+                const text = (el.textContent || '').trim();
+                if (el.children.length === 0 && /^\d{1,2}$/.test(text) && el.className && /\brounded-full\b/.test(el.className)) el.remove();
+            });
+        }
+    }
+    removeUnwantedAttendanceNodes();
+    if (modal._attendanceCleanupInterval) clearInterval(modal._attendanceCleanupInterval);
+    modal._attendanceCleanupInterval = setInterval(function() {
+        if (!modal || modal.classList.contains('hidden')) {
+            if (modal) {
+                if (modal._attendanceCleanupInterval) clearInterval(modal._attendanceCleanupInterval);
+                modal._attendanceCleanupInterval = null;
+                if (modal._attendanceObserver) { modal._attendanceObserver.disconnect(); modal._attendanceObserver = null; }
+                modal.style.removeProperty('z-index');
+                [document.getElementById('datePickerModal'), document.getElementById('createModal')].forEach(function(el) {
+                    if (el) { el.style.removeProperty('left'); el.style.removeProperty('top'); el.style.removeProperty('z-index'); el.style.removeProperty('position'); el.style.removeProperty('visibility'); el.style.removeProperty('display'); el.style.removeProperty('pointer-events'); }
+                });
+            }
+            return;
+        }
+        hideOtherOverlays();
+        removeUnwantedAttendanceNodes();
+    }, 80);
+    // MutationObserver: remove injected nodes as soon as they appear
+    if (modal._attendanceObserver) modal._attendanceObserver.disconnect();
+    modal._attendanceObserver = new MutationObserver(function() { removeUnwantedAttendanceNodes(); });
+    modal._attendanceObserver.observe(card || modal, { childList: true, subtree: true });
     
     // Focus the modal for accessibility
     const yesBtn = document.getElementById('attendanceYesBtn');
     if (yesBtn) yesBtn.focus();
 }
 
-// Show not attending confirmation modal
+// Show not attending confirmation modal (only: emoji, Got It, message, Close — no Yest/24)
 function showNotAttendingModal() {
     const modal = document.getElementById('notAttendingModal');
     if (!modal) return;
     
-    // Show modal
+    // Rebuild modal body so it shows only intended content; push other overlays off-screen
+    const card = modal.firstElementChild;
+    if (card) {
+        card.innerHTML = `
+            <div class="p-6 overflow-hidden">
+                <div class="flex flex-col items-center text-center mb-6">
+                    <div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                        <span class="text-4xl">😊</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-text-light dark:text-text-dark mb-2">Got It</h3>
+                    <p class="text-sm text-text-muted-light dark:text-text-muted-dark">
+                        Noted. Reminders for this event will stop.
+                    </p>
+                </div>
+                <div class="flex justify-end">
+                    <button type="button" id="notAttendingCloseBtn" class="px-6 py-2 text-sm font-medium text-white bg-gray-600 dark:bg-gray-700 rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors">Close</button>
+                </div>
+            </div>
+        `;
+        const closeBtn = document.getElementById('notAttendingCloseBtn');
+        if (closeBtn) closeBtn.addEventListener('click', function() {
+            modal.classList.add('hidden');
+            if (modal._notAttendingCleanup) { clearInterval(modal._notAttendingCleanup); modal._notAttendingCleanup = null; }
+            modal.style.removeProperty('z-index');
+        });
+    }
+    
+    // Keep date picker / create modal off-screen so "Yest" and "24" don't show on top
+    [document.getElementById('timePickerModal'), document.getElementById('datePickerModal'), document.getElementById('createModal')].forEach(function(el) {
+        if (!el) return;
+        el.classList.add('hidden');
+        el.style.setProperty('display', 'none', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
+        el.style.setProperty('position', 'fixed', 'important');
+        el.style.setProperty('left', '-99999px', 'important');
+        el.style.setProperty('z-index', '-1', 'important');
+    });
+    
+    modal.style.setProperty('z-index', '999999', 'important');
     modal.classList.remove('hidden');
     
-    // Focus the close button for accessibility
     const closeBtn = document.getElementById('notAttendingCloseBtn');
     if (closeBtn) closeBtn.focus();
     
-    // Auto-close after 5 seconds
+    // Remove any injected Yest/24 while modal is open
+    if (modal._notAttendingCleanup) clearInterval(modal._notAttendingCleanup);
+    modal._notAttendingCleanup = setInterval(function() {
+        if (!modal || modal.classList.contains('hidden')) {
+            if (modal) { clearInterval(modal._notAttendingCleanup); modal._notAttendingCleanup = null; modal.style.removeProperty('z-index'); }
+            return;
+        }
+        const btnRow = modal.querySelector('.flex.justify-end');
+        if (btnRow) {
+            btnRow.querySelectorAll('button').forEach(function(btn) {
+                if (btn.id !== 'notAttendingCloseBtn') btn.remove();
+            });
+        }
+        modal.querySelectorAll('span, div').forEach(function(el) {
+            const t = (el.textContent || '').trim();
+            if (el.children.length === 0 && /^\d{1,2}$/.test(t) && el.className && /\brounded-full\b/.test(el.className)) el.remove();
+        });
+    }, 100);
+    
     setTimeout(() => {
         if (modal && !modal.classList.contains('hidden')) {
             modal.classList.add('hidden');
+            if (modal._notAttendingCleanup) { clearInterval(modal._notAttendingCleanup); modal._notAttendingCleanup = null; }
+            modal.style.removeProperty('z-index');
         }
     }, 5000);
+}
+
+// Show attendance confirmed (success) modal instead of toast
+function showAttendanceConfirmedModal() {
+    const modal = document.getElementById('attendanceConfirmedModal');
+    if (!modal) return;
+    const card = modal.firstElementChild;
+    if (card) {
+        card.innerHTML = `
+            <div class="p-6 overflow-hidden">
+                <div class="flex flex-col items-center text-center mb-6">
+                    <div class="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mb-4">
+                        <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-3xl">check_circle</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-text-light dark:text-text-dark mb-2">You're all set!</h3>
+                    <p class="text-sm text-text-muted-light dark:text-text-muted-dark">Great! We'll see you at the event.</p>
+                </div>
+                <div class="flex justify-end">
+                    <button type="button" id="attendanceConfirmedCloseBtn" class="px-6 py-2 text-sm font-medium text-white bg-green-600 dark:bg-green-700 rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors">Close</button>
+                </div>
+            </div>
+        `;
+        const closeBtn = document.getElementById('attendanceConfirmedCloseBtn');
+        if (closeBtn) closeBtn.addEventListener('click', function() { modal.classList.add('hidden'); modal.style.removeProperty('z-index'); });
+    }
+    [document.getElementById('timePickerModal'), document.getElementById('datePickerModal'), document.getElementById('createModal')].forEach(function(el) {
+        if (!el) return;
+        el.style.setProperty('left', '-99999px', 'important');
+        el.style.setProperty('z-index', '-1', 'important');
+    });
+    modal.style.setProperty('z-index', '999999', 'important');
+    modal.classList.remove('hidden');
+    const closeBtn = document.getElementById('attendanceConfirmedCloseBtn');
+    if (closeBtn) closeBtn.focus();
 }
 
 // Show delete success feedback (no full-screen dark overlay)
@@ -5882,15 +6118,23 @@ function confirmAttendance(reminderId, attending) {
         
         localStorage.setItem('scheduleReminders', JSON.stringify(reminders));
         
-        // Close attendance confirmation modal
+        // Close attendance confirmation modal and stop cleanup / observer; restore other modals
         const modal = document.getElementById('eventAttendanceModal');
         if (modal) {
+            if (modal._attendanceCleanupInterval) { clearInterval(modal._attendanceCleanupInterval); modal._attendanceCleanupInterval = null; }
+            if (modal._attendanceObserver) { modal._attendanceObserver.disconnect(); modal._attendanceObserver = null; }
             modal.classList.add('hidden');
+            modal.style.removeProperty('z-index');
+            document.body.classList.remove('attendance-modal-open');
+            [document.getElementById('datePickerModal'), document.getElementById('createModal')].forEach(function(el) {
+                if (el) { el.style.removeProperty('left'); el.style.removeProperty('top'); el.style.removeProperty('z-index'); el.style.removeProperty('position'); el.style.removeProperty('visibility'); el.style.removeProperty('display'); el.style.removeProperty('pointer-events'); }
+            });
         }
         
         // Show confirmation message or modal
         if (attending) {
-            showToast('Great! We\'ll see you at the event.', 'success');
+            if (typeof showAttendanceConfirmedModal === 'function') showAttendanceConfirmedModal();
+            else showToast('Great! We\'ll see you at the event.', 'success');
         } else {
             // Show not attending modal instead of toast
             showNotAttendingModal();
@@ -5898,69 +6142,69 @@ function confirmAttendance(reminderId, attending) {
     }
 }
 
-// Set up attendance modal button handlers
-document.addEventListener('DOMContentLoaded', () => {
+// Set up attendance modal button handlers (used on DOMContentLoaded and after rebuilding modal body)
+function setupAttendanceModalButtonHandlers() {
     const attendanceModal = document.getElementById('eventAttendanceModal');
     const yesBtn = document.getElementById('attendanceYesBtn');
     const noBtn = document.getElementById('attendanceNoBtn');
-    
-    if (yesBtn) {
+    if (!attendanceModal) return;
+    if (yesBtn && !yesBtn._attendanceBound) {
+        yesBtn._attendanceBound = true;
         yesBtn.addEventListener('click', () => {
-            const reminderId = attendanceModal?.dataset.reminderId;
-            const eventId = attendanceModal?.dataset.eventId;
+            const reminderId = attendanceModal.dataset.reminderId;
+            const eventId = attendanceModal.dataset.eventId;
             if (reminderId) {
                 confirmAttendance(reminderId, true);
             } else if (eventId) {
-                // Fallback: confirm by eventId if reminderId not found
                 const reminders = JSON.parse(localStorage.getItem('scheduleReminders') || '[]');
                 const reminder = reminders.find(r => r.eventId === eventId);
                 if (reminder) {
                     confirmAttendance(reminder.id, true);
                 } else {
-                    // Direct confirmation by eventId
                     const confirmedEvents = JSON.parse(localStorage.getItem('confirmedAttendanceEvents') || '[]');
                     if (!confirmedEvents.includes(eventId)) {
                         confirmedEvents.push(eventId);
                         localStorage.setItem('confirmedAttendanceEvents', JSON.stringify(confirmedEvents));
                     }
-                    if (attendanceModal) {
-                        attendanceModal.classList.add('hidden');
-                    }
-                    showToast('Great! We\'ll see you at the event.', 'success');
+                    attendanceModal.classList.add('hidden');
+                    document.body.classList.remove('attendance-modal-open');
+                    if (typeof showAttendanceConfirmedModal === 'function') showAttendanceConfirmedModal();
+                    else showToast('Great! We\'ll see you at the event.', 'success');
                 }
             }
         });
     }
-    
-    if (noBtn) {
+    if (noBtn && !noBtn._attendanceBound) {
+        noBtn._attendanceBound = true;
         noBtn.addEventListener('click', () => {
-            const reminderId = attendanceModal?.dataset.reminderId;
-            const eventId = attendanceModal?.dataset.eventId;
+            const reminderId = attendanceModal.dataset.reminderId;
+            const eventId = attendanceModal.dataset.eventId;
             if (reminderId) {
                 confirmAttendance(reminderId, false);
             } else if (eventId) {
-                // Fallback: confirm by eventId if reminderId not found
                 const reminders = JSON.parse(localStorage.getItem('scheduleReminders') || '[]');
                 const reminder = reminders.find(r => r.eventId === eventId);
                 if (reminder) {
                     confirmAttendance(reminder.id, false);
                 } else {
-                    // Direct confirmation by eventId
                     const confirmedEvents = JSON.parse(localStorage.getItem('confirmedAttendanceEvents') || '[]');
                     if (!confirmedEvents.includes(eventId)) {
                         confirmedEvents.push(eventId);
                         localStorage.setItem('confirmedAttendanceEvents', JSON.stringify(confirmedEvents));
                     }
-                    if (attendanceModal) {
-                        attendanceModal.classList.add('hidden');
-                    }
-                    // Show not attending modal instead of toast
+                    attendanceModal.classList.add('hidden');
+                    document.body.classList.remove('attendance-modal-open');
                     showNotAttendingModal();
                 }
             }
         });
     }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    setupAttendanceModalButtonHandlers();
     
+    const attendanceModal = document.getElementById('eventAttendanceModal');
     // Set up not attending modal close button
     const notAttendingModal = document.getElementById('notAttendingModal');
     const notAttendingCloseBtn = document.getElementById('notAttendingCloseBtn');
@@ -5978,6 +6222,26 @@ document.addEventListener('DOMContentLoaded', () => {
         notAttendingModal.addEventListener('click', (e) => {
             if (e.target === notAttendingModal) {
                 notAttendingModal.classList.add('hidden');
+            }
+        });
+    }
+    
+    // Set up attendance confirmed (success) modal close button and click-outside
+    const attendanceConfirmedModal = document.getElementById('attendanceConfirmedModal');
+    const attendanceConfirmedCloseBtn = document.getElementById('attendanceConfirmedCloseBtn');
+    if (attendanceConfirmedCloseBtn) {
+        attendanceConfirmedCloseBtn.addEventListener('click', () => {
+            if (attendanceConfirmedModal) {
+                attendanceConfirmedModal.classList.add('hidden');
+                attendanceConfirmedModal.style.removeProperty('z-index');
+            }
+        });
+    }
+    if (attendanceConfirmedModal) {
+        attendanceConfirmedModal.addEventListener('click', (e) => {
+            if (e.target === attendanceConfirmedModal) {
+                attendanceConfirmedModal.classList.add('hidden');
+                attendanceConfirmedModal.style.removeProperty('z-index');
             }
         });
     }
@@ -6103,6 +6367,9 @@ setInterval(checkTodaysEvents, 30000);
 
 // Check reminders on page load and schedule reminders for existing events
 document.addEventListener('DOMContentLoaded', () => {
+    // Ensure time picker is never visible on load (only when user opens Add schedule and clicks time)
+    if (typeof closeTimePickerModal === 'function') closeTimePickerModal();
+    
     checkScheduleReminders();
     
     // Check for today's events on page load (after a short delay to ensure events are loaded)

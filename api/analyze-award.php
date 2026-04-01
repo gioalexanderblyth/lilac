@@ -143,6 +143,11 @@ try {
     
     error_log("Form data - Award name: '$awardName', Description: '$description', File: " . ($uploadedFile ? $uploadedFile['name'] : 'none') . ", Reanalyze: " . ($isReanalyze ? 'yes' : 'no'));
 
+    // Default title when clients omit award_name (still required by validation for non-reanalyze uploads)
+    if ($uploadedFile && !empty($uploadedFile['name']) && trim($awardName) === '') {
+        $awardName = pathinfo($uploadedFile['name'], PATHINFO_FILENAME) ?: 'Document analysis';
+    }
+
     // IMMEDIATE BACKUP - Create award file as soon as we have the uploaded file data
     if ($uploadedFile && $uploadedFile['error'] === UPLOAD_ERR_OK && !$isReanalyze) {
         try {
@@ -202,20 +207,10 @@ try {
         validateFileUpload($uploadedFile);
         error_log("File upload validation passed");
         
-        // Get file type with fallback
-        if (function_exists('mime_content_type')) {
-            $fileType = mime_content_type($uploadedFile['tmp_name']);
-        } else {
-            // Fallback: use file extension
-            $extension = strtolower(pathinfo($uploadedFile['name'], PATHINFO_EXTENSION));
-            $extensionMap = [
-                'jpg' => 'image/jpeg',
-                'jpeg' => 'image/jpeg',
-                'png' => 'image/png',
-                'pdf' => 'application/pdf',
-                'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            ];
-            $fileType = $extensionMap[$extension] ?? 'application/octet-stream';
+        // Use same MIME resolution as validateFileUpload (fixes DOCX as application/zip on Windows)
+        $fileType = resolveAwardAnalysisMimeType($uploadedFile);
+        if (!$fileType) {
+            throw new Exception('Could not determine file type for analysis');
         }
         error_log("File type detected: " . $fileType);
         debugLog("File type: $fileType");
@@ -262,8 +257,16 @@ try {
     error_log("Loading active awards from database");
     $pdo = getDatabaseConnection();
     
-    $stmt = $pdo->query("SELECT category_name, keywords FROM award_criteria WHERE status = 'active'");
-    $dbAwards = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $dbAwards = [];
+    try {
+        if (!($pdo instanceof FileBasedDatabase)) {
+            $stmt = $pdo->query("SELECT category_name, keywords, weight, award_type FROM award_criteria WHERE status = 'active'");
+            $dbAwards = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+    } catch (Throwable $e) {
+        error_log('analyze-award: award_criteria query failed (continuing with empty criteria): ' . $e->getMessage());
+        $dbAwards = [];
+    }
     
     // Perform analysis using strict weighted matching (Same as Awards Page)
     error_log("Starting Strict Analysis (Awards Page Logic)");

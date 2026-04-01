@@ -93,13 +93,23 @@ try {
         } catch (PDOException $e) {
             // Column might already exist, ignore
         }
-        
-        $stmt = $pdo->query("
+
+        $fetchDocSegment = function (PDO $pdo, string $sql) {
+            try {
+                return $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Throwable $e) {
+                error_log('Documents: segment skipped — ' . $e->getMessage());
+                return [];
+            }
+        };
+
+        $documents = array_merge(
+            $fetchDocSegment($pdo, "
             SELECT
                 m.id,
                 m.user_id,
                 m.institution as title,
-                CONCAT('Institution: ', m.institution, ' | Contact: ', m.contact_email) as description,
+                CONCAT('Institution: ', IFNULL(m.institution,''), ' | Contact: ', IFNULL(m.contact_email,'')) as description,
                 m.file_name,
                 m.file_path,
                 COALESCE(m.type, 'MOU') as category,
@@ -110,9 +120,8 @@ try {
             FROM mou_moa m
             LEFT JOIN users u ON m.user_id = u.id
             WHERE m.deleted_at IS NULL
-
-            UNION ALL
-
+            "),
+            $fetchDocSegment($pdo, "
             SELECT
                 od.id,
                 od.user_id,
@@ -128,10 +137,8 @@ try {
             FROM other_documents od
             LEFT JOIN users u ON od.user_id = u.id
             WHERE od.deleted_at IS NULL
-
-            ORDER BY created_at DESC
-        ");
-        $documents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            ")
+        );
         
         // Deduplicate: If an item exists in both tables (based on title and recent creation), prioritize other_documents
         $uniqueDocs = [];
@@ -275,12 +282,10 @@ try {
         /* Clickable table rows */
         tbody tr {
             cursor: pointer;
-            transition: all 0.2s ease;
         }
 
         tbody tr:hover {
             background-color: rgba(19, 127, 236, 0.05) !important;
-            transform: translateY(-1px);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
 
@@ -311,7 +316,6 @@ try {
             min-width: 16rem;
             max-width: 16rem;
             flex-shrink: 0;
-            transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
         }
         .sidebar-collapsed .sidebar {
             width: 5rem;
@@ -337,13 +341,11 @@ try {
         /* Ensure consistent sidebar icon styling */
         .sidebar-nav-link {
             border-radius: 0.5rem;
-            transition: all 0.2s ease;
         }
         
         /* Hover effects for non-active links */
         .sidebar-nav-link:not(.bg-primary-50):hover {
             background-color: rgb(243 244 246); /* gray-100 */
-            transform: translateY(-1px);
         }
         
         .dark .sidebar-nav-link:not(.bg-primary-50):hover {
@@ -361,49 +363,13 @@ try {
             color: rgb(69, 151, 247) !important; /* blue-400 */
         }
 
-        /* Page Animation Effects */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
-
-        .page-animate {
-            animation: fadeInUp 0.6s ease-out forwards;
-            opacity: 0;
-        }
-
-        .page-animate-delay-1 {
-            animation: fadeInUp 0.6s ease-out 0.1s forwards;
-            opacity: 0;
-        }
-
-        .page-animate-delay-2 {
-            animation: fadeInUp 0.6s ease-out 0.2s forwards;
-            opacity: 0;
-        }
-
-        .header-animate {
-            animation: fadeIn 0.5s ease-out forwards;
-        }
-
+        .page-animate,
+        .page-animate-delay-1,
+        .page-animate-delay-2,
+        .header-animate,
         .content-animate {
-            animation: fadeInUp 0.7s ease-out 0.2s forwards;
-            opacity: 0;
+            opacity: 1 !important;
+            animation: none !important;
         }
 
         /* Custom scrollbar styling for all elements */
@@ -501,6 +467,10 @@ try {
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="awards.php" title="Awards Progress">
                 <span class="material-symbols-outlined flex-shrink-0">emoji_events</span>
                 <span class="sidebar-text whitespace-nowrap">Awards Progress</span>
+            </a>
+            <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="mobility-programs.php" title="Mobility Programs">
+                <span class="material-symbols-outlined flex-shrink-0">map</span>
+                <span class="sidebar-text whitespace-nowrap">Mobility Programs</span>
             </a>
             <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-text-muted-light dark:text-text-muted-dark hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 sidebar-nav-link" href="events-activities.php" title="Events & Activities">
                 <span class="material-symbols-outlined flex-shrink-0">event</span>
@@ -1978,9 +1948,11 @@ View all notifications
                     return;
                 }
 
-                // Prepare items for deletion
+                // Prepare items for deletion (source may be "other_documents" or "mou_moa" — split on first "_" only)
                 const items = Array.from(selectedDocumentIds).map(key => {
-                    const [id, source] = key.split('_');
+                    const u = key.indexOf('_');
+                    const id = u === -1 ? key : key.slice(0, u);
+                    const source = u === -1 ? 'other_documents' : key.slice(u + 1);
                     return { id, source };
                 });
                 
