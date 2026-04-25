@@ -180,7 +180,7 @@ $displayName = htmlspecialchars(!empty($user['full_name']) ? $user['full_name'] 
                             <span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">military_tech</span>
                         </div>
                         <div class="mt-4">
-                            <div class="text-3xl font-black text-on-surface leading-none">12</div>
+                            <div id="kpi-international-awards" class="text-3xl font-black text-on-surface leading-none">0</div>
                             <div class="text-xs font-bold text-on-surface-variant mt-2">List of International Awards</div>
                         </div>
                     </div>
@@ -190,7 +190,7 @@ $displayName = htmlspecialchars(!empty($user['full_name']) ? $user['full_name'] 
                             <span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">groups</span>
                         </div>
                         <div class="mt-4">
-                            <div class="text-3xl font-black text-on-surface leading-none">156</div>
+                            <div id="kpi-active-partnerships" class="text-3xl font-black text-on-surface leading-none">0</div>
                             <div class="text-xs font-bold text-on-surface-variant mt-2">Active International Partnerships</div>
                         </div>
                     </div>
@@ -200,7 +200,7 @@ $displayName = htmlspecialchars(!empty($user['full_name']) ? $user['full_name'] 
                             <span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">swap_horiz</span>
                         </div>
                         <div class="mt-4">
-                            <div class="text-3xl font-black text-on-surface leading-none">420</div>
+                            <div id="kpi-outgoing-exchange-students" class="text-3xl font-black text-on-surface leading-none">0</div>
                             <div class="text-xs font-bold text-on-surface-variant mt-2">Outgoing Exchange Students</div>
                         </div>
                     </div>
@@ -210,7 +210,7 @@ $displayName = htmlspecialchars(!empty($user['full_name']) ? $user['full_name'] 
                             <span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">flight_land</span>
                         </div>
                         <div class="mt-4">
-                            <div class="text-3xl font-black text-on-surface leading-none">285</div>
+                            <div id="kpi-incoming-exchange-students" class="text-3xl font-black text-on-surface leading-none">0</div>
                             <div class="text-xs font-bold text-on-surface-variant mt-2">Incoming Exchange Students</div>
                         </div>
                     </div>
@@ -220,7 +220,7 @@ $displayName = htmlspecialchars(!empty($user['full_name']) ? $user['full_name'] 
                             <span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">person_celebrate</span>
                         </div>
                         <div class="mt-4">
-                            <div class="text-3xl font-black text-on-surface leading-none">42</div>
+                            <div id="kpi-international-faculty-experts" class="text-3xl font-black text-on-surface leading-none">0</div>
                             <div class="text-xs font-bold text-on-surface-variant mt-2">International Faculty Experts</div>
                         </div>
                     </div>
@@ -233,43 +233,43 @@ $displayName = htmlspecialchars(!empty($user['full_name']) ? $user['full_name'] 
                             <span class="material-symbols-outlined filled">stars</span>
                         </div>
                         <div class="mt-4 z-10">
-                            <div class="text-3xl font-black leading-none">94%</div>
+                            <div id="kpi-internationalization-target-met" class="text-3xl font-black leading-none">0%</div>
                             <div class="text-xs font-bold opacity-90 mt-2">Internationalization Target Met</div>
                         </div>
                     </div>
                     <div class="mobility-kpi-card bg-surface-container-lowest p-5 rounded-xl border border-surface-container-low flex flex-col justify-between hover:shadow-lg transition-all cursor-default group outline-none">
                         <div class="mt-auto">
-                            <div class="text-xl font-bold text-on-surface">34</div>
+                            <div id="kpi-joint-degree-programs" class="text-xl font-bold text-on-surface">0</div>
                             <div class="text-[10px] font-medium text-on-surface-variant mt-1 uppercase">Joint Degree Programs</div>
                         </div>
                     </div>
                     <div class="mobility-kpi-card bg-surface-container-lowest p-5 rounded-xl border border-surface-container-low flex flex-col justify-between hover:shadow-lg transition-all cursor-default group outline-none">
                         <div class="mt-auto">
-                            <div class="text-xl font-bold text-on-surface">18</div>
+                            <div id="kpi-transnational-centers" class="text-xl font-bold text-on-surface">0</div>
                             <div class="text-[10px] font-medium text-on-surface-variant mt-1 uppercase">Transnational Centers</div>
                         </div>
                     </div>
                     <div class="mobility-kpi-card bg-surface-container-lowest p-5 rounded-xl border border-surface-container-low flex flex-col justify-between hover:shadow-lg transition-all cursor-default group outline-none">
                         <div class="mt-auto">
-                            <div class="text-xl font-bold text-on-surface">582</div>
+                            <div id="kpi-international-internships" class="text-xl font-bold text-on-surface">0</div>
                             <div class="text-[10px] font-medium text-on-surface-variant mt-1 uppercase">International Internships</div>
                         </div>
                     </div>
                     <div class="mobility-kpi-card bg-surface-container-lowest p-5 rounded-xl border border-surface-container-low flex flex-col justify-between hover:shadow-lg transition-all cursor-default group outline-none">
                         <div class="mt-auto">
-                            <div class="text-xl font-bold text-on-surface">120</div>
+                            <div id="kpi-research-grants" class="text-xl font-bold text-on-surface">0</div>
                             <div class="text-[10px] font-medium text-on-surface-variant mt-1 uppercase">Research Grants</div>
                         </div>
                     </div>
                     <div class="mobility-kpi-card bg-surface-container-lowest p-5 rounded-xl border border-surface-container-low flex flex-col justify-between hover:shadow-lg transition-all cursor-default group outline-none">
                         <div class="mt-auto">
-                            <div class="text-xl font-bold text-on-surface">45</div>
+                            <div id="kpi-scholarship-slots" class="text-xl font-bold text-on-surface">0</div>
                             <div class="text-[10px] font-medium text-on-surface-variant mt-1 uppercase">Scholarship Slots</div>
                         </div>
                     </div>
                     <div class="mobility-kpi-card bg-surface-container-lowest p-5 rounded-xl border border-surface-container-low flex flex-col justify-between hover:shadow-lg transition-all cursor-default group outline-none">
                         <div class="mt-auto">
-                            <div class="text-xl font-bold text-on-surface">2.4k</div>
+                            <div id="kpi-asean-event-attendees" class="text-xl font-bold text-on-surface">0</div>
                             <div class="text-[10px] font-medium text-on-surface-variant mt-1 uppercase">ASEAN Event Attendees</div>
                         </div>
                     </div>
@@ -328,81 +328,9 @@ $displayName = htmlspecialchars(!empty($user['full_name']) ? $user['full_name'] 
                                     <th class="px-4 py-5 text-sm font-bold text-center">2025 (Proj)</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-surface-container-low">
-                                <tr class="hover:bg-surface-container-low transition-colors group">
-                                    <td class="px-6 py-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-2 h-2 rounded-full bg-violet-500"></div>
-                                            <span class="text-sm font-semibold text-on-surface">Global Excellence Citations</span>
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">3</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">4</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">2</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">5</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">6</td>
-                                    <td class="px-4 py-4 text-center text-sm font-bold text-primary">8</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium text-slate-400 italic">10</td>
-                                </tr>
-                                <tr class="hover:bg-surface-container-low transition-colors group">
-                                    <td class="px-6 py-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-2 h-2 rounded-full bg-blue-500"></div>
-                                            <span class="text-sm font-semibold text-on-surface">Sustainable Campus Awards</span>
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">1</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">1</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">2</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">2</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">3</td>
-                                    <td class="px-4 py-4 text-center text-sm font-bold text-primary">3</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium text-slate-400 italic">4</td>
-                                </tr>
-                                <tr class="hover:bg-surface-container-low transition-colors group">
-                                    <td class="px-6 py-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-2 h-2 rounded-full bg-orange-500"></div>
-                                            <span class="text-sm font-semibold text-on-surface">QS World Ranking Recognition</span>
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">0</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">0</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">1</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">1</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">1</td>
-                                    <td class="px-4 py-4 text-center text-sm font-bold text-primary">2</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium text-slate-400 italic">2</td>
-                                </tr>
-                                <tr class="hover:bg-surface-container-low transition-colors group">
-                                    <td class="px-6 py-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
-                                            <span class="text-sm font-semibold text-on-surface">International Accreditation</span>
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">4</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">5</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">6</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">8</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">10</td>
-                                    <td class="px-4 py-4 text-center text-sm font-bold text-primary">12</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium text-slate-400 italic">15</td>
-                                </tr>
-                                <tr class="hover:bg-surface-container-low transition-colors group">
-                                    <td class="px-6 py-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-2 h-2 rounded-full bg-pink-500"></div>
-                                            <span class="text-sm font-semibold text-on-surface">Innovation Leadership Awards</span>
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">2</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">2</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">3</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">4</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium">4</td>
-                                    <td class="px-4 py-4 text-center text-sm font-bold text-primary">5</td>
-                                    <td class="px-4 py-4 text-center text-sm font-medium text-slate-400 italic">6</td>
+                            <tbody id="awards-table-body" class="divide-y divide-surface-container-low">
+                                <tr id="awards-loading-row">
+                                    <td colspan="8" class="px-6 py-8 text-center text-sm text-on-surface-variant">Loading awards records...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -430,23 +358,23 @@ $displayName = htmlspecialchars(!empty($user['full_name']) ? $user['full_name'] 
                                 <div class="flex justify-between items-center">
                                     <span class="text-xs font-semibold">Inbound Students</span>
                                     <div class="flex-1 mx-4 h-1.5 bg-surface-container rounded-full overflow-hidden">
-                                        <div class="h-full bg-primary w-[75%]"></div>
+                                        <div id="trend-inbound-students-bar" class="h-full bg-primary" style="width: 0%;"></div>
                                     </div>
-                                    <span class="text-xs font-bold text-primary">+22%</span>
+                                    <span id="trend-inbound-students-label" class="text-xs font-bold text-primary">+0%</span>
                                 </div>
                                 <div class="flex justify-between items-center">
                                     <span class="text-xs font-semibold">Faculty Mobility</span>
                                     <div class="flex-1 mx-4 h-1.5 bg-surface-container rounded-full overflow-hidden">
-                                        <div class="h-full bg-secondary w-[45%]"></div>
+                                        <div id="trend-faculty-mobility-bar" class="h-full bg-secondary" style="width: 0%;"></div>
                                     </div>
-                                    <span class="text-xs font-bold text-secondary">+12%</span>
+                                    <span id="trend-faculty-mobility-label" class="text-xs font-bold text-secondary">+0%</span>
                                 </div>
                                 <div class="flex justify-between items-center">
                                     <span class="text-xs font-semibold">Global Awards</span>
                                     <div class="flex-1 mx-4 h-1.5 bg-surface-container rounded-full overflow-hidden">
-                                        <div class="h-full bg-tertiary w-[90%]"></div>
+                                        <div id="trend-global-awards-bar" class="h-full bg-tertiary" style="width: 0%;"></div>
                                     </div>
-                                    <span class="text-xs font-bold text-tertiary">+35%</span>
+                                    <span id="trend-global-awards-label" class="text-xs font-bold text-tertiary">+0%</span>
                                 </div>
                             </div>
                         </div>
@@ -2116,6 +2044,138 @@ $displayName = htmlspecialchars(!empty($user['full_name']) ? $user['full_name'] 
             if (tabsPanelsSection) tabsPanelsSection.style.display = '';
         }
 
+        function normalizeCounterValue(value) {
+            var n = Number(value);
+            if (!isFinite(n) || n < 0) return 0;
+            return Math.floor(n);
+        }
+
+        function setMobilityCounter(id, value, isPercent) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            var safeValue = normalizeCounterValue(value);
+            el.textContent = isPercent ? (safeValue + '%') : String(safeValue);
+        }
+
+        function normalizePercentValue(value) {
+            var n = Number(value);
+            if (!isFinite(n) || n < 0) return 0;
+            if (n > 100) return 100;
+            return Math.round(n);
+        }
+
+        function setTrendAnalysisMetric(labelId, barId, value) {
+            var pct = normalizePercentValue(value);
+            var labelEl = document.getElementById(labelId);
+            if (labelEl) labelEl.textContent = '+' + pct + '%';
+            var barEl = document.getElementById(barId);
+            if (barEl) barEl.style.width = pct + '%';
+        }
+
+        async function loadMobilityCounters() {
+            try {
+                var resp = await fetch('api/mobility-counters.php?ts=' + Date.now(), {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
+                var result = await resp.json();
+                if (!resp.ok || !result || !result.success) {
+                    throw new Error((result && result.error) ? result.error : 'Failed to load counters');
+                }
+
+                var counters = result.data || {};
+                setMobilityCounter('kpi-international-awards', counters.international_awards, false);
+                setMobilityCounter('kpi-active-partnerships', counters.active_partnerships, false);
+                setMobilityCounter('kpi-outgoing-exchange-students', counters.outgoing_exchange_students, false);
+                setMobilityCounter('kpi-incoming-exchange-students', counters.incoming_exchange_students, false);
+                setMobilityCounter('kpi-international-faculty-experts', counters.international_faculty_experts, false);
+                setMobilityCounter('kpi-internationalization-target-met', counters.internationalization_target_met_percent, true);
+                setMobilityCounter('kpi-joint-degree-programs', counters.joint_degree_programs, false);
+                setMobilityCounter('kpi-transnational-centers', counters.transnational_centers, false);
+                setMobilityCounter('kpi-international-internships', counters.international_internships, false);
+                setMobilityCounter('kpi-research-grants', counters.research_grants, false);
+                setMobilityCounter('kpi-scholarship-slots', counters.scholarship_slots, false);
+                setMobilityCounter('kpi-asean-event-attendees', counters.asean_event_attendees, false);
+                setTrendAnalysisMetric('trend-inbound-students-label', 'trend-inbound-students-bar', counters.trend_inbound_students_percent);
+                setTrendAnalysisMetric('trend-faculty-mobility-label', 'trend-faculty-mobility-bar', counters.trend_faculty_mobility_percent);
+                setTrendAnalysisMetric('trend-global-awards-label', 'trend-global-awards-bar', counters.trend_global_awards_percent);
+            } catch (_) {
+                // Keep the visual defaults at 0/0% if API is unavailable.
+            }
+        }
+
+        var awardsTbody = document.getElementById('awards-table-body');
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function resolveAwardDotClass(colorToken) {
+            var token = String(colorToken || '').toLowerCase();
+            var map = {
+                violet: 'bg-violet-500',
+                blue: 'bg-blue-500',
+                orange: 'bg-orange-500',
+                emerald: 'bg-emerald-500',
+                pink: 'bg-pink-500'
+            };
+            return map[token] || 'bg-primary';
+        }
+
+        function renderAwardsRows(rows) {
+            if (!awardsTbody) return;
+            awardsTbody.innerHTML = '';
+            var list = Array.isArray(rows) ? rows : [];
+            if (list.length === 0) {
+                awardsTbody.innerHTML = '<tr id="awards-empty-row"><td colspan="8" class="px-6 py-8 text-center text-sm text-on-surface-variant">No awards records yet.</td></tr>';
+                return;
+            }
+
+            list.forEach(function (row) {
+                var dotClass = resolveAwardDotClass(row.color_token);
+                var tr = document.createElement('tr');
+                tr.className = 'hover:bg-surface-container-low transition-colors group';
+                tr.innerHTML =
+                    '<td class="px-6 py-4">' +
+                        '<div class="flex items-center gap-3">' +
+                            '<div class="w-2 h-2 rounded-full ' + dotClass + '"></div>' +
+                            '<span class="text-sm font-semibold text-on-surface">' + escapeHtml(row.indicator_name || '') + '</span>' +
+                        '</div>' +
+                    '</td>' +
+                    '<td class="px-4 py-4 text-center text-sm font-medium">' + normalizeCounterValue(row.y2019) + '</td>' +
+                    '<td class="px-4 py-4 text-center text-sm font-medium">' + normalizeCounterValue(row.y2020) + '</td>' +
+                    '<td class="px-4 py-4 text-center text-sm font-medium">' + normalizeCounterValue(row.y2021) + '</td>' +
+                    '<td class="px-4 py-4 text-center text-sm font-medium">' + normalizeCounterValue(row.y2022) + '</td>' +
+                    '<td class="px-4 py-4 text-center text-sm font-medium">' + normalizeCounterValue(row.y2023) + '</td>' +
+                    '<td class="px-4 py-4 text-center text-sm font-bold text-primary">' + normalizeCounterValue(row.y2024) + '</td>' +
+                    '<td class="px-4 py-4 text-center text-sm font-medium text-slate-400 italic">' + normalizeCounterValue(row.y2025_proj) + '</td>';
+                awardsTbody.appendChild(tr);
+            });
+        }
+
+        async function loadAwardsRecords() {
+            if (!awardsTbody) return;
+            awardsTbody.innerHTML = '<tr id="awards-loading-row"><td colspan="8" class="px-6 py-8 text-center text-sm text-on-surface-variant">Loading awards records...</td></tr>';
+            try {
+                var resp = await fetch('api/mobility-international-awards.php?ts=' + Date.now(), {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
+                var result = await resp.json();
+                if (!resp.ok || !result || !result.success) {
+                    throw new Error((result && result.error) ? result.error : 'Failed to load awards records');
+                }
+                renderAwardsRows(result.data || []);
+            } catch (_) {
+                renderAwardsRows([]);
+            }
+        }
+
         function setTabActive(btn) {
             document.querySelectorAll('.mobility-tab').forEach(function (b) {
                 var on = b === btn;
@@ -2164,6 +2224,8 @@ $displayName = htmlspecialchars(!empty($user['full_name']) ? $user['full_name'] 
             }
         } catch (_) {}
         revealTabsPanelsSection();
+        loadMobilityCounters();
+        loadAwardsRecords();
 
         function openMembershipModal() {
             closeLinkagesModal();
