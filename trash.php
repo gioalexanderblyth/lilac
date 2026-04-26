@@ -73,7 +73,7 @@ try {
         $trashUsesFileBasedDb = true;
     } else {
         // Ensure deleted_at columns exist
-        foreach (['mou_moa', 'other_documents', 'awards', 'events', 'forms'] as $tbl) {
+        foreach (['mou_moa', 'other_documents', 'awards', 'events', 'forms', 'institutional_memberships'] as $tbl) {
             try {
                 $pdo->exec("ALTER TABLE {$tbl} ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL");
             } catch (PDOException $e) {
@@ -180,6 +180,31 @@ try {
             FROM forms f
             LEFT JOIN users u ON f.created_by = u.id
             WHERE f.deleted_at IS NOT NULL
+
+        "));
+        $merged = array_merge($merged, $trashFetch($pdo, "
+            SELECT
+                im.id,
+                im.user_id,
+                im.org_name as title,
+                CONCAT(
+                    'Type: ', IFNULL(im.membership_type,''), ' | Status: ', IFNULL(im.membership_status,''), ' | Year: ',
+                    IF(
+                        im.membership_year_end IS NULL OR im.membership_year_end = 0,
+                        IFNULL(im.membership_year,''),
+                        CONCAT(IFNULL(im.membership_year,''), ' - ', im.membership_year_end)
+                    )
+                ) as description,
+                NULL as file_name,
+                NULL as file_path,
+                'Mobility Programs' as source_page,
+                im.created_at,
+                im.deleted_at,
+                u.username as uploaded_by,
+                'institutional_memberships' as source_table
+            FROM institutional_memberships im
+            LEFT JOIN users u ON im.user_id = u.id
+            WHERE im.deleted_at IS NOT NULL
 
         "));
 
@@ -446,6 +471,10 @@ try {
                                 </button>
                                 <button class="trash-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="page" data-value="Forms">
                                     <span>Forms</span>
+                                    <span class="trash-filter-indicator hidden">✓</span>
+                                </button>
+                                <button class="trash-filter-option w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between" data-filter="page" data-value="Mobility Programs">
+                                    <span>Mobility Programs</span>
                                     <span class="trash-filter-indicator hidden">✓</span>
                                 </button>
 
@@ -885,6 +914,8 @@ Clear Sort
                                 apiUrl = `api/events.php?action=restore&id=${encodeURIComponent(id)}`;
                             } else if (source === 'forms') {
                                 apiUrl = `api/forms.php?action=restore&id=${encodeURIComponent(id)}`;
+                            } else if (source === 'institutional_memberships') {
+                                apiUrl = `api/mobility-memberships.php?action=restore&id=${encodeURIComponent(id)}`;
                             } else {
                                 apiUrl = `api/other-documents.php?action=restore&id=${encodeURIComponent(id)}`;
                             }
@@ -983,6 +1014,8 @@ Clear Sort
                                 apiUrl = `api/events.php?id=${encodeURIComponent(id)}&permanent=true`;
                             } else if (source === 'forms') {
                                 apiUrl = `api/forms.php?id=${encodeURIComponent(id)}&permanent=true`;
+                            } else if (source === 'institutional_memberships') {
+                                apiUrl = `api/mobility-memberships.php?id=${encodeURIComponent(id)}&permanent=true`;
                             } else {
                                 apiUrl = `api/other-documents.php?id=${encodeURIComponent(id)}&permanent=true`;
                             }

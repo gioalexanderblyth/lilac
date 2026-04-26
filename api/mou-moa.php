@@ -491,7 +491,15 @@ function updateEntry($pdo, $id, $data) {
             ]);
         }
 
-        return $stmt->rowCount() > 0;
+        if ($stmt->rowCount() > 0) {
+            return true;
+        }
+
+        // If no rows changed, treat as success when the record exists
+        // (same UX as memberships: saving identical values should not fail).
+        $existsStmt = $pdo->prepare("SELECT id FROM mou_moa WHERE id = ? LIMIT 1");
+        $existsStmt->execute([$id]);
+        return (bool) $existsStmt->fetchColumn();
     } catch (PDOException $e) {
         throw new Exception('Failed to update entry: ' . $e->getMessage());
     }
